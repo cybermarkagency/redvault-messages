@@ -1,0 +1,59 @@
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.label {
+  color: var(--text-2);
+}
+
+.value {
+  color: var(--text);
+  word-break: break-all;
+  font-size: 0.82rem;
+}
+
+.verdict {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.86rem;
+}
+
+.verdictMatch {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.verdictFailed {
+  background: color-mix(in srgb, var(--danger, #e5484d) 18%, transparent);
+  color: var(--danger, #e5484d);
+}
+
+.verdictUnavailable {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.limitations {
+  color: var(--text-2);
+  line-height: 1.4;
+}

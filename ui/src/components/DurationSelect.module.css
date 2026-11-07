@@ -1,0 +1,23 @@
+.track {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  gap: 2px;
+}
+
+.option {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.optionActive {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}

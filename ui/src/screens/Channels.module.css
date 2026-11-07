@@ -1,0 +1,552 @@
+.screen {
+  composes: screen from "./Settings.module.css";
+}
+
+.body {
+  composes: body from "./Settings.module.css";
+  gap: 14px;
+}
+
+.input {
+  composes: input from "./FormScreen.module.css";
+}
+
+.textarea {
+  composes: input from "./FormScreen.module.css";
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
+}
+
+.error {
+  composes: error from "./FormScreen.module.css";
+  margin: 0;
+}
+
+/* The shared buttons are made for full-width rows; these sit side by side. */
+.primaryButton {
+  composes: primaryButton from "./FormScreen.module.css";
+  padding: 10px 16px;
+}
+
+.secondaryButton {
+  composes: secondaryButton from "./FormScreen.module.css";
+  padding: 10px 16px;
+}
+
+.dangerButton {
+  composes: dangerButton from "./FormScreen.module.css";
+  padding: 10px 16px;
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 6px 8px;
+}
+
+.linkButton:disabled {
+  opacity: 0.5;
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--selected);
+  color: var(--accent);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+button.row:hover {
+  background: var(--surface-2);
+}
+
+.rowText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.rowDesc {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta {
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.channelName {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin: 0;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.publicLabel {
+  color: var(--warn);
+}
+
+.composerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-3);
+}
+
+.post {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.postBody {
+  margin: 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.privateTag {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.visibility {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+}
+
+.linkField {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.postActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, 100%);
+  max-height: 80vh;
+  padding: 18px;
+  border-radius: var(--radius-dialog);
+  background: var(--panel);
+  box-shadow: var(--shadow-dialog);
+}
+
+.dialogList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.dialogRow {
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.dialogRow:hover {
+  background: var(--surface-2);
+}
+
+/* One channel: a chat's layout and pieces, without a chat's security details. */
+.chatLayout {
+  composes: layout from "./Thread.module.css";
+  position: relative;
+}
+
+.chatScreen {
+  composes: screen from "./Thread.module.css";
+}
+
+.chatHeader {
+  composes: header from "./Thread.module.css";
+}
+
+.headerButton {
+  composes: headerButton from "./Thread.module.css";
+}
+
+.headerText {
+  composes: headerText from "./Thread.module.css";
+}
+
+.headerName {
+  composes: headerName from "./Thread.module.css";
+}
+
+.headerStatus {
+  composes: headerStatus from "./Thread.module.css";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconButton {
+  composes: iconButton from "./Thread.module.css";
+}
+
+.iconButtonOn {
+  composes: iconButtonOn from "./Thread.module.css";
+}
+
+.thread {
+  composes: messages from "./Thread.module.css";
+}
+
+.threadEmpty {
+  margin: auto;
+}
+
+.daySeparator {
+  composes: daySeparator from "./Thread.module.css";
+}
+
+.olderButton {
+  composes: secondaryButton;
+  align-self: center;
+  margin-bottom: 8px;
+}
+
+.postRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.postBubble {
+  composes: bubble received from "../components/MessageBubble.module.css";
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(240px, 80%);
+}
+
+.postName {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.bubbleFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bubbleMeta {
+  composes: meta from "../components/MessageBubble.module.css";
+  margin-top: 0;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Forward and Delete show on hover or keyboard focus, like a chat bubble's actions. */
+.postBubble .postActions {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.postBubble:hover .postActions,
+.postBubble:focus-within .postActions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .postBubble .postActions {
+    opacity: 1;
+  }
+}
+
+.postBubble .linkButton {
+  padding: 2px 6px 2px 0;
+  font-size: 0.74rem;
+}
+
+.threadNotice {
+  flex-shrink: 0;
+  padding: 0 20px 8px;
+  text-align: center;
+}
+
+.threadNotice p {
+  margin: 0;
+}
+
+.composerWrap {
+  composes: composerWrap from "./Thread.module.css";
+}
+
+.readerBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.readerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.readerText {
+  flex: 1;
+  min-width: 150px;
+}
+
+.ownerStrip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 45%;
+  overflow-y: auto;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ownerStrip:empty {
+  display: none;
+}
+
+.stripList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.scheduledPost {
+  composes: post;
+  background: var(--bg);
+}
+
+.infoPanel {
+  composes: panel from "../components/ChatDetails.module.css";
+  gap: 14px;
+  padding: 12px 16px 24px;
+}
+
+.infoTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.infoText {
+  composes: headerText;
+  gap: 4px;
+}
+
+@media (max-width: 859px) {
+  /* The disclosure is never cut off: it wraps rather than ending in "…". */
+  .headerStatus {
+    overflow: visible;
+    font-size: 0.74rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  .infoPanel {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    width: auto;
+    border-left: none;
+  }
+
+  .ownerStrip {
+    padding: 8px 12px;
+  }
+
+  .postBubble {
+    max-width: calc(100% - 40px);
+  }
+}

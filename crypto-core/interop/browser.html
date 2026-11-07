@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E2EE interop: web driver</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; padding: 16px; background: Canvas; color: CanvasText; }
+  code { font-size: 0.9em; }
+  #log { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Web driver (WebAssembly in this browser)</h1>
+<p>Runs the shared Rust engine compiled to WebAssembly. The interop run posts engine requests to the relay; this page executes them here and posts the responses back. No plaintext or key leaves this page except inside those responses, which go only to the local relay.</p>
+<p>Status: <strong id="status">loading…</strong> · requests handled: <strong id="count">0</strong></p>
+<div id="log"></div>
+<script type="module">
+  import init, { call } from "./pkg/redvault_e2ee.js";
+  const status = document.getElementById("status");
+  const count = document.getElementById("count");
+  const log = document.getElementById("log");
+  await init();
+  const version = JSON.parse(call(JSON.stringify({ op: "version" })));
+  status.textContent = `ready (engine ${version.engine}, vodozemac ${version.vodozemac}, WebAssembly in this browser)`;
+  window.__rvReady = true;
+  let handled = 0;
+  for (;;) {
+    let job;
+    try {
+      const res = await fetch("/jobs/web/next", { cache: "no-store" });
+      if (res.status === 204) continue;
+      job = await res.json();
+    } catch {
+      await new Promise((r) => setTimeout(r, 1000));
+      continue;
+    }
+    const response = call(job.request);
+    await fetch("/jobs/web/result", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: job.id, response }) });
+    handled++;
+    count.textContent = String(handled);
+    const op = JSON.parse(job.request).op;
+    const ok = JSON.parse(response).ok;
+    log.textContent = `${op} → ${ok ? "ok" : JSON.parse(response).error}\n` + log.textContent.slice(0, 4000);
+  }
+</script>
+</body>
+</html>

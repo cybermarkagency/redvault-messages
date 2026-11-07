@@ -1,0 +1,70 @@
+{
+  "comment": "Protocol 3 chat content (docs/multi-device-threat-model.md 9.3). Every client must give the same result for each case, in any arrival order.",
+  "conversation": "11111111-1111-4111-8111-111111111111",
+  "fold": [
+    {
+      "name": "the sender's latest edit wins, by the sender's clock then by id",
+      "records": [
+        { "t": "text", "id": "aaaaaaaa-0000-4000-8000-000000000001", "from": "alice", "ts": 1000, "body": "first" },
+        { "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000003", "from": "alice", "ts": 3000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "body": "third" },
+        { "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "alice", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "body": "second" }
+      ],
+      "expect": [{ "id": "aaaaaaaa-0000-4000-8000-000000000001", "text": "third", "edited": true, "deleted": false, "reactions": [] }]
+    },
+    {
+      "name": "someone else can't edit your message",
+      "records": [
+        { "t": "text", "id": "aaaaaaaa-0000-4000-8000-000000000001", "from": "alice", "ts": 1000, "body": "mine" },
+        { "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "mallory", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "body": "forged" }
+      ],
+      "expect": [{ "id": "aaaaaaaa-0000-4000-8000-000000000001", "text": "mine", "edited": false, "deleted": false, "reactions": [] }]
+    },
+    {
+      "name": "someone else can't delete your message",
+      "records": [
+        { "t": "text", "id": "aaaaaaaa-0000-4000-8000-000000000001", "from": "alice", "ts": 1000, "body": "mine" },
+        { "t": "delete", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "mallory", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001" }
+      ],
+      "expect": [{ "id": "aaaaaaaa-0000-4000-8000-000000000001", "text": "mine", "edited": false, "deleted": false, "reactions": [] }]
+    },
+    {
+      "name": "a delete beats edits and reactions, and arrives before the message",
+      "records": [
+        { "t": "delete", "id": "aaaaaaaa-0000-4000-8000-000000000003", "from": "alice", "ts": 3000, "target": "aaaaaaaa-0000-4000-8000-000000000001" },
+        { "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000004", "from": "bob", "ts": 2500, "target": "aaaaaaaa-0000-4000-8000-000000000001", "emoji": "👍" },
+        { "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "alice", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "body": "edited" },
+        { "t": "text", "id": "aaaaaaaa-0000-4000-8000-000000000001", "from": "alice", "ts": 1000, "body": "gone" }
+      ],
+      "expect": [{ "id": "aaaaaaaa-0000-4000-8000-000000000001", "text": "", "edited": false, "deleted": true, "reactions": [] }]
+    },
+    {
+      "name": "one reaction per person: the latest stands, an empty emoji removes it",
+      "records": [
+        { "t": "text", "id": "aaaaaaaa-0000-4000-8000-000000000001", "from": "alice", "ts": 1000, "body": "hi" },
+        { "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "bob", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "emoji": "👍" },
+        { "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000003", "from": "bob", "ts": 3000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "emoji": "🔥" },
+        { "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000004", "from": "carol", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "emoji": "👍" },
+        { "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000005", "from": "carol", "ts": 3000, "target": "aaaaaaaa-0000-4000-8000-000000000001", "emoji": "" }
+      ],
+      "expect": [{ "id": "aaaaaaaa-0000-4000-8000-000000000001", "text": "hi", "edited": false, "deleted": false, "reactions": [{ "user": "bob", "emoji": "🔥" }] }]
+    },
+    {
+      "name": "an op for a message that never arrives shows nothing",
+      "records": [
+        { "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000002", "from": "alice", "ts": 2000, "target": "aaaaaaaa-0000-4000-8000-000000000009", "body": "nowhere" }
+      ],
+      "expect": []
+    }
+  ],
+  "decode": [
+    { "name": "a reaction", "accept": "op", "envelope": { "v": 1, "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002", "emoji": "👍" } },
+    { "name": "an edit", "accept": "op", "envelope": { "v": 1, "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002", "body": "new" } },
+    { "name": "a delete", "accept": "op", "envelope": { "v": 1, "t": "delete", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002" } },
+    { "name": "bound to another conversation", "accept": "ignore", "envelope": { "v": 1, "t": "delete", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "22222222-2222-4222-8222-222222222222", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002" } },
+    { "name": "a target that isn't an id", "accept": "ignore", "envelope": { "v": 1, "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "nope", "body": "x" } },
+    { "name": "an empty edit", "accept": "ignore", "envelope": { "v": 1, "t": "edit", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002", "body": "" } },
+    { "name": "an emoji that's too long", "accept": "ignore", "envelope": { "v": 1, "t": "reaction", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000, "target": "aaaaaaaa-0000-4000-8000-000000000002", "emoji": "0123456789012345678901234567890123" } },
+    { "name": "a file with no descriptor", "accept": "ignore", "envelope": { "v": 1, "t": "file", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000 } },
+    { "name": "an unknown type", "accept": "ignore", "envelope": { "v": 1, "t": "sticker", "id": "aaaaaaaa-0000-4000-8000-000000000001", "c": "11111111-1111-4111-8111-111111111111", "ts": 1000 } }
+  ]
+}

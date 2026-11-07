@@ -1,0 +1,141 @@
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 116px;
+}
+
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-auto-rows: minmax(160px, 1fr);
+}
+
+/* A shared screen takes the stage; everyone else goes in a strip beside it. */
+.spotlight {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+}
+
+.spotlightMain {
+  min-height: 0;
+  display: flex;
+}
+
+.spotlightMain > .tile {
+  flex: 1;
+}
+
+.strip {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.strip > .tile {
+  flex: 0 0 auto;
+  aspect-ratio: 16 / 10;
+}
+
+@media (max-width: 760px) {
+  .spotlight {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .strip {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .strip > .tile {
+    width: 160px;
+  }
+
+  .body {
+    padding: 0 12px 108px;
+  }
+}
+
+.tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border: 2px solid transparent;
+  background: var(--surface-3);
+}
+
+.speaking {
+  border-color: var(--accent);
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.screenVideo {
+  object-fit: contain;
+  background: #121816;
+}
+
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.tileLabel {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11, 14, 13, 0.82);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waiting {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(11, 14, 13, 0.82);
+  color: var(--text-3);
+  font-size: 0.88rem;
+}
+
+.warning {
+  align-self: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.88rem;
+}

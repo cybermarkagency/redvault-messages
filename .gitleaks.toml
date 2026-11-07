@@ -1,0 +1,24 @@
+# gitleaks configuration (used by .github/workflows/license-compliance.yml).
+# Default rules, minus the "generic-api-key" false positives on fixed test
+# keys: test vectors and test files hold deliberately published test keys,
+# lockfiles hold checksums. Real-secret rules (Stripe, AWS, GitHub, private
+# keys, ...) still apply everywhere.
+title = "RedVault gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test vectors, tests, lockfiles and recorded local test traffic"
+paths = [
+  '''(^|/)tests?/vectors/''',
+  '''(^|/)src/test/''',
+  '''(^|/)src/androidTest/''',
+  '''(^|/)tests/[^/]+\.(cpp|rs|json)$''',
+  '''(^|/)test/.*\.test\.tsx?$''',
+  '''(^|/)Cargo\.lock$''',
+  '''(^|/)package-lock\.json$''',
+  '''^desktop/privacy-proof/''',
+  '''^tor-core/poc/''',
+  '''^crypto-core/fuzz/corpus/''',
+]

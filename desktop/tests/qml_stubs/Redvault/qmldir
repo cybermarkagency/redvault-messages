@@ -1,0 +1,8 @@
+module Redvault
+singleton App 1.0 App.qml
+singleton Theme 1.0 Theme.qml
+ChatSession 1.0 ChatSession.qml
+DeviceKeys 1.0 DeviceKeys.qml
+IconButton 1.0 IconButton.qml
+RvTextField 1.0 RvTextField.qml
+MessageDelegate 1.0 MessageDelegate.qml

@@ -1,0 +1,237 @@
+{
+  "channelId": "11111111-2222-4333-8444-555555555555",
+  "tokens": [
+    {
+      "secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "access": "KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk="
+    },
+    {
+      "secret": "-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_s",
+      "access": "HwGfV6rCpofCQuy87c33mFv3+XHnoGBF9YVuqPkRW1U="
+    },
+    {
+      "secret": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "access": "bMa84DenPiXmtBnl6t0js5KUCyXOHxqFjeEwZUX5+Gc="
+    },
+    {
+      "secret": "K1e7KP3Ml9HyVH8XVIoHUMLHYexwhvm5ofc6sLZHR1Q",
+      "access": "L1Ik7zZloJoq3omZF/OrhreXPgN4xc6ZKrrWriw1UhU="
+    }
+  ],
+  "fragmentCases": [
+    {
+      "fragment": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
+    },
+    {
+      "fragment": "#AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
+    },
+    {
+      "fragment": "QIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "secret": null
+    },
+    {
+      "fragment": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "secret": null
+    },
+    {
+      "fragment": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAx",
+      "secret": null
+    },
+    {
+      "fragment": "-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_s",
+      "secret": "-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_s"
+    },
+    {
+      "fragment": "+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/s",
+      "secret": null
+    },
+    {
+      "fragment": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+      "secret": null
+    },
+    {
+      "fragment": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw",
+      "secret": null
+    },
+    {
+      "fragment": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyB",
+      "secret": null
+    },
+    {
+      "fragment": "AQIDBAUGBwgJCgsMDQ4P BESExQVFhcYGRobHB0eHyA",
+      "secret": null
+    },
+    {
+      "fragment": "#",
+      "secret": null
+    },
+    {
+      "fragment": "",
+      "secret": null
+    }
+  ],
+  "owner": {
+    "publicKey": "7eI5P+Le/Q/3A3mYQcaZsD/WNKm5xBHtdg33vOXVwmc=",
+    "privateKey": "Po/jqzDAqr9UrNJ289i7vCt8pKlJXSBPJVus9XjHTIY="
+  },
+  "other": {
+    "publicKey": "+o/jqIRHvAWmQExxsS1Iw1uWhMhWH7k1V2yliOSMuBc=",
+    "privateKey": "B5m/ksQbXT0wnDsHR1bpcH5AqbzqIphX989VHouw/YU="
+  },
+  "sealed": {
+    "secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+    "sealed": "cwE9N/wnPqCGEUwcQLCx/nH6P43oI3v/ZelQkDxfPwNc7uwoYVXn+UtOLibV9yICZP7eaT1M85C7TkKzKVddXnHx9/g8/7po5xB9GFY8EunX6d+66rRQWqP/7g=="
+  },
+  "webBase": "http://localhost:3000/",
+  "publicUrl": "http://localhost:3000/?channel=11111111-2222-4333-8444-555555555555",
+  "privateUrl": "http://localhost:3000/?channel=11111111-2222-4333-8444-555555555555#AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "forwards": [
+    {
+      "text": "Hello everyone",
+      "ref": {
+        "channelId": "11111111-2222-4333-8444-555555555555",
+        "postId": "AAAAAAAA-0000-4000-8000-000000000001",
+        "channelName": "RedVault news"
+      },
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hello everyone\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"RedVault news\"}}"
+    },
+    {
+      "text": "Line one\nline \"two\" 🔒",
+      "ref": {
+        "channelId": "11111111-2222-4333-8444-555555555555",
+        "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "channelName": "  Café​ \t \"crew\"\n🔒 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  "
+      },
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Line one\\nline \\\"two\\\" 🔒\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"Café \\\"crew\\\" 🔒 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}"
+    }
+  ],
+  "parseCases": [
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hello everyone\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"RedVault news\"}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Hello everyone",
+        "forwarded": true,
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "RedVault news"
+        }
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Line one\\nline \\\"two\\\" 🔒\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"Café \\\"crew\\\" 🔒 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Line one\nline \"two\" 🔒",
+        "forwarded": true,
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "Café \"crew\" 🔒 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"News\"}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Hi",
+        "forwarded": true,
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "News"
+        }
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"AAAAAAAA-0000-4000-8000-000000000001\",\"channelName\":\"News\"}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Hi",
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "News"
+        }
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"  a​​b\\n\\nc yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Hi",
+        "forwarded": true,
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "ab c yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+        }
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"nope\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"News\"}}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":7,\"channelName\":\"News\"}}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\"}}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":7}}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\" ​⁠ \"}}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":null}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":\"x\"}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":[]}",
+      "parsed": {
+        "kind": "invalid"
+      }
+    },
+    {
+      "body": "\u0000rv-msg:{\"type\":\"text\",\"version\":1,\"text\":\"Hi\",\"forwarded\":true,\"channelPost\":{\"channelId\":\"11111111-2222-4333-8444-555555555555\",\"postId\":\"aaaaaaaa-0000-4000-8000-000000000001\",\"channelName\":\"News\",\"extra\":1}}",
+      "parsed": {
+        "kind": "text",
+        "text": "Hi",
+        "forwarded": true,
+        "channelPost": {
+          "channelId": "11111111-2222-4333-8444-555555555555",
+          "postId": "aaaaaaaa-0000-4000-8000-000000000001",
+          "channelName": "News"
+        }
+      }
+    }
+  ]
+}

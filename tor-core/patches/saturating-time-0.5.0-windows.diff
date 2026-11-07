@@ -1,0 +1,48 @@
+--- a/src/internal.rs
++++ b/src/internal.rs
+@@ -25,7 +25,7 @@
+ static MIN_INSTANT: LazyLock<Instant> = LazyLock::new(find_min);
+ 
+ /// An internal trait implementing the actual magic behind this.
+-pub trait SaturatingTime: Sized + Copy {
++pub trait SaturatingTime: Sized + Copy + PartialEq {
+     /// Anchor method to obtain an instance of this type.
+     fn anchor() -> Self;
+ 
+@@ -142,11 +142,14 @@
+         // (2) Call f().
+         let next = f(&res, step);
+         match next {
+-            Some(st) => {
++            // REDVAULT PATCH: a step below the platform's resolution (100ns
++            // for SystemTime on Windows) returns Some(res) unchanged, which
++            // made this loop spin forever. No progress counts as None.
++            Some(st) if st != res => {
+                 // (2.1) If Some, set res to the returned value and continue.
+                 res = st;
+             }
+-            None => {
++            _ => {
+                 if step == ONE_NS {
+                     // (2.2) If None and step == 1ns, return res.
+                     return res;
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -150,7 +150,7 @@
+     /// ```
+     fn saturating_add(self, duration: Duration) -> Self {
+         self.checked_add(duration)
+-            .unwrap_or(SaturatingTime::max_value())
++            .unwrap_or_else(SaturatingTime::max_value)
+     }
+ 
+     /// Performs a saturating subtraction of a [`Duration`].
+@@ -174,7 +174,7 @@
+     /// ```
+     fn saturating_sub(self, duration: Duration) -> Self {
+         self.checked_sub(duration)
+-            .unwrap_or(SaturatingTime::min_value())
++            .unwrap_or_else(SaturatingTime::min_value)
+     }
+ 
+     /// Performs a saturating time difference calculation between two points.

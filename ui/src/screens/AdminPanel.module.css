@@ -1,0 +1,142 @@
+.screen {
+  composes: screen from "./Settings.module.css";
+}
+
+.body {
+  composes: body from "./Settings.module.css";
+}
+
+.section {
+  composes: section from "./Settings.module.css";
+}
+
+.sectionLabel {
+  composes: sectionLabel from "./Settings.module.css";
+}
+
+.row {
+  composes: row from "./Settings.module.css";
+}
+
+.hint {
+  color: var(--text-2);
+}
+
+.input {
+  composes: input from "./FormScreen.module.css";
+}
+
+.primaryButton {
+  composes: primaryButton from "./FormScreen.module.css";
+}
+
+.secondaryButton {
+  composes: secondaryButton from "./FormScreen.module.css";
+}
+
+.dangerButton {
+  composes: dangerButton from "./FormScreen.module.css";
+}
+
+.error {
+  composes: error from "./FormScreen.module.css";
+}
+
+.success {
+  composes: success from "./FormScreen.module.css";
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tabActive {
+  color: var(--accent);
+}
+
+.rowActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.rowActions .primaryButton,
+.rowActions .secondaryButton,
+.rowActions .dangerButton {
+  padding: 7px 12px;
+  font-size: 0.76rem;
+}
+
+.filterRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.filterButtonActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.reportCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+/* Create account: the three consent boxes, ticked for the person it's for. */
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.consentRow input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.consentLink {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

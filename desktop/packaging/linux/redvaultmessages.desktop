@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=redvaultmessages
+Comment=End-to-end encrypted messenger
+Exec=redvaultmessages
+Icon=redvaultmessages
+Terminal=false
+Categories=Network;InstantMessaging;

@@ -1,0 +1,211 @@
+.lead {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.55;
+  max-width: 640px;
+}
+
+.subhead {
+  margin: 8px 4px -6px;
+}
+
+.group {
+  /* Never squashed by a long page's scrolling column. */
+  flex-shrink: 0;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow: hidden;
+  /* In a scrolling flex column, a clipped card would otherwise shrink below its content. */
+  flex-shrink: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  font: inherit;
+}
+
+.group > .row:last-child {
+  border-bottom: none;
+}
+
+button.row:hover,
+a.row:hover {
+  background: var(--surface-2);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-weight: 500;
+  font-size: 0.97rem;
+}
+
+.rowDetail {
+  color: var(--text-2);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.person > svg {
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.smallButton {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.smallButton:disabled {
+  opacity: 0.45;
+}
+
+.dangerButton {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.select {
+  max-width: 55%;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 0.84rem;
+}
+
+.testArea {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview {
+  width: min(360px, 100%);
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: #000;
+}
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  max-width: 360px;
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 80ms linear;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.ok {
+  color: var(--accent);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.labelInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-size: 0.95rem;
+}
+
+/* A link inside a row's detail text (the source offer in About). */
+.inlineLink {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -1,0 +1,109 @@
+.surface {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.shell {
+  display: flex;
+  height: 100%;
+  transition: filter 0.1s ease;
+}
+
+.blurred {
+  filter: blur(16px);
+  pointer-events: none;
+}
+
+/* A short message over everything, e.g. a call link that couldn't be opened. */
+.notice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(520px, calc(100% - 32px));
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow-dialog);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.notice span {
+  flex: 1;
+}
+
+.notice button {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Desktop columns: nav rail · list (360) · main (flex). */
+.listPane {
+  width: var(--list-width);
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid var(--border);
+}
+
+.settingsNavPane {
+  width: 240px;
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.mainPane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* Phone: one screen, tab bar underneath. */
+.mobileColumn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.mobileMain {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.emptyMain {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 860px) and (max-width: 1100px) {
+  .listPane {
+    width: 300px;
+  }
+  .settingsNavPane {
+    width: 210px;
+  }
+}

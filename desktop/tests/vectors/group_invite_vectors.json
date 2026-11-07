@@ -1,0 +1,200 @@
+{
+  "groupKey": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+  "name": "Café \"crew\" 🔒\n\t\u0001 </>",
+  "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+  "webBase": "http://localhost:3000/",
+  "open": {
+    "secret": "shufc2uTCKLdb+Dyivxz21mssruqZ5NZbeyPIPLyLnw=",
+    "fragment": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+    "key": "x99bWORSSfTtnMbrDVXTh4YAIgvgdwe3uDBoamSpvZM=",
+    "auth": "XzF7hXV/9JRONtoJuyjCqr1uCPrWvWSuGhegjHcAEJ4=",
+    "input": {
+      "auth": "XzF7hXV/9JRONtoJuyjCqr1uCPrWvWSuGhegjHcAEJ4=",
+      "secretCiphertext": "3y48KKrWcS2C3eg+Bf/gRTQUWn9ykT7N3Nw8Hx7Uyt0TXLFN3ieXc5Vf0T9L2ZWd",
+      "secretNonce": "7/BaBO3nodghP8r1R9XS4hfSpw+HQPmy",
+      "previewCiphertext": "3wHt7MeEDL0PEKoDXEniQ4DkwqnqpdQNQ3YDua8Qz32WkU6TS/Bsm1WqobfBkl8NrlVSqNB4ukFKgyPqICYTbvBN",
+      "previewNonce": "4WBHibTCB+Cg8p6M/VEgUmPOuxQOie52",
+      "wrappedKey": "4Jwi71q409cb2lLun5Com1g65htxxYwuLGpR4tnd/hl1Mz/Vk/MPa0G1olPLg9bQ",
+      "wrappedKeyNonce": "taL5fBSTgViQ0enmyM3cYGKEe9cfVurC"
+    },
+    "url": "http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+    "previewName": "Café \"crew\" 🔒\n\t\u0001 </>"
+  },
+  "approval": {
+    "secret": "0fMu/EdnJuiE5dERpBMhml9SnJ6BR3D3Evv6rsbKGq0=",
+    "auth": "fVXKDTrA2zLEEXeTf8Ai7BzcDhJ81FrXsEzCbv9Iddg=",
+    "input": {
+      "auth": "fVXKDTrA2zLEEXeTf8Ai7BzcDhJ81FrXsEzCbv9Iddg=",
+      "secretCiphertext": "XE59D2s8NAG9ccH6DggZfViDjXeWrTxYqVr1OWgsdOHE2DjVeWgSAvDBidqAkG+D",
+      "secretNonce": "VqBRBvl6wrqV/XBbxeiZTEXGYpxrFrIs",
+      "previewCiphertext": "a5SiC7oDjxXVy25HmPTqA+7lGZmOFCJuV8OvsByFmjoxEX+7xZBdii9k",
+      "previewNonce": "GPyXB5j2cXdRBHHpE6K65RAg+nJJDIeW",
+      "wrappedKey": null,
+      "wrappedKeyNonce": null
+    },
+    "previewName": "Book club"
+  },
+  "oddPreviews": [
+    {
+      "json": "{\"v\":1}",
+      "previewCiphertext": "NsP68C/3yPy7joKBaT8focHFTvHu1Fg=",
+      "previewNonce": "3DkczOamyBelXb9TTPRj7nTv/BYbtUbY",
+      "name": "Group"
+    },
+    {
+      "json": "{\"v\":1,\"name\":7}",
+      "previewCiphertext": "c/INLp61Ed1ZEdtqdm5PzOtTDYkf3hjRkLpQlPP8rbI=",
+      "previewNonce": "AKbC5YUG+aYjMMRKD/cYVbiEPC1U3hLb",
+      "name": "Group"
+    },
+    {
+      "json": "{\"name\":\"Ünïcode \\u00e9\"}",
+      "previewCiphertext": "THA+WM42Juu32dY1lqJEcA/c/YtNQFcpxr/lTHDOxZKVums/pMkqj6K4QQ==",
+      "previewNonce": "k4T2SUljRH3ID/F8WZaXNSGWoTmiaSNB",
+      "name": "Ünïcode é"
+    }
+  ],
+  "wrapForApprovalOff": {
+    "secret": "0fMu/EdnJuiE5dERpBMhml9SnJ6BR3D3Evv6rsbKGq0=",
+    "wrappedKey": "XrmQPiGfTrEigglZ/0Lth5PbULIU/TZEz9Z6GNOjHPacNNODv+Y1bl1O+dw7FE9v",
+    "wrappedKeyNonce": "BYBPLpcIzXBLAU4ng0rB3mWa7MZBww1l"
+  },
+  "joiner": {
+    "publicKey": "xE5CklF3Hsdhl8eh+OoomhjKPden4QK6fMhN9rVcvho=",
+    "privateKey": "TzcNYUbekZzBzkcol3ddmmwoNMUJ4I4U78srUhiPlK4=",
+    "sealedGroupKey": "RY9GVI5/7Qd+iIG8cfFoiAX92gxWmM02jDZgopaJbR+xey/enDcg5FpX8/26aw2m2QJ60lHNRHpiGlcT3wnGLuvAYT9PTRcbtb3GKTUJqeI="
+  },
+  "parseCases": [
+    {
+      "text": "http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "Join us: http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw see you there",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "  http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw\n",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA",
+      "result": null
+    },
+    {
+      "text": "?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "https://x.example/app/?a=1&invite=Vx3_kQ-9aZ0bC1dE2fG3hA&b=2#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "https://x.example/?inv%69te=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": {
+        "linkId": "Vx3_kQ-9aZ0bC1dE2fG3hA",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "https://x.example/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA%21#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": null
+    },
+    {
+      "text": "https://x.example/?invite=&invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": null
+    },
+    {
+      "text": "https://x.example/?invite=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": {
+        "linkId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "secret": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw"
+      }
+    },
+    {
+      "text": "https://x.example/?invite=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": null
+    },
+    {
+      "text": "https://x.example/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnwx",
+      "result": null
+    },
+    {
+      "text": "https://x.example/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#hufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": null
+    },
+    {
+      "text": "https://x.example/?join=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "result": null
+    },
+    {
+      "text": "https://x.example/#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw?invite=Vx3_kQ-9aZ0bC1dE2fG3hA",
+      "result": null
+    },
+    {
+      "text": "http://localhost:3000/?invite=Vx3_kQ-9aZ0bC1dE2fG3hA#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw.",
+      "result": null
+    },
+    {
+      "text": "hello world",
+      "result": null
+    },
+    {
+      "text": "",
+      "result": null
+    }
+  ],
+  "fragmentCases": [
+    {
+      "fragment": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "secret": "shufc2uTCKLdb+Dyivxz21mssruqZ5NZbeyPIPLyLnw="
+    },
+    {
+      "fragment": "#shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "secret": "shufc2uTCKLdb+Dyivxz21mssruqZ5NZbeyPIPLyLnw="
+    },
+    {
+      "fragment": "hufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw",
+      "secret": null
+    },
+    {
+      "fragment": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnw=",
+      "secret": null
+    },
+    {
+      "fragment": "-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_s",
+      "secret": "+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/s="
+    },
+    {
+      "fragment": "+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/s",
+      "secret": null
+    },
+    {
+      "fragment": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+      "secret": null
+    },
+    {
+      "fragment": "shufc2uTCKLdb-Dyivxz21mssruqZ5NZbeyPIPLyLnB",
+      "secret": null
+    },
+    {
+      "fragment": "",
+      "secret": null
+    }
+  ]
+}

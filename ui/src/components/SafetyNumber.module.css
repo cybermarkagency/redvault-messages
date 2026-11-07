@@ -1,0 +1,12 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 14px;
+  padding: 16px;
+  background: var(--surface-2);
+  border-radius: var(--radius-card);
+}
+
+.group {
+  text-align: center;
+}

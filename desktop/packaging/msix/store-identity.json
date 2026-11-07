@@ -1,0 +1,7 @@
+{
+  "_help": "Copy these from Partner Center: your app > Product management > Product identity. Not secret. displayName must be the name you reserved.",
+  "name": "cybermarkagency.Redvaultmessages",
+  "publisher": "CN=158639A8-AB89-4AA0-866D-BAB7C48FD2A6",
+  "publisherDisplayName": "cybermarkagency",
+  "displayName": "Redvaultmessages"
+}

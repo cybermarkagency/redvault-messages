@@ -1,0 +1,320 @@
+/* Chart ink, from the handoff: series blue #3987e5 with a 12% area fill,
+   gridlines #232A27, baseline #383835, axis labels #8A938D in Plex Mono 11px. */
+.figure {
+  margin: 0;
+  min-width: 0;
+}
+
+.plot {
+  position: relative;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.grid {
+  stroke: #232a27;
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: #383835;
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: #8a938d;
+  font: 400 11px var(--font-mono);
+}
+
+.axisLabel {
+  fill: #8a938d;
+  font: 400 11px var(--font-ui);
+}
+
+.area {
+  fill: rgba(57, 135, 229, 0.12);
+}
+
+.line,
+.lineForecast {
+  fill: none;
+  stroke: #3987e5;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lineForecast {
+  stroke-dasharray: 5 5;
+}
+
+.forecastZone {
+  fill: rgba(255, 255, 255, 0.025);
+}
+
+.forecastLabel {
+  fill: #9aa39d;
+  font: 500 11px var(--font-ui);
+}
+
+.dot {
+  fill: #3987e5;
+}
+
+.crosshair {
+  stroke: #9aa39d;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.marker {
+  fill: #3987e5;
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.bar {
+  fill: #3987e5;
+}
+
+.barHover {
+  fill: #6da7ec;
+}
+
+.reference {
+  stroke: #9aa39d;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: var(--surface-3);
+  box-shadow: var(--shadow-popup);
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tooltip strong {
+  color: var(--text);
+  font: 500 13px var(--font-mono);
+}
+
+.empty {
+  margin: 0;
+  padding: 24px 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+/* Heatmap */
+.heat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heatRow {
+  display: grid;
+  grid-template-columns: 44px repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  align-items: center;
+}
+
+.heatRowLabel {
+  color: #8a938d;
+  font-size: 11px;
+}
+
+.heatCell {
+  position: relative;
+  height: 18px;
+  border-radius: 3px;
+}
+
+.heatCell:hover {
+  outline: 2px solid var(--text);
+  outline-offset: -1px;
+}
+
+.heatTip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 6px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-3);
+  box-shadow: var(--shadow-popup);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.heatTipLeft {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.heatAxis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 47px;
+  color: #8a938d;
+  font: 400 11px var(--font-ui);
+}
+
+/* Stacked bar */
+.stacked {
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #26302b;
+}
+
+.stacked span {
+  display: block;
+  min-width: 3px;
+}
+
+.stacked span:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.stacked span:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+/* Ranked bars */
+.ranked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ranked li {
+  display: grid;
+  grid-template-columns: minmax(80px, 30%) 1fr auto;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.rankedWithCount li {
+  grid-template-columns: minmax(80px, 22%) 1fr auto 72px;
+}
+
+.rankedLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-2);
+}
+
+.rankedName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.rankedTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: #26302b;
+}
+
+.rankedFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.rankedCount {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rankedValue {
+  color: var(--text);
+  font: 400 13px var(--font-mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Meter */
+.meter {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #26302b;
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #3987e5;
+}
+
+.meterWarning {
+  background: #fab219;
+}
+
+.meterCritical {
+  background: #d03b3b;
+}
+
+@media print {
+  .grid {
+    stroke: #dddddd;
+  }
+  .baseline {
+    stroke: #999999;
+  }
+  .axisText,
+  .axisLabel {
+    fill: #444444;
+  }
+  .rankedLabel,
+  .rankedValue {
+    color: #111111;
+  }
+  .rankedTrack,
+  .meter {
+    background: #eeeeee;
+  }
+}

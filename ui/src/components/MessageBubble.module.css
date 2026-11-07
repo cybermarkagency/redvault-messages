@@ -1,0 +1,424 @@
+.row {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.rowSent {
+  justify-content: flex-end;
+}
+
+.rowReceived {
+  justify-content: flex-start;
+}
+
+.bubble {
+  position: relative;
+  max-width: min(72%, 560px);
+  padding: 10px 14px 8px;
+  border-radius: var(--radius-bubble);
+}
+
+.sent {
+  background: var(--bubble-out);
+  color: var(--text);
+  border-bottom-right-radius: var(--radius-bubble-tail);
+}
+
+.received {
+  background: var(--selected);
+  color: var(--text);
+  border-bottom-left-radius: var(--radius-bubble-tail);
+}
+
+.text {
+  font-size: 0.97rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.sent .meta {
+  color: #b9d6c6;
+}
+
+.metaSent {
+  justify-content: flex-end;
+}
+
+/* Reply / react / delete show on hover or keyboard focus, like the design's quiet bubbles. */
+.actionButton,
+.deleteButton {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.bubble:hover .actionButton,
+.bubble:hover .deleteButton,
+.bubble:focus-within .actionButton,
+.bubble:focus-within .deleteButton {
+  opacity: 0.8;
+}
+
+@media (hover: none) {
+  .actionButton,
+  .deleteButton {
+    opacity: 0.7;
+  }
+}
+
+.deleteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-left: 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+
+.bubble .deleteButton:hover,
+.bubble .actionButton:hover {
+  opacity: 1;
+}
+
+.statusButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.64rem;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.statusButton:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.securityPanel {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.securityTitle {
+  opacity: 0.75;
+  margin-bottom: 2px;
+}
+
+.securityRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  opacity: 0.9;
+}
+
+.securityRowOk {
+  color: inherit;
+}
+
+.securityRowFailed {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.securityRowPending {
+  opacity: 0.6;
+}
+
+.detailsLink {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.66rem;
+  text-decoration: underline;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.detailsLink:hover {
+  opacity: 1;
+}
+
+/* Replies and reactions */
+
+.quote {
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-left: 3px solid currentColor;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  font-size: 0.74rem;
+}
+
+.quoteWho {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.quoteText {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionButton {
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.picker {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.pickerEmoji {
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.reactionChip {
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.reactionMine {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-weight: 600;
+}
+
+.sender {
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Outlined for a moment when the pinned bar jumps here. */
+.highlighted {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.forwarded {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-3);
+}
+
+/* A security warning on one message (unsigned sender, older protocol). */
+.securityNote {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+/* A pin or unpin: a small centered line in the timeline. */
+.notice {
+  margin: 4px auto 10px;
+  max-width: 80%;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.editedButton {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-style: italic;
+  color: inherit;
+  cursor: pointer;
+}
+
+.editedButton:hover {
+  text-decoration: underline;
+}
+
+.versions {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.version {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.versionTime {
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.poll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(320px, 60vw);
+}
+
+.pollKind {
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+
+.pollQuestion {
+  font-weight: 600;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pollOption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(15, 19, 17, 0.35);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pollOption:disabled {
+  cursor: default;
+}
+
+.pollOption:not(:disabled):hover {
+  background: rgba(15, 19, 17, 0.55);
+}
+
+.pollOptionMine {
+  border-color: var(--accent);
+}
+
+/* How much of the vote this option has. */
+.pollBar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(134, 217, 174, 0.18);
+  pointer-events: none;
+}
+
+.pollMark {
+  position: relative;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-3);
+  border-radius: 50%;
+}
+
+.pollMarkSquare {
+  border-radius: 4px;
+}
+
+.pollMarkOn {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.pollLabel {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pollCount {
+  position: relative;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.pollFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.pollEnd {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* "Forwarded from <channel>": the same label, as a button that opens the channel. */
+.forwardedLink {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.forwardedLink:hover {
+  text-decoration: underline;
+}

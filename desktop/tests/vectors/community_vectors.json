@@ -1,0 +1,230 @@
+{
+  "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+  "otherCommunityId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "me": {
+    "publicKey": "8UtRcxMKG4Bofyc9Sej0dAp5OpSbg7EFg38qYej+4U8=",
+    "privateKey": "ZCjUJ20DbXh7pN9YA+fRWukWXkhkF6065eSLSSkM1pY="
+  },
+  "someoneElse": {
+    "publicKey": "97SnX64MYWmNYp9lwO8hs4BDS8xDwTn2sNUlXjZB2GM="
+  },
+  "payloads": [
+    {
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "epoch": 0,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "payloadHex": "5256434b01000000006f9619ff8b864011b42d00c04fc964ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    },
+    {
+      "key": "ZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoM=",
+      "epoch": 1,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "payloadHex": "5256434b01000000016f9619ff8b864011b42d00c04fc964ff6465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f80818283"
+    },
+    {
+      "key": "yMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5uc=",
+      "epoch": 16909060,
+      "communityId": "6F9619FF-8B86-4011-B42D-00C04FC964FF",
+      "payloadHex": "5256434b01010203046f9619ff8b864011b42d00c04fc964ffc8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7"
+    },
+    {
+      "key": "BwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSY=",
+      "epoch": 4294967295,
+      "communityId": "6f9619ff8b864011b42d00c04fc964ff",
+      "payloadHex": "5256434b01ffffffff6f9619ff8b864011b42d00c04fc964ff0708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526"
+    }
+  ],
+  "badPayloads": [
+    {
+      "name": "short key",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw==",
+      "epoch": 0,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff"
+    },
+    {
+      "name": "negative epoch",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "epoch": -1,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff"
+    },
+    {
+      "name": "epoch over 32 bits",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "epoch": 4294967296,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff"
+    },
+    {
+      "name": "id too short",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "epoch": 0,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964f"
+    },
+    {
+      "name": "id not hex",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "epoch": 0,
+      "communityId": "zz9619ff-8b86-4011-b42d-00c04fc964ff"
+    }
+  ],
+  "opens": [
+    {
+      "epoch": 0,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "key": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "wrappedKey": "//L66t8F+G0tUJMi4LwxqdN+sMNSwuUurlD6PlfauAVvoX8nW62F9de9mwU6eG4JVzSMCmaPP9/fz92rw+Y5F1aVTS2JIurejNhfWofYz3Zb5jeszRMy8H35V56tZSPwx4wT3iJgo3hj"
+    },
+    {
+      "epoch": 7,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "key": "MjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFE=",
+      "wrappedKey": "scRhktd3TOkqgmlnu5n+7P/BOmaQt10hkHZ+TzZjlRuExLWTE1LwQ+/oiNSEnjdagjxl4qVBRFU7Eum6nZ1HTigSXavF4KdYMMf62jf8IAHAatrJWRhb9B0gAYq94XDlgJpaQcY9RqHf"
+    },
+    {
+      "epoch": 4294967295,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "key": "CQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJyg=",
+      "wrappedKey": "9qryqHRPLL9QliIDmEihS7nExV+WyBlh/wCW/koajkircu51F7WBimgBPV4ozVfvnQ93dI7tkZodtwd2++raZ1uFRXmB9lS+yvypXeFND6fPVqk686m+WUmGRqeY2ftCB7I8xTwrKYzI"
+    }
+  ],
+  "refused": [
+    {
+      "name": "sealed for another epoch",
+      "epoch": 5,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "L1YXeea+/O2ea9zUozAMZGYB6qsMXDYDC4zMa0PO41T/2HcUFJ1REgACiA/nbQ9j1mM2HCnmGM4MHuEnG9ieMGFn0RY0skf/EzgEY5wC8r0m3HdraSYW8xgdlT0rj2UMsjrn7l4IrCOY"
+    },
+    {
+      "name": "sealed for another community",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "J9gYnkE51oMk+TmHsCXGE4d5656S8FRMj43Ooc7SdEPtYz6UltRjDQpv1IdNF/3YiUe1FF6a6QCzgJjKKF96YT9TCbkAMoqOELRRhPw3zEnmxuQ5i6aKlWf6qR+InyXY8RdQ1YVHKnga"
+    },
+    {
+      "name": "sealed to someone else",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "xkoc3Ug9g897JvQH4jfHQiuvp0olrIMyvEUcpk9IVH0s95zFfgQlfNf9gifLMojZ6EvQKhsz0YXbogAvtXVPNzks20H1CcJqx1quE4Y0+Q3wNsPqV9gSctpHib9oyDXpcwG15XgVmhre"
+    },
+    {
+      "name": "a plain conversation key",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "cLB1oJJEJejQEQhDczJkxQGqLiadPEhKzFjtdzqCwVJCy+5v+x2ijSTe+nigzUrlBsmNAC4I4GdnkmvANGeIOLBq6raxPl+RvRjAopMhKhQ="
+    },
+    {
+      "name": "version 2",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "17fMqx7V8+UvM7mZY3Ov7M/lek6/UkfRvkCAtplPsTju7GCnJJdgcuStDqjmdb9pmdsJ7vFwqmkvAK8MpWn7mZ7EcP0snx9UYDhWOBRwhenEgllgIaTPGzuoVpHYiRfKzVmRpB6DM5R3"
+    },
+    {
+      "name": "wrong magic",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "BPpAwAfImSrOBTMA1CJd+kSyhdeJoCVAS54lDliblk7uMeleop9vucWTvAuEwu0Q+/XkaeU0CG9+QJ5VAebWChTjxvraIea/iZu4s9wFSRDj+4rsAjxUIGXL9jkK3q296Tc7kE3UbJ7J"
+    },
+    {
+      "name": "one byte short",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "JwJXTP15nfDuSH8n+Bmu1U20ge+vok8KRpIbS2QsZVHe5FJtX7ntI3Th2vFORKmuM6Ns0GmUD4V3dnYeGOtAOsYANhNUKEp7VZOAn5AFukVfwjmDlTycVMwt92oJLCyywVmcsyMBVUY="
+    },
+    {
+      "name": "one byte long",
+      "epoch": 4,
+      "communityId": "6f9619ff-8b86-4011-b42d-00c04fc964ff",
+      "wrappedKey": "fTStmBbJSYThPIUoC+bZ20k8jmUd+cMZ5EA/xxeuZgThuCEI7IRDv2h1ayiPWtMxZFBosuFiLHbwHt9oBxZcjUR/szXrnVqcVKvx1hmLGUCSwkLHH5vbjP/mRGmDLYqpuUYDsTxq7xel6Q=="
+    }
+  ],
+  "ring": {
+    "state": {
+      "conversationId": "11111111-2222-4333-8444-555555555555",
+      "keyEpoch": 3,
+      "rekeyRequired": false,
+      "keys": [
+        {
+          "epoch": 3,
+          "wrappedKey": "PXdRavnksd3QalRa1gA3A9sT6yAO1BLLUfCZPRiVGSu9OxLYlpwZAdGYKUO9/XgSxhiHYOYHyQuDp2onTM+qVangff0WuZ1J77+uuA3lIonZ5qXpf1fXQEUpn8vwp7vjKabUy68+M1vn"
+        },
+        {
+          "epoch": 0,
+          "wrappedKey": "c5h1JF2yWnz1Yp6kIKne3YO9DT02dWXKbuV33Buu0AAKyQlX9MQcjDCVD6+UW75/j0/dKxRPNw4QBoo1TcgmyNYVO+zUcgnKt3J5Qf/9wnBg+Ljh+gtF/uaYm3EV5rpbGT5wt8/ua8vr"
+        },
+        {
+          "epoch": 2,
+          "wrappedKey": "ShkH9A59MEzBN9rbFQrSUSCwcTCKzFB0EDd93kFGLzylu2pzSWqjZvG1L95l6vbGFucFaTZjXz6kyvh62a8ExtGFEMXGmhU4phHKzFErt8zb6ojzK+FyqsK0aQ9oULiY6gH45375q3UE"
+        },
+        {
+          "epoch": 1,
+          "wrappedKey": "WIvYUXBjFNOWYKr/l87TJrsD1I+OY6JoaVbchxfmez+76UqpKHTsyANFo2SL+/qU/MYzj1IP2vBDWuVlotc+4PHYOpVHqnnBcJnN8zGdXJTPF+gdyeOcJDI0llAWgHGJkiIzREt5s8ke"
+        },
+        {
+          "epoch": 4,
+          "wrappedKey": "AsA9JbXznWWJt/iXN2Ejx2jvV0yRiqORPLGN5zKxuWqtamaiW9y0p2JhR69VC0QesQeuUWlv9iyLdhrxuEknH9g2aFEDLbSB//od+6dYs4Zi+v3s2slU8jS+ael/T7jRcjEP3+w2urx4"
+        },
+        {
+          "epoch": 5,
+          "wrappedKey": "13V83sQZrKpXB2y2jpBq8/bQ8ecUW6QtbXg+m30xej6yijLDoOgjrFhPEwCsIjN51Y2FJqnCovHQ+XasIdyYCZMvW7ss1AdccGsDBCt6nQtdirr849OqMn4JIR2fVqkEMKXIOJWOwkU7"
+        },
+        {
+          "epoch": 6,
+          "wrappedKey": "not base64!"
+        }
+      ]
+    },
+    "expected": {
+      "currentEpoch": 3,
+      "rekeyRequired": false,
+      "keys": {
+        "0": "CgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCk=",
+        "1": "FBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM=",
+        "3": "Hh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0="
+      },
+      "rejected": [
+        2,
+        4,
+        5,
+        6
+      ]
+    }
+  },
+  "messages": [
+    {
+      "epoch": 3,
+      "ciphertext": "7cKb51529NOYCBRfkbF4iU+xcUBC0fPztAnsho/uSU/OyjZnDU8jowW8iNEgiQ==",
+      "nonce": "pn+q5kApKOV0F7/+HnlsZg61TG8ubSBX",
+      "plaintext": "Hello members 🔒 — épocas"
+    },
+    {
+      "epoch": 0,
+      "ciphertext": "QmChX6ErWbQcbdmPCb6FZG+wWhABCrmbSw/KuA==",
+      "nonce": "pb7tngFFHXzhY9TFlKkQ/9NOVauhtldQ",
+      "plaintext": "from epoch 0"
+    },
+    {
+      "epoch": 1,
+      "ciphertext": "QmChX6ErWbQcbdmPCb6FZG+wWhABCrmbSw/KuA==",
+      "nonce": "pb7tngFFHXzhY9TFlKkQ/9NOVauhtldQ",
+      "plaintext": null
+    },
+    {
+      "epoch": 2,
+      "ciphertext": "QmChX6ErWbQcbdmPCb6FZG+wWhABCrmbSw/KuA==",
+      "nonce": "pb7tngFFHXzhY9TFlKkQ/9NOVauhtldQ",
+      "plaintext": null
+    }
+  ],
+  "rotation": {
+    "fromEpoch": 3,
+    "key": "ih+pvFCbnZq4SU4YKYXwYh9V08nxvS0ik1ro6pQdc98=",
+    "mine": "nHmVFEVS8iGq4fdgTmV+z8daQMFv9FGwa32PPcQFIB5IzIEk+1d7LduDRhExwGAnCJnhh/q6JTa0O64tOwZK7o6Z2UJvKARLfOTk2RCJDwsDTTz5tJV2o0e+hU2PPKgZxXF8uaNcsyof"
+  },
+  "enrollment": {
+    "epoch": 3,
+    "wrappedKey": "N5QYrsczUCYX409HOkLof1TWPBXb0ogazCACT33WZR+z1ylEXJhar2zog4X0+lGqA4mPMURKHi+39KRzqiMEFIFm1dgBbA49SakuvhFHDuS4hNEazPf33IfoYW0ISlhrOLBKQ/bZePAm"
+  },
+  "newCommunityKey": {
+    "key": "M5HzAGPdgTFoMNSQaIaod5x/7BWRY8bgJ20W/U3Hq+8=",
+    "wrappedKey": "3hctJkO/esPAZb2Qn6fCF0Dx6Kw6J81FyAYSDPXyJmM4OP3zvmeJgt4K4runaXIpEje5Ui5s9rrz8dBOQBaNTOMBN7SKsyouvLj0o/0WXOxiUzoucA/6EbGWZ6mBkKJG1mVFH6hqfkrO"
+  }
+}

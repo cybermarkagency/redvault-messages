@@ -1,0 +1,121 @@
+/* Shared shell for the small settings-style form screens (change password,
+   change username, MFA setup/disable) — composes Settings.module.css's
+   .screen/.body/.section/.sectionLabel/.row rather than reinventing them,
+   and adds the handful of form-control classes those screens need on top. */
+
+.screen {
+  composes: screen from "./Settings.module.css";
+}
+
+.body {
+  composes: body from "./Settings.module.css";
+}
+
+.section {
+  composes: section from "./Settings.module.css";
+}
+
+.sectionLabel {
+  composes: sectionLabel from "./Settings.module.css";
+}
+
+.hint {
+  color: var(--text-2);
+}
+
+.input {
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.primaryButton {
+  padding: 11px 0;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+}
+
+.secondaryButton {
+  padding: 11px 0;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+}
+
+.dangerButton {
+  padding: 11px 0;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.dangerButton:disabled {
+  opacity: 0.5;
+}
+
+.error {
+  padding: 10px 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-card);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.success {
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-card);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.qrWrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+.qrImage {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--radius-control);
+}
+
+.secretCode {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  text-align: center;
+  word-break: break-all;
+}

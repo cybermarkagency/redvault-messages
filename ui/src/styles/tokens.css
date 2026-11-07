@@ -1,0 +1,107 @@
+/* Design tokens: the desktop UI handoff (dark, green accent). Every color
+   is referenced only by these names; nothing is hardcoded elsewhere
+   except the call screens' own video-dark surfaces. The app is dark-only,
+   like the design; `color-scheme` tells the browser so form controls and
+   scrollbars match. */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, darkest to lightest */
+  --rail: #0b0e0d;
+  --bg: #0f1311;
+  --panel: #121715;
+  --surface: #171c1a; /* cards, settings groups */
+  --surface-2: #1b211e; /* inputs, secondary buttons, chips ("raised") */
+  --surface-3: #1f2623; /* call controls, tiles ("control") */
+  --selected: #1d2421; /* selected row, incoming bubble */
+  --border: #1f2623;
+  --border-strong: #26302b;
+
+  /* Text */
+  --text: #eceae3;
+  --text-2: #c9cfca;
+  --text-3: #9aa39d; /* metadata, timestamps */
+  --placeholder: #8a938d;
+
+  /* Accent: security, verified, primary actions */
+  --accent: #86d9ae;
+  --accent-contrast: #0b2a1c;
+  --accent-soft: #16271f;
+  --accent-border: #244536;
+  --bubble-out: #1e4434;
+
+  /* States */
+  --danger: #f29b90; /* text: missed calls, Block, Report */
+  --danger-strong: #c8433b; /* fills: end / decline call */
+  --danger-soft: #2a1714;
+  --warn: #f2c38b;
+  --warn-soft: #2a2217;
+  --yours-bg: #2a3b6a;
+  --yours-text: #c6d4ff;
+  --toggle-on-bg: #eceae3;
+  --toggle-on-fg: #0f1311;
+
+  /* Avatar tints (initials in --avatar-ink) */
+  --avatar-ink: #141413;
+
+  --bezel: #14181b;
+  --bezel-edge: #2a2f33;
+
+  /* Type */
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --font-wordmark: var(--font-display);
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Radius */
+  --radius-small: 10px; /* small buttons, inputs */
+  --radius-control: 12px; /* buttons, rows */
+  --radius-card: 16px; /* cards */
+  --radius-dialog: 22px; /* dialogs, pop-ups */
+  --radius-glyph: 22%;
+  --radius-pill: 999px;
+  --radius-bubble: 16px;
+  --radius-bubble-tail: 6px;
+  --radius-frame-phone: 44px;
+  --radius-frame-desktop: 14px;
+
+  /* Only floating layers cast shadows */
+  --shadow-dialog: 0 30px 80px rgba(0, 0, 0, 0.55);
+  --shadow-popup: 0 28px 70px rgba(0, 0, 0, 0.6);
+
+  /* Stories: the ring around someone with a new story (close friends: green),
+     the stage behind a story, and the named colours a story can use (the
+     story's encrypted details name one; every app draws the same colour). */
+  --story-ring: conic-gradient(from 210deg, #f2c38b, #f29b90, #d66bb7, #8f7cf2, #f2c38b);
+  --story-ring-close: #4cd07d;
+  --story-ring-seen: #3a433e;
+  --story-stage: #000000;
+  --story-scrim: rgba(0, 0, 0, 0.5);
+  --story-chrome: rgba(255, 255, 255, 0.92);
+  --story-track: rgba(255, 255, 255, 0.35);
+  --story-color-white: #ffffff;
+  --story-color-black: #111111;
+  --story-color-red: #ef4444;
+  --story-color-orange: #f97316;
+  --story-color-yellow: #facc15;
+  --story-color-green: #22c55e;
+  --story-color-teal: #14b8a6;
+  --story-color-blue: #3b82f6;
+  --story-color-purple: #a855f7;
+  --story-color-pink: #ec4899;
+  --story-bg-sunset: linear-gradient(160deg, #f97316, #ec4899);
+  --story-bg-ocean: linear-gradient(160deg, #0ea5e9, #312e81);
+  --story-bg-forest: linear-gradient(160deg, #22c55e, #134e4a);
+  --story-bg-berry: linear-gradient(160deg, #a855f7, #be185d);
+  --story-bg-night: linear-gradient(160deg, #1e293b, #020617);
+  --story-bg-ember: linear-gradient(160deg, #facc15, #dc2626);
+  --story-bg-mint: linear-gradient(160deg, #99f6e4, #0d9488);
+  --story-bg-slate: linear-gradient(160deg, #64748b, #1f2937);
+
+  /* Layout */
+  --rail-width: 76px;
+  --list-width: 360px;
+  --details-width: 320px;
+  --header-height: 72px;
+}

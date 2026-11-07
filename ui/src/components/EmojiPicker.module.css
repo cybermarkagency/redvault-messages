@@ -1,0 +1,81 @@
+.picker {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(320px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-popup);
+  color: var(--text);
+}
+
+.alignEnd {
+  right: 0;
+  left: auto;
+}
+
+.search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: none;
+  padding: 3px 6px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  max-height: 220px;
+  margin-top: 6px;
+  overflow-y: auto;
+}
+
+.emoji {
+  padding: 4px 0;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.emoji:hover,
+.emoji:focus-visible,
+.tab:hover {
+  background: var(--surface-2);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 12px 4px;
+  color: var(--text-3);
+  font-size: 0.85rem;
+}

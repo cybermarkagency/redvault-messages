@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release: HTTPS only, system CAs only (user-installed CAs can't MITM the app). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Tor routing (docs/tor-routing-plan.md): http:// to the service's .onion address only. The onion
+         service itself authenticates the server (the address is its key) and encrypts end to end, and
+         the app reaches it only through the embedded Tor gateway, never directly. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">onion</domain>
+    </domain-config>
+</network-security-config>

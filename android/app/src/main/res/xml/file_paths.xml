@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="decrypted" path="decrypted/" />
+    <!-- Files: copies decrypted to open in another app (removed when the session ends). -->
+    <cache-path name="drive" path="drive/open/" />
+    <!-- Channels: files downloaded from a channel post, to open in another app (removed when the session ends). -->
+    <cache-path name="channel" path="channel-media/files/" />
+    <!-- Stories: a photo or video taken for a story, until it has been posted or the session ends. -->
+    <cache-path name="story_capture" path="stories/capture/" />
+</paths>

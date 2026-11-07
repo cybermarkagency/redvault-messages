@@ -1,0 +1,1378 @@
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:57834
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:57834
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:57834
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:57834
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:57844/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== third-party request to http://127.0.0.1:51758/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:51790
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:51790
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:51790
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:51790
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:50916/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:61451
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:61451
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:61451
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:61461
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61461
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61461
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61461
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61461
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:61461
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:61461
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:61461
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:61481
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:61481
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:61481
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:61481
+cookie: sid=session
+accept: application/json
+
+
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:61097
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61097
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61097
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61097
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61097
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:61097
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:61097
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:61097
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:61117
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:61117
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:61117
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:61117
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:61127
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:61127
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:61127
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:61145/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:61243
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61243
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61243
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61243
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61243
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:61243
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:61243
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:61243
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:61263
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:61263
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:61263
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:61263
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:50600
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:50600
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:50600
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:50610/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:61774
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:61774
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:61774
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:61774
+cookie: sid=session
+accept: application/json
+
+
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:61785
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61785
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61785
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:61785
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:61785
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:61785
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:61785
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:61785
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:59710
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:59710
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:59710
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:54962/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:54970
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:54970
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:54970
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:54970
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:54970
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:54970
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:54970
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:54970
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:54998
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:54998
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:54998
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:55026
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:55026
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:55026
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:55026
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:52008/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:52010
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:52010
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:52010
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:52020
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:52020
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:52020
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:52020
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:58762/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:58764
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:58764
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:58764
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:58764
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:58764
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:58764
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:58764
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:58764
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:59535/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:59540
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:59540
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:59540
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:59550
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:59550
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:59550
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:59550
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:59550
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:59550
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:59550
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:59550
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:59570
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:59570
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:59570
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:59570
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:56453
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:56453
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:56453
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:56453
+cookie: sid=session
+accept: application/json
+
+
+
+=== third-party request to http://127.0.0.1:56470/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:56472
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:56472
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:56472
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:56491
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:56491
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:56491
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:56491
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:56491
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:56491
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:56491
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:56491
+cookie: sid=session
+accept: application/json
+
+
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:56514
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:56514
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:56514
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:56514
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:56514
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:56514
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:56514
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:56514
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:56540
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:56540
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:56540
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:56564/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:56574
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:56574
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:56574
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:56574
+cookie: sid=session
+accept: application/json
+
+
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:62526
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:62526
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:62526
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:62526
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:62536
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:62536
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:62536
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:62546/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:62562
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:62562
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:62562
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:62562
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:62562
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:62562
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:62562
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:62562
+cookie: sid=session
+accept: application/json
+
+
+
+=== channel media read (no cookie), a byte range of it, then an upload (cookie)
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:62614
+accept: application/json
+
+
+
+GET /api/channel-media/bbbbbbbb-1111-4111-8111-000000000002?exp=1792354770&sig=abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456 HTTP/1.1
+Host: localhost:62614
+accept: application/json
+range: bytes=0-99
+
+
+
+PUT /api/channel-uploads/bbbbbbbb-1111-4111-8111-000000000002 HTTP/1.1
+Host: localhost:62614
+cookie: sid=session
+accept: application/json
+content-type: application/octet-stream
+Content-Length: 11
+
+photo bytes
+
+=== third-party request to http://127.0.0.1:62627/presigned-upload
+refused before connecting; connections the server saw: 0
+
+=== request as received
+POST /api/auth/login HTTP/1.1
+Host: localhost:62629
+content-type: application/json
+accept: application/json
+Content-Length: 62
+
+{"password":"correct horse battery staple","username":"alice"}
+
+=== request as received
+POST /api/conversations/conv-1/messages HTTP/1.1
+Host: localhost:62629
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 44
+
+{"ciphertext":"c2VhbGVk","nonce":"bm9uY2U="}
+
+=== request as received
+POST /api/conversations/conv-1/read HTTP/1.1
+Host: localhost:62629
+cookie: sid=session
+content-type: application/json
+accept: application/json
+Content-Length: 17
+
+{"status":"read"}
+
+=== request as received
+GET /api/users/0b9c3d1e-5f2a-4c6b-9e8d-7a1f2b3c4d5e/avatar?v=1 HTTP/1.1
+Host: localhost:62629
+cookie: sid=session
+accept: application/json
+
+
+
+=== public channel reads, photo and view counts (no cookie), then a signed-in call (cookie)
+GET /api/public/channels?limit=30&offset=0&q=news HTTP/1.1
+Host: localhost:62639
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:62639
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:62639
+accept: application/json
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110 HTTP/1.1
+Host: localhost:62639
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/posts?limit=30 HTTP/1.1
+Host: localhost:62639
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+GET /api/public/channels/6f1e2d3c-4b5a-4968-8776-655443322110/avatar?v=1 HTTP/1.1
+Host: localhost:62639
+accept: application/json
+x-channel-access: KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=
+
+
+
+POST /api/public/channels/views HTTP/1.1
+Host: localhost:62639
+content-type: application/json
+accept: application/json
+Content-Length: 52
+
+{"postIds":["aaaaaaaa-0000-4000-8000-000000000001"]}
+
+GET /api/channels/mine HTTP/1.1
+Host: localhost:62639
+cookie: sid=session
+accept: application/json
+
+
+

@@ -1,0 +1,99 @@
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  color: var(--text-3);
+  margin: 10px 4px 2px;
+}
+
+.sectionLabel:first-child {
+  margin-top: 0;
+}
+
+.hint {
+  color: var(--text-2);
+}
+
+.empty {
+  color: var(--text-2);
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+.error {
+  padding: 10px 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-card);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.handle {
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.acceptButton {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.acceptButton:disabled,
+.ignoreButton:disabled {
+  opacity: 0.5;
+}
+
+.ignoreButton {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.82rem;
+}

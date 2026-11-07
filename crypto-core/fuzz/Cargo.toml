@@ -1,0 +1,43 @@
+[package]
+name = "redvault-e2ee-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "cargo-fuzz targets for the engine's attacker-facing inputs (M7, docs/signal-integration/)."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+base64 = "0.22"
+getrandom = "0.4"
+redvault-e2ee = { path = "..", features = ["signal"] }
+
+# Its own workspace: kept out of crypto-core's build and lock file.
+[workspace]
+
+[[bin]]
+name = "engine_json"
+path = "fuzz_targets/engine_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "signal_decrypt"
+path = "fuzz_targets/signal_decrypt.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "group_decrypt"
+path = "fuzz_targets/group_decrypt.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "roster_verify"
+path = "fuzz_targets/roster_verify.rs"
+test = false
+doc = false

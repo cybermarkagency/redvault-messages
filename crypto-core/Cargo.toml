@@ -1,0 +1,55 @@
+[package]
+name = "redvault-e2ee"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+license = "AGPL-3.0-only"
+description = "Redvault's shared end-to-end encryption core (proof of concept): vodozemac Olm and Megolm behind one JSON command interface for web, Android, Windows and Linux."
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[features]
+default = []
+# The C ABI (desktop C++ on Windows and Linux).
+ffi = []
+# The WebAssembly binding (web app).
+wasm = ["dep:wasm-bindgen", "getrandom/wasm_js"]
+# The JNI binding (Android, and the JVM for host tests).
+jni = ["dep:jni"]
+# Signal sessions (PQXDH + Triple Ratchet with SPQR) from libsignal, AGPL-3.0-only.
+# The owner chose AGPL-3.0-only for the apps (2026-11-07), but a binary built with
+# this feature must still not be given to anyone until the release gates in
+# docs/legal/REDVAULT_AGPL_COMPLIANCE_REPORT.md are cleared (legal review pending).
+signal = ["dep:libsignal-protocol", "dep:async-trait", "dep:futures-executor", "dep:rand09", "dep:uuid"]
+
+[dependencies]
+vodozemac = { version = "=0.11.2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+chacha20poly1305 = "0.11"
+getrandom = "0.4"
+zeroize = "1"
+sha2 = "0.11"
+blake2 = "0.11"
+subtle = "2.6"
+thiserror = "2"
+wasm-bindgen = { version = "0.2", optional = true }
+jni = { version = "0.21", optional = true, default-features = false }
+# libsignal v0.106.2, pinned by tag AND commit (verified 2026-11-07).
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2", optional = true }
+async-trait = { version = "0.1", optional = true }
+futures-executor = { version = "0.3", optional = true, default-features = false, features = ["std"] }
+rand09 = { package = "rand", version = "0.9", optional = true, features = ["os_rng"] }
+# Sender-key distribution ids (libsignal's SenderKeyStore uses uuid::Uuid).
+uuid = { version = "1", optional = true, features = ["v4"] }
+
+[dev-dependencies]
+proptest = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"

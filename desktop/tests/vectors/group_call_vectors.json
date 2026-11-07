@@ -1,0 +1,58 @@
+{
+  "alicePublic": "GxtY3VDqFLYNoXt5DNAnVNlwybq4ZOuzwPMBb+UdP1c=",
+  "alicePrivate": "XOhu+3X6TixBD0bhben2rK4aFwNShlG2m8F2wIi+8+4=",
+  "bobPublic": "YDRufJEaX2uhVBKRdMr+dbKUrDu9VUljL0jOxiZvhBA=",
+  "bobPrivate": "qjxia8nDjIwgGHjrsdWwtQrEDomGx4eT2x1O82n8oc4=",
+  "carolPublic": "deJw3ylSxXuoNnuoYYwXj5/lDbJ5nTBOdOkY2YVoYUY=",
+  "malloryPublic": "7dA8regNKd5uoxOnSrNp9HMuyzZkkGa3i1st1mTLBBc=",
+  "message": {
+    "callId": "3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b",
+    "conversationId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "epoch": 19,
+    "from": "11111111-1111-4111-8111-111111111111",
+    "to": "22222222-2222-4222-8222-222222222222"
+  },
+  "roomKey": "qgSUGNU2jTxNe7uPZ2okrCQo9Y1toOrBmvcuHKMO9v8=",
+  "sentAt": 1790000000000,
+  "sealed": {
+    "ciphertext": "3LsWSgFjYg/5h+A62zwbryICbMULeF8kefl2nxRzSLjd1eW69fkxkyYCRr5lKu6BZuqp7eCmckWXM8YClRu7C/JT6ZrwF8C08I/Wal6DnNDG4Em3vLr3OoUWsJzuQL96DZi8UVVIo9CfOARmPV9WcFpnRtD/pKfLtyc4sktC3zFUEZZd0Z8oK3v3oQXBBiDBMSwJPtVSngZ0Mi+4GLzmy3LzgY6xQbmazafAAeX7QoDWzywqcpjK0bVqoRwufAsfeaDtLeGyL7JJmOeJXEry8D6jICarhgsZPhcdcUPIjOPMMfQdDAegOciwGzRxIHRSRskJFvk7oqERymQbC5BLfQT1JtqoMDy4UPag53xSvSxGlj+PIRsGuR7zS0P9U6WkR4AE/Qg9qgmztL7WyWrBGK/41d4cMEHiPTQ4+NfZFjESk0zysxgk6A==",
+    "nonce": "r11udBz+ZboZsd1+lfUmxun2tAaF8WTF"
+  },
+  "sealedByMallory": {
+    "ciphertext": "ore8DL3nkQ89mSvrodeqPm19ulYZ2jKdCHchKIALjkMt7dsynx2SBNlw1seVw+BFtb2VmyHXz3v03E3+Nbgm9M0aZqZZ1pVOxS0WoAXxCJ1aZ0HenGd2fQjtmC6/CgOkRSWTIvFNCP5Q9kwmA1N00jXxdv2ZlQxt/3CnofcKF3FiPpQCwqIzQUoNPTF8yuIHMmjG296xeUkaXr2YH/rwtw45Xjko0UdfhwdUMcgD3ay+2pdYD/KHSsGQxdy1jwpVKtm7Kk+8xNCBGoACfWoIf6wjn7s3m4KR7dCKTfp4LG+API7b5nK9EST+vw/CnL2tPmnBf7xtWbbXP49dt7+fX0mQ0moiqnQGe9uG68y4V/nwrQ9LShgoAsCQ1QalaT4zkJ2BuXkjULxmUD8Fdsb+ZCtLGVgDNCW5W9QalWjlfYzhiBXNojHO5Q==",
+    "nonce": "a0V2p0wLifX3wuA9tK/9v6CH9w6ATmfb"
+  },
+  "sasCallId": "3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b",
+  "sasParticipants": [
+    {
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "publicKey": "GxtY3VDqFLYNoXt5DNAnVNlwybq4ZOuzwPMBb+UdP1c="
+    },
+    {
+      "userId": "22222222-2222-4222-8222-222222222222",
+      "publicKey": "YDRufJEaX2uhVBKRdMr+dbKUrDu9VUljL0jOxiZvhBA="
+    },
+    {
+      "userId": "33333333-3333-4333-8333-333333333333",
+      "publicKey": "deJw3ylSxXuoNnuoYYwXj5/lDbJ5nTBOdOkY2YVoYUY="
+    }
+  ],
+  "sasWords": [
+    "dolphin",
+    "heron",
+    "saddle",
+    "panda"
+  ],
+  "sasWordsOtherCall": [
+    "ferry",
+    "ginger",
+    "nimbus",
+    "island"
+  ],
+  "sasWordsSwappedKey": [
+    "aspen",
+    "crater",
+    "citrus",
+    "ocean"
+  ]
+}

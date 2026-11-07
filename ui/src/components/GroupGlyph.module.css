@@ -1,0 +1,33 @@
+.cluster {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.back {
+  position: absolute;
+  top: 22%;
+  left: 22%;
+  opacity: 0.85;
+}
+
+.front {
+  position: relative;
+}
+
+.countChip {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  border: 2px solid var(--surface);
+}

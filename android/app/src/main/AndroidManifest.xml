@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Voice messages; asked for only when the user first taps the microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Unlocking the password vault with a fingerprint or face (the system prompt; nothing is stored). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!--
+      Calls: the camera for video (asked for only when you first make or take
+      a video call), routing the voice to the earpiece or speaker, and a
+      foreground service so a call keeps going in the background. Each
+      service type is held only while the call uses it.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- The background connection for new-message notifications when no UnifiedPush app is installed. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- The QR scanner's camera, likewise optional. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!--
+      No location, advertising ID, phone identity or contacts, ever: these
+      strip the permissions from the merged manifest even if a library asks
+      for them. PrivacyManifestTest checks they stay here.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_TOPICS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" tools:node="remove" />
+
+    <!--
+      allowBackup/dataExtractionRules: nothing from this app is ever copied
+      to Google Drive backups or to a new phone in a device transfer. The
+      private key never touches disk anyway, but the remembered handle and
+      any future local data shouldn't leave the device either.
+    -->
+    <application
+        android:name=".RedvaultApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Redvaultmessage"
+        tools:targetApi="37">
+        <!--
+          singleTask: one copy of the app, in its own task. "Share to RedVault" from another app comes
+          here (not into a second copy inside that app's task), and the one-time read grant for the
+          shared files belongs to this activity while it lives. The files are only checked on arrival
+          (see ShareIntents.kt) and read when the user sends them.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- Keeps a call going in the background (see calls/CallForegroundService.kt). -->
+        <service
+            android:name=".calls.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera|mediaProjection" />
+
+        <!-- Content-free pushes through the user's UnifiedPush distributor (ntfy, for example): no Google
+             services. Only the connector inside this app talks to it (see push/UnifiedPushReceiver.kt). -->
+        <service
+            android:name=".push.UnifiedPushReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Without a distributor: the app's own connection to its server, while signed in
+             (see push/PushFallbackService.kt). -->
+        <service
+            android:name=".push.PushFallbackService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a connection to the user's own messaging server to receive new-message notifications without Google services" />
+        </service>
+
+        <!-- Hands a decrypted file to another app only when the user taps Open,
+             with a one-time read grant. Only the app's decrypted cache is shared. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- The QR scanner (zxing-android-embedded) ships locked to landscape;
+             let it follow the phone like the rest of the app. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="android:screenOrientation" />
+    </application>
+
+</manifest>

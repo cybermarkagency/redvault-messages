@@ -1,0 +1,184 @@
+.panel {
+  width: var(--details-width);
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 28px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.name {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 1.55rem;
+  overflow-wrap: anywhere;
+}
+
+.handle {
+  color: var(--text-3);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.handleButton {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.handleButton:hover {
+  color: var(--text);
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  text-align: left;
+  border: 1px solid;
+}
+
+.cardOk {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.cardWarn {
+  background: var(--warn-soft);
+  border-color: #4a3b22;
+  color: var(--warn);
+}
+
+.cardNeutral {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+
+.cardIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  flex-shrink: 0;
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.cardDetail {
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+}
+
+.group > :last-child {
+  border-bottom: none;
+}
+
+button.row:hover {
+  background: var(--surface-2);
+}
+
+.rowIcon {
+  display: inline-flex;
+  color: var(--text-2);
+}
+
+.rowLabel {
+  flex: 1;
+  font-size: 0.92rem;
+}
+
+.rowValue {
+  font-size: 0.86rem;
+  color: var(--text-3);
+}
+
+.chevron,
+.chevronOpen {
+  color: var(--text-3);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.timerPicker {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.mediaSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.86rem;
+  padding: 0;
+}

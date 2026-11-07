@@ -1,0 +1,87 @@
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.options {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: none;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  text-align: left;
+}
+
+.option:hover {
+  background: var(--surface-2);
+}
+
+.optionIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.optionTitle {
+  color: var(--text);
+}
+
+.optionDesc {
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.pasteForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.pasteInput {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pasteButton {
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.pasteButton:disabled {
+  opacity: 0.5;
+}
+
+.pasteError {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8rem;
+}

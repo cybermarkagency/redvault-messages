@@ -1,0 +1,191 @@
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  background: var(--bg);
+}
+
+.wordmark {
+  font-size: 1.6rem;
+  color: var(--text);
+}
+
+.tagline {
+  color: var(--text-2);
+  margin-top: -12px;
+}
+
+.glyphWrap {
+  margin-top: 12px;
+}
+
+.handleInput {
+  text-align: center;
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.regenerate {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+}
+
+.disclosure {
+  max-width: 320px;
+  padding: 12px 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-card);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.input {
+  width: 100%;
+  max-width: 280px;
+  padding: 11px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.error {
+  max-width: 320px;
+  padding: 10px 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-card);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.continueButton {
+  margin-top: 8px;
+  padding: 12px 32px;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.continueButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Sign-up card --- */
+
+.card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--text-2);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-left: 2px;
+}
+
+.disclaimerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-2);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.feedLink {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.72rem;
+  text-decoration: underline;
+  padding: 4px 10px;
+}
+
+/* The three sign-up boxes. */
+.consent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.consentRow input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.consentLink {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

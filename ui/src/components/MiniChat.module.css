@@ -1,0 +1,144 @@
+.panel {
+  width: 340px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  color: var(--text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--header-height);
+  padding: 0 16px 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close:hover {
+  background: var(--surface-2);
+}
+
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.note {
+  margin: 0 8px 4px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 9px 12px 6px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mine {
+  align-self: flex-end;
+  background: var(--bubble-out);
+  border-bottom-right-radius: 6px;
+}
+
+.theirs {
+  align-self: flex-start;
+  background: var(--selected);
+  border-bottom-left-radius: 6px;
+}
+
+.text {
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.time {
+  align-self: flex-end;
+  font-size: 0.68rem;
+  color: var(--text-3);
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 16px 16px;
+  padding: 6px 6px 6px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.92rem;
+  padding: 8px 0;
+}
+
+.send {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send:disabled {
+  opacity: 0.45;
+}
+
+@media (max-width: 859px) {
+  .panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 5;
+  }
+}

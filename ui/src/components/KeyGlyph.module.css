@@ -1,0 +1,23 @@
+.glyph {
+  display: inline-grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 8%;
+  padding: 12%;
+  background: var(--surface-2);
+  border-radius: var(--radius-glyph);
+  flex-shrink: 0;
+}
+
+.cell {
+  border-radius: 2px;
+  background: transparent;
+}
+
+.cellAccent {
+  background: var(--accent);
+}
+
+.cellTone {
+  background: var(--text-3);
+}

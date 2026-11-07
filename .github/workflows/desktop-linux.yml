@@ -1,0 +1,61 @@
+name: Desktop app (Linux)
+
+on:
+  push:
+    branches: [main, desktop-client]
+    paths:
+      - 'desktop/**'
+      - 'legal/**'
+      - 'android/app/src/androidTest/assets/**'
+      - '.github/workflows/desktop-linux.yml'
+  workflow_dispatch:
+
+jobs:
+  appimage:
+    # Ubuntu 22.04's libcurl and Catch2 are too old; the AppImage runs on
+    # distributions with glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libsodium-dev libcurl4-openssl-dev \
+            nlohmann-json3-dev catch2 libqrencode-dev libgl1-mesa-dev libxkbcommon-dev \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libopus-dev libvpx-dev libsrtp2-dev libssl-dev libwebrtc-audio-processing-dev \
+            libpulse0 libprotobuf-dev protobuf-compiler
+
+      # Group calls: LiveKit's prebuilt client library (liblivekit_ffi.so, fetched by
+      # CMake at a pinned release and SHA-256, bundled in the AppImage's lib/) and the
+      # protoc that compiles its protocol (libprotobuf-dev, protobuf-compiler above).
+      # Ubuntu's own Qt is 6.4; the app needs 6.5+. Calls use Qt Multimedia
+      # (microphone, speaker, camera, screen capture).
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: 'qtmultimedia'
+          cache: true
+
+      - name: Build, test and package
+        run: bash desktop/packaging/package-linux.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: redvaultmessages-linux-x86_64
+          path: desktop/dist/*.AppImage
+          if-no-files-found: error
+
+      # Source code of every third-party library in the AppImage, collected on
+      # this same runner so the versions match exactly. Publish it with the
+      # AppImage (GPL/LGPL/MPL/AGPL). See packaging/collect-linux-sources.sh.
+      - name: Collect third-party sources
+        run: bash desktop/packaging/collect-linux-sources.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: redvaultmessages-linux-sources
+          path: desktop/dist/linux-sources
+          if-no-files-found: error

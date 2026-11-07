@@ -1,0 +1,78 @@
+.file {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-width: 280px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-3);
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.info {
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.94rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  font-size: 0.76rem;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  letter-spacing: 0;
+}
+
+.downloadButton {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.downloadButton:disabled {
+  opacity: 0.7;
+}
+
+.status,
+.error {
+  font-size: 0.74rem;
+}
+
+.error {
+  font-weight: 600;
+}
+
+.audio {
+  width: 100%;
+  max-width: 260px;
+  margin-top: 6px;
+}

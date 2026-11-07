@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Collects the source code of every third-party library the Linux AppImage
+# bundles, so it can be published next to the AppImage (the GPL, LGPL, MPL
+# and AGPL require the source of what we ship to be available).
+#
+# Run it right after packaging/package-linux.sh, on the same machine (the
+# GitHub Actions runner), so the versions match the AppImage exactly:
+#
+#   bash desktop/packaging/collect-linux-sources.sh            # download
+#   bash desktop/packaging/collect-linux-sources.sh --dry-run  # only list
+#
+# - Libraries from Ubuntu packages: `apt-get source --download-only` for the
+#   exact source package version (needs deb-src, which this enables on CI).
+# - Qt from Qt's own installer (install-qt-action): the matching
+#   qt*-everywhere-src tarballs from download.qt.io, plus the ICU and FFmpeg
+#   that Qt's binaries bring along.
+# - Anything it can't place is listed in UNRESOLVED.txt for a person to check.
+#
+# Output: desktop/dist/linux-sources/ and SOURCES.tsv (library, origin,
+# source package, version, file).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+dry=0; [ "${1:-}" = "--dry-run" ] && dry=1
+appdir="${APPDIR:-$PWD/build/AppDir}"
+out="${OUT:-$PWD/dist/linux-sources}"
+[ -d "$appdir" ] || { echo "No AppDir at $appdir (run package-linux.sh first, or set APPDIR)" >&2; exit 1; }
+mkdir -p "$out"
+list="$out/SOURCES.tsv"; unresolved="$out/UNRESOLVED.txt"
+printf 'library\torigin\tsource\tversion\tfile\n' > "$list"; : > "$unresolved"
+
+if [ "$dry" = 0 ] && [ -n "${CI:-}" ] && ! grep -rqs '^Types:.*deb-src' /etc/apt/sources.list.d/; then
+    sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/*.sources
+    sudo apt-get update -q
+fi
+
+declare -A debsrc=()   # "srcpkg=version" -> 1
+qt_libs=(); ffmpeg_libs=(); icu_libs=()
+
+while IFS= read -r -d '' f; do
+    b=$(basename "$f")
+    case "$b" in
+        redvault*|liblivekit_ffi.so) continue ;;   # our own code, and LiveKit (Apache-2.0, see THIRD_PARTY.md)
+    esac
+    owner=$(dpkg -S "/$b" 2>/dev/null | grep -v '^diversion' | head -1 || true)
+    [ -n "$owner" ] || owner=$(dpkg -S "$b" 2>/dev/null | grep -E "/$b\$" | head -1 || true)
+    # Only trust dpkg when the installed file is byte-identical to the bundled
+    # one: Qt's installer ships libraries with the same names as Ubuntu's.
+    if [ -n "$owner" ] && ! cmp -s "$f" "${owner#*: }"; then owner=""; fi
+    if [ -n "$owner" ]; then
+        pkg=${owner%%:*}; pkg=${pkg%%,*}
+        src=$(dpkg-query -W -f '${source:Package}' "$pkg")
+        ver=$(dpkg-query -W -f '${source:Version}' "$pkg")
+        debsrc["$src=$ver"]=1
+        printf '%s\tubuntu:%s\t%s\t%s\t\n' "$b" "$pkg" "$src" "$ver" >> "$list"
+    elif [[ "$b" == libQt6* || "$b" == libq* || "$b" == lib*plugin.so ]]; then qt_libs+=("$b")
+    elif [[ "$b" =~ ^lib(av|sw)(codec|format|util|scale|resample|device|filter) ]]; then ffmpeg_libs+=("$f")
+    elif [[ "$b" == libicu* ]]; then icu_libs+=("$f")
+    else echo "$b: not from an Ubuntu package and not recognised as Qt, ICU or FFmpeg" >> "$unresolved"
+    fi
+done < <(find "$appdir" -name '*.so*' -type f -print0)
+
+fetch() {  # url file
+    printf '  %s\n' "$1"
+    [ "$dry" = 1 ] || curl -fsSL --retry 3 -o "$out/$2" "$1" || echo "download failed: $1" >> "$unresolved"
+}
+
+echo "== Ubuntu source packages: ${#debsrc[@]}"
+mkdir -p "$out/ubuntu"
+for sv in "${!debsrc[@]}"; do
+    echo "  $sv"
+    [ "$dry" = 1 ] || (cd "$out/ubuntu" && apt-get source --download-only -q "$sv" >/dev/null) \
+        || echo "apt-get source failed: $sv" >> "$unresolved"
+done
+
+if [ "${#qt_libs[@]}" -gt 0 ]; then
+    qmake="${QMAKE:-$(command -v qmake6 || command -v qmake || true)}"
+    qtver=$([ -n "$qmake" ] && "$qmake" -query QT_VERSION || true)
+    if [ -z "$qtver" ]; then
+        echo "Qt libraries found but no qmake to tell the Qt version" >> "$unresolved"
+    else
+        mm=${qtver%.*}
+        echo "== Qt $qtver (${#qt_libs[@]} libraries and plugins)"
+        # The modules whose libraries the AppImage bundles. qtbase carries the
+        # image, platform and network plugins.
+        for m in qtbase qtdeclarative qtmultimedia qtsvg; do
+            fetch "https://download.qt.io/official_releases/qt/$mm/$qtver/submodules/$m-everywhere-src-$qtver.tar.xz" \
+                  "$m-everywhere-src-$qtver.tar.xz"
+            printf 'Qt %s\tqt.io\t%s\t%s\t%s\n' "$m" "$m" "$qtver" "$m-everywhere-src-$qtver.tar.xz" >> "$list"
+        done
+    fi
+fi
+
+if [ "${#icu_libs[@]}" -gt 0 ]; then
+    # The full version string (e.g. 73.2) is only in libicuuc.
+    icuuc=$(printf '%s\n' "${icu_libs[@]}" | grep -m1 libicuuc || echo "${icu_libs[0]}")
+    icu=$(strings "$icuuc" | grep -m1 -E '^[0-9]{2}\.[0-9]+(\.[0-9]+)?$' || true)
+    if [ -n "$icu" ]; then
+        echo "== ICU $icu (bundled by Qt)"
+        u=${icu//./_}; d=${icu//./-}
+        fetch "https://github.com/unicode-org/icu/releases/download/release-$d/icu4c-$u-src.tgz" "icu4c-$u-src.tgz"
+        printf 'ICU\tqt.io bundle\ticu4c\t%s\ticu4c-%s-src.tgz\n' "$icu" "$u" >> "$list"
+    else
+        echo "ICU: couldn't read the version from ${icu_libs[0]##*/}" >> "$unresolved"
+    fi
+fi
+
+if [ "${#ffmpeg_libs[@]}" -gt 0 ]; then
+    lavu=$(printf '%s\n' "${ffmpeg_libs[@]}" | grep -m1 libavutil || true)
+    ff=$([ -n "$lavu" ] && strings "$lavu" | grep -m1 -oE 'FFmpeg version n?[0-9]+\.[0-9]+(\.[0-9]+)?' | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' || true)
+    if [ -n "$ff" ]; then
+        echo "== FFmpeg $ff (bundled by Qt)"
+        fetch "https://ffmpeg.org/releases/ffmpeg-$ff.tar.xz" "ffmpeg-$ff.tar.xz"
+        printf 'FFmpeg\tqt.io bundle\tffmpeg\t%s\tffmpeg-%s.tar.xz\n' "$ff" "$ff" >> "$list"
+    else
+        echo "FFmpeg libraries bundled by Qt (${ffmpeg_libs[*]##*/}): version not readable; take it from the Qt $qtver release notes and add ffmpeg-<version>.tar.xz by hand" >> "$unresolved"
+    fi
+fi
+
+echo "Listed in $list"
+if [ -s "$unresolved" ]; then echo "Needs a person to check ($unresolved):"; cat "$unresolved"; fi

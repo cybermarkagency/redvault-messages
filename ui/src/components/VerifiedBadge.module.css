@@ -1,0 +1,19 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.verified {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.unverified {
+  background: var(--warn-soft);
+  color: var(--warn);
+}

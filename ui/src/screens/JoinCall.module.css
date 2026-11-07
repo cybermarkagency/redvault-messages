@@ -1,0 +1,101 @@
+.screen {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.back {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  width: min(460px, 100%);
+  padding: 32px;
+  border-radius: var(--radius-dialog);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.title {
+  margin: 8px 0 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.note {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--text-2);
+  font-size: 0.86rem;
+  text-align: left;
+  line-height: 1.45;
+}
+
+.note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.join {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.join:disabled {
+  opacity: 0.45;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.secondary {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.secondary:disabled {
+  opacity: 0.45;
+}

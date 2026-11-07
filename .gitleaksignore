@@ -1,0 +1,18 @@
+# gitleaks findings reviewed on 2026-11-07 (docs/legal/REDVAULT_AGPL_COMPLIANCE_REPORT.md).
+# Each was checked by hand; new findings still fail CI.
+# docs/signal-integration/01-audit-and-plan.md:675 generic-api-key: not a secret (domain-separation label, code comment or doc text)
+7a10640ad56f6e8ab85c98a53baeb4e591074d86:docs/signal-integration/01-audit-and-plan.md:generic-api-key:675
+# ui/src/lib/shareCrypto.ts:7 generic-api-key: not a secret (domain-separation label, code comment or doc text)
+f7d1adbc26a7280c9d26e5e7a86429aab57f4311:ui/src/lib/shareCrypto.ts:generic-api-key:7
+# server/src/crypto/deviceList.ts:43 generic-api-key: not a secret (domain-separation label, code comment or doc text)
+a26f76c0a3eb25f451069096c03c393b7d839b72:server/src/crypto/deviceList.ts:generic-api-key:43
+# ui/src/lib/e2eV3/device.ts:79 generic-api-key: not a secret (domain-separation label, code comment or doc text)
+a26f76c0a3eb25f451069096c03c393b7d839b72:ui/src/lib/e2eV3/device.ts:generic-api-key:79
+# desktop/core/src/update/update.cpp:153 generic-api-key: not a secret (domain-separation label, code comment or doc text)
+a98287bef6673371a66902d4c5ed6410e68e0c73:desktop/core/src/update/update.cpp:generic-api-key:153
+# android/app/google-services.json:18 gcp-api-key: Firebase client API key: public by design (it ships in every APK). OWNER ACTION: restrict it in Google Cloud Console; it goes away when Firebase is removed (docs/unifiedpush-plan.md)
+8879db8118d3268043c52891f1679e0fe0246756:android/app/google-services.json:gcp-api-key:18
+# Same three comment lines, as fingerprinted by `gitleaks dir` (source-release folder scans):
+desktop/core/src/update/update.cpp:generic-api-key:187
+ui/src/lib/e2eV3/device.ts:generic-api-key:118
+ui/src/lib/shareCrypto.ts:generic-api-key:7

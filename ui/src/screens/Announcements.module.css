@@ -1,0 +1,118 @@
+.screen {
+  composes: screen from "./Settings.module.css";
+}
+
+.body {
+  composes: body from "./Settings.module.css";
+}
+
+.input {
+  composes: input from "./FormScreen.module.css";
+}
+
+.primaryButton {
+  composes: primaryButton from "./FormScreen.module.css";
+}
+
+.secondaryButton {
+  composes: secondaryButton from "./FormScreen.module.css";
+}
+
+.error {
+  composes: error from "./FormScreen.module.css";
+}
+
+.hint {
+  color: var(--text-2);
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+}
+
+.cardUnread {
+  border-color: var(--accent);
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-3);
+}
+
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.option {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 0.86rem;
+}
+
+button.option:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.optionChosen {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.replies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reply {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.replyForm {
+  display: flex;
+  gap: 8px;
+}
+
+.replyForm .input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+}
+
+.replyForm .primaryButton {
+  padding: 0 16px;
+}

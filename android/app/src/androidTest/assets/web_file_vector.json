@@ -1,0 +1,8 @@
+{
+  "key": "kepkRw3YmiQ10pBCfE8/f36DiYjU56r4S7TbuEALuzQ=",
+  "header": "YCaX3rqSXJfO1nc2n1vJhefPvi6UjmsA",
+  "plaintextSize": 70000,
+  "encryptedSize": 70034,
+  "ciphertextSha256": "b22cc5359bf22587e30e474b37a248c166664dc7b251eec50d0dfedeefbc0e19",
+  "plaintextRule": "byte i = (i * 31 + 7) & 0xff"
+}
