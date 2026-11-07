@@ -53,7 +53,13 @@ while IFS= read -r -d '' f; do
     if [[ "$b" =~ ^lib(av|sw)(codec|format|util|scale|resample|device|filter) ]]; then ffmpeg_libs+=("$f"); continue; fi
     if [[ "$b" == libicu* ]]; then icu_libs+=("$f"); continue; fi
     if [ -n "${from_qt[$b]:-}" ]; then qt_libs+=("$b"); continue; fi
-    owner=$(dpkg -S "/$b" 2>/dev/null | grep -v '^diversion' | head -1 || true)
+    # The system library folders first: other packages (e.g. the runner's Firefox) carry private
+    # copies with the same file names, and linuxdeploy bundles from the system folders.
+    owner=""
+    for dir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib /lib; do
+        owner=$(dpkg -S "$dir/$b" 2>/dev/null | grep -v '^diversion' | head -1 || true)
+        [ -n "$owner" ] && break
+    done
     [ -n "$owner" ] || owner=$(dpkg -S "$b" 2>/dev/null | grep -E "/$b\$" | head -1 || true)
     if [ -n "$owner" ]; then
         pkg=${owner%%:*}; pkg=${pkg%%,*}
@@ -73,10 +79,22 @@ fetch() {  # url file
 
 echo "== Ubuntu source packages: ${#debsrc[@]}"
 mkdir -p "$out/ubuntu"
+# When apt's index no longer lists that exact version (a newer one replaced it in -updates or
+# -security), fetch the same version's files from Launchpad, which keeps every published version.
+launchpad_source() {  # name version
+    local name=$1 version=$2 dsc pool="https://launchpad.net/ubuntu/+archive/primary/+files"
+    dsc="${name}_${version#*:}.dsc"
+    curl -fsSL --retry 3 -o "$dsc" "$pool/$dsc" || return 1
+    # The .dsc's Files section lists the tarballs and patches that make up the source package.
+    awk '/^Files:/{f=1;next} /^[^ ]/{f=0} f && NF==3 {print $3}' "$dsc" | while read -r part; do
+        curl -fsSL --retry 3 -o "$part" "$pool/$part" || exit 1
+    done
+}
 for sv in "${!debsrc[@]}"; do
     echo "  $sv"
-    [ "$dry" = 1 ] || (cd "$out/ubuntu" && apt-get source --download-only -q "$sv" >/dev/null) \
-        || echo "apt-get source failed: $sv" >> "$unresolved"
+    [ "$dry" = 1 ] && continue
+    (cd "$out/ubuntu" && { apt-get source --download-only -q "$sv" >/dev/null 2>&1 || launchpad_source "${sv%%=*}" "${sv#*=}"; }) \
+        || echo "source package not found (apt or Launchpad): $sv" >> "$unresolved"
 done
 
 if [ "${#qt_libs[@]}" -gt 0 ]; then

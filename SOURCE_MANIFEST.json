@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-07T21:15:38+00:00",
- "repository_commit": "f5c4f2281e79499194fb1e4865314ba101fa744f",
+ "generated": "2026-11-07T21:39:35+00:00",
+ "repository_commit": "437cdac28f7c4fb9e962bd131188d695cbc6d7d7",
  "branch": "push/unifiedpush",
  "uncommitted_changes_included": false,
  "app_versions": {
@@ -5104,8 +5104,8 @@
   },
   {
    "path": "desktop/packaging/collect-linux-sources.sh",
-   "sha256": "755c74557e0b4120c0a4a4e94863d8ee38080b87538f1ba145063b6e8ab94b54",
-   "bytes": 6669
+   "sha256": "8a9254ca8cee1d29317acdd257bc8dedf75b7f5fd78a2afd5a4964072feb1a0d",
+   "bytes": 7771
   },
   {
    "path": "desktop/packaging/fetch-linux.ps1",
