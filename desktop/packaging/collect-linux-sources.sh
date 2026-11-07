@@ -37,25 +37,31 @@ fi
 declare -A debsrc=()   # "srcpkg=version" -> 1
 qt_libs=(); ffmpeg_libs=(); icu_libs=()
 
+# Libraries that come from Qt's own installer (install-qt-action sets QT_ROOT_DIR). linuxdeploy
+# patches and strips what it bundles, so bundled files can't be compared byte for byte with the
+# originals: the file name is what tells Qt's copies apart from Ubuntu's.
+declare -A from_qt=()
+if [ -n "${QT_ROOT_DIR:-}" ] && [ -d "$QT_ROOT_DIR" ]; then
+    while IFS= read -r -d '' q; do from_qt["$(basename "$q")"]=1; done < <(find "$QT_ROOT_DIR" -name '*.so*' -print0)
+fi
+
 while IFS= read -r -d '' f; do
     b=$(basename "$f")
     case "$b" in
-        redvault*|liblivekit_ffi.so) continue ;;   # our own code, and LiveKit (Apache-2.0, see THIRD_PARTY.md)
+        redvault*|libredvault*|liblivekit_ffi.so) continue ;;   # our own code, and LiveKit (Apache-2.0, see THIRD_PARTY.md)
     esac
+    if [[ "$b" =~ ^lib(av|sw)(codec|format|util|scale|resample|device|filter) ]]; then ffmpeg_libs+=("$f"); continue; fi
+    if [[ "$b" == libicu* ]]; then icu_libs+=("$f"); continue; fi
+    if [ -n "${from_qt[$b]:-}" ]; then qt_libs+=("$b"); continue; fi
     owner=$(dpkg -S "/$b" 2>/dev/null | grep -v '^diversion' | head -1 || true)
     [ -n "$owner" ] || owner=$(dpkg -S "$b" 2>/dev/null | grep -E "/$b\$" | head -1 || true)
-    # Only trust dpkg when the installed file is byte-identical to the bundled
-    # one: Qt's installer ships libraries with the same names as Ubuntu's.
-    if [ -n "$owner" ] && ! cmp -s "$f" "${owner#*: }"; then owner=""; fi
     if [ -n "$owner" ]; then
         pkg=${owner%%:*}; pkg=${pkg%%,*}
         src=$(dpkg-query -W -f '${source:Package}' "$pkg")
         ver=$(dpkg-query -W -f '${source:Version}' "$pkg")
         debsrc["$src=$ver"]=1
         printf '%s\tubuntu:%s\t%s\t%s\t\n' "$b" "$pkg" "$src" "$ver" >> "$list"
-    elif [[ "$b" == libQt6* || "$b" == libq* || "$b" == lib*plugin.so ]]; then qt_libs+=("$b")
-    elif [[ "$b" =~ ^lib(av|sw)(codec|format|util|scale|resample|device|filter) ]]; then ffmpeg_libs+=("$f")
-    elif [[ "$b" == libicu* ]]; then icu_libs+=("$f")
+    elif [ -z "${QT_ROOT_DIR:-}" ] && [[ "$b" == libQt6* || "$b" == libq* || "$b" == lib*plugin.so ]]; then qt_libs+=("$b")
     else echo "$b: not from an Ubuntu package and not recognised as Qt, ICU or FFmpeg" >> "$unresolved"
     fi
 done < <(find "$appdir" -name '*.so*' -type f -print0)
@@ -84,8 +90,14 @@ if [ "${#qt_libs[@]}" -gt 0 ]; then
         # The modules whose libraries the AppImage bundles. qtbase carries the
         # image, platform and network plugins.
         for m in qtbase qtdeclarative qtmultimedia qtsvg; do
-            fetch "https://download.qt.io/official_releases/qt/$mm/$qtver/submodules/$m-everywhere-src-$qtver.tar.xz" \
-                  "$m-everywhere-src-$qtver.tar.xz"
+            file="$m-everywhere-src-$qtver.tar.xz"
+            # Current releases live under official_releases; older ones move to archive/.
+            current="https://download.qt.io/official_releases/qt/$mm/$qtver/submodules/$file"
+            if [ "$dry" = 0 ] && curl -fsSL --retry 3 -o "$out/$file" "$current" 2>/dev/null; then
+                printf '  %s\n' "$current"
+            else
+                fetch "https://download.qt.io/archive/qt/$mm/$qtver/submodules/$file" "$file"
+            fi
             printf 'Qt %s\tqt.io\t%s\t%s\t%s\n' "$m" "$m" "$qtver" "$m-everywhere-src-$qtver.tar.xz" >> "$list"
         done
     fi
