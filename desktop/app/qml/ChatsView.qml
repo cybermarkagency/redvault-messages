@@ -291,7 +291,7 @@ Item {
                                         color: row.typing ? Theme.accent : (row.unread > 0 ? Theme.text2 : Theme.text3)
                                         font.pixelSize: 13
                                     }
-                                    // Device keys (preview): messages in this chat that came with per-device encryption.
+                                    // Device keys: messages in this chat that came with per-device encryption.
                                     Rectangle {
                                         readonly property int count: App.deviceKeys ? (App.deviceKeys.unreadChats[row.chatId] || 0) : 0
                                         visible: count > 0

@@ -17,8 +17,7 @@ import java.util.Base64
 
 /**
  * This phone's protocol-3 device and what it does with the server (docs/multi-device-threat-model.md).
- * A port of ui/src/lib/e2eV3/device.ts. DEVELOPMENT ONLY: built only with -PredvaultE2eV3=true and
- * used only when the server has E2E_V3_ENABLED. Protocol 1 is untouched.
+ * A port of ui/src/lib/e2eV3/device.ts. Used when the server has E2E_V3_ENABLED. Protocol 1 is untouched.
  *
  * Every engine call saves the new state before returning, so a crash never reuses a message key.
  */

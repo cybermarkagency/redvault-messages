@@ -19,8 +19,8 @@ import kotlinx.serialization.json.put
 
 /**
  * The shared encryption engine (crypto-core: vodozemac Olm and Megolm, device lists, pairing) as one
- * JSON request in, one JSON response out. DEVELOPMENT ONLY (docs/multi-device-threat-model.md): the app
- * only includes it in builds made with -PredvaultE2eV3=true. Nothing here talks to the network.
+ * JSON request in, one JSON response out (docs/multi-device-threat-model.md). Builds include it unless made with
+ * -PredvaultE2eV3=false. Nothing here talks to the network.
  */
 fun interface EngineCall {
     fun call(request: String): String

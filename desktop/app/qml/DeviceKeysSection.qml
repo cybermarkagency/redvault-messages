@@ -8,11 +8,11 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Redvault
 
-// Settings > Device keys (preview): each device gets its own encryption keys,
+// Settings > Devices & encryption: each device gets its own encryption keys,
 // and a new device is trusted only when one of your trusted devices approves
-// it. A development preview behind the server's E2E_V3_ENABLED flag (the web
-// app's "Device keys (preview)" panel); your messages still use the current
-// encryption. Nothing here is shown unless the server has it on.
+// it. One-to-one chats and plain groups use the Signal protocol over these keys
+// (docs/signal-integration/07-step1-default-path.md). Nothing here is shown
+// unless the server has it on (E2E_V3_ENABLED).
 ColumnLayout {
     id: root
     required property DeviceKeysSession keys
@@ -68,7 +68,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "Device keys (preview)"
+        text: "Devices & encryption"
         color: Theme.text
         font.family: Theme.displayFamily
         font.pixelSize: 26
@@ -77,7 +77,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "In development: each device gets its own encryption keys, and a new device is trusted only when one of your trusted devices approves it. Your messages still use the current encryption."
+        text: "Your messages use the Signal protocol. Each device gets its own encryption keys, and a new device is trusted only when one of your trusted devices approves it."
         color: Theme.text2
         font.pixelSize: 14
     }
@@ -148,7 +148,7 @@ ColumnLayout {
         visible: root.keys !== null && root.keys.status === "setup"
         spacing: 8
         Title { text: "Set up device keys on this computer" }
-        Detail { text: "This computer becomes your first trusted device. Your current key vouches for the new one. Nothing else about your account changes." }
+        Detail { text: "This computer becomes your first trusted device. Your current key vouches for the new one. This normally happens on its own after you sign in; if it didn't, set it up here." }
         RvButton {
             enabled: root.idle
             text: "Set up"
@@ -161,8 +161,8 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.keys !== null && root.keys.status === "pair"
         spacing: 10
-        Title { text: "Pair this computer with a trusted device" }
-        Detail { text: "Your password alone can't make this computer trusted. Open Device keys on a trusted device and compare the codes." }
+        Title { text: "Link this computer: pair it with a trusted device" }
+        Detail { text: "Your password alone can't make this computer trusted. Open Devices & encryption on a trusted device and compare the codes." }
 
         Detail {
             visible: root.keys !== null && root.keys.interrupted && !root.keys.joining
@@ -286,7 +286,7 @@ ColumnLayout {
                                 font.weight: Font.DemiBold
                             }
                         }
-                        // rv-signal-v1 (development builds): this device's Signal sessions are declared in the signed list.
+                        // rv-signal-v1: this device's Signal sessions are declared in the signed list.
                         Rectangle {
                             visible: trustedRow.modelData.signal === true
                             implicitWidth: signalLabel.implicitWidth + 14
@@ -312,14 +312,6 @@ ColumnLayout {
                         font.family: Theme.monoFamily
                         font.pixelSize: Theme.fontSmall
                     }
-                }
-                // A signed change: contacts are told, and chat with this device goes back to the device-key protocol.
-                RvButton {
-                    visible: trustedRow.modelData.signal === true && root.keys.status === "trusted"
-                    enabled: root.idle
-                    text: "Turn off Signal"
-                    primary: false
-                    onClicked: root.keys.turnOffSignal(trustedRow.modelData.deviceId)
                 }
                 RvButton {
                     visible: trustedRow.modelData.canRemove

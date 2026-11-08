@@ -9,6 +9,8 @@ import com.redvaultsystems.redvaultmessage.data.api.MarkReadRequest
 import com.redvaultsystems.redvaultmessage.data.api.WebPushSubscriptionRequest
 import com.redvaultsystems.redvaultmessage.data.api.SendMessageRequest
 import com.redvaultsystems.redvaultmessage.data.api.SessionCookieJar
+import com.redvaultsystems.redvaultmessage.tor.ForwardingGate
+import com.redvaultsystems.redvaultmessage.tor.ReleaseRouting
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.jsonObject
 import okhttp3.Request
@@ -84,6 +86,31 @@ class NoMetadataTest {
         record("register push endpoint", server.takeRequest())
         record("avatar download", server.takeRequest())
         assertEquals("sid=session", send.getHeader("Cookie"))
+    }
+
+    @Test
+    fun throughTorToTheOnionHostTheWireCarriesNoMetadataEither() = runBlocking {
+        // The app's default: the real onion API base, through the Tor gate (docs/tor-by-default.md). The gate here
+        // stands in for tor-core and hands the connection to the local recording server, as Tor hands it to the service.
+        val gate = ForwardingGate(server.port)
+        try {
+            val base = ReleaseRouting.ONION_API_BASE
+            repeat(4) { server.enqueue(MockResponse().setResponseCode(204).addHeader("Set-Cookie", "sid=session; Path=/")) }
+            val client = ApiClient.httpClient(SessionCookieJar(), base, gate.source)
+            val api = ApiClient.create(base, client)
+            runCatching { api.login(LoginRequest("alice", "correct horse battery staple")) }
+            runCatching { api.sendMessage("conv-1", SendMessageRequest(ciphertext = "c2VhbGVk", nonce = "bm9uY2U=")) }
+            runCatching { ApiClient.createPush(base, client).wait() }
+            client.newCall(Request.Builder().url(base + "users/u1/avatar").build()).execute().close()
+            for (label in listOf("login (Tor)", "send message (Tor)", "background wake connection (Tor)", "avatar download (Tor)")) {
+                val request = server.takeRequest()
+                assertEquals(ReleaseRouting.ONION_HOST, request.getHeader("Host"))
+                record(label, request)
+            }
+            assertTrue(gate.targets.all { it.addressType == 3 && it.host == ReleaseRouting.ONION_HOST && it.port == 80 })
+        } finally {
+            gate.close()
+        }
     }
 
     @Test

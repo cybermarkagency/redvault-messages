@@ -212,7 +212,7 @@ Item {
                 NavItem { key: "devices"; iconName: "monitor"; text: "Linked devices"; current: page.section; onPicked: (key) => page.section = key }
                 NavItem {
                     visible: App.deviceKeys !== null && App.deviceKeys.status !== "off"
-                    key: "devicekeys"; iconName: "key"; text: "Device keys (preview)"; current: page.section; onPicked: (key) => page.section = key
+                    key: "devicekeys"; iconName: "key"; text: "Devices & encryption"; current: page.section; onPicked: (key) => page.section = key
                 }
                 NavItem { key: "log"; iconName: "log"; text: "Transparency log"; current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "relays"; iconName: "globe"; text: "Relay servers"; current: page.section; onPicked: (key) => page.section = key }
@@ -1130,7 +1130,7 @@ Item {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
                                     text: Updater.fromStore ? "Updates come from the Microsoft Store."
-                                        : Updater.blockedByTor ? "Over Tor, this app doesn't check for updates: that would leave over the open internet."
+                                        : Updater.blockedByTor ? "This app checks for updates only through Tor, and its server address isn't Redvault's onion service."
                                         : !Updater.enabled && Qt.platform.os !== "windows" ? "To update, download the newest version and replace this one."
                                         : !Updater.enabled ? "Automatic updates aren't set up in this build."
                                         : Updater.status === Updater.Checking ? "Checking for updates…"

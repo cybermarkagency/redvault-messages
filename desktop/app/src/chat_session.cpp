@@ -182,7 +182,10 @@ QString ChatSession::sendRefusal(const std::string& chatId, const char* onDevice
     if (const auto meta = metaFor(chatId); meta && contactKeyChanged(*meta)) {
         return QStringLiteral("Sending is paused because this contact's safety number changed. Verify it first.");
     }
-    if (chatPinnedToDeviceKeys_ && chatPinnedToDeviceKeys_(chatId)) return QString::fromUtf8(onDeviceKeys);
+    if (chatPinnedToDeviceKeys_ && chatPinnedToDeviceKeys_(chatId)) {
+        const QString reason = deviceKeyReason_ ? deviceKeyReason_(chatId) : QString();
+        return reason.isEmpty() ? QString::fromUtf8(onDeviceKeys) : reason;
+    }
     return {};
 }
 

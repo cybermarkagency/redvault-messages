@@ -371,14 +371,24 @@ void AppController::enterSignedIn() {
     // Announcements from the team (not end-to-end encrypted, and labelled so).
     inbox_ = std::make_unique<InboxSession>(api_);
     connect(inbox_.get(), &InboxSession::sessionExpired, this, expired);
-    // Per-device encryption keys (protocol 3 preview): inert unless this build has the engine and the server has it on.
+    // Per-device encryption keys with Signal (protocol 3): the default when this build has the engine and the server has
+    // it on. The background check sets up the first device and keeps Signal current: now (sign-in), on unlock, every 6 hours.
     deviceKeys_ = std::make_unique<DeviceKeysSession>(api_, identity_);
+    deviceKeys_->setTor(tor_);
     connect(deviceKeys_.get(), &DeviceKeysSession::sessionExpired, this, expired);
-    deviceKeys_->refresh();
+    deviceKeys_->setLockCheck([lock = QPointer<AppLock>(lock_.get())] { return lock && lock->locked(); });
+    deviceKeys_->ensureDeviceKeys();
+    connect(lock_.get(), &AppLock::lockedChanged, deviceKeys_.get(), [this] {
+        if (!lock_->locked() && deviceKeys_) deviceKeys_->ensureDeviceKeys();
+    });
     connect(deviceKeys_.get(), &DeviceKeysSession::incoming, this, &AppController::deviceKeyMessages);
-    // A chat pinned to device keys never falls back to the older protocol, whichever screen sends.
+    // A chat on device keys (pinned, or the open one decided for them) never falls back to the older protocol,
+    // whichever screen sends.
     chats_->setDeviceKeyCheck([keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& chatId) {
         return keys && keys->chatPinned(QString::fromStdString(chatId));
+    });
+    chats_->setDeviceKeyReason([keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& chatId) {
+        return keys ? keys->chatRefusal(QString::fromStdString(chatId)) : QString();
     });
     // The server tells a device its mailbox has something ({"type":"v3-mailbox"}, no sender or chat): read it now.
     connect(live_.get(), &LiveSession::liveEvent, deviceKeys_.get(), [keys = deviceKeys_.get()](const api::live::LiveEvent& event) {

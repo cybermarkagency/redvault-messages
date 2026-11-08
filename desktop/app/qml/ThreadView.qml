@@ -30,17 +30,23 @@ Item {
     property string planNotice: ""
     property bool detailsOpen: true
     signal toggleDetails()
-    // Device keys (preview): this chat is in per-device-encryption mode (pinned, or switched on).
+    // Device keys: this chat uses per-device encryption (Signal), chosen by itself: every member has device keys,
+    // or the chat is pinned to them. There's no switch back.
     readonly property bool v3Mode: App.deviceKeys !== null && App.deviceKeys.chatActive
+    // How this chat sends (DeviceKeysSession.chatMode). "checking" and "link" hold sending: nothing goes out on the
+    // older protocol while it isn't known, or while this computer isn't linked to a chat whose members all have device keys.
+    readonly property string dkMode: App.deviceKeys !== null ? App.deviceKeys.chatMode : ""
+    readonly property bool dkHold: root.dkMode === "checking" || root.dkMode === "link"
     // The file in progress, whichever way this chat sends them.
     readonly property string fileActivity: root.v3Mode ? App.deviceKeys.chatFileActivity : root.session.fileActivity
     // The chat a device-key message is being edited in (those messages aren't in root.session).
     property string editingV3Chat: ""
-    // Replies don't exist on device keys, and an edit in progress belongs to the other list.
+    // Replies and selecting don't exist on device keys yet, and an edit in progress belongs to the other list.
     onV3ModeChanged: {
         root.replyToId = ""
         root.replyPreview = ""
         if (root.editingId.length > 0) root.cancelEdit()
+        root.stopSelect()
     }
 
     function syncDeviceKeys() {
@@ -70,21 +76,6 @@ Item {
             root.savedNotice = "Saved to " + path
             savedNoticeTimer.restart()
         }
-    }
-
-    ConfirmDialog {
-        id: deviceKeysDialog
-        title: "Use device keys in this chat?"
-        message: "This chat will use per-device encryption (preview). Both of you need device keys set up. Messages sent this way live only on your devices. Replies, forwards, pins and polls aren't available here yet. Older messages stay in the normal view, and you can go back to the older protocol at any time."
-        confirmText: "Use device keys"
-        onConfirmed: App.deviceKeys.useDeviceKeys()
-    }
-    ConfirmDialog {
-        id: olderProtocolDialog
-        title: "Go back to the older protocol?"
-        message: "New messages in this chat will use the current encryption again. Messages already sent with device keys stay on your devices."
-        confirmText: "Use the older protocol"
-        onConfirmed: App.deviceKeys.useOlderProtocol()
     }
 
 
@@ -429,7 +420,8 @@ Item {
         }
     }
 
-    // What you can do with one device-key message. Reply, forward and pin have no envelope on device keys yet.
+    // What you can do with one device-key message. Reply, forward and pin have no envelope on device keys yet (step 2),
+    // so they aren't offered here.
     Menu {
         id: v3Menu
         property string messageId: ""
@@ -466,21 +458,6 @@ Item {
             visible: v3Menu.canReact && v3Menu.text.length > 0
             height: visible ? implicitHeight : 0
             onTriggered: App.copySecret(v3Menu.text)
-        }
-        MenuItem {
-            text: "Reply"
-            icon.source: "image://icon/reply/" + menuIcon.hex(Theme.text)
-            enabled: false
-        }
-        MenuItem {
-            text: "Forward…"
-            icon.source: "image://icon/share/" + menuIcon.hex(Theme.text)
-            enabled: false
-        }
-        MenuItem {
-            text: "Pin"
-            icon.source: "image://icon/pin/" + menuIcon.hex(Theme.text)
-            enabled: false
         }
         MenuSeparator {
             visible: v3Menu.canDelete
@@ -977,7 +954,8 @@ Item {
                     onClicked: root.searchOpen ? root.closeSearch() : root.openSearch()
                 }
                 IconButton {
-                    visible: !root.readOnly
+                    // Disappearing messages have no device-key version yet (step 2).
+                    visible: !root.readOnly && !root.v3Mode
                     iconName: "timer"
                     toggled: root.session.currentDisappearing > 0
                     tip: "Disappearing messages: " + root.session.currentDisappearingLabel
@@ -1103,7 +1081,7 @@ Item {
             Layout.fillWidth: true
             readonly property var pins: root.session.currentPinned
             readonly property var shown: pins.length > 0 ? pins[Math.min(root.pinIndex, pins.length - 1)] : null
-            visible: pins.length > 0 && !root.selecting
+            visible: pins.length > 0 && !root.selecting && !root.v3Mode
             implicitHeight: 48
             color: Theme.surface
             Rectangle {
@@ -1304,10 +1282,11 @@ Item {
             }
         }
 
-        // Your timer is on: say so, since it changes what happens to everything you send.
+        // Your timer is on: say so, since it changes what happens to everything you send. Not in a device-key chat:
+        // the timer doesn't apply to its messages yet, so the line would claim something that doesn't happen.
         Rectangle {
             Layout.fillWidth: true
-            visible: root.session.currentDisappearing > 0
+            visible: root.session.currentDisappearing > 0 && !root.v3Mode
             implicitHeight: 30
             color: Theme.surface
             Row {
@@ -1331,10 +1310,10 @@ Item {
             }
         }
 
-        // --- Device keys (preview): per-device encryption for this chat ---
+        // --- Devices & encryption: how this chat is encrypted (chosen by itself, no switch) ---
         Rectangle {
             Layout.fillWidth: true
-            visible: App.deviceKeys !== null && App.deviceKeys.trusted && root.session.currentCommunityId.length === 0
+            visible: root.dkMode.length > 0
             implicitHeight: dkRow.implicitHeight + 14
             color: root.v3Mode ? Theme.accentSoft : Theme.surface
             RowLayout {
@@ -1344,38 +1323,38 @@ Item {
                 anchors.rightMargin: 16
                 spacing: 10
                 Icon {
-                    name: "shield-check"
+                    name: root.dkMode === "link" ? "triangle-alert" : "shield-check"
                     size: 16
-                    color: root.v3Mode ? Theme.accent : Theme.text3
+                    color: root.v3Mode ? Theme.accent : root.dkMode === "link" ? Theme.warn : Theme.text3
                 }
                 Text {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 0
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
-                    color: root.v3Mode ? Theme.accent : Theme.text3
+                    color: root.v3Mode ? Theme.accent : root.dkMode === "link" ? Theme.warn : Theme.text3
                     font.pixelSize: Theme.fontSmall + 1
                     text: root.v3Mode
                           ? (App.deviceKeys && App.deviceKeys.chatProtocol === "signal"
-                             ? "Signal sessions (development build), with post-quantum key agreement, to every device in this chat. "
+                             ? "This chat uses the Signal protocol, end to end, to every device in it. "
                              : App.deviceKeys && App.deviceKeys.chatProtocol === "mixed"
-                               ? "Device keys (preview): some devices in this chat use Signal sessions, others the device-key protocol. "
-                               : "")
-                            + "Device keys (preview). Messages here are encrypted to each device and kept only on your devices. Replies, forwards, pins and polls aren't available here yet; older messages are in the normal view."
-                          : App.deviceKeys && App.deviceKeys.chatContact === "yes"
-                            ? "Device keys (preview): " + (root.session.currentIsGroup ? "members of this group have" : root.session.currentTitle + " has")
-                              + " per-device encryption set up. Send this chat with it."
-                            : App.deviceKeys && App.deviceKeys.chatContact === "no"
-                              ? "Device keys (preview): " + (root.session.currentIsGroup ? "no other member has" : root.session.currentTitle + " hasn't set up")
-                                + " device keys yet, so this chat stays on the current encryption."
-                              : "Device keys (preview): checking whether they have device keys…"
+                               ? "Some devices in this chat use the Signal protocol, others the device-key protocol. "
+                               : "This chat uses per-device end-to-end encryption, to every device in it. ")
+                            + "Messages here are kept only on your devices. Replies, forwards, pins, polls and disappearing messages aren't available here yet; older messages are in the normal view."
+                          : root.dkMode === "link"
+                            ? (root.session.currentIsGroup ? "Everyone in this group uses" : root.session.currentTitle + " uses")
+                              + " device keys, and this computer isn't linked to your devices yet. Link it to send here."
+                            : root.dkMode === "older"
+                              ? (root.session.currentIsGroup ? "Not everyone in this group has" : root.session.currentTitle + " hasn't")
+                                + " set up device keys yet, so this chat uses the earlier end-to-end encryption."
+                              : "Checking how this chat is encrypted…"
                 }
                 RvButton {
-                    text: root.v3Mode ? "Use the older protocol" : "Use device keys"
-                    primary: !root.v3Mode && App.deviceKeys !== null && App.deviceKeys.chatContact === "yes"
-                    enabled: root.v3Mode || (App.deviceKeys !== null && App.deviceKeys.chatContact === "yes")
+                    visible: root.dkMode === "link"
+                    text: "Link this computer"
+                    primary: true
                     implicitHeight: 30
-                    onClicked: root.v3Mode ? olderProtocolDialog.open() : deviceKeysDialog.open()
+                    onClicked: App.deviceKeys.showSettings()
                 }
             }
         }
@@ -1434,7 +1413,7 @@ Item {
                 implicitHeight: bubbleBody.implicitHeight + 4 + (bubbleReactions.visible ? bubbleReactions.implicitHeight + 2 : 0)
 
                 function showMenu() {
-                    if (bubble.status === "failed") return
+                    if (bubble.status === "failed" || bubble.status === "queued") return
                     v3Menu.show(bubble.messageId, bubble.deleted ? "" : bubble.text, bubble.canReact, bubble.canEdit, bubble.canDelete)
                 }
 
@@ -1533,6 +1512,13 @@ Item {
                                 color: Theme.danger
                                 font.pixelSize: Theme.fontSmall
                             }
+                            // Waiting for Tor (docs/tor-by-default.md): kept encrypted here, sent once Tor connects.
+                            Text {
+                                visible: bubble.status === "queued"
+                                text: "Waiting for Tor"
+                                color: Theme.warn
+                                font.pixelSize: Theme.fontSmall
+                            }
                             Text {
                                 visible: bubble.status === "failed"
                                 text: "Retry"
@@ -1546,7 +1532,7 @@ Item {
                                 }
                             }
                             IconButton {
-                                visible: bubble.status !== "failed"
+                                visible: bubble.status !== "failed" && bubble.status !== "queued"
                                 implicitWidth: 22
                                 implicitHeight: 18
                                 iconName: "dots"
@@ -2084,7 +2070,7 @@ Item {
                         Layout.alignment: Qt.AlignBottom
                         implicitHeight: 42
                         iconName: "chart-bar"
-                        enabled: !root.v3Mode
+                        visible: !root.v3Mode
                         tip: "Create a poll"
                         onClicked: pollDialog.open()
                     }
@@ -2218,7 +2204,7 @@ Item {
                         implicitHeight: 42
                         toggled: false
                         iconColor: Theme.accentContrast
-                        enabled: !root.session.sending && composer.text.trim().length > 0 && !(root.v3Mode && App.deviceKeys.chatSending)
+                        enabled: !root.session.sending && composer.text.trim().length > 0 && !(root.v3Mode && App.deviceKeys.chatSending) && !root.dkHold
                         onClicked: root.send()
                         background: Rectangle {
                             radius: 21

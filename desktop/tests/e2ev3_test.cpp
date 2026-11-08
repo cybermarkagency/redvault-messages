@@ -9,6 +9,7 @@
 #include <mutex>
 #include <filesystem>
 #include <map>
+#include <set>
 #include <thread>
 
 #include "redvault/api/api_error.hpp"
@@ -18,6 +19,7 @@
 #include "redvault/e2ev3/device_store.hpp"
 #include "redvault/e2ev3/key_vault.hpp"
 #include "redvault/e2ev3/pairing.hpp"
+#include "redvault/e2ev3/send_queue.hpp"
 #include "redvault/util/text.hpp"
 
 // Protocol 3 on the desktop: key storage, the device logic and pairing, against
@@ -72,6 +74,10 @@ struct FakeState {
     bool withholdSignal = false;  // a server that hides Signal keys
     std::map<std::string, std::vector<Json>> rosters;  // M6: conversation -> signed rosters, oldest first
     int counter = 0;
+    // Tor down (docs/tor-by-default.md): these calls are refused at the gate, as the app's transport does ("*": all).
+    std::set<std::string> torDown;
+    // Every message request that reached the server: (kind, conversation, bodies), oldest first.
+    std::vector<std::pair<std::string, std::vector<std::string>>> posted;
 };
 
 class FakeServer final : public e2::V3Server {
@@ -79,6 +85,11 @@ public:
     FakeServer(std::shared_ptr<FakeState> state, std::string userId) : s_(std::move(state)), user_(std::move(userId)) {}
 
     Json config() override { return Json{{"enabled", true}, {"resetDelayHours", 72}, {"signal", s_->signalOn}}; }
+
+    /// Refuses the call the way the Tor-only transport does when the gateway isn't connected: nothing reaches the server.
+    void gate(const char* call) const {
+        if (s_->torDown.count("*") || s_->torDown.count(call)) throw redvault::api::ApiError(0, "tor_unavailable", "Tor isn't connected");
+    }
 
     Json signalUpload(const std::string& deviceId, const Json& upload) override {
         std::lock_guard lock(s_->mutex);
@@ -169,6 +180,7 @@ public:
         s_->devices.erase(deviceId);
     }
     Json getDeviceList(const std::string& userId, const std::string&) override {
+        gate("getDeviceList");
         std::lock_guard lock(s_->mutex);
         return Json{{"deviceList", s_->lists.count(userId) ? s_->lists[userId] : Json(nullptr)}, {"pendingReset", nullptr}};
     }
@@ -182,6 +194,7 @@ public:
     }
     void cancelReset(const std::string&) override {}
     Json claimKeys(const std::string&, const Json& devices) override {
+        gate("claimKeys");
         std::lock_guard lock(s_->mutex);
         Json out = Json::array();
         for (const auto& want : devices) {
@@ -196,7 +209,11 @@ public:
         return out;
     }
     void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override {
+        gate("sendMessages");
         std::lock_guard lock(s_->mutex);
+        std::vector<std::string> bodies;
+        for (const auto& m : messages) bodies.push_back(m.at("body").get<std::string>());
+        s_->posted.emplace_back("messages", bodies);
         for (const auto& m : messages) {
             s_->mailboxes[m.at("deviceId")].push_back({{"id", "m" + std::to_string(++s_->counter)},
                                                        {"senderUserId", user_},
@@ -206,6 +223,7 @@ public:
         }
     }
     Json conversationDeviceLists(const std::string& conversationId) override {
+        gate("conversationDeviceLists");
         std::lock_guard lock(s_->mutex);
         Json members = Json::array();
         for (const auto& userId : s_->groups.at(conversationId)) {
@@ -215,7 +233,9 @@ public:
     }
     void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
                           const Json& recipients) override {
+        gate("sendGroupMessage");
         std::lock_guard lock(s_->mutex);
+        s_->posted.emplace_back("group", std::vector<std::string>{body});
         for (const auto& r : recipients) {
             s_->mailboxes[r.at("deviceId")].push_back({{"id", "m" + std::to_string(++s_->counter)},
                                                        {"senderUserId", user_},
@@ -225,6 +245,7 @@ public:
         }
     }
     Json inbox(const std::string& deviceId) override {
+        gate("inbox");
         std::lock_guard lock(s_->mutex);
         return Json(s_->mailboxes[deviceId]);
     }
@@ -1061,3 +1082,208 @@ TEST_CASE("signal: a group goes over sender keys, and a removed member reads not
 }
 
 #endif
+
+// --- Tor by default: device-key sends wait for Tor, encrypted once (docs/tor-by-default.md, rule 5) ---
+
+namespace {
+
+/// One computer whose device talks through QueueingV3Server, with its queue in its own folder.
+struct QueuedComputer {
+    TempDir dir;
+    e2::Backend backend;
+    std::shared_ptr<e2::QueueingV3Server> server;
+    QueuedComputer(const std::shared_ptr<FakeState>& state, const std::string& userId) {
+        backend.store = std::make_shared<e2::DeviceStore>(dir.path, e2::makeFileVault(dir.path / "keys"));
+        server = std::make_shared<e2::QueueingV3Server>(std::make_shared<FakeServer>(state, userId));
+        backend.server = server;
+    }
+    fs::path queueFile(const e2::V3Device& device) const { return dir.path / ("sendq-" + device.deviceId()); }
+    void attach(e2::V3Device& device) {
+        server->attach(std::make_shared<e2::SendQueue>(queueFile(device), device.deriveKey("redvault-v3-send-queue")));
+    }
+};
+
+std::string readFile(const fs::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+std::vector<std::string> texts(const std::vector<e2::ChatRecord>& records) {
+    std::vector<std::string> out;
+    for (const auto& r : records) {
+        if (!r.op) out.push_back(r.text);
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("tor: a send refused at the Tor gate keeps its ciphertext, which goes out once, as it was", "[e2ev3][chat][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-tor-1";
+
+    // Tor drops between the key lookups and the post: the engine has encrypted (and saved its state), nothing left.
+    state->torDown = {"sendMessages"};
+    const auto sent = e2::sendChat(*a, ha, chat, "bob", "hello over tor");
+    CHECK(sent.queued);
+    REQUIRE(ha.list(chat).size() == 1);
+    CHECK(ha.list(chat)[0].status == "queued");
+    CHECK(state->posted.empty());
+    CHECK(state->mailboxes[b->deviceId()].empty());
+    const auto queued = ac.server->queue()->items();
+    REQUIRE(queued.size() == 1);
+    CHECK(queued[0].carriesRecord);
+    CHECK(queued[0].recordId == sent.id);
+    const std::string ciphertext = queued[0].messages.at(0).at("body").get<std::string>();
+
+    // A restart finds the same queue; on disk it's sealed (no message text, no ciphertext in the clear).
+    {
+        e2::SendQueue reopened(ac.queueFile(*a), a->deriveKey("redvault-v3-send-queue"));
+        REQUIRE(reopened.items().size() == 1);
+        CHECK(reopened.items()[0].messages == queued[0].messages);
+        e2::SendQueue wrongKey(ac.queueFile(*a), redvault::crypto::toBytes(bytesFor('X')));
+        CHECK(wrongKey.items().empty());
+    }
+    const std::string onDisk = readFile(ac.queueFile(*a));
+    CHECK(onDisk.find("hello over tor") == std::string::npos);
+    CHECK(onDisk.find(ciphertext.substr(0, 24)) == std::string::npos);
+    CHECK(onDisk.find(b->deviceId()) == std::string::npos);
+    CHECK(readFile(ac.dir.path / ("history-" + a->deviceId())).find("hello over tor") == std::string::npos);
+
+    // Still down: nothing goes, nothing is dropped.
+    auto drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK(drained.waiting);
+    CHECK(drained.sent == 0);
+    CHECK(ac.server->queue()->items().size() == 1);
+
+    // Tor is back: exactly the queued ciphertext, once, and the record turns sent.
+    state->torDown.clear();
+    drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK_FALSE(drained.waiting);
+    CHECK(drained.sent == 1);
+    CHECK(ac.server->queue()->empty());
+    CHECK_FALSE(fs::exists(ac.queueFile(*a)));
+    CHECK(ha.list(chat)[0].status == "sent");
+    REQUIRE(state->posted.size() == 1);
+    CHECK(state->posted[0].second.at(0) == ciphertext);
+    const auto atBob = e2::receiveChat(*b, hb);
+    REQUIRE(atBob.size() == 1);
+    CHECK(atBob[0].text == "hello over tor");
+    CHECK(atBob[0].id == sent.id);
+    CHECK_FALSE(e2::hasQueuedChat(ha, *ac.server));
+}
+
+TEST_CASE("tor: sends made while Tor is down wait in order, and are encrypted only once it's back", "[e2ev3][chat][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-tor-2";
+    const std::string first = e2::sendChat(*a, ha, chat, "bob", "before").id;
+    REQUIRE(e2::receiveChat(*b, hb).size() == 1);
+
+    state->torDown = {"*"};
+    e2::queueChat(*a, ha, chat, "bob", "one");
+    e2::queueChat(*a, ha, chat, "bob", "two");
+    e2::queueChatOp(*a, ha, chat, "bob", e2::ChatOp{"reaction", first, {}, "👍"});
+    CHECK(ha.queued().size() == 3);
+    CHECK(e2::hasQueuedChat(ha, *ac.server));
+    CHECK_THROWS_AS(e2::queueChat(*a, ha, chat, "bob", ""), e2::EngineError);  // checked now, not when Tor is back
+    const auto postsBefore = state->posted.size();
+
+    auto drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK(drained.waiting);
+    CHECK(state->posted.size() == postsBefore);
+    CHECK(ha.queued().size() == 3);
+
+    // Back: oldest first, each encrypted now.
+    state->torDown.clear();
+    drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK_FALSE(drained.waiting);
+    CHECK(drained.sent == 3);
+    CHECK(ha.queued().empty());
+    const auto atBob = e2::receiveChat(*b, hb);
+    REQUIRE(texts(atBob) == std::vector<std::string>{"one", "two"});
+    const auto shown = hb.list(chat);
+    REQUIRE(shown.size() == 3);
+    REQUIRE(shown[0].reactions.size() == 1);
+    CHECK(shown[0].reactions[0].emoji == "👍");
+}
+
+TEST_CASE("tor: a new send waits behind what's queued, so nothing overtakes", "[e2ev3][chat][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-tor-3";
+
+    state->torDown = {"sendMessages"};
+    CHECK(e2::sendChat(*a, ha, chat, "bob", "first", 1000).queued);
+    state->torDown.clear();
+    // Tor is back, but the first still waits: the second's ciphertext queues behind it.
+    CHECK(e2::sendChat(*a, ha, chat, "bob", "second", 2000).queued);
+    CHECK(state->posted.empty());
+    CHECK(ac.server->queue()->items().size() == 2);
+
+    const auto drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK(drained.sent == 2);
+    CHECK(texts(e2::receiveChat(*b, hb)) == std::vector<std::string>{"first", "second"});
+}
+
+TEST_CASE("tor: a group send refused at the gate keeps the room's ciphertext and sends it once", "[e2ev3][chat][group][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    ac.attach(*a);
+    const std::string group = "group-tor";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+
+    state->torDown = {"sendGroupMessage"};
+    CHECK(e2::sendGroupChat(*a, ha, group, "hello group over tor").queued);
+    CHECK(ha.list(group).at(0).status == "queued");
+    state->torDown.clear();
+    const auto drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK(drained.sent == 1);
+    CHECK(ha.list(group).at(0).status == "sent");
+    CHECK(texts(e2::receiveChat(*b, hb)) == std::vector<std::string>{"hello group over tor"});
+    CHECK(texts(e2::receiveChat(*c, hc)) == std::vector<std::string>{"hello group over tor"});
+    std::size_t groupPosts = 0;
+    for (const auto& [kind, bodies] : state->posted) groupPosts += kind == "group" ? 1 : 0;
+    CHECK(groupPosts == 1);
+}
+
+TEST_CASE("tor: outside a chat send nothing is queued, and other failures still fail", "[e2ev3][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    state->torDown = {"sendMessages"};
+    // Not inside a delivery: the refusal reaches the caller as it is.
+    CHECK_THROWS_AS(ac.server->sendMessages(a->deviceId(), "chat-x", Json::array()), redvault::api::ApiError);
+    CHECK(ac.server->queue()->empty());
+    state->torDown.clear();
+    (void)b;
+}

@@ -60,6 +60,7 @@ Json recordJson(const ChatRecord& r) {
               {"arrivedAt", r.arrivedAt}, {"text", r.text}, {"direction", r.direction}, {"status", r.status}};
     if (r.file) j["file"] = fileJson(*r.file);
     if (r.op) j["op"] = opJson(*r.op);
+    if (!r.to.empty()) j["to"] = r.to;
     return j;
 }
 
@@ -79,6 +80,7 @@ ChatRecord recordFrom(const Json& j) {
     if (const auto op = j.find("op"); op != j.end() && op->is_object()) {
         r.op = ChatOp{stringOr(*op, "t"), stringOr(*op, "target"), stringOr(*op, "body"), stringOr(*op, "emoji")};
     }
+    r.to = stringOr(j, "to");
     return r;
 }
 
@@ -344,6 +346,18 @@ std::vector<ChatRecord> ChatHistory::records(const std::string& conversationId) 
     return out;
 }
 
+std::vector<ChatRecord> ChatHistory::queued() const {
+    std::lock_guard lock(mutex_);
+    std::vector<ChatRecord> out;
+    for (const ChatRecord& r : records_) {
+        if (r.status == "queued") out.push_back(r);
+    }
+    std::stable_sort(out.begin(), out.end(), [](const ChatRecord& a, const ChatRecord& b) {
+        return a.arrivedAt != b.arrivedAt ? a.arrivedAt < b.arrivedAt : a.ts < b.ts;
+    });
+    return out;
+}
+
 std::vector<ChatRecord> ChatHistory::list(const std::string& conversationId) const {
     return foldChat(records(conversationId));
 }
@@ -553,20 +567,43 @@ int sendToGroup(V3Device& device, const std::string& conversationId, const std::
 }
 
 /// An empty `contactUserId` means a group. `record` goes into the history as sent, or as failed when `keepFailed`.
+/// Tor down on the way (docs/tor-by-default.md): "queued" instead, and what the engine already encrypted waits in the
+/// server's SendQueue. `fromQueue`: `record` is a queued one already in the history, whose status changes in place.
 SendOutcome deliver(V3Device& device, ChatHistory& history, ChatRecord record, const std::string& plaintext, const std::string& contactUserId,
-                    bool keepFailed = true) {
+                    bool keepFailed = true, bool fromQueue = false) {
     const std::string conversationId = record.conversationId;
-    // A chat that uses device keys never falls back silently: no keys on their side means no send (9.8).
-    if (!contactUserId.empty() && verifiedDevices(device, contactUserId, conversationId).devices.empty()) {
-        throw EngineError("contact_has_no_device_keys", "They haven't set up device keys yet. Use the older protocol for this chat.");
-    }
-    int unreachable = 0;
-    const auto attempt = [&] {
-        return contactUserId.empty() ? sendToGroup(device, conversationId, plaintext)
-                                     : sendText(device, conversationId, contactUserId, plaintext, &unreachable);
+    // How it ended up: a status, or "" for not kept (a failed op).
+    const auto keep = [&](const std::string& status) {
+        if (fromQueue) {
+            if (status.empty()) {
+                history.remove(conversationId, record.id);
+            } else {
+                history.setStatus(conversationId, record.id, status);
+            }
+        } else if (!status.empty()) {
+            record.status = status;
+            if (status != "queued") record.to.clear();
+            history.add(record);
+        }
     };
+    const auto waitForTor = [&] {
+        if (!fromQueue) record.to = contactUserId;
+        keep("queued");
+        history.pin(conversationId);
+    };
+    int unreachable = 0;
     int delivered = 0;
     try {
+        // Only this delivery's requests can be queued, and each knows its record (send_queue.hpp).
+        SendScope scope(record.id, contactUserId.empty() ? "group" : "messages");
+        // A chat that uses device keys never falls back silently: no keys on their side means no send (9.8).
+        if (!contactUserId.empty() && verifiedDevices(device, contactUserId, conversationId).devices.empty()) {
+            throw EngineError("contact_has_no_device_keys", "They haven't set up device keys yet. Use the older protocol for this chat.");
+        }
+        const auto attempt = [&] {
+            return contactUserId.empty() ? sendToGroup(device, conversationId, plaintext)
+                                         : sendText(device, conversationId, contactUserId, plaintext, &unreachable);
+        };
         try {
             unreachable = 0;
             delivered = attempt();
@@ -575,16 +612,46 @@ SendOutcome deliver(V3Device& device, ChatHistory& history, ChatRecord record, c
             unreachable = 0;
             delivered = attempt();  // a list changed: refetch, verify, once more
         }
-    } catch (...) {
-        if (keepFailed) {
-            record.status = "failed";
-            history.add(record);
+    } catch (const SendQueued&) {
+        waitForTor();
+        return SendOutcome{record.id, 0, unreachable, true};
+    } catch (const api::ApiError& error) {
+        // Refused at the Tor gate before anything left (a device list, a key claim): nothing encrypted is lost.
+        if (error.code() == "tor_unavailable") {
+            waitForTor();
+            return SendOutcome{record.id, 0, unreachable, true};
         }
+        // A queued one stays queued while the connection or the server is down (sendQueuedChat stops there, in order).
+        keep(fromQueue && waitsForConnection(error) ? "queued" : keepFailed ? "failed" : "");
+        throw;
+    } catch (const EngineError& error) {
+        // Refused before a message was made: nothing to retry (a queued one has to say it failed, though).
+        if (error.code() == "contact_has_no_device_keys" && !fromQueue) throw;
+        keep(keepFailed ? "failed" : "");
+        throw;
+    } catch (...) {
+        keep(keepFailed ? "failed" : "");
         throw;
     }
-    history.add(record);
+    keep("sent");
     history.pin(conversationId);
     return SendOutcome{record.id, delivered, unreachable};
+}
+
+/// What a record says, as the envelope it travels in (the same id and time as when it was made).
+std::string plaintextOf(const ChatRecord& record) {
+    if (record.op) return encodeOp(record.conversationId, *record.op, record.id, record.ts);
+    if (record.file) return encodeFile(record.conversationId, *record.file, record.id, record.ts);
+    return encodeEnvelope(newEnvelope(record, record.text));
+}
+
+ChatRecord queueRecord(ChatHistory& history, ChatRecord record, const std::string& contactUserId) {
+    record.status = "queued";
+    record.to = contactUserId;
+    plaintextOf(record);  // the same checks as a send now (an empty or too long text is refused here, not later)
+    history.add(record);
+    history.pin(record.conversationId);
+    return record;
 }
 
 }  // namespace
@@ -614,6 +681,88 @@ SendOutcome sendChatOp(V3Device& device, ChatHistory& history, const std::string
     ChatRecord record = outgoing(device, conversationId, resolveNow(nowMs));
     record.op = op;
     return deliver(device, history, record, encodeOp(conversationId, op, record.id, record.ts), contactUserId, false);
+}
+
+// --- Waiting for Tor ---
+
+ChatRecord queueChat(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                     const std::string& text, std::int64_t nowMs) {
+    ChatRecord record = outgoing(device, conversationId, resolveNow(nowMs));
+    record.text = text;
+    return queueRecord(history, record, contactUserId);
+}
+
+ChatRecord queueChatFile(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                         const model::FileDescriptor& file, std::int64_t nowMs) {
+    ChatRecord record = outgoing(device, conversationId, resolveNow(nowMs));
+    record.file = file;
+    return queueRecord(history, record, contactUserId);
+}
+
+ChatRecord queueChatOp(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                       const ChatOp& op, std::int64_t nowMs) {
+    ChatRecord record = outgoing(device, conversationId, resolveNow(nowMs));
+    record.op = op;
+    return queueRecord(history, record, contactUserId);
+}
+
+bool hasQueuedChat(const ChatHistory& history, const QueueingV3Server& server) {
+    const auto queue = server.queue();
+    return (queue && !queue->empty()) || !history.queued().empty();
+}
+
+QueueDrain sendQueuedChat(V3Device& device, ChatHistory& history, QueueingV3Server& server) {
+    QueueDrain out;
+    // First what the engine already encrypted, exactly as it was.
+    const auto flushed = server.flush();
+    for (const auto& [conversationId, id] : flushed.sent) {
+        if (history.setStatus(conversationId, id, "sent")) ++out.sent;
+    }
+    for (const auto& [conversationId, id] : flushed.refused) {
+        // Its message can't be delivered as encrypted; a message shows as failed (Retry encrypts it afresh), an op goes.
+        for (const ChatRecord& r : history.records(conversationId)) {
+            if (r.id != id || r.status != "queued") continue;
+            if (r.op) {
+                history.remove(conversationId, id);
+            } else {
+                history.setStatus(conversationId, id, "failed");
+            }
+            ++out.failed;
+        }
+    }
+    if (flushed.waiting) {
+        out.waiting = true;
+        return out;
+    }
+    // Then what waited before it was encrypted: encrypted now, once, oldest first.
+    for (const ChatRecord& record : history.queued()) {
+        std::string plaintext;
+        try {
+            plaintext = plaintextOf(record);
+        } catch (const std::exception&) {
+            record.op ? (void)history.remove(record.conversationId, record.id) : (void)history.setStatus(record.conversationId, record.id, "failed");
+            ++out.failed;
+            continue;
+        }
+        try {
+            const auto sent = deliver(device, history, record, plaintext, record.to, !record.op.has_value(), true);
+            if (sent.queued) {
+                out.waiting = true;
+                return out;
+            }
+            ++out.sent;
+        } catch (const api::ApiError& error) {
+            // Down again: it stays queued (deliver kept it so), and so does everything after it.
+            if (waitsForConnection(error)) {
+                out.waiting = true;
+                return out;
+            }
+            ++out.failed;
+        } catch (const std::exception&) {
+            ++out.failed;  // shown as failed (or a failed op dropped), as a send made now would be
+        }
+    }
+    return out;
 }
 
 // --- Receiving ---

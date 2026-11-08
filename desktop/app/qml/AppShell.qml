@@ -50,6 +50,53 @@ Item {
             groupCalls: App.groupCalls
         }
 
+        // Devices & encryption: this computer isn't linked to the account's devices (it stays until it is), or,
+        // once, right after it was set up as the first device: make a recovery key.
+        Rectangle {
+            id: deviceKeysBanner
+            readonly property bool link: App.deviceKeys !== null && App.deviceKeys.needsLink
+            readonly property bool recovery: App.deviceKeys !== null && App.deviceKeys.recoveryNotice
+            Layout.fillWidth: true
+            visible: (link || recovery) && !(shell.page === "settings" && settingsView.section === "devicekeys")
+            implicitHeight: visible ? deviceKeysRow.implicitHeight + 16 : 0
+            color: link ? Theme.warnSoft : Theme.accentSoft
+            RowLayout {
+                id: deviceKeysRow
+                anchors.fill: parent
+                anchors.leftMargin: 20
+                anchors.rightMargin: 16
+                spacing: 10
+                Icon {
+                    name: deviceKeysBanner.link ? "triangle-alert" : "key"
+                    size: 16
+                    color: deviceKeysBanner.link ? Theme.warn : Theme.accent
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 0
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    color: deviceKeysBanner.link ? Theme.warn : Theme.accent
+                    font.pixelSize: Theme.fontSmall + 1
+                    text: deviceKeysBanner.link
+                          ? "Link this computer to your other devices to use the Signal protocol here: pair it with a device you already use, or use your recovery key."
+                          : "Create a recovery key so you can restore your device keys on a new phone or computer."
+                }
+                RvButton {
+                    text: deviceKeysBanner.link ? "Link this computer" : "Create recovery key"
+                    primary: true
+                    implicitHeight: 30
+                    onClicked: App.deviceKeys.showSettings()
+                }
+                RvButton {
+                    visible: !deviceKeysBanner.link
+                    text: "Not now"
+                    implicitHeight: 30
+                    onClicked: App.deviceKeys.dismissRecoveryNotice()
+                }
+            }
+        }
+
         // Tor / call status (docs/tor-routing-plan.md), always visible while it matters.
         Item {
             Layout.fillWidth: true
@@ -170,6 +217,14 @@ Item {
     Connections {
         target: App.channels
         function onShowRequested() { shell.page = "channels" }
+    }
+    // Settings > Devices & encryption, asked for by the banner above or a chat that needs this computer linked.
+    Connections {
+        target: App.deviceKeys
+        function onShowSettingsRequested() {
+            settingsView.section = "devicekeys"
+            shell.page = "settings"
+        }
     }
     // A community's page opened from its chat, or its chat opened from its page.
     Connections {

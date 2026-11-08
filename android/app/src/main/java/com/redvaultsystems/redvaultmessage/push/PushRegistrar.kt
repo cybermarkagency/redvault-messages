@@ -39,13 +39,13 @@ private val VAPID_KEY = Regex("^[A-Za-z0-9_-]{87}$")
 fun isValidVapidKey(key: String?): Boolean = key != null && VAPID_KEY.matches(key)
 
 /**
- * Which way to go after sign-in. Notifications off: nothing at all. Strict no-push means "no push service
- * run by someone else": never UnifiedPush (a distributor talks to its own push server outside Tor), and
- * without Tor routing nothing at all; with Tor routing ([torRouted]) the background connection is still
- * allowed, because it only ever reaches our own onion service through the Tor gateway. Otherwise
- * UnifiedPush when the server has a VAPID key and a distributor is installed, else the background
- * connection if the user allows it (and Android lets the app notify, without which it would run for
- * nothing), else nothing.
+ * Which way to go after sign-in. Notifications off: nothing at all. Through Tor ([torRouted], every release
+ * build: docs/tor-by-default.md rule 6) there is no third-party push service at all: never UnifiedPush (a
+ * distributor talks to its own push server outside Tor), only the background connection, which reaches our
+ * own onion service through the Tor gateway. Strict no-push without Tor (a debug build on a local server)
+ * means nothing at all. Otherwise UnifiedPush when the server has a VAPID key and a distributor is installed,
+ * else the background connection if the user allows it (and Android lets the app notify, without which it
+ * would run for nothing), else nothing.
  */
 fun choosePushRoute(
     enabled: Boolean,
@@ -57,7 +57,7 @@ fun choosePushRoute(
     torRouted: Boolean = false,
 ): PushRoute = when {
     !enabled -> PushRoute.Off
-    !strictNoPush && isValidVapidKey(vapidKey) && hasDistributor -> PushRoute.UnifiedPush
+    !strictNoPush && !torRouted && isValidVapidKey(vapidKey) && hasDistributor -> PushRoute.UnifiedPush
     else -> fallbackRoute(enabled, strictNoPush, backgroundConnection, notificationsAllowed, torRouted)
 }
 
@@ -106,16 +106,17 @@ class PushRegistrar(
         set(value) = prefs.edit().putBoolean("enabled", value).apply()
 
     /**
-     * Strict no-push mode (Settings › Network routing): never a push service run by someone else, so no
-     * UnifiedPush registration. Without Tor routing that leaves nothing to wake this phone (messages and
-     * calls arrive only while the app is open). With Tor routing the background connection still runs if
-     * it's switched on: it reaches only our onion service, through the Tor gateway, never directly.
-     * Off by default, except with Tor routing: there a UnifiedPush distributor would talk to its own push
-     * server outside Tor and learn when messages arrive, so it's on until the user turns it off.
+     * Strict no-push mode: never a push service run by someone else, so no UnifiedPush registration. Always on
+     * through Tor (docs/tor-by-default.md rule 6), with no switch: a UnifiedPush distributor would talk to its own
+     * push server outside Tor and learn when messages arrive. Notifications then come only from the background
+     * connection, which reaches our onion service through the Tor gateway, never directly. Only a debug build on a
+     * local test server (no Tor) keeps the old choice, where it leaves nothing to wake this phone.
      */
     var strictNoPush: Boolean
-        get() = prefs.getBoolean("strictNoPush", torBuild)
-        set(value) = prefs.edit().putBoolean("strictNoPush", value).apply()
+        get() = torBuild || prefs.getBoolean("strictNoPush", false)
+        set(value) {
+            if (!torBuild) prefs.edit().putBoolean("strictNoPush", value).apply()
+        }
 
     /** Settings: "Background connection when no push app is installed". On by default. */
     var backgroundConnection: Boolean
@@ -136,10 +137,12 @@ class PushRegistrar(
      * [activity]: picks the route and starts it. Best-effort; a failure leaves the background connection
      * or nothing.
      */
-    /** True in Tor builds: every request, the background connection's included, goes only through the Tor gateway. */
+    /** True unless a debug build points at a local test server: every request, the background connection's included, goes only through the Tor gateway. */
     val torRouted: Boolean get() = torBuild
 
     suspend fun register(activity: Activity) {
+        // Updated from 0.5.0, which could use UnifiedPush: that registration goes, here and on the server (over Tor).
+        if (torBuild) dropUnifiedPush()
         if (!enabled || (strictNoPush && !torBuild)) {
             stopFallback()
             _mode.value = PushMode.Off
@@ -274,6 +277,17 @@ class PushRegistrar(
     }
 
     // --- Internals ---
+
+    /** Unregisters from a distributor and removes its endpoint from the server, if an earlier version registered one. */
+    private suspend fun dropUnifiedPush() {
+        val endpoint = prefs.getString("endpoint", null)
+        if (endpoint == null && prefs.getString("distributor", null) == null) return
+        runCatching { withContext(Dispatchers.Main) { UnifiedPush.unregister(appContext) } }
+        prefs.edit().remove("distributor").apply()
+        if (endpoint != null && runCatching { apiCall(ApiClient.json) { api.unregisterWebPush(WebPushEndpointRequest(endpoint)) } }.isSuccess) {
+            prefs.edit().remove("endpoint").apply()
+        }
+    }
 
     private fun ackDistributor(): String? = runCatching { UnifiedPush.getAckDistributor(appContext) }.getOrNull()
 

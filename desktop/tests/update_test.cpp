@@ -227,7 +227,7 @@ TEST_CASE("the expiry is covered by the signature, and a bad one is refused", "[
     }
 }
 
-// --- The Tor editions make no update calls at all ---
+// --- Updates over Tor (docs/tor-by-default.md): the onion service's copy, never the normal internet ---
 
 namespace {
 
@@ -241,24 +241,61 @@ UpdateSource sourceFor(const SigningKeyPair& keys, const std::string& apiBase, b
 
 }  // namespace
 
-TEST_CASE("a Tor-only build or an onion server sends nothing to the update server", "[update][tor]") {
+TEST_CASE("a Tor-only build never sends an update check to the normal internet", "[update][tor]") {
     const auto keys = generateSigningKey();
     test::FakeTransport transport;
     transport.handler = [](const net::HttpRequest&) -> net::HttpResponse { FAIL("no request may be sent"); return {}; };
 
     // Tor-only, even if something points it at a clearnet address.
     CHECK_FALSE(fetchManifest(transport, sourceFor(keys, kClearApi, true)).release);
-    CHECK_FALSE(fetchManifest(transport, sourceFor(keys, kOnion, true)).release);
-    // A normal build set to an onion server.
-    CHECK_FALSE(fetchManifest(transport, sourceFor(keys, kOnion, false)).release);
-    // A v2-looking or uppercase onion address counts as well: this is about where the app is meant to talk, not validity.
+    // Something that only looks like an onion address (v2-looking, uppercase): no route at all, in any build.
     CHECK_FALSE(fetchManifest(transport, sourceFor(keys, "http://EXAMPLE.ONION/api/", false)).release);
+    CHECK_FALSE(fetchManifest(transport, sourceFor(keys, "http://example.onion/api/", true)).release);
     // An address that can't be read gets no benefit of the doubt.
+    CHECK_FALSE(fetchManifest(transport, sourceFor(keys, "not a url", true)).release);
     CHECK_FALSE(fetchManifest(transport, sourceFor(keys, "not a url", false)).release);
     CHECK(transport.requests.empty());
 
     CHECK_FALSE(updatesPermitted(kClearApi, true));
-    CHECK_FALSE(updatesPermitted(kOnion, false));
+    CHECK_FALSE(updateRoute(kClearApi, true, kManifest, kPrefix));
+}
+
+TEST_CASE("over Tor the manifest and installer come from the onion service's copy", "[update][tor]") {
+    const auto keys = generateSigningKey();
+    const std::string onionHost = std::string(56, 'a') + ".onion";
+    for (const bool torOnly : {true, false}) {
+        const auto route = updateRoute(kOnion, torOnly, kManifest, kPrefix);
+        REQUIRE(route);
+        CHECK(route->viaTor);
+        CHECK(route->manifestUrl == "http://" + onionHost + "/redvaultmessages/desktop/latest.json");
+        CHECK(route->downloadPrefix == "http://" + onionHost + "/redvaultmessages/desktop/");
+        CHECK(updatesPermitted(kOnion, torOnly));
+
+        test::FakeTransport transport;
+        transport.handler = [&](const net::HttpRequest&) {
+            return net::HttpResponse{200, {{"content-type", "application/json"}}, signManifest(expiring("0.2.0", "2027-02-01T00:00:00Z"), keys.secretKey)};
+        };
+        const auto check = fetchManifest(transport, sourceFor(keys, kOnion, torOnly));
+        REQUIRE(transport.requests.size() == 1);
+        CHECK(transport.requests[0].url == route->manifestUrl);  // the onion host, never www.redvaultsystems.com
+        CHECK(transport.requests[0].headers.empty());
+        REQUIRE(check.release);
+        // The signed URL names the published folder; the download goes to the same file on the onion service.
+        CHECK(check.release->url.starts_with(kPrefix));
+        const std::string url = installerUrl(*check.release, *route, kPrefix);
+        CHECK(url == "http://" + onionHost + "/redvaultmessages/desktop/" + check.release->url.substr(std::string(kPrefix).size()));
+        CHECK(net::parseUrl(url)->host == onionHost);
+    }
+    // A URL outside the published folder has no onion copy.
+    Release outside = expiring("0.2.0", "2027-02-01T00:00:00Z");
+    outside.url = "https://elsewhere.example/setup.exe";
+    CHECK(installerUrl(outside, *updateRoute(kOnion, true, kManifest, kPrefix), kPrefix).empty());
+    // The onion service has no copy yet: nothing newer, and still nothing on the normal internet.
+    test::FakeTransport missing;
+    missing.handler = [](const net::HttpRequest&) { return net::HttpResponse{404, {}, "gone"}; };
+    CHECK_FALSE(fetchManifest(missing, sourceFor(keys, kOnion, true)).release);
+    REQUIRE(missing.requests.size() == 1);
+    CHECK(net::parseUrl(missing.requests[0].url)->host == onionHost);
 }
 
 TEST_CASE("control: a normal build still checks, and offers a newer version", "[update][tor]") {

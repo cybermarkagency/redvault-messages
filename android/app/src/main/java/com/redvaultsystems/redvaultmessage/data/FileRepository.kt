@@ -177,6 +177,21 @@ class FileRepository(
             encryptAndUpload(conversationId, picked.name, picked.size, picked.mimeType, picked.open, onStage, release = true)
         }
 
+    /**
+     * [uploadForDeviceKeys] for a file waiting in the Tor outbox: its queued copy is decrypted into the app's cache
+     * only for the upload (encrypted again under a new key on the way), and deleted right after.
+     */
+    suspend fun uploadFromOutboxForDeviceKeys(conversationId: String, name: String, mimeType: String, decryptInto: (File) -> Unit): FileDescriptor {
+        outgoingDir.mkdirs()
+        val plain = File(outgoingDir, "queued-" + UUID.randomUUID())
+        try {
+            withContext(Dispatchers.IO) { decryptInto(plain) }
+            return uploadForDeviceKeys(conversationId, PickedFile(name, mimeType, plain.length()) { plain.inputStream() }) {}
+        } finally {
+            plain.delete()
+        }
+    }
+
     /** Removes a file from the server (uploader only), for "delete for everyone" on device keys. */
     suspend fun deleteFile(objectId: String) {
         apiCall(ApiClient.json) { api.deleteFile(objectId) }

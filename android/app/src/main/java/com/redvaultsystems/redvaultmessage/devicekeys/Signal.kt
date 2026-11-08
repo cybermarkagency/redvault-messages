@@ -13,9 +13,8 @@ import kotlinx.serialization.json.put
 
 /**
  * rv-signal-v1 on Android (docs/signal-integration/): libsignal's PQXDH and Triple Ratchet,
- * between protocol-3 devices that both speak it. DEVELOPMENT ONLY. It is built only with
- * -PredvaultE2eV3=true -PredvaultE2eSignal=true. That build links libsignal (AGPL-3.0-only)
- * and must not be given to anyone until the owner decides the licence.
+ * between protocol-3 devices that both speak it: the default (docs/signal-integration/07-step1-default-path.md).
+ * Builds link libsignal (AGPL-3.0-only) unless made with -PredvaultE2eSignal=false.
  *
  * The engine picks the protocol per device by itself (encryptMany, decrypt). This file only
  * keeps this phone's Signal keys and its declaration in the signed list in order.

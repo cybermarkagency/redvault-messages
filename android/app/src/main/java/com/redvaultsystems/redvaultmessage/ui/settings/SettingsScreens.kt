@@ -128,7 +128,7 @@ fun SettingsScreen(
     typingIndicators: Boolean = false,
     onTypingIndicatorsChange: (Boolean) -> Unit = {},
     onOpenLinkedDevices: () -> Unit = {},
-    /** Per-device keys (development builds only); null hides the row. */
+    /** Devices & encryption (per-device keys); null hides the row (a build without the engine). */
     onOpenDeviceKeys: (() -> Unit)? = null,
     onOpenRelayServers: () -> Unit = {},
     onOpenTransparencyLog: () -> Unit = {},
@@ -229,7 +229,7 @@ fun SettingsScreen(
         )
         SettingsRow(
             title = "Network routing",
-            description = if (torRouting) "Messages, photos, files, Stories and voice messages: Tor only. Calls: WebRTC + TURN relay"
+            description = if (torRouting) "Messages, files and account: through Tor. Calls: encrypted relay (not Tor)"
             else "How messages, files and calls leave this phone",
             onClick = onOpenNetworkRouting,
             icon = R.drawable.ui_globe,
@@ -279,20 +279,28 @@ fun SettingsScreen(
                 title = "How they arrive",
                 description = when (pushMode) {
                     is PushMode.UnifiedPush -> if (pushMode.distributor.isEmpty()) "Push through your push app" else "Push through ${distributorName(pushMode.distributor)}"
-                    PushMode.BackgroundConnection -> "Background connection"
+                    PushMode.BackgroundConnection -> if (torRouting) "Background connection, through Tor" else "Background connection"
                     PushMode.Off -> "Off"
                 },
                 icon = R.drawable.ui_info,
             )
+            // Through Tor there's no push app at all (docs/tor-by-default.md rule 6): the background connection is the only way.
+            val backgroundTitle = if (torRouting) "Background connection" else "Background connection when no push app is installed"
             SettingsRow(
-                title = "Background connection when no push app is installed",
-                description = "Keeps a connection to the server open, with a quiet ongoing notification. Uses more battery than a push app",
+                title = backgroundTitle,
+                description = if (torRouting) {
+                    "Keeps a connection to the server open through Tor, with a quiet ongoing notification. No push service run by anyone else is used"
+                } else {
+                    "Keeps a connection to the server open, with a quiet ongoing notification. Uses more battery than a push app"
+                },
                 icon = R.drawable.ui_bell,
                 trailing = {
-                    RvSwitch(checked = backgroundConnection, onCheckedChange = onBackgroundConnectionChange, description = "Background connection when no push app is installed")
+                    RvSwitch(checked = backgroundConnection, onCheckedChange = onBackgroundConnectionChange, description = backgroundTitle)
                 },
             )
-            if (distributorCount == 0) {
+            if (torRouting) {
+                // No UnifiedPush app is used through Tor: nothing to install or choose.
+            } else if (distributorCount == 0) {
                 Text(
                     "Installing a UnifiedPush app such as ntfy saves battery: RedVault then doesn't need its own connection, and still never uses Google's push service.",
                     color = colors.text3, fontSize = 12.5.sp,
@@ -380,7 +388,7 @@ fun SettingsScreen(
         )
         SettingsRow(title = "Linked devices", description = "Everywhere you're signed in; sign any of them out", onClick = onOpenLinkedDevices, icon = R.drawable.ui_monitor)
         if (onOpenDeviceKeys != null) {
-            SettingsRow(title = "Device keys (preview)", description = "Per-device encryption keys; in development", onClick = onOpenDeviceKeys, icon = R.drawable.ui_shield)
+            SettingsRow(title = "Devices & encryption", description = "The Signal protocol, your devices and your recovery key", onClick = onOpenDeviceKeys, icon = R.drawable.ui_shield)
         }
 
         SectionLabel("Network")

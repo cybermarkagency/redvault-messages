@@ -29,10 +29,10 @@
 namespace {
 
 #ifdef REDVAULT_TOR_ONLY
-// A Tor-only build (docs/tor-routing-plan.md): the onion service is the only server.
+// Tor by default (docs/tor-by-default.md): every release build is Tor-only, and the onion service is the only server.
 constexpr const char* kDefaultApiBase = REDVAULT_ONION_API_BASE;
 #else
-// Same default as android/gradle.properties.
+// A developer's local test build (REDVAULT_TOR_ONLY=OFF), never published: the normal site unless told otherwise.
 constexpr const char* kDefaultApiBase = "https://www.redvaultsystems.com/redvaultmessages/api/";
 #endif
 
@@ -101,9 +101,9 @@ int main(int argc, char* argv[]) {
         ~FfiShutdown() { redvault::lk::Ffi::shutdown(); }
     } ffiShutdown;
 
-    // Tor routing: whenever the server is a .onion, everything goes through the
-    // embedded Tor gateway and nothing else (no fallback to a direct
-    // connection). A Tor-only build refuses any other server.
+    // Tor routing: whenever the server is a .onion, everything but call media goes
+    // through the embedded Tor gateway and nothing else (no fallback to a direct
+    // connection). A Tor-only build (every release) refuses any other server.
     const auto server = redvault::net::parseUrl(apiBase);
     const bool onion = server && redvault::net::isOnionHost(server->host);
 #ifdef REDVAULT_TOR_ONLY

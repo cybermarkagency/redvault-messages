@@ -103,11 +103,48 @@ class SecretHandlingSourceTest {
     }
 
     @Test
-    fun torRoutingDoesntTakeAChatOnDeviceKeysBackToProtocolOne() {
+    fun deviceKeysWorkOverTorInsteadOfBeingRefused() {
+        // docs/tor-by-default.md rule 5: the old "device keys don't work with Tor routing yet" refusal is gone...
+        assertTrue(filesContaining("OlderProtocolOnly.TorRouting").isEmpty())
+        assertTrue(filesContaining("fileRefusal(").isEmpty())
+        assertTrue(filesContaining("don't work with Tor routing").isEmpty())
+        // ...and the Tor outbox sends each item on device keys first (a chat on them never goes out the usual way).
         val chat = file("ChatSession.kt")
-        assertTrue("OlderProtocolOnly.TorRouting" in body(chat, "send"))
-        for (send in listOf("sendFile", "sendPending", "sendVoice")) assertTrue("$send must refuse", "fileRefusal(conversationId)" in body(chat, send))
-        assertTrue("OlderProtocolOnly.TorRouting" in body(chat, "drain"))
+        val drain = body(chat, "drain")
+        assertTrue(drain.indexOf("flushDeviceKeyQueue()") in 0 until drain.indexOf("sendQueuedOnDeviceKeys(item, meta, box)"))
+        assertTrue(drain.indexOf("sendQueuedOnDeviceKeys(item, meta, box)") < drain.indexOf("repository.send(meta, item.text"))
+    }
+
+    @Test
+    fun nothingInTheAppTakesAChatBackToTheOlderProtocol() {
+        // Step 1 (docs/signal-integration/07-step1-default-path.md section 3): no "Use the older protocol", no opt-in.
+        // V3Chat.useOlderProtocol stays for tests only.
+        assertEquals(setOf("V3Chat.kt"), filesContaining("useOlderProtocol("))
+        assertTrue(filesContaining("Use the older protocol").isEmpty())
+        assertTrue(filesContaining("sendErrorOlder").isEmpty())
+        assertTrue(filesContaining("chat-older-").all { it == "V3Chat.kt" })
+    }
+
+    @Test
+    fun aChatOnDeviceKeysHidesWhatTheyCantCarryYet() {
+        val thread = file("ThreadScreen.kt")
+        for (hidden in listOf(
+            "onStartPoll = if (deviceKeyChat) null",
+            "onSelect = if (deviceKeyChat) null",
+            "onForward = if (!deviceKeyChat &&",
+            "onSelect = if (!deviceKeyChat &&",
+            "!deviceKeyChat || conversation.disappearing != Disappearing.Off",
+            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onReply)",
+            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onTogglePin)",
+        )) assertTrue("ThreadScreen must hide: $hidden", hidden in thread)
+        assertTrue("deviceKeyChat = session.chats.onDeviceKeys(conversation.id)" in file("SignedInApp.kt"))
+    }
+
+    @Test
+    fun deviceKeysAreEnsuredOnStartUnlockAndEverySixHours() {
+        assertTrue("deviceKeys?.startEnsuring()" in file("RedvaultApp.kt"))
+        assertTrue("if (!locked) session.deviceKeys?.ensureSoon()" in file("SignedInApp.kt"))
+        assertTrue("DeviceKeysChatsBanner(" in file("SignedInApp.kt"))
     }
 
     @Test

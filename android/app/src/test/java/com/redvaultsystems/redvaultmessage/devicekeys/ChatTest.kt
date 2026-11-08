@@ -189,6 +189,8 @@ class ChatTest {
     }
 
     @Test fun `group reactions, edits, deletes and files work too`() = runBlocking {
+        // Device keys only for a group where every member has a list (07-step1): Carol isn't in this one.
+        server.participants[group] = listOf(alice, bob)
         val a1 = first(alice, "a1")
         val b1 = first(bob, "b1")
         val ha = history("a1", a1)

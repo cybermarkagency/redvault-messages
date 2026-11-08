@@ -82,6 +82,8 @@ fun ChatsScreen(
     onOpenCommunities: (() -> Unit)? = null,
     /** The row of story rings; draws nothing unless the server has Stories on. */
     stories: @Composable () -> Unit = {},
+    /** A note above the stories: this phone isn't linked to the account's device keys, or create a recovery key. */
+    banner: @Composable () -> Unit = {},
     /** Contacts (user ids) marked Favorite on this phone: the Favorites chip. */
     favorites: Set<String> = emptySet(),
     /** Contacts (user ids) and groups (chat ids) muted on this phone. */
@@ -130,6 +132,7 @@ fun ChatsScreen(
             ) { Avatar(avatarUrl = selfAvatarUrl, seed = selfHandle, size = 44.dp) }
         }
         SecurityLine("End-to-end encrypted · keys stay on this device", R.drawable.ui_lock)
+        banner()
         stories()
         SearchBox(query, { query = it }, "Search chats and people", R.drawable.ui_search, Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp))
         ChipRow(

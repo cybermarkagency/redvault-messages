@@ -13,7 +13,15 @@
       "displayName": "Release (Ninja)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "REDVAULT_E2E_V3": "ON",
+        "REDVAULT_E2E_SIGNAL": "ON",
+        "REDVAULT_TOR": "ON",
+        "REDVAULT_TOR_ONLY": "ON",
+        "REDVAULT_ONION_API_BASE": "http://4cydjhdc3lmhg7l6ykjont7dms2alunglmnlznlmjjwkyc67m5h325yd.onion/redvaultmessages/api/",
+        "REDVAULT_RELEASE_BUILD": "ON"
+      }
     }
   ],
   "buildPresets": [

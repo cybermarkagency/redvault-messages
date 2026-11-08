@@ -93,20 +93,51 @@ class V3ChatTest {
         assertEquals(0, a.unread(chat))
     }
 
-    @Test fun `choosing the older protocol stops device-key sends for that chat for good`() = runBlocking {
+    @Test fun `there is no way back to the older protocol`() = runBlocking {
+        // A choice of "use the older protocol" saved by an earlier version no longer counts.
+        val older = File(folder.root, "a-history/chat-older-$alice.txt")
+        older.parentFile!!.mkdirs()
+        older.writeText(chat)
         val a = account(alice, "a")
         val b = account(bob, "b")
+        assertTrue(!older.exists())
         assertTrue(a.send(chat, isGroup = false, contactUserId = bob, text = "on device keys") is SendOutcome.Sent)
         assertTrue(a.pinned(chat))
+
+        // Unpinning (tests only) just lets the rule choose again: Bob has device keys, so device keys it is.
         a.useOlderProtocol(chat)
         assertTrue(!a.pinned(chat))
-        // Even though Bob has device keys, this chat now goes the usual way.
-        assertNull(a.send(chat, isGroup = false, contactUserId = bob, text = "usual way"))
-        // It stays that way after a restart (the choice is on disk).
-        val restarted = V3Chat(DeviceKeysSession(alice, ::legacy, DeviceStorage(File(folder.root, "a"), SoftwareKeyWrapper()), engine, server.api(alice)), alice, File(folder.root, "a-history"))
-        assertNull(restarted.send(chat, isGroup = false, contactUserId = bob, text = "still the usual way"))
-        // What was already exchanged on device keys is still there and still received.
+        assertTrue(a.send(chat, isGroup = false, contactUserId = bob, text = "still device keys") is SendOutcome.Sent)
+        assertTrue(a.pinned(chat))
+        assertEquals(listOf("on device keys", "still device keys"), b.receive()!!.received.map { it.text })
+    }
+
+    @Test fun `a group picks device keys only when every member has a device list`() = runBlocking {
+        val group = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        val carol = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        server.participants[group] = listOf(alice, bob, carol)
+        val a = account(alice, "a")
+        val b = account(bob, "b")
+
+        // Carol has no device keys: the usual way, while the group isn't pinned.
+        assertTrue(a.send(group, isGroup = true, contactUserId = "", text = "usual way") is SendOutcome.Protocol1)
+        assertEquals(false, a.usesDeviceKeys(group, isGroup = true, contactUserId = ""))
+        assertTrue(!a.pinned(group))
+
+        // Now everyone has a list: device keys, and the group is pinned.
+        val c = account(carol, "c")
+        assertEquals(true, a.usesDeviceKeys(group, isGroup = true, contactUserId = ""))
+        assertTrue(a.send(group, isGroup = true, contactUserId = "", text = "on device keys") is SendOutcome.Sent)
+        assertTrue(a.pinned(group))
         assertEquals(listOf("on device keys"), b.receive()!!.received.map { it.text })
+        assertEquals(listOf("on device keys"), c.receive()!!.received.map { it.text })
+
+        // A member without a list in a pinned group: refused, never the usual way.
+        server.dropDeviceList(carol)
+        val refused = runCatching { a.send(group, isGroup = true, contactUserId = "", text = "x") }.exceptionOrNull()
+        assertEquals("member_has_no_devices", (refused as EngineException).code)
+        val asked = runCatching { a.usesDeviceKeys(group, isGroup = true, contactUserId = "") }.exceptionOrNull()
+        assertEquals("member_has_no_devices", (asked as EngineException).code)
     }
 
     @Test fun `a failed send can be retried with the same id or discarded`() = runBlocking {
@@ -141,10 +172,6 @@ class V3ChatTest {
         // An account that never used device keys isn't affected: chats stay on the usual way.
         val plain = V3Chat(DeviceKeysSession(bob, ::legacy, DeviceStorage(File(folder.root, "plain"), SoftwareKeyWrapper()), engine, server.api(bob)), bob, File(folder.root, "plain-history"))
         assertTrue(!plain.accountUsesKeysWithoutThisPhone())
-
-        // Choosing the older protocol for a chat is remembered.
-        lost.useOlderProtocol(chat)
-        assertTrue(lost.chosenOlder(chat))
     }
 
     @Test fun `a failed check of the server is not remembered as protocol 3 being off`() = runBlocking {
@@ -162,7 +189,7 @@ class V3ChatTest {
         assertTrue(a.send(chat, isGroup = false, contactUserId = bob, text = "no keys yet") is SendOutcome.Protocol1)
     }
 
-    @Test fun `what only protocol 1 can carry is refused in a chat on device keys until the person chooses it`() = runBlocking {
+    @Test fun `what only protocol 1 can carry is refused in a chat on device keys`() = runBlocking {
         val a = account(alice, "a")
         account(bob, "b")
         // Not on device keys yet: nothing to refuse.
@@ -243,7 +270,68 @@ class V3ChatTest {
 
         deleted.clear()
         a.useOlderProtocol(chat)
-        assertNull(a.sendUploaded(chat, false, bob, upload) { deleted += it })
+        assertTrue(a.sendUploaded(chat, false, bob, upload) { deleted += it } is SendOutcome.Protocol1)
         assertEquals(listOf(upload.objectId), deleted)
+    }
+
+    // --- Over Tor: a send made while Tor is down (docs/tor-by-default.md rule 5) ---
+
+    /** The fake server's API with Tor "down" for the posts only: the device lists and keys were fetched, then Tor dropped. */
+    private class TorDropsPosts(private val inner: V3Api) : V3Api by inner {
+        var down = true
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+            if (down) throw com.redvaultsystems.redvaultmessage.data.api.ApiException(0, "tor_unavailable", "Tor connection unavailable")
+            inner.sendMessages(senderDeviceId, conversationId, messages)
+        }
+        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
+            if (down) throw com.redvaultsystems.redvaultmessage.data.api.ApiException(0, "tor_unavailable", "Tor connection unavailable")
+            inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients)
+        }
+    }
+
+    private suspend fun queuedAccount(user: String, name: String, tor: TorDropsPosts, setUp: Boolean = true): V3Chat {
+        val storage = DeviceStorage(File(folder.root, name), wrappers.getOrPut(name) { SoftwareKeyWrapper() })
+        if (setUp) setUpFirstDevice(user, legacy(), storage, engine, server.api(user))
+        val outgoing = QueueingV3Api(tor, V3SendQueue(File(folder.root, "$name-queue"), user, wrappers.getValue(name)))
+        return V3Chat(DeviceKeysSession(user, ::legacy, storage, engine, outgoing), user, File(folder.root, "$name-history"), outgoing)
+    }
+
+    private val wrappers = HashMap<String, SoftwareKeyWrapper>()
+
+    @Test fun `a message encrypted while Tor is down waits in the queue and arrives in order once it's back`() = runBlocking {
+        val tor = TorDropsPosts(server.api(alice))
+        val a = queuedAccount(alice, "a", tor)
+        val b = account(bob, "b")
+        // Both encrypted now (the engine's state saved), but neither reached the server.
+        val first = a.send(chat, isGroup = false, contactUserId = bob, text = "one") as SendOutcome.Sent
+        assertEquals(V3Chat.QUEUED, first.record.status)
+        a.send(chat, isGroup = false, contactUserId = bob, text = "two")
+        assertEquals(listOf(V3Chat.QUEUED, V3Chat.QUEUED), a.records(chat).map { it.status })
+        assertEquals(2, a.queuedMessages())
+        assertTrue(b.receive()!!.received.isEmpty())
+        // Still down: nothing goes, nothing is lost.
+        assertTrue(!a.flushQueue())
+
+        // The app restarts before Tor is back: the queue is still there, sealed.
+        val restarted = queuedAccount(alice, "a", tor, setUp = false)
+        tor.down = false
+        assertTrue(restarted.flushQueue())
+        assertEquals(0, restarted.queuedMessages())
+        assertEquals(listOf("sent", "sent"), restarted.records(chat).map { it.status })
+        assertEquals(listOf("one", "two"), b.receive()!!.received.map { it.text })
+    }
+
+    @Test fun `a file on device keys waits in the queue too`() = runBlocking {
+        val tor = TorDropsPosts(server.api(alice))
+        val a = queuedAccount(alice, "a", tor)
+        val b = account(bob, "b")
+        val deleted = mutableListOf<String>()
+        val outcome = a.sendUploaded(chat, false, bob, upload) { deleted += it } as SendOutcome.Sent
+        assertEquals(V3Chat.QUEUED, outcome.record.status)
+        // Queued is as good as sent: the upload stays.
+        assertTrue(deleted.isEmpty())
+        tor.down = false
+        assertTrue(a.flushQueue())
+        assertEquals(listOf(upload.objectId), b.receive()!!.received.map { it.file?.objectId })
     }
 }

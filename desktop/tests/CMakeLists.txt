@@ -59,6 +59,8 @@ target_compile_definitions(redvault_core_tests PRIVATE
     REDVAULT_TEST_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/androidTest/assets"
     # privacy_test scans the shipped sources.
     REDVAULT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/.."
+    # The onion service this build talks to (cmake/tor_settings.cmake): privacy_test checks the real one.
+    REDVAULT_TEST_ONION_API_BASE="${REDVAULT_OFFICIAL_ONION_API_BASE}"
     # Call crypto vectors produced by the web app's own code (see the test).
     REDVAULT_CALL_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/call_vectors.json"
     # Group call room-key vectors produced by the web app's own code (vectors/make_group_call_vectors.ts).
@@ -174,7 +176,7 @@ endif()
 
 # Device keys (protocol 3): key storage, the device logic and pairing against the real engine and a fake server.
 if(TARGET redvault_e2ev3)
-    add_executable(redvault_e2ev3_tests e2ev3_test.cpp e2ev3_content_test.cpp)
+    add_executable(redvault_e2ev3_tests e2ev3_test.cpp e2ev3_content_test.cpp e2ev3_rollback_test.cpp)
     target_link_libraries(redvault_e2ev3_tests PRIVATE redvault_e2ev3 redvault_core Catch2::Catch2WithMain)
     # Reactions, edits, deletes and files: the cases every client must pass (the web loads the same file).
     target_compile_definitions(redvault_e2ev3_tests PRIVATE
@@ -199,3 +201,29 @@ set_tests_properties(source_settings_rejects_http source_settings_rejects_other_
     source_settings_rejects_bad_contact PROPERTIES PASS_REGULAR_EXPRESSION "must be an (https|email)"
     FAIL_REGULAR_EXPRESSION "Source settings accepted")
 set_tests_properties(source_settings_unset source_settings_https PROPERTIES PASS_REGULAR_EXPRESSION "Source settings accepted")
+
+# The configure-time Tor check (cmake/tor_settings.cmake, docs/tor-by-default.md): the defaults and a
+# release build at the official onion are accepted; a release build without Tor-only, or at another
+# address, stops the configure step. A local test build may turn Tor-only off.
+set(_redvault_tor_check "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/tor_settings.cmake")
+set(_redvault_official_onion "http://4cydjhdc3lmhg7l6ykjont7dms2alunglmnlznlmjjwkyc67m5h325yd.onion/redvaultmessages/api/")
+add_test(NAME tor_settings_release_official COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON
+    "-DREDVAULT_ONION_API_BASE=${_redvault_official_onion}" -DREDVAULT_RELEASE_BUILD=ON -P "${_redvault_tor_check}")
+add_test(NAME tor_settings_local_test_build COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=OFF
+    -DREDVAULT_RELEASE_BUILD=OFF -P "${_redvault_tor_check}")
+add_test(NAME tor_settings_release_refuses_tor_only_off COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=OFF
+    "-DREDVAULT_ONION_API_BASE=${_redvault_official_onion}" -DREDVAULT_RELEASE_BUILD=ON -P "${_redvault_tor_check}")
+add_test(NAME tor_settings_release_refuses_no_gateway COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=OFF -DREDVAULT_TOR_ONLY=OFF
+    -DREDVAULT_RELEASE_BUILD=ON -P "${_redvault_tor_check}")
+add_test(NAME tor_settings_release_refuses_other_onion COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON
+    "-DREDVAULT_ONION_API_BASE=http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.onion/redvaultmessages/api/"
+    -DREDVAULT_RELEASE_BUILD=ON -P "${_redvault_tor_check}")
+add_test(NAME tor_settings_refuses_clearnet_base COMMAND ${CMAKE_COMMAND} -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON
+    "-DREDVAULT_ONION_API_BASE=https://www.redvaultsystems.com/redvaultmessages/api/" -P "${_redvault_tor_check}")
+set_tests_properties(tor_settings_release_official tor_settings_local_test_build PROPERTIES PASS_REGULAR_EXPRESSION "Tor settings accepted")
+set_tests_properties(tor_settings_release_refuses_tor_only_off tor_settings_release_refuses_no_gateway PROPERTIES
+    PASS_REGULAR_EXPRESSION "always goes through Tor" FAIL_REGULAR_EXPRESSION "Tor settings accepted")
+set_tests_properties(tor_settings_release_refuses_other_onion PROPERTIES
+    PASS_REGULAR_EXPRESSION "talks only to" FAIL_REGULAR_EXPRESSION "Tor settings accepted")
+set_tests_properties(tor_settings_refuses_clearnet_base PROPERTIES
+    PASS_REGULAR_EXPRESSION "needs REDVAULT_ONION_API_BASE" FAIL_REGULAR_EXPRESSION "Tor settings accepted")

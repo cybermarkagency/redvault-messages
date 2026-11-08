@@ -209,6 +209,19 @@ TEST_CASE("a chat pinned to device keys refuses every older-protocol send, with 
     CHECK(shownFor(s, action) == expectedOnDeviceKeys(action));
 }
 
+TEST_CASE("a chat held back while it's decided (or until this computer is linked) says why, and sends nothing", "[app][chatguard]") {
+    Session s;
+    s.open(s.w.group);
+    s.chats->setDeviceKeyCheck([](const std::string& chatId) { return chatId == kGroupId; });
+    const QString why = QStringLiteral("This computer isn't linked to your devices yet, so nothing was sent.");
+    s.chats->setDeviceKeyReason([why](const std::string& chatId) { return chatId == kGroupId ? why : QString(); });
+    const int before = s.posted(kGroupId);
+    s.chats->sendMessage(QStringLiteral("not on the older protocol"));
+    settle();
+    CHECK(s.posted(kGroupId) == before);
+    CHECK(s.shown == why);
+}
+
 TEST_CASE("a vote refused on device keys doesn't look as if it counted", "[app][chatguard]") {
     Session s;
     s.open(s.w.group);

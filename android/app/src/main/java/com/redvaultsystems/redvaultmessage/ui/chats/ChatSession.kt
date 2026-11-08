@@ -85,9 +85,8 @@ data class ChatsState(
     val queuedHeld: Int = 0,
     /** Why the last send on device keys was refused (keys changed, no connection...): stays until the next send, unlike [error]. */
     val sendError: String? = null,
-    /** The chat [sendError] is about, and whether the person can choose to use the older protocol for it. */
+    /** The chat [sendError] is about. */
     val sendErrorChat: String? = null,
-    val sendErrorOlder: Boolean = false,
     /** Device-key chats: which protocol each one uses ("signal", "olm", "mixed"), learnt from its last send (M5). */
     val v3Protocols: Map<String, String> = emptyMap(),
     /** Device-key messages waiting on the server: a contact's keys changed, or a group key hasn't arrived yet. */
@@ -119,7 +118,7 @@ class ChatSession(
     /** Tor routing (docs/tor-routing-plan.md): every send goes through this sealed outbox, and leaves only over Tor. */
     private val outbox: Outbox? = null,
     private val tor: TorController? = null,
-    /** Per-device keys (protocol 3, development preview): null unless this build has them. */
+    /** Per-device keys (protocol 3): null unless this build has them. */
     private val v3: V3Chat? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -232,11 +231,11 @@ class ChatSession(
                 fromMe = it.fromMe,
             )
         }
-        // Replies don't exist on device keys, and with Tor on everything goes through the outbox, which is protocol 1.
+        // Replies don't exist on device keys yet.
         if (target != null && refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Reply)) return onResult(false)
         if (outbox != null) {
-            if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.TorRouting)) return onResult(false)
-            // Sealed in the outbox first; it goes out over Tor (now, or once Tor is back) and stays until stored.
+            // Sealed in the outbox first; it goes out over Tor (now, or once Tor is back) and stays until stored. The drain
+            // sends it on device keys when the chat is on them, the usual way otherwise (docs/tor-by-default.md rule 5).
             val clean = text.trimStart('\u0000').trim()
             if (clean.isEmpty()) return onResult(false)
             scope.launch {
@@ -248,7 +247,7 @@ class ChatSession(
             return
         }
         scope.launch {
-            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null, sendErrorOlder = false) }
+            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
             // Device keys first, when this chat is on them: it never also goes out the usual way.
             if (v3 != null && meta.community == null && target == null) {
                 val sentV3 = try {
@@ -277,20 +276,13 @@ class ChatSession(
     }
 
     /**
-     * A chat on device keys never goes back to protocol 1 unasked: [what] is refused, shown in the chat with the
-     * choice of using the older protocol, and true comes back. False: it may go out the usual way.
+     * A chat on device keys never goes back to protocol 1: [what] is refused, shown in the chat, and true comes back.
+     * False: it may go out the usual way. The thread screen hides these actions in such a chat.
      */
     private fun refusedOnDeviceKeys(conversationId: String, what: OlderProtocolOnly): Boolean {
         val refusal = v3?.olderProtocolRefusal(conversationId, what) ?: return false
         reportV3(conversationId, "v3_unavailable", refusal)
         return true
-    }
-
-    /** [refusedOnDeviceKeys] for a file or voice message, whose refusal goes back to the file row too. */
-    private fun fileRefusal(conversationId: String): String? {
-        if (outbox == null) return null
-        val refusal = v3?.olderProtocolRefusal(conversationId, OlderProtocolOnly.TorRouting) ?: return null
-        return reportV3(conversationId, "v3_unavailable", refusal, typed = false)
     }
 
     /** New content whose form or sheet shows the problem itself: a refused key, the key pause, or a chat on device keys. Null: it may go out. */
@@ -300,13 +292,10 @@ class ChatSession(
     }
 
     /**
-     * "Use the older protocol for this chat" (the person confirmed): it stops being pinned to device keys, so the
-     * next send uses the usual encryption. Messages already sent or received on device keys stay where they are.
+     * Whether this chat is on device keys (it has sent or received on them here): the thread screen hides what
+     * device keys can't carry yet (replies, forwarding, polls, pins, the timer, selecting). Step 2 brings them back.
      */
-    fun useOlderProtocol(conversationId: String) {
-        v3?.useOlderProtocol(conversationId)
-        _state.update { it.copy(sendError = null, sendErrorChat = null, sendErrorOlder = false) }
-    }
+    fun onDeviceKeys(conversationId: String): Boolean = v3?.pinned(conversationId) == true
 
     /** Retry of a device-key send that failed: encrypted again (never the same ciphertext) and sent with the same message id. */
     private fun retryV3(record: com.redvaultsystems.redvaultmessage.devicekeys.ChatRecord) {
@@ -331,7 +320,7 @@ class ChatSession(
     /** Shows why something on device keys didn't go out. [typed]: the person's text is still in the box. */
     private fun reportV3(conversationId: String, code: String, message: String?, typed: Boolean = true): String {
         val problem = v3SendProblem(code, message, typed)
-        _state.update { it.copy(sendError = problem, sendErrorChat = conversationId, sendErrorOlder = code in OLDER_PROTOCOL_CODES) }
+        _state.update { it.copy(sendError = problem, sendErrorChat = conversationId) }
         return problem
     }
 
@@ -341,6 +330,7 @@ class ChatSession(
         "rollback", "equivocation", "uncertified_account_key", "bad_device_list" ->
             "Not sent: this contact's device list doesn't check out. Nothing was sent."
         "contact_has_no_devices" -> "Not sent: this chat uses device keys, but the contact has none listed."
+        "member_has_no_devices" -> "Not sent: this group uses device keys, but a member has none listed."
         "signal_keys_missing" -> "Not sent: one of their devices uses Signal sessions, but the server didn't hand out its keys. Try again later."
         "identity_changed", "certificate_mismatch", "untrusted_identity" ->
             "Not sent: one of this contact's devices has new Signal keys. Compare the safety number (Verify) before trusting them."
@@ -376,14 +366,13 @@ class ChatSession(
     /** Device keys aren't available right now. A chat that has used them never falls back silently. */
     private suspend fun refuseIfV3Expected(conversationId: String, v3: V3Chat) {
         val pinned = v3.pinned(conversationId)
-        val older = v3.chosenOlder(conversationId)
-        val unlinked = if (!pinned && !older) v3.accountUsesKeysWithoutThisPhone() else null
-        val note = "sendV3 without a device: pinned=$pinned older=$older accountUsesKeys=$unlinked"
+        val unlinked = if (!pinned) v3.accountUsesKeysWithoutThisPhone() else null
+        val note = "sendV3 without a device: pinned=$pinned accountUsesKeys=$unlinked"
         if (BuildConfig.DEBUG) Log.w(TAG, note)
         if (pinned) throw EngineException("v3_unavailable", "Device keys aren't available on this phone right now, so this chat can't send. Nothing was sent.")
         // This phone lost (or never had) its device keys while the account uses them: don't quietly send the usual way.
         if (unlinked == true) {
-            throw EngineException("phone_not_linked", "This account uses device keys, but this phone isn't linked to them. Open Settings, Device keys to link it, or use the older protocol for this chat.")
+            throw EngineException("phone_not_linked", "This account uses device keys, but this phone isn't linked to them. Open Settings, Devices & encryption to link it.")
         }
     }
 
@@ -396,13 +385,13 @@ class ChatSession(
         val chat = v3 ?: return false
         if (meta.community != null) return false
         try {
-            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null, sendErrorOlder = false) }
+            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
             if (timerKeepsOffV3(conversationId, chat)) return false
             val onKeys = chat.usesDeviceKeys(conversationId, meta.isGroup, meta.otherUserId)
             if (onKeys == null) refuseIfV3Expected(conversationId, chat)
             if (onKeys != true) return false
             val descriptor = files.uploadForDeviceKeys(meta.id, pick(), onStage)
-            val outcome = chat.sendUploaded(conversationId, meta.isGroup, meta.otherUserId, descriptor, ::deleteUploadBestEffort)
+            val outcome = chat.sendUploaded(conversationId, meta.isGroup, meta.otherUserId, descriptor, deleteUpload = ::deleteUploadBestEffort)
             if (outcome !is SendOutcome.Sent) throw EngineException("v3_unavailable", "device keys stopped being available for this chat")
             return true
         } catch (e: EngineException) {
@@ -431,7 +420,7 @@ class ChatSession(
         val meta = metas[conversationId] ?: return onResult(false)
         val chat = v3 ?: return onResult(false)
         scope.launch {
-            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null, sendErrorOlder = false) }
+            if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
             val sent = try {
                 chat.sendOp(conversationId, meta.isGroup, meta.otherUserId, op)
                 true
@@ -521,7 +510,6 @@ class ChatSession(
     fun sendFile(conversationId: String, uri: Uri, onStage: (FileSendStage) -> Unit, onResult: (error: String?) -> Unit) {
         val meta = metas[conversationId] ?: return onResult("This chat isn't loaded yet. Try again.")
         sendRefusal(conversationId)?.let { return onResult(it) }
-        fileRefusal(conversationId)?.let { return onResult(it) }
         if (outbox != null) return queueFile(conversationId, "file", onStage, onResult) { files.picked(uri) }
         scope.launch {
             try {
@@ -555,7 +543,6 @@ class ChatSession(
         val picked = PickedFile(pending.name, pending.mimeType ?: "application/octet-stream", bytes.size.toLong()) { bytes.inputStream() }
         val meta = metas[conversationId] ?: return onResult("This chat isn't loaded yet. Try again.")
         sendRefusal(conversationId)?.let { return onResult(it) }
-        fileRefusal(conversationId)?.let { return onResult(it) }
         if (outbox != null) return queueFile(conversationId, "file", onStage, onResult) { picked }
         scope.launch {
             try {
@@ -610,10 +597,6 @@ class ChatSession(
     fun sendVoice(conversationId: String, recording: File, onStage: (FileSendStage) -> Unit, onResult: (error: String?) -> Unit) {
         val meta = metas[conversationId] ?: return onResult("This chat isn't loaded yet. Try again.").also { recording.delete() }
         sendRefusal(conversationId)?.let {
-            recording.delete()
-            return onResult(it)
-        }
-        fileRefusal(conversationId)?.let {
             recording.delete()
             return onResult(it)
         }
@@ -1105,16 +1088,17 @@ class ChatSession(
         if (tor != null && tor.gate() == null) return
         draining = true
         try {
+            // What device keys already encrypted goes out first, in order; while any of it can't, everything waits.
+            if (v3 != null && !flushDeviceKeyQueue()) return
             val items = withContext(Dispatchers.IO) { box.items() }.filter { !it.held }
             for (item in items) {
                 // A chat not loaded yet (first refresh still out) waits for the next round.
                 val meta = metas[item.conversationId] ?: continue
-                // Queued before this chat moved to device keys: it waits for Retry or Discard, as a refusal does.
-                val refusal = v3?.olderProtocolRefusal(item.conversationId, OlderProtocolOnly.TorRouting)
-                if (refusal != null) {
-                    withContext(Dispatchers.IO) { box.recordAttempt(item.id, "Not sent: $refusal", hold = true) }
-                    publishQueue()
-                    continue
+                // Device keys first, when this chat is on them: it never also goes out the usual way.
+                when (sendQueuedOnDeviceKeys(item, meta, box)) {
+                    QueuedV3.Sent, QueuedV3.Held -> continue
+                    QueuedV3.Wait -> return
+                    QueuedV3.UsualWay -> Unit
                 }
                 try {
                     val message = if (item.kind == "text") {
@@ -1148,6 +1132,84 @@ class ChatSession(
         }
     }
 
+    private enum class QueuedV3 { Sent, Held, Wait, UsualWay }
+
+    /**
+     * An outbox item on device keys, by the step-1 rule (docs/signal-integration/07-step1-default-path.md section 2),
+     * over Tor like everything else. Encrypted once: if the post itself can't go out now, it waits, encrypted, in the
+     * device-key queue (V3SendQueue) and the outbox item is done. [QueuedV3.UsualWay]: this chat isn't on device keys.
+     */
+    private suspend fun sendQueuedOnDeviceKeys(item: OutboxItem, meta: ConversationMeta, box: Outbox): QueuedV3 {
+        val chat = v3 ?: return QueuedV3.UsualWay
+        if (meta.community != null || item.replyToId != null) return QueuedV3.UsualWay
+        try {
+            if (timerKeepsOffV3(item.conversationId, chat)) return QueuedV3.UsualWay
+            val outcome = if (item.kind == "text") {
+                chat.send(item.conversationId, meta.isGroup, meta.otherUserId, item.text, item.id)
+            } else {
+                when (chat.usesDeviceKeys(item.conversationId, meta.isGroup, meta.otherUserId)) {
+                    true -> {
+                        val descriptor = files.uploadFromOutboxForDeviceKeys(meta.id, item.text, item.mimeType ?: "application/octet-stream") { plain ->
+                            box.openFile(item, plain)
+                        }
+                        chat.sendUploaded(item.conversationId, meta.isGroup, meta.otherUserId, descriptor, item.id, ::deleteUploadBestEffort)
+                    }
+                    false -> SendOutcome.Protocol1
+                    null -> null
+                }
+            }
+            if (outcome == null) {
+                refuseIfV3Expected(item.conversationId, chat)
+                return QueuedV3.UsualWay
+            }
+            if (outcome !is SendOutcome.Sent) return QueuedV3.UsualWay
+            withContext(Dispatchers.IO) { box.remove(item.id) }
+            if (!meta.isGroup) {
+                chat.protocol(item.conversationId, meta.otherUserId)?.let { p -> _state.update { it.copy(v3Protocols = it.v3Protocols + (item.conversationId to p)) } }
+            }
+            showV3(item.conversationId)
+            publishQueue()
+            return QueuedV3.Sent
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (e is ApiException && e.status == 401) {
+                onSessionExpired()
+                return QueuedV3.Wait
+            }
+            // The outbox keeps the item (it shows the problem, with Retry and Discard); a failed device-key copy of it
+            // would show twice.
+            chat.failed(item.id)?.let { chat.discard(it.conversationId, it.id) }
+            val transient = isTransient(e)
+            val shown = when (e) {
+                is EngineException -> v3SendProblem(e.code, e.message, typed = false)
+                is ApiException -> if (transient) e.message ?: "Couldn't send it." else v3SendProblem(e.code, e.message, typed = false)
+                else -> (e as? UserFacingException)?.message ?: "Couldn't send it."
+            }
+            withContext(Dispatchers.IO) { box.recordAttempt(item.id, shown, hold = !transient) }
+            publishQueue()
+            return if (transient) QueuedV3.Wait else QueuedV3.Held
+        }
+    }
+
+    /** Sends the device-key queue (already encrypted, in order). True when nothing is left waiting. */
+    private suspend fun flushDeviceKeyQueue(): Boolean {
+        val chat = v3 ?: return true
+        val done = try {
+            chat.flushQueue()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            if (e.status == 401) onSessionExpired()
+            false
+        } catch (e: Exception) {
+            false
+        }
+        metas.keys.forEach(::showV3)
+        publishQueue()
+        return done
+    }
+
     /** Re-reads the outbox and shows its items in their chats, after the server's messages. */
     private suspend fun publishQueue() {
         val box = outbox ?: return
@@ -1156,7 +1218,7 @@ class ChatSession(
         _state.update { s ->
             s.copy(
                 conversations = s.conversations.map { c -> c.copy(messages = withQueued(c.id, c.messages)) },
-                queued = items.size,
+                queued = items.size + (v3?.queuedMessages() ?: 0),
                 queuedHeld = items.count { it.held },
             )
         }
@@ -1392,10 +1454,5 @@ class ChatSession(
         const val THREAD_POLL_MS = 3_000L
         const val META_REFRESH_MS = 60_000L
         const val DRAIN_INTERVAL_MS = 15_000L
-        // Refusals where the person may choose the older protocol: the contact's keys can't be trusted, or have none.
-        val OLDER_PROTOCOL_CODES = setOf(
-            "account_key_changed", "rollback", "equivocation", "uncertified_account_key", "bad_device_list",
-            "contact_has_no_devices", "v3_unavailable", "phone_not_linked",
-        )
     }
 }

@@ -38,6 +38,7 @@ import com.redvaultsystems.redvaultmessage.R
 import com.redvaultsystems.redvaultmessage.devicekeys.DeviceKeySafety
 import com.redvaultsystems.redvaultmessage.devicekeys.DeviceKeysSession
 import com.redvaultsystems.redvaultmessage.devicekeys.DeviceKeysState
+import com.redvaultsystems.redvaultmessage.devicekeys.DeviceStorage
 import com.redvaultsystems.redvaultmessage.devicekeys.EngineException
 import kotlinx.coroutines.launch
 import com.redvaultsystems.redvaultmessage.ui.components.Callout
@@ -68,7 +69,7 @@ private val EVENT_TEXT = mapOf(
     "account_reset_completed" to "This account's keys were reset",
     "recovery_backup_updated" to "A recovery backup was saved",
     "recovery_backup_downloaded" to "The recovery backup was downloaded",
-    "signal_enabled" to "A device turned on Signal sessions (development build)",
+    "signal_enabled" to "A device turned on Signal sessions",
 )
 
 @Composable
@@ -131,8 +132,35 @@ private fun eventDate(text: String): String = runCatching {
 }.getOrDefault(text.take(10))
 
 /**
- * Settings > Device keys (preview): per-device encryption keys (protocol 3), a development preview behind the
- * server's E2E_V3_ENABLED flag. Messages keep using the current encryption. Mirrors the web's panel.
+ * The chats screen's note about device keys: this phone isn't linked to the account's device keys (it stays until
+ * it is), or, once, the suggestion to create a recovery key after this phone became the first device. Both open
+ * Settings > Devices & encryption. Draws nothing otherwise.
+ */
+@Composable
+fun DeviceKeysChatsBanner(session: DeviceKeysSession, onOpen: () -> Unit) {
+    val notice by session.notice.collectAsStateWithLifecycle()
+    val text = when {
+        notice.needsLink -> "This phone isn't linked to your device keys, so your chats can't use them here. Link it with your other device, a QR code or your recovery key."
+        notice.recoveryKey -> "Create a recovery key so you can restore your device keys on a new phone or computer."
+        else -> return
+    }
+    Callout(
+        text,
+        if (notice.needsLink) CalloutTone.Warn else CalloutTone.Neutral,
+        if (notice.needsLink) R.drawable.ui_alert_circle else R.drawable.ui_shield,
+        Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextAction(if (notice.needsLink) "Link this phone" else "Create a recovery key", onClick = onOpen)
+            if (!notice.needsLink) TextAction("Not now", onClick = session::dismissRecoveryNotice)
+        }
+    }
+}
+
+/**
+ * Settings > Devices & encryption: per-device encryption keys (protocol 3) with Signal sessions between devices,
+ * used when the server has E2E_V3_ENABLED. Set up by itself on the first device; further devices are linked here.
+ * Mirrors the web's panel.
  */
 @Composable
 fun DeviceKeysScreen(session: DeviceKeysSession, onBack: () -> Unit) {
@@ -142,16 +170,27 @@ fun DeviceKeysScreen(session: DeviceKeysSession, onBack: () -> Unit) {
     LaunchedEffect(Unit) { session.refresh() }
     DisposableEffect(Unit) { onDispose { session.clearRecoveryKey() } }
 
-    DsPage("Device keys (preview)", onBack) {
+    DsPage("Devices & encryption", onBack) {
+        Text("Your messages use the Signal protocol.", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "In development: each device gets its own encryption keys, and a new device is trusted only when one of your trusted devices approves it. Your messages still use the current encryption.",
+            "Each of your devices has its own encryption keys, and a new device is trusted only when one of your trusted devices (or your recovery key) approves it. Your password alone can't add a device.",
             color = colors.text2,
             fontSize = 14.sp,
         )
+        // Only this phone knows: an older copy of its keys was put back (a restore) and was refused.
+        if (state.localEvents.any { it.kind == DeviceStorage.RESTORED_OLDER_COPY }) {
+            Callout(
+                "This device's keys were restored from an older copy and were turned off. Link this phone again below.",
+                CalloutTone.Warn,
+                R.drawable.ui_alert_circle,
+            ) {
+                TextAction("OK", onClick = session::clearLocalEvents)
+            }
+        }
         state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
         when (state.available) {
             null -> Text("Checking…", color = colors.text3, fontSize = 14.sp)
-            false -> Callout("Device keys are off: this server hasn't turned the preview on, or this build doesn't include the engine.", CalloutTone.Neutral, R.drawable.ui_shield)
+            false -> Callout("Device keys aren't available: this server hasn't turned them on, or this build doesn't include the engine.", CalloutTone.Neutral, R.drawable.ui_shield)
             true -> Content(session, state, recoveryInput) { recoveryInput = it }
         }
     }
@@ -196,7 +235,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
         Card {
             Item(
                 "Pair this phone with a trusted device",
-                "Your password alone can't make this phone trusted. Open Device keys on a trusted device and compare the codes.",
+                "Your password alone can't make this phone trusted. Open Devices & encryption on a trusted device and compare the codes.",
                 extra = {
                     if (state.joiningCodes != null) {
                         Codes(state.joiningCodes)
@@ -228,7 +267,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                         modifier = Modifier.size(240.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(8.dp),
                     )
                     Text(
-                        "On your trusted phone, open Device keys and tap Scan a QR code. Only show this code to your own phone, and only in person.",
+                        "On your trusted phone, open Devices & encryption and tap Scan a QR code. Only show this code to your own phone, and only in person.",
                         color = colors.text3,
                         fontSize = 12.5.sp,
                     )
@@ -265,8 +304,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                     d.fingerprint,
                     badge = listOfNotNull(if (d.thisPhone) "This phone" else null, if (d.signal) "Signal" else null).joinToString(" · ").ifEmpty { null },
                     actions = {
-                        // A signed change: contacts are told, and chat with this device goes back to the device-key protocol.
-                        if (d.signal && state.trusted) TextAction("Turn off Signal", enabled = !state.busy) { session.turnOffSignal(d.deviceId) }
+                        // No "Turn off Signal" here: Signal is the only path (07-step1 section 3). session.turnOffSignal stays for tests.
                         if (!d.thisPhone && state.trusted) TextAction("Remove", danger = true, enabled = !state.busy) { session.revoke(d.deviceId) }
                     },
                 )
@@ -319,7 +357,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
             Card {
                 Item(
                     "Link another phone by QR code",
-                    "Open Device keys on the new phone, tap Show code, and scan it here. Only link a phone that is in your hands.",
+                    "Open Devices & encryption on the new phone, tap Show code, and scan it here. Only link a phone that is in your hands.",
                     actions = {
                         TextAction("Scan a QR code", enabled = !state.busy) {
                             scan.launch(

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "redvault/e2ev3/device.hpp"
+#include "redvault/e2ev3/send_queue.hpp"
 #include "redvault/model/file_message.hpp"
 
 // The protocol-3 chat path on the desktop: docs/multi-device-threat-model.md
@@ -17,9 +18,9 @@
 // and deletes as envelopes over the engine's Olm (one-to-one, with copies for the
 // sender's other devices) and Megolm (groups), the receive loop with
 // ack-after-persist, and a local history that lives only on this computer,
-// encrypted under a key derived from the device's storage key. Development only,
-// behind E2E_V3_ENABLED; nothing calls this unless the person has device keys and
-// the chat is pinned to v3.
+// encrypted under a key derived from the device's storage key. Behind
+// E2E_V3_ENABLED; the app uses it for a chat whose members all have device keys,
+// or that is pinned to them (docs/signal-integration/07-step1-default-path.md).
 
 namespace redvault::e2ev3 {
 
@@ -45,7 +46,7 @@ struct ChatRecord {
     std::int64_t arrivedAt = 0;
     std::string text;
     std::string direction;  // "in" | "out"
-    std::string status;  // "sent" | "failed" | "received"
+    std::string status;  // "sent" | "failed" | "received" | "queued" (waiting for Tor, docs/tor-by-default.md)
     /// A file message: `text` is then empty.
     std::optional<model::FileDescriptor> file;
     /// Set on a reaction, edit or delete. These stay out of what a chat shows (foldChat).
@@ -54,6 +55,8 @@ struct ChatRecord {
     bool edited = false;
     bool deleted = false;
     std::vector<ChatReaction> reactions;  // by user id, so the order doesn't depend on arrival
+    /// A queued one-to-one send: the contact it goes to (empty in a group, and on everything else).
+    std::string to;
 };
 
 /**
@@ -82,6 +85,8 @@ public:
     std::vector<ChatRecord> list(const std::string& conversationId) const;
     /// The stored records as they are, hidden ops included. Oldest first by ts, then arrival.
     std::vector<ChatRecord> records(const std::string& conversationId) const;
+    /// Every "queued" record in every conversation, in the order they were sent.
+    std::vector<ChatRecord> queued() const;
     /// A chat that has used v3 stays on v3 until the person says otherwise (9.1 item 5).
     bool pinned(const std::string& conversationId) const;
     void pin(const std::string& conversationId);
@@ -136,6 +141,8 @@ struct SendOutcome {
     int delivered = 0;
     /// Devices that got no copy (one-to-one only): for example a Signal device whose keys the server didn't hand out.
     int unreachable = 0;
+    /// Tor went down during the send: the message is "queued" and goes with sendQueuedChat (nothing was lost or sent twice).
+    bool queued = false;
 };
 
 /// What a receive pass left on the server, for the chat to explain (M5).
@@ -156,6 +163,32 @@ SendOutcome sendChatFile(V3Device& device, ChatHistory& history, const std::stri
 /// Sends a reaction, edit or delete. An empty `contactUserId` means a group. A failed one isn't kept: the person sees it didn't work.
 SendOutcome sendChatOp(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
                        const ChatOp& op, std::int64_t nowMs = 0);
+
+// --- Waiting for Tor (docs/tor-by-default.md, rule 5) ---
+
+/// Tor isn't connected: `text` waits as "queued" in the (encrypted) history; nothing is sent or encrypted for anyone yet.
+/// An empty `contactUserId` means a group. sendQueuedChat sends it, encrypted once, in order. Pins the chat to v3.
+ChatRecord queueChat(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                     const std::string& text, std::int64_t nowMs = 0);
+/// The same for a file already uploaded (its key stays in the encrypted history only).
+ChatRecord queueChatFile(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                         const model::FileDescriptor& file, std::int64_t nowMs = 0);
+/// The same for a reaction, edit or delete (shown at once, like the others).
+ChatRecord queueChatOp(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                       const ChatOp& op, std::int64_t nowMs = 0);
+
+struct QueueDrain {
+    int sent = 0;
+    /// Refused for good by the server, or by the engine (shown as failed; a failed op is dropped).
+    int failed = 0;
+    /// Tor or the server isn't reachable yet: the rest waits, in order.
+    bool waiting = false;
+};
+/// What waited for Tor, oldest first: the already-encrypted requests in `server`'s queue exactly as they were
+/// (never encrypted again), then each "queued" record, encrypted now. Stops, in order, at the first one that can't leave.
+QueueDrain sendQueuedChat(V3Device& device, ChatHistory& history, QueueingV3Server& server);
+/// Whether anything waits: a queued request or a queued record.
+bool hasQueuedChat(const ChatHistory& history, const QueueingV3Server& server);
 
 /// Runs the receive loop (9.6) once; returns the records that are new, hidden ops included, oldest first.
 std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std::int64_t nowMs = 0, ReceiveStats* stats = nullptr);

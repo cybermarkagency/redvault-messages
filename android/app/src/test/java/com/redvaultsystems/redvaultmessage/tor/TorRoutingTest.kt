@@ -35,7 +35,8 @@ import kotlin.concurrent.thread
  * is down or to any host but an onion service.
  */
 class TorRoutingTest {
-    private val onion = "a".repeat(52) + "aaad.onion"
+    // The live service's onion host, the app's default API base (docs/tor-by-default.md).
+    private val onion = ReleaseRouting.ONION_HOST
     private val gate = FakeGate(username = "u" + "1".repeat(31), password = "p" + "2".repeat(31))
     @Volatile private var up = true
     private val source = TorGateSource { if (up) SocksEndpoint("127.0.0.1", gate.port, gate.username, gate.password) else null }
@@ -113,6 +114,31 @@ class TorRoutingTest {
         assertNull(Authenticator.requestPasswordAuthentication("example.com", null, gate.port, "SOCKS5", "SOCKS authentication", null))
         up = false
         assertNull(Authenticator.requestPasswordAuthentication("127.0.0.1", loopback, gate.port, "SOCKS5", "SOCKS authentication", null))
+    }
+
+    // --- The app's own clients, as AppContainer builds them for the default (onion) API base ---
+
+    @Test
+    fun theAppsClientsGoOnlyThroughTheGate() {
+        val base = ReleaseRouting.ONION_API_BASE
+        for (app in listOf(
+            ApiClient.httpClient(com.redvaultsystems.redvaultmessage.data.api.SessionCookieJar(), base, source),
+            ApiClient.publicClient(base, source),
+        )) {
+            app.newCall(Request.Builder().url(base + "users/u1/avatar").build()).execute().close()
+            // Anything but the onion service is refused before a socket opens, even the website.
+            for (url in listOf("https://www.redvaultsystems.com/redvaultmessages/api/health", "http://10.0.2.2:3000/api/health")) {
+                try {
+                    app.newCall(Request.Builder().url(url).build()).execute().close()
+                    fail("expected a refusal for $url")
+                } catch (e: IOException) {
+                    // expected
+                }
+            }
+        }
+        assertEquals(2, gate.seen.size)
+        assertTrue(gate.seen.all { it.addressType == 3 && it.host == onion && it.port == 80 })
+        assertTrue(gate.seen.all { it.httpRequest.startsWith("GET /redvaultmessages/api/users/u1/avatar HTTP/1.1") })
     }
 
     /** A minimal SOCKS5 gate (username/password, CONNECT) that answers one HTTP request itself. */

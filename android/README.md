@@ -26,7 +26,7 @@ checklists, scheduled and suggested posts, new-post notifications); and
 |---|---|
 | Package name | `com.redvaultsystems.redvaultmessage` (permanent once on Play) |
 | Min / target SDK | 26 (Android 8.0) / 37 |
-| Backend | `redvaultApiBase` in `gradle.properties` |
+| Backend | `redvaultApiBase` in `gradle.properties`: the service's onion address, through the built-in Tor gateway |
 
 ## Run it on your phone
 
@@ -48,8 +48,21 @@ Start the server on port 3000, then build with:
 ./gradlew installDebug -PredvaultApiBase=http://10.0.2.2:3000/api/
 ```
 
-`10.0.2.2` is your computer as seen from the emulator. Plain `http` only works in
-debug builds. Release builds are HTTPS-only.
+`10.0.2.2` is your computer as seen from the emulator. Plain `http` to it only works in
+debug builds, and that debug build talks to it directly, without Tor.
+
+### Tor by default
+
+There is one app, and it always connects through Tor (`docs/tor-by-default.md`): the
+default `redvaultApiBase` is the service's onion address, the Tor gateway (`tor-core`,
+Arti) is built into every build, and everything but calls goes through it: the account,
+messages on either protocol (device keys and Signal included), files, Stories, avatars,
+the live channel and the background wake connection. Calls use WebRTC through the TURN
+relay (relay-only); their signalling still goes through the API, so through Tor. A
+release build refuses any other API base (`checkTorOnlyRelease` in
+`app/build.gradle.kts`), and `network_security_config.xml` allows plain `http` only to
+the onion host. Links people share (share, invite, call and channel links) point at the
+public website (`redvaultWebAppBase`), which the app never connects to itself.
 
 ## Tests
 
@@ -64,7 +77,13 @@ debug builds. Release builds are HTTPS-only.
   the web client's own libsodium. **If this fails, don't ship.** Android and web
   users would be unable to log in to each other's accounts or read each other's messages.
 
-## Notifications (UnifiedPush, no Firebase)
+## Notifications (no Firebase; through Tor, the background connection only)
+
+Through Tor (every release build) the app uses no third-party push service at all:
+notifications come only from the background connection below, through the onion
+service. UnifiedPush is never registered, and one registered by an earlier version is
+removed (`push/PushRegistrar.kt`). What follows about UnifiedPush applies only to a
+debug build pointed at a local test server.
 
 There's no Firebase or Google Play services in the app. Pushes are
 content-free: the server only ever sends `{"kind": "message"}` (or
@@ -102,12 +121,10 @@ The app asks for notification permission after sign-in (Android 13+);
 without it the background connection doesn't start. Settings shows how
 notifications arrive ("Push through ntfy", "Background connection" or "Off").
 The Notifications switch turns both off: nothing is registered and no
-connection is kept. Strict no-push mode (Settings › Network routing, on by
-default in Tor builds) means "never a push service run by someone else": it
-always rules out UnifiedPush. Without Tor routing that leaves no notifications
-at all; with Tor routing the background connection still runs (its own switch),
-because it reaches only the onion service through the Tor gateway, never
-directly (tests in `tor/TorRoutingTest.kt`). Logging out unregisters from the distributor, removes the
+connection is kept. Strict no-push ("never a push service run by someone else")
+is always on through Tor, with no switch: the background connection still runs
+(its own switch), because it reaches only the onion service through the Tor
+gateway, never directly (tests in `tor/TorRoutingTest.kt`, `privacy/NoMetadataTest.kt`). Logging out unregisters from the distributor, removes the
 endpoint from the server and stops the background connection.
 
 ## Releasing to Google Play

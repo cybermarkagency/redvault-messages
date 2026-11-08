@@ -18,9 +18,25 @@ tools=build/linuxdeploy
 
 # Settings > About shows this version's source link and contact from these (empty: "not published yet" and the
 # Terms of Service contact). Always passed, so a value left in the build cache from an earlier run can't stick.
+# Release builds carry device keys with Signal sessions (needs Rust/cargo); passed for the same reason.
+# Tor by default (docs/tor-by-default.md): every published build embeds the Tor gateway and is Tor-only at the
+# official onion service (cmake/tor_settings.cmake is its one home). REDVAULT_RELEASE_BUILD makes the configure
+# step refuse anything else, and the cache is checked afterwards too.
+onion=$(sed -n 's/^set(REDVAULT_OFFICIAL_ONION_API_BASE "\(http:\/\/[a-z2-7]*\.onion\/[^"]*\)")$/\1/p' cmake/tor_settings.cmake)
+if [ -z "$onion" ]; then
+    echo "No official onion service in cmake/tor_settings.cmake" >&2
+    exit 1
+fi
 cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
-    -DREDVAULT_BUILD_CLI=OFF -DREDVAULT_BUILD_TOOLS=OFF \
+    -DREDVAULT_BUILD_CLI=OFF -DREDVAULT_BUILD_TOOLS=OFF -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON \
+    -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON "-DREDVAULT_ONION_API_BASE=$onion" -DREDVAULT_RELEASE_BUILD=ON \
     "-DREDVAULT_SOURCE_CODE_URL=${REDVAULT_SOURCE_CODE_URL:-}" "-DREDVAULT_SOURCE_CONTACT=${REDVAULT_SOURCE_CONTACT:-}"
+for setting in "REDVAULT_TOR:BOOL=ON" "REDVAULT_TOR_ONLY:BOOL=ON" "REDVAULT_ONION_API_BASE:STRING=$onion" "REDVAULT_RELEASE_BUILD:BOOL=ON"; do
+    if ! grep -qxF "$setting" "$build/CMakeCache.txt"; then
+        echo "This build isn't Tor-only at the official onion service ($setting missing). A published build never is anything else." >&2
+        exit 1
+    fi
+done
 cmake --build "$build"
 ctest --test-dir "$build" --output-on-failure
 

@@ -111,6 +111,37 @@ fn stripping_or_editing_capabilities_breaks_the_list_signature() {
     assert_eq!(alice.op("verifyDeviceList", json!({ "deviceList": v2 }))["ok"], true);
 }
 
+/// Two linked devices declare Signal at about the same time. The phone's declaration is built on a list
+/// the laptop has already replaced; the server refuses it as stale, the phone verifies the server's
+/// newer list (which doesn't name the phone's Signal yet) and declares again. Signal must stay on for
+/// the phone: before the fix it stayed marked off, the phone sent Olm and its contacts refused it.
+#[test]
+fn a_declaration_that_lost_a_race_with_another_device_keeps_signal_on() {
+    let mut laptop = Device::account("bob", "laptop");
+    let mut phone = Device::new("bob", "phone");
+    common::link(&mut laptop, &mut phone);
+    let laptop_cert = enable(&mut laptop);
+    let phone_cert = enable(&mut phone);
+    // The laptop publishes first.
+    let server_list = advertise(&mut laptop, &laptop_cert);
+    // The phone builds its own declaration on its older copy (the server would refuse it as stale)...
+    let refused = advertise(&mut phone, &phone_cert);
+    assert_eq!(refused["version"], server_list["version"]);
+    // ...fetches and verifies the server's list, which has the laptop's Signal but not its own...
+    phone.ok("verifyDeviceList", json!({ "deviceList": server_list }));
+    assert_eq!(phone.ok("signalStatus", json!({}))["disabled"], true);
+    // ...and declares again on top of it, as the apps' retry does.
+    let retried = advertise(&mut phone, &phone_cert);
+    assert_eq!(retried["capabilities"].as_array().unwrap().len(), 2);
+    assert_eq!(phone.ok("signalStatus", json!({}))["disabled"], false);
+
+    // A turn-off by another device, after that, still holds.
+    laptop.ok("verifyDeviceList", json!({ "deviceList": retried }));
+    let off = laptop.ok("clearSignalCapability", json!({ "deviceId": "phone" }))["deviceList"].clone();
+    phone.ok("verifyDeviceList", json!({ "deviceList": off }));
+    assert_eq!(phone.ok("signalStatus", json!({}))["disabled"], true);
+}
+
 #[test]
 fn only_a_trusted_device_can_declare_a_capability_and_only_for_a_listed_device() {
     let mut bob = Device::account("bob", "laptop");

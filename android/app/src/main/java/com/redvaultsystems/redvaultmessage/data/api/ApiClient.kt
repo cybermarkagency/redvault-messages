@@ -5,7 +5,7 @@ package com.redvaultsystems.redvaultmessage.data.api
 
 import com.redvaultsystems.redvaultmessage.devicekeys.V3Service
 
-import com.redvaultsystems.redvaultmessage.tor.TorController
+import com.redvaultsystems.redvaultmessage.tor.TorGateSource
 import com.redvaultsystems.redvaultmessage.tor.TorRouting
 import kotlinx.serialization.json.Json
 import okhttp3.Cookie
@@ -32,7 +32,7 @@ object ApiClient {
      * them carry the session cookie and nothing else identifying, and none
      * of them can reach any host but [apiBase]'s.
      */
-    fun httpClient(cookieJar: SessionCookieJar, apiBase: String, tor: TorController? = null): OkHttpClient =
+    fun httpClient(cookieJar: SessionCookieJar, apiBase: String, tor: TorGateSource? = null): OkHttpClient =
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
             // Before any connection is opened, so a refused host never even sees a TCP handshake.
@@ -68,7 +68,7 @@ object ApiClient {
      * which account is reading. With an onion API base it goes through the Tor gate too: a direct
      * request would ask the phone's resolver for the onion name.
      */
-    fun publicClient(apiBase: String, tor: TorController? = null): OkHttpClient =
+    fun publicClient(apiBase: String, tor: TorGateSource? = null): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(OwnServerOnly(apiBase.toHttpUrl().host))
             .addNetworkInterceptor(StripIdentifyingHeaders)

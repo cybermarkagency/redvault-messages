@@ -280,6 +280,9 @@ public:
     QString sendRefusal(const std::string& chatId, const char* onDeviceKeys) const;
     /// Set once by the app: whether a chat is pinned to device keys. Such a chat never sends through this class.
     void setDeviceKeyCheck(std::function<bool(const std::string& chatId)> pinned) { chatPinnedToDeviceKeys_ = std::move(pinned); }
+    /// Optional: for a chat the check above holds back, a reason that replaces `onDeviceKeys` (the chat isn't decided
+    /// yet, or this computer must be linked first). Empty: `onDeviceKeys` is the reason.
+    void setDeviceKeyReason(std::function<QString(const std::string& chatId)> reason) { deviceKeyReason_ = std::move(reason); }
     std::shared_ptr<data::GroupRepository> groupRepository() const { return groups_; }
     QVariantList currentFiles() const { return messages_.files(); }
     int currentDisappearing() const;
@@ -376,6 +379,7 @@ private:
     bool refuseSend(const std::string& chatId, const char* onDeviceKeys);
     bool contactKeyChanged(const data::ConversationMeta& meta) const;
     std::function<bool(const std::string&)> chatPinnedToDeviceKeys_;
+    std::function<QString(const std::string&)> deviceKeyReason_;
     QString shownKeyProblem_;
     void setFileActivity(const QString& activity);
     void setGroupBusy(bool busy);

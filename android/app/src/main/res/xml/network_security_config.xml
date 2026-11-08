@@ -6,10 +6,11 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <!-- Tor routing (docs/tor-routing-plan.md): http:// to the service's .onion address only. The onion
-         service itself authenticates the server (the address is its key) and encrypts end to end, and
-         the app reaches it only through the embedded Tor gateway, never directly. -->
+    <!-- Tor by default (docs/tor-by-default.md): http:// to the service's own onion address only. The onion
+         service itself authenticates the server (the address is its key) and encrypts end to end, and the app
+         reaches it only through the embedded Tor gateway, never directly. A release build checks that this is
+         its API base's host (checkTorOnlyRelease in app/build.gradle.kts). -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">onion</domain>
+        <domain includeSubdomains="false">4cydjhdc3lmhg7l6ykjont7dms2alunglmnlznlmjjwkyc67m5h325yd.onion</domain>
     </domain-config>
 </network-security-config>

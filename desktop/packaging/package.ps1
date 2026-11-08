@@ -22,7 +22,8 @@ $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\I
 if (-not (Test-Path "$msys\cmake.exe")) { throw "MSYS2 UCRT64 not found at $msys" }
 if (-not $iscc) { throw "Inno Setup 6 not found (https://jrsoftware.org/isinfo.php)" }
 
-$env:PATH = "$msys;" + $env:PATH
+# cargo builds the device-key engine (crypto-core).
+$env:PATH = "$msys;" + (Join-Path $env:USERPROFILE ".cargo\bin") + ";" + $env:PATH
 Push-Location $desktop
 try {
     function Invoke-Step([string]$label, [scriptblock]$step) {
@@ -33,8 +34,12 @@ try {
 
     # Settings > About shows this version's source link and contact from these (empty: "not published yet" and
     # the Terms of Service contact). Always passed, so a value left in the build cache from an earlier run can't stick.
-    $sourceArgs = @("-DREDVAULT_SOURCE_CODE_URL=$env:REDVAULT_SOURCE_CODE_URL", "-DREDVAULT_SOURCE_CONTACT=$env:REDVAULT_SOURCE_CONTACT")
+    # Release builds carry device keys with Signal sessions: the release preset sets both, and they're passed for the same reason.
+    # Tor by default (docs/tor-by-default.md): every published build is Tor-only at the official onion service.
+    $sourceArgs = @("-DREDVAULT_SOURCE_CODE_URL=$env:REDVAULT_SOURCE_CODE_URL", "-DREDVAULT_SOURCE_CONTACT=$env:REDVAULT_SOURCE_CONTACT",
+        "-DREDVAULT_E2E_V3=ON", "-DREDVAULT_E2E_SIGNAL=ON") + (& (Join-Path $PSScriptRoot "tor-release-args.ps1"))
     Invoke-Step "Configure (release)" { cmake --preset release @sourceArgs }
+    & (Join-Path $PSScriptRoot "tor-release-args.ps1") -Verify "build\release\CMakeCache.txt"
     Invoke-Step "Build" { cmake --build --preset release }
     Invoke-Step "Test" { ctest --preset release }
 

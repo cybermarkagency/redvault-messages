@@ -113,6 +113,8 @@ class DriveRepository(
     private val contentResolver: ContentResolver,
     cacheRoot: File,
     private val contactKeys: ContactKeyPins? = null,
+    /** Where share links open: the public website (BuildConfig.WEB_APP_BASE), not the onion API. */
+    webAppBase: String? = null,
 ) {
     private val transfer = ProxyTransfer(httpClient, apiBase, "/backup/")
 
@@ -123,8 +125,8 @@ class DriveRepository(
     private val cacheDir = File(cacheRoot, "drive")
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Where share links open: the web app next to the API (".../redvaultmessages/"). */
-    val webAppBase: String = apiBase.removeSuffix("/").removeSuffix("api").let { if (it.endsWith("/")) it else "$it/" }
+    /** Where share links open: the website, or by default the web app next to the API (".../redvaultmessages/"). */
+    val webAppBase: String = webAppBase ?: apiBase.removeSuffix("/").removeSuffix("api").let { if (it.endsWith("/")) it else "$it/" }
 
     private val driveKey: ByteArray get() = drive.driveKey(identity.privateKey)
 

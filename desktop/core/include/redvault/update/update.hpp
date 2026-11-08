@@ -88,25 +88,44 @@ ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publ
                             std::string_view allowedUrlPrefix, std::int64_t nowMillis);
 
 /**
- * Whether this app may contact the update server at all. A Tor-only build, or any
- * build pointed at an onion service, must not: the check would go out over the
- * clear internet from the real address, and what it offers is the normal edition.
- * An address that can't be read counts as no.
+ * Where this app checks for and downloads updates (docs/tor-by-default.md). The
+ * manifest and installers are the same files for everyone (there is one app):
+ * - talking to the normal server: the clear-internet manifest and download folder;
+ * - talking to an onion service (every Tor-only build): that onion service's copy
+ *   of the same files, over Tor, and never the normal internet. The signed manifest
+ *   still names the published (clear-internet) folder; installerUrl moves it over.
+ * A Tor-only build whose server isn't a v3 onion service, an address ending in
+ * .onion that isn't one, or an address that can't be read: no route, nothing is sent.
  */
+struct UpdateRoute {
+    std::string manifestUrl;
+    /// Where the installer is fetched from: `clearDownloadPrefix`, or the onion service's copy of that folder.
+    std::string downloadPrefix;
+    bool viaTor = false;
+};
+std::optional<UpdateRoute> updateRoute(std::string_view apiBase, bool torOnlyBuild, std::string_view clearManifestUrl,
+                                       std::string_view clearDownloadPrefix);
+
+/// Whether this app may check for updates at all (updateRoute has an answer).
 bool updatesPermitted(std::string_view apiBase, bool torOnlyBuild);
 
 struct UpdateSource {
+    /// The published (clear-internet) manifest; over Tor, its copy on the onion service is fetched instead (updateRoute).
     std::string manifestUrl;
     crypto::Bytes publicKey;
     std::string currentVersion;
+    /// The published download folder the signed installer URL must be in.
     std::string allowedUrlPrefix;
     std::string apiBase;
     bool torOnlyBuild = false;
     std::int64_t nowMillis = 0;
 };
 
-/// Fetches and checks the manifest. Sends nothing at all unless updatesPermitted. Throws net::NetworkError or UpdateError.
+/// Fetches and checks the manifest along updateRoute. Sends nothing at all without a route. Throws net::NetworkError or UpdateError.
 ManifestCheck fetchManifest(net::HttpTransport& transport, const UpdateSource& source);
+
+/// Where to download `release` from on `route`: its signed URL moved into `route.downloadPrefix`. Empty if it isn't in `clearDownloadPrefix`.
+std::string installerUrl(const Release& release, const UpdateRoute& route, std::string_view clearDownloadPrefix);
 
 /// Builds and signs a manifest for `release` (used by the release tool, never by the app).
 std::string signManifest(const Release& release, crypto::ByteView secretKey);

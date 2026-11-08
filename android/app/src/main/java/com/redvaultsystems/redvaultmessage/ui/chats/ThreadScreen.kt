@@ -163,8 +163,11 @@ private fun copyableText(m: Message): String? =
 fun ThreadScreen(
     conversation: Conversation,
     error: String?,
-    /** Set when a send on device keys was refused and the person may use the older protocol for this chat instead. */
-    onUseOlderProtocol: (() -> Unit)? = null,
+    /**
+     * This chat is on device keys: what they can't carry yet (reply, forward, polls, pins, the disappearing timer,
+     * selecting several) is hidden, never offered over another protocol (07-step1 section 3).
+     */
+    deviceKeyChat: Boolean = false,
     /** A device-key note that isn't an error (M5): which protocol the chat uses, or messages waiting on the server. */
     deviceKeysNote: String? = null,
     onBack: () -> Unit,
@@ -264,7 +267,6 @@ fun ThreadScreen(
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<String?>(null) }
     var actionsFor by remember { mutableStateOf<Message?>(null) }
-    var confirmOlder by remember { mutableStateOf(false) }
     var replyingTo by remember { mutableStateOf<Message?>(null) }
     var editing by remember { mutableStateOf<Message?>(null) }
     var forwarding by remember { mutableStateOf<List<Message>?>(null) }
@@ -486,7 +488,7 @@ fun ThreadScreen(
                             }
                         }
                         TextButton(onClick = onOpenCommunity ?: onOpenGroupInfo) { Text("Info") }
-                        GroupThreadMenu(onSearch = { searchOpen = true }, onSelect = { selecting = true })
+                        GroupThreadMenu(onSearch = { searchOpen = true }, onSelect = if (deviceKeyChat) null else ({ selecting = true }))
                         return@TopAppBar
                     }
                     if (onCall != null && !blocked) {
@@ -502,7 +504,7 @@ fun ThreadScreen(
                         onChatDetails = onOpenChatDetails,
                         onSharedMedia = onOpenSharedMedia,
                         onSearch = { searchOpen = true },
-                        onSelect = { selecting = true },
+                        onSelect = if (deviceKeyChat) null else ({ selecting = true }),
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg),
@@ -538,7 +540,7 @@ fun ThreadScreen(
                 editing = editing,
                 onCancelEdit = { editing = null },
                 mentionCandidates = mentionCandidates,
-                onStartPoll = { creatingPoll = true },
+                onStartPoll = if (deviceKeyChat) null else ({ creatingPoll = true }),
                 onTyping = onTyping,
                 initialDraft = initialDraft,
                 onDraftChange = onDraftChange,
@@ -564,28 +566,6 @@ fun ThreadScreen(
             }
             error?.let { ErrorBanner(it) }
             deviceKeysNote?.let { Banner(text = it) }
-            if (onUseOlderProtocol != null) {
-                Banner(
-                    text = "This chat uses device keys. You can send it with the older protocol instead, without per-device keys.",
-                    action = "Use the older protocol",
-                    onClick = { confirmOlder = true },
-                )
-            }
-            if (confirmOlder && onUseOlderProtocol != null) {
-                AlertDialog(
-                    onDismissRequest = { confirmOlder = false },
-                    containerColor = colors.surface2,
-                    title = { Text("Use the older protocol?", color = colors.text) },
-                    text = {
-                        Text(
-                            "New messages in this chat will use the usual encryption instead of per-device keys. Messages already sent or received on device keys stay as they are. You can't undo this here.",
-                            color = colors.text2,
-                        )
-                    },
-                    confirmButton = { TextButton(onClick = { confirmOlder = false; onUseOlderProtocol() }) { Text("Use the older protocol", color = colors.warn) } },
-                    dismissButton = { TextButton(onClick = { confirmOlder = false }) { Text("Cancel", color = colors.text2) } },
-                )
-            }
             torNotice?.let { Banner(text = it) }
             if (blocked) {
                 Banner(
@@ -625,7 +605,8 @@ fun ThreadScreen(
                 )
             }
             // The timer is this user's own, for what they send: a channel's readers send nothing.
-            if (!readOnly) DisappearingRow(conversation.disappearing, onSetDisappearing)
+            // On device keys the timer shows only while it's on, so it can be turned off (device keys won't send with it).
+            if (!readOnly && (!deviceKeyChat || conversation.disappearing != Disappearing.Off)) DisappearingRow(conversation.disappearing, onSetDisappearing)
             if (pinned.isNotEmpty()) PinnedBar(pinned, onJump = ::jumpTo, onUnpin = onUnpin)
 
             LazyColumn(
@@ -761,7 +742,7 @@ fun ThreadScreen(
             } else {
                 null
             },
-            onForward = if (MessageSelection.canForward(message)) {
+            onForward = if (!deviceKeyChat && MessageSelection.canForward(message)) {
                 {
                     forwarding = listOf(message)
                     actionsFor = null
@@ -781,7 +762,7 @@ fun ThreadScreen(
                     actionsFor = null
                 }
             },
-            onSelect = if (MessageSelection.selectable(message)) {
+            onSelect = if (!deviceKeyChat && MessageSelection.selectable(message)) {
                 {
                     selecting = true
                     selected = setOf(message.id)
@@ -805,6 +786,7 @@ fun ThreadScreen(
             },
             onDismiss = { actionsFor = null },
             canPost = !readOnly,
+            deviceKeyChat = deviceKeyChat,
             onReport = if (onReportCommunityMessage != null && !message.fromMe && !message.v3) {
                 {
                     reportingMessage = message
@@ -1298,7 +1280,7 @@ private fun PollDialog(onCreate: (String, List<String>, Boolean, (String?) -> Un
 
 /** A group's menu next to Info: search the chat, or tick messages to forward or delete. */
 @Composable
-private fun GroupThreadMenu(onSearch: () -> Unit, onSelect: () -> Unit) {
+private fun GroupThreadMenu(onSearch: () -> Unit, onSelect: (() -> Unit)?) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
@@ -1309,10 +1291,12 @@ private fun GroupThreadMenu(onSearch: () -> Unit, onSelect: () -> Unit) {
                 open = false
                 onSearch()
             })
-            DropdownMenuItem(text = { Text("Select messages") }, onClick = {
-                open = false
-                onSelect()
-            })
+            onSelect?.let { select ->
+                DropdownMenuItem(text = { Text("Select messages") }, onClick = {
+                    open = false
+                    select()
+                })
+            }
         }
     }
 }
@@ -1326,7 +1310,8 @@ private fun ThreadMenu(
     onChatDetails: (() -> Unit)? = null,
     onSharedMedia: (() -> Unit)? = null,
     onSearch: () -> Unit = {},
-    onSelect: () -> Unit = {},
+    /** Null hides "Select messages" (a chat on device keys). */
+    onSelect: (() -> Unit)? = {},
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
@@ -1350,10 +1335,12 @@ private fun ThreadMenu(
                 open = false
                 onSearch()
             })
-            DropdownMenuItem(text = { Text("Select messages") }, onClick = {
-                open = false
-                onSelect()
-            })
+            onSelect?.let { select ->
+                DropdownMenuItem(text = { Text("Select messages") }, onClick = {
+                    open = false
+                    select()
+                })
+            }
             DropdownMenuItem(text = { Text("Safety number") }, onClick = {
                 open = false
                 onSafetyNumber()
@@ -1443,6 +1430,8 @@ private fun MessageActionsDialog(
     onDismiss: () -> Unit,
     /** False in a channel this user only reads: reacting, replying and pinning would all be posts. */
     canPost: Boolean = true,
+    /** The chat is on device keys: no replies or pins in it yet (step 2). */
+    deviceKeyChat: Boolean = false,
     /** Communities: report this message (null elsewhere, and for your own). */
     onReport: (() -> Unit)? = null,
     /** Text messages only: copy all of it, or open it to select part of it. */
@@ -1481,12 +1470,12 @@ private fun MessageActionsDialog(
                     )
                 }
                 // Device-key messages have no replies, pins or "delete for me" yet, as on the web.
-                if (canPost && !message.v3) TextButton(onClick = onReply) { Text("Reply") }
+                if (canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onReply) { Text("Reply") }
                 onEdit?.let { TextButton(onClick = it) { Text("Edit") } }
                 onCopyText?.let { TextButton(onClick = it) { Text("Copy text") } }
                 onSelectText?.let { TextButton(onClick = it) { Text("Select text") } }
                 onForward?.let { TextButton(onClick = it) { Text("Forward") } }
-                if (canPost && !message.v3) TextButton(onClick = onTogglePin) { Text(if (pinned) "Unpin" else "Pin") }
+                if (canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onTogglePin) { Text(if (pinned) "Unpin" else "Pin") }
                 onSelect?.let { TextButton(onClick = it) { Text("Select") } }
                 if (!message.v3) TextButton(onClick = onDeleteForMe) { Text("Delete for me") }
                 if (message.fromMe) TextButton(onClick = onDeleteForEveryone) { Text("Delete for everyone", color = colors.danger) }
@@ -1909,7 +1898,7 @@ private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onO
             SecurityRow(if (message.fromMe) "Encrypted on this phone, for each device" else "Decrypted on this phone", SecurityMark.Done, foreground)
             if (message.fromMe) SecurityRow("Relayed as ciphertext", if (message.queued) SecurityMark.Failed else SecurityMark.Done, foreground)
             Text(
-                "Sent with per-device keys (preview). The server kept only ciphertext until each device fetched it. No public record, delivered or read marks yet.",
+                "Sent with per-device keys. The server kept only ciphertext until each device fetched it. No public record, delivered or read marks yet.",
                 color = muted,
                 style = MaterialTheme.typography.labelSmall,
             )
@@ -1984,7 +1973,8 @@ private fun Composer(
     onCancelEdit: () -> Unit,
     /** Handles "@" suggests (a group's other members). */
     mentionCandidates: List<String>,
-    onStartPoll: () -> Unit,
+    /** Null hides "Poll" (a chat on device keys). */
+    onStartPoll: (() -> Unit)?,
     onSendFiles: (List<PendingFile>, (Int, FileSendStage) -> Unit, (Int, String?) -> Unit) -> Unit,
     onSendVoice: (File, (FileSendStage) -> Unit, (String?) -> Unit) -> Unit,
     canSendFiles: Boolean,
@@ -2277,10 +2267,12 @@ private fun Composer(
                             fileError = PRO_REQUIRED_MESSAGE
                         }
                     })
-                    DropdownMenuItem(text = { Text("Poll") }, onClick = {
-                        attachMenu = false
-                        onStartPoll()
-                    })
+                    onStartPoll?.let { startPoll ->
+                        DropdownMenuItem(text = { Text("Poll") }, onClick = {
+                            attachMenu = false
+                            startPoll()
+                        })
+                    }
                 }
             }
             if (recording) {

@@ -8,9 +8,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Redvault
 
-// Settings › Privacy & Security › Network routing (docs/tor-routing-plan.md):
-// how each kind of traffic leaves this computer. Read-only on purpose: the
-// Tor-only features have no direct (HTTPS) switch.
+// Settings › Privacy & Security › Network routing (docs/tor-by-default.md):
+// how each kind of traffic leaves this computer. Read-only on purpose: there
+// is no switch, and nothing but calls ever leaves outside Tor.
 ColumnLayout {
     id: root
     /// The app's Tor gateway (App.tor).
@@ -66,11 +66,26 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         text: root.torOn
-              ? "Private messages and media only ever travel through Tor, to Redvault's onion service. If Tor is unavailable they wait, encrypted on this computer, until it's back: there is no direct connection to fall back to. Calls use WebRTC through a relay (TURN) instead."
-              : "Tor routing isn't active in this version of the app: messages and media go to Redvault's server directly, over HTTPS. They are still end-to-end encrypted."
+              ? "Everything this app sends, except calls, travels through Tor to Redvault's onion service. If Tor can't connect, messages wait, encrypted on this computer, until it's back: there is no direct connection to fall back to."
+              : "This copy was built for testing and isn't connected through Tor: it talks to its server directly. Messages are still end-to-end encrypted."
         textFormat: Text.PlainText
         color: Theme.text2
         font.pixelSize: 14
+    }
+
+    Caption { text: "ROUTING" }
+    Card {
+        Layout.fillWidth: true
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            PolicyRow {
+                feature: "Messages, files and account"
+                transport: root.torOn ? "through Tor" : "direct (test copy)"
+                viaTor: root.torOn
+            }
+            PolicyRow { feature: "Calls"; transport: "encrypted relay (not Tor)"; viaTor: false }
+        }
     }
 
     Caption { text: "TOR" }
@@ -92,9 +107,9 @@ ColumnLayout {
                 spacing: 2
                 Text {
                     text: !root.torOn ? "Not in use"
-                          : root.tor.state === "connected" ? "Tor connected"
-                          : root.tor.state === "connecting" ? "Tor connecting · " + root.tor.progress + "%"
-                          : "Tor unavailable"
+                          : root.tor.state === "connected" ? "Connected through Tor"
+                          : root.tor.state === "connecting" ? "Connecting through Tor… " + root.tor.progress + "%"
+                          : "Can't reach Tor"
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 14
@@ -139,20 +154,15 @@ ColumnLayout {
         font.pixelSize: 13
     }
 
-    Caption { text: root.torOn ? "HOW EACH KIND OF TRAFFIC TRAVELS" : "PLANNED ROUTING (NOT ACTIVE IN THIS VERSION)" }
-    Card {
+    Caption { text: "IN DETAIL" }
+    Text {
         Layout.fillWidth: true
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 10
-            PolicyRow { feature: "Text messages"; transport: "Tor only"; viaTor: true }
-            PolicyRow { feature: "Encrypted photos"; transport: "Tor only"; viaTor: true }
-            PolicyRow { feature: "Encrypted files"; transport: "Tor only"; viaTor: true }
-            PolicyRow { feature: "Private Stories"; transport: "Tor only"; viaTor: true }
-            PolicyRow { feature: "Voice messages"; transport: "Tor only"; viaTor: true }
-            PolicyRow { feature: "Voice calls"; transport: "WebRTC + TURN"; viaTor: false }
-            PolicyRow { feature: "Video calls"; transport: "WebRTC + TURN"; viaTor: false }
-        }
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        text: "Through Tor: messages (including device keys), photos, files and voice messages, Files backups and share links, Stories, profile pictures, your account and sign-in, contacts, groups, channels and communities, the live connection, and update checks.\n"
+              + "Not through Tor: the sound and picture of voice and video calls, one-to-one and in groups. They go through an encrypted relay (TURN), never directly to the other person. Setting up a call still goes through Tor."
+        color: Theme.text2
+        font.pixelSize: 13
     }
 
     Caption { text: "WHAT OTHERS CAN STILL SEE" }

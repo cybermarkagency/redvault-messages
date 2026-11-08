@@ -62,6 +62,11 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
+Device keys with Signal sessions (`e2ev3/`, `REDVAULT_E2E_V3` and `REDVAULT_E2E_SIGNAL`, on by default and
+in release builds) need Rust: install it with rustup (`~/.cargo/bin` on PATH), and CMake builds
+`crypto-core` with cargo (`--locked`). `-DREDVAULT_E2E_V3=OFF` (or `-DREDVAULT_E2E_SIGNAL=OFF`) leaves it out
+of a test build only. See `E2E_V3.md`.
+
 With vcpkg/MSVC instead, install `libsodium`, `curl`, `nlohmann-json` and `catch2` and pass
 `-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake`; the
 build picks up vcpkg's `unofficial-sodium` config automatically. On
@@ -137,8 +142,9 @@ that folder, list it under `RESOURCES` in `app/CMakeLists.txt`, and use
 
 ### Licence and source code
 
-The app is free software under the GNU AGPL, version 3 only (AGPL-3.0-only); builds with
-`REDVAULT_E2E_SIGNAL=ON` also link Signal's libsignal (AGPL-3.0-only). Settings > About has an
+The app is free software under the GNU AGPL, version 3 only (AGPL-3.0-only); builds link
+Signal's libsignal (AGPL-3.0-only) through the device-key engine (`REDVAULT_E2E_V3` and `REDVAULT_E2E_SIGNAL`,
+both `ON` by default and in release builds; they need Rust/cargo). Settings > About has an
 "Open-Source Licenses and Source Code" section (`app/qml/OpenSourceSection.qml`): the licence statement,
 the version, this version's source link, the full licence and the third-party notices (read-only plain
 text), where to report a problem getting the source, and that the app isn't affiliated with or endorsed by
@@ -159,6 +165,32 @@ Anything other than an `https://` URL (or, for the contact, an email address) st
 (`cmake/source_info.cmake`), and the app checks the link again before showing it. `packaging\package.ps1`
 and `packaging/package-linux.sh` pass both from environment variables of the same names, e.g.
 `$env:REDVAULT_SOURCE_CODE_URL = "https://..."` before running the installer script.
+
+## Tor by default
+
+There is one app, and it sends everything except calls through the embedded Tor
+gateway (`tor/`, tor-core with Arti) to Redvault's onion service
+(`docs/tor-by-default.md`): the API, sign-in, messages on both protocols and
+device keys/Signal, files, Files backups and share links, Stories, avatars, the
+live connection and the update check. Calls send their media through the TURN
+relays (relay-only, never Tor); their signalling goes through the API, so through
+Tor. If Tor can't connect, sends wait in sealed queues on this computer and nothing
+is retried any other way. Settings > Privacy & Security > Network routing shows it,
+read-only.
+
+| CMake variable | Default | Meaning |
+| --- | --- | --- |
+| `REDVAULT_TOR` | `ON` | Embed the Tor gateway (needs Rust/cargo). |
+| `REDVAULT_TOR_ONLY` | `ON` | The onion service is the only server; any other address is refused at start. |
+| `REDVAULT_ONION_API_BASE` | the official onion (`cmake/tor_settings.cmake`) | `http://<v3 onion>/redvaultmessages/api/` |
+| `REDVAULT_RELEASE_BUILD` | `OFF` (`ON` in the release preset and every packaging script) | Refuses to configure unless the three above are as shipped. |
+
+A developer may configure `-DREDVAULT_TOR_ONLY=OFF` for a local test build (to use
+`REDVAULT_API_BASE=http://localhost:...`); CMake warns, and the release preset and
+the packaging scripts refuse it (they also check `CMakeCache.txt` after configuring).
+`tools/tor_routing_check` (with `REDVAULT_BUILD_TOOLS`) fetches
+`<onion base>public/routing` through the app's own Tor transport and checks
+`"viaOnion": true`.
 
 ## Installer
 
@@ -197,6 +229,7 @@ sudo apt-get install ninja-build pkg-config libsodium-dev libcurl4-openssl-dev \
     nlohmann-json3-dev catch2 libqrencode-dev libgl1-mesa-dev libxkbcommon-dev \
     libopus-dev libvpx-dev libsrtp2-dev libssl-dev libwebrtc-audio-processing-dev \
     libprotobuf-dev protobuf-compiler
+# and Rust (rustup) for the device-key engine
 bash packaging/package-linux.sh     # needs Qt 6.5+ with Qt Multimedia (qmake on PATH, or QMAKE set)
 ```
 
@@ -220,9 +253,13 @@ manifest's Ed25519 signature against the public key built into the app
 (`app/src/update_key.hpp`), a newer version only, an installer URL in that
 `desktop/` folder only, and the installer's exact size and SHA-256. The
 installer then runs silently and reopens the app (updating signs you out).
-A Tor-only build, or a build whose server is an onion address, never makes
-this request: it would leave over the clear internet from the real address,
-and the installer it offers is the normal edition.
+Talking to an onion service (every Tor-only build), the app fetches the same
+files from that onion service instead, `http://<onion>/redvaultmessages/desktop/`,
+through its Tor transport (`update::updateRoute`): the signed manifest still names
+the published folder, and the download goes to the onion's copy of the same file,
+checked by the same size and SHA-256. It never falls back to the normal internet;
+while Tor isn't connected nothing is checked. If the onion service doesn't have the
+files, the check finds nothing newer.
 
 A manifest carries a signed `expires` date, 90 days out unless `sign` is given
 `--valid-days N`. Past it the app warns that a newer version may exist (Settings,

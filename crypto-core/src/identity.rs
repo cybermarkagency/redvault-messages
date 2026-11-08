@@ -466,6 +466,14 @@ pub(crate) fn set_signal_capability(state: &mut State, request: &Value) -> Resul
         .cloned()
         .ok_or_else(|| Error::new("unknown_device", "the certificate's device isn't in this account's list"))?;
     crate::signal_state::verify_certificate_signature(&device, &cert)?;
+    // This device declaring its own Signal turns Signal on here again. Without this, a declaration that lost a race
+    // with another device's list (the server refused it as stale, then the newer list, which doesn't name this
+    // device's capability yet, was verified) left Signal marked off on this device while the retried list declares
+    // it: the device then sent Olm and its contacts, rightly, refused the downgrade. A deliberate turn-off by another
+    // device still holds: the apps' upkeep checks `signalStatus` before ever declaring.
+    if cert.device_id == state.device_id {
+        state.signal.disabled = false;
+    }
     let capability = crate::signal_state::DeviceCapability {
         device_id: device.device_id.clone(),
         protocol: crate::signal_state::SIGNAL_PROTOCOL.to_owned(),

@@ -1,10 +1,44 @@
-# Desktop: per-device keys (protocol 3), development preview
+# Desktop: per-device keys (protocol 3) with Signal sessions
 
 Milestone 5 of `docs/multi-device-threat-model.md`, plus the chat path of its
-section 9. **Development only.** Compiled in only with
-`-DREDVAULT_E2E_V3=ON` (needs Rust/cargo; off by default), and inert unless the
-server answers `/e2e/v3/config` with `enabled: true` (`E2E_V3_ENABLED`, off by
-default). No real account is migrated, nothing is deployed or pushed.
+section 9, and step 1 of `docs/signal-integration/07-step1-default-path.md`
+(Signal as the default and only path). Compiled in by default
+(`REDVAULT_E2E_V3` and `REDVAULT_E2E_SIGNAL` are `ON`; needs Rust/cargo; turn
+them off only for a test build), and inert unless the server answers
+`/e2e/v3/config` with `enabled: true` (`E2E_V3_ENABLED`).
+
+## Step 1: the default path
+
+* **Device keys without asking.** `DeviceKeysSession::ensureDeviceKeys()` runs
+  after sign-in, on unlock and every 6 hours. No signed list on the account:
+  this computer is set up as the first device (the account key vouches for
+  it), then Signal is turned on (`maintainSignal`), and a one-time banner
+  offers to create a recovery key. A trusted computer gets `maintainSignal`.
+  A computer that isn't in the account's list is never added: a banner stays
+  until it is linked in Settings > Devices & encryption. Failures are silent
+  and retried; only 404/503 from the config route means "off".
+* **Chats decide.** One-to-one chats and plain groups use device keys when
+  every other member has a signed list, or once pinned (first device-key
+  message). Otherwise the older protocol, only while unpinned. While it isn't
+  known yet, or when they all have lists but this computer isn't linked,
+  nothing is sent (`chatMode` "checking" / "link"; ChatSession refuses with
+  the reason). Only the open chat is decided this way: a send into another,
+  unpinned chat (a forward, a story reply) follows its pin alone.
+  Communities, channels, Stories and calls are unchanged.
+* **No way back.** "Use device keys" and "Use the older protocol" are gone, as
+  is "Turn off Signal". In a device-key chat there is no reply, forward, pin,
+  poll, disappearing timer or multi-select (step 2).
+* **Rollback detection** (`device_store.hpp`): every save stores
+  `counter = previous + 1` with the engine state, under an HMAC-SHA256 keyed
+  from the storage key, then the same counter in its own vault entry
+  (`<user>/<device>/counter`: its own DPAPI blob, Secret Service item or 0600
+  file). Lower on load: the state is refused, the computer is "not linked",
+  and a local event is recorded (Settings shows it). Equal: fine. Higher (a
+  crash between the two writes): accepted, the vault's copy raised. Missing:
+  initialised only for a state saved before counters; a state that carries a
+  counter is refused without it (the entry is written when the device is
+  made, so deleting it can't hide a restore). Limit: restoring *both* the state and the vault entry (a
+  full-disk image) isn't detected; that needs a hardware counter.
 
 ## What is where
 
@@ -16,7 +50,7 @@ default). No real account is migrated, nothing is deployed or pushed.
 | Pairing by comparing codes (SAS) | `e2ev3/.../pairing.hpp` |
 | Server routes | `e2ev3/.../v3_server.hpp` (`HttpV3Server`; an interface so tests use a fake) |
 | Chat path: envelopes (text, file, reaction, edit, delete), fold, encrypted local history with erase-on-delete, pins, 1:1, groups, receive loop | `e2ev3/.../chat.hpp` |
-| Settings > Device keys (preview) | `app/src/device_keys_session.*`, `app/qml/DeviceKeysSection.qml`, device-key number in `SafetyNumberDialog.qml` |
+| Settings > Devices & encryption | `app/src/device_keys_session.*`, `app/qml/DeviceKeysSection.qml`, device-key number in `SafetyNumberDialog.qml` |
 | Tests | `tests/e2ev3_test.cpp` (real engine, fake server), `tests/e2ev3_content_test.cpp` (shared vectors, erase against the real history file) |
 | End to end against the real server | `tools/v3_probe/` (`redvault_v3_probe` + `run.mjs`) |
 
@@ -37,13 +71,10 @@ default). No real account is migrated, nothing is deployed or pushed.
 
 * Pairing by scanning a QR code: only comparing codes is built (no QR scanner
   in the desktop app). The engine supports `approveDevice` with `qr`.
-* Chat screen (wired): in a one-to-one or group chat a trusted
-  device sees a "Device keys (preview)" bar. It says whether the other side
-  (a group: any other member) has device keys, and offers "Use device keys"
-  (with a confirmation) only when they do. In device-key mode the normal
+* Chat screen (wired): in a one-to-one or group chat a bar says how the chat
+  is encrypted (see Step 1 above). In device-key mode the normal
   message list is replaced by the device-key history, sends go through
-  `chat.hpp`, and the first send pins the chat; "Use the older protocol"
-  unpins it. Messages arrive via the server's `v3-mailbox` live event or a
+  `chat.hpp`, and the first send pins the chat. Messages arrive via the server's `v3-mailbox` live event or a
   5 s (chat open) / 30 s timer. Device-key messages in a chat that is not open
   show a shield badge with a count in the chat list and one content-free
   desktop notification ("N new messages"). Device-key chats can react, edit
@@ -53,7 +84,7 @@ default). No real account is migrated, nothing is deployed or pushed.
   and only the envelope carries its key. A delete rewrites the history file
   without the text and file key, but that says nothing about old copies an SSD
   or a backup may keep; those stay encrypted under the history key. Not done:
-  replies, forwards, pins and polls (disabled in device-key mode), and picture
+  replies, forwards, pins and polls (hidden in device-key mode), and picture
   previews (a picture is a file row). The QML has been compiled, not driven by
   hand on screen.
 * Groups, the group routes and the live event were run against the real server

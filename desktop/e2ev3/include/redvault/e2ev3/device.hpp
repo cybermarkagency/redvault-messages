@@ -18,7 +18,7 @@
 
 // This computer's protocol-3 device and what it does with the server
 // (docs/multi-device-threat-model.md): a port of ui/src/lib/e2eV3/device.ts.
-// A preview: nothing here runs unless the server has E2E_V3_ENABLED. Protocol 1
+// Nothing here runs unless the server has E2E_V3_ENABLED. Protocol 1
 // is untouched. Every call blocks (network, Argon2-free but still disk and
 // crypto): run it off the UI thread.
 
@@ -175,7 +175,7 @@ void acceptContactKey(V3Device& device, const std::string& contactUserId, const 
 bool verifyContactQr(V3Device& device, const std::string& contactUserId, const std::string& accountKey, const std::string& qrText,
                      const std::string& conversationId = {});
 
-// --- rv-signal-v1 (docs/signal-integration/): development only ---
+// --- rv-signal-v1 (docs/signal-integration/) ---
 
 /// Whether this build's engine has Signal sessions (crypto-core built with the `signal` feature).
 bool engineHasSignal();

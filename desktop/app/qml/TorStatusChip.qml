@@ -45,8 +45,8 @@ Rectangle {
         Text {
             visible: chip.torOn
             text: chip.torState === "connected" ? "Tor connected"
-                  : chip.torState === "connecting" ? "Tor connecting " + chip.tor.progress + "%"
-                  : "Tor unavailable"
+                  : chip.torState === "connecting" ? "Connecting through Tor… " + chip.tor.progress + "%"
+                  : "Can't reach Tor"
             textFormat: Text.PlainText
             color: chip.torState === "unavailable" ? Theme.danger : Theme.text
             font.pixelSize: 12

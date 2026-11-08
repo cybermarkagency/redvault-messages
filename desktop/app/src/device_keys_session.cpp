@@ -19,6 +19,7 @@
 #include "redvault/e2ev3/key_vault.hpp"
 #include "redvault/e2ev3/v3_server.hpp"
 #include "redvault/util/text.hpp"
+#include "tor_controller.hpp"
 #endif
 
 namespace redvault::app {
@@ -72,7 +73,11 @@ QString eventText(const QString& kind) {
         {"account_reset_completed", "This account's keys were reset"},
         {"recovery_backup_updated", "A recovery backup was saved"},
         {"recovery_backup_downloaded", "The recovery backup was downloaded"},
-        {"signal_enabled", "A device turned on Signal sessions (development build)"},
+        {"signal_enabled", "A device turned on Signal sessions"},
+        // Noticed on this computer, not by the server (DeviceStore's rollback check).
+        {"state_rolled_back", "This device's keys were restored from an older copy and were turned off. Link this computer again."},
+        {"state_unverified", "This device's stored keys didn't check out and were turned off. Link this computer again."},
+        {"counter_missing", "This device's keys couldn't be checked against their saved counter and were turned off. Link this computer again."},
     };
     return text.value(kind, kind);
 }
@@ -130,7 +135,8 @@ e2ev3::WaitOptions waitFor(const std::shared_ptr<std::atomic<bool>>& stop) {
 QVariantMap chatRow(const e2ev3::ChatRecord& r, const std::string& selfUserId, std::int64_t now) {
     constexpr std::int64_t kEditWindow = 24LL * 3600 * 1000;  // Signal's window, like the other chats
     const bool mine = r.direction == "out";
-    const bool failed = r.status == "failed";
+    // A queued one (waiting for Tor) hasn't reached anyone yet either.
+    const bool failed = r.status == "failed" || r.status == "queued";
     std::map<QString, std::pair<int, bool>> grouped;
     for (const e2ev3::ChatReaction& reaction : r.reactions) {
         auto& held = grouped[qs(reaction.emoji)];
@@ -193,8 +199,14 @@ DeviceKeysSession::DeviceKeysSession(std::shared_ptr<api::ApiClient> api, std::s
     chatPool_.setMaxThreadCount(1);
     receiveTimer_.setInterval(30000);
     connect(&receiveTimer_, &QTimer::timeout, this, &DeviceKeysSession::receiveNow);
+    // The background "ensure device keys" check, every 6 hours while the app runs (and after sign-in and unlock).
+    ensureTimer_.setInterval(6 * 60 * 60 * 1000);
+    connect(&ensureTimer_, &QTimer::timeout, this, &DeviceKeysSession::ensureDeviceKeys);
+    if (available()) ensureTimer_.start();
 #ifdef REDVAULT_HAS_E2E_V3
-    server_ = std::make_shared<e2ev3::HttpV3Server>(api_);
+    // The app's signed-in ApiClient: its one transport goes only to our server, and only through Tor in a Tor build.
+    queueing_ = std::make_shared<e2ev3::QueueingV3Server>(std::make_shared<e2ev3::HttpV3Server>(api_));
+    server_ = queueing_;
     // Decrypted files go in a folder of their own for this session, removed at sign-out. No conversation
     // repository: nothing here goes through a protocol-1 message.
     const QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -208,6 +220,7 @@ DeviceKeysSession::~DeviceKeysSession() {
     stopWaiting_->store(true);
 #endif
     receiveTimer_.stop();
+    ensureTimer_.stop();
     chatPool_.clear();
     chatPool_.waitForDone();
     pool_.clear();
@@ -240,9 +253,39 @@ bool DeviceKeysSession::ready() const {
     return available() && status_ != QStringLiteral("off");
 }
 
+void DeviceKeysSession::dismissRecoveryNotice() {
+    if (!recoveryNotice_) return;
+    recoveryNotice_ = false;
+    emit changed();
+}
+
+void DeviceKeysSession::setChatMode(const QString& mode) {
+    const bool active = mode == QStringLiteral("device");
+    if (chatMode_ == mode && chatActive_ == active) return;
+    const bool wasActive = chatActive_;
+    chatMode_ = mode;
+    chatActive_ = active;
+    receiveTimer_.setInterval(active ? 5000 : 30000);
+    if (active && !wasActive) chatError_.clear();
+    emit chatChanged();
+    if (active && !wasActive) receiveNow();
+}
+
+QString DeviceKeysSession::chatRefusal(const QString& chatId) const {
+    if (chatId.isEmpty() || chatId != chatId_) return {};
+    if (chatMode_ == QStringLiteral("checking")) return QStringLiteral("Checking how this chat is encrypted, so nothing was sent. Try again in a moment.");
+    if (chatMode_ == QStringLiteral("link")) {
+        return QStringLiteral("This computer isn't linked to your devices yet, so nothing was sent. Link it in Settings > Devices & encryption.");
+    }
+    return {};
+}
+
 #ifndef REDVAULT_HAS_E2E_V3
 
 void DeviceKeysSession::refresh() {}
+void DeviceKeysSession::refreshWith(bool) {}
+void DeviceKeysSession::ensureDeviceKeys() {}
+void DeviceKeysSession::decideChat() {}
 void DeviceKeysSession::turnOffSignal(const QString&) {}
 void DeviceKeysSession::setUp() {}
 void DeviceKeysSession::startPairing() {}
@@ -275,7 +318,6 @@ bool DeviceKeysSession::chatPinned(const QString&) {
 
 void DeviceKeysSession::openChat(const QString&, const QString&, bool, bool) {}
 void DeviceKeysSession::closeChat() {}
-void DeviceKeysSession::useDeviceKeys() {}
 void DeviceKeysSession::useOlderProtocol() {}
 void DeviceKeysSession::sendChat(const QString&) {}
 void DeviceKeysSession::retryChat(const QString&) {}
@@ -287,6 +329,9 @@ void DeviceKeysSession::openFile(const QString&) {}
 void DeviceKeysSession::saveFile(const QString&, const QUrl&) {}
 void DeviceKeysSession::receiveNow() {}
 void DeviceKeysSession::clearChatError() {}
+void DeviceKeysSession::setTor(TorController* tor) {
+    tor_ = tor;
+}
 
 #else
 
@@ -311,16 +356,14 @@ void DeviceKeysSession::apply(const Snapshot& s) {
     events_ = s.events;
     protection_ = s.protection;
     interrupted_ = s.interrupted;
+    known_ = true;
     if (status_ == QStringLiteral("trusted")) {
         if (!receiveTimer_.isActive()) receiveTimer_.start();
     } else {
         receiveTimer_.stop();
-        if (chatActive_) {
-            chatActive_ = false;
-            emit chatChanged();
-        }
     }
     emit changed();
+    decideChat();
 }
 
 void DeviceKeysSession::run(const char*, std::function<void()> work, std::function<void()> done) {
@@ -346,26 +389,41 @@ void DeviceKeysSession::run(const char*, std::function<void()> work, std::functi
 }
 
 void DeviceKeysSession::refresh() {
+    refreshWith(false);
+}
+
+void DeviceKeysSession::ensureDeviceKeys() {
+    if (!available()) return;
+    // Only while signed in and unlocked: the unlock runs it again.
+    if (locked_ && locked_()) return;
+    ensurePending_ = true;
+    refreshWith(true);
+}
+
+void DeviceKeysSession::refreshWith(bool quiet) {
     if (!available() || refreshing_) return;
     refreshing_ = true;
     const std::string userId = identity_->userId;
     auto current = device_;
     auto self = this;
+    // This computer's device, opened from disk before anything is asked of the server: a pinned chat stays
+    // pinned even when the server can't be reached.
+    auto opened = std::make_shared<std::shared_ptr<e2ev3::V3Device>>();
     runInBackground(
         pool_, this,
-        [self, userId, current]() -> Snapshot {
+        [self, userId, current, opened]() -> Snapshot {
             return translated([&]() -> Snapshot {
                 Snapshot s;
                 const e2ev3::Backend b = self->backend();
                 s.protection = QVariantMap{{"kind", pairKind(b.store->protection())},
                                            {"text", qs(e2ev3::describeProtection(b.store->protection()))},
                                            {"weak", e2ev3::isWeakProtection(b.store->protection())}};
+                std::shared_ptr<e2ev3::V3Device> device = current;
+                if (!device) device = e2ev3::V3Device::open(userId, b);
+                *opened = device;
                 const Json config = b.server->config();
                 s.enabled = config.value("enabled", false);
                 if (!s.enabled) return s;
-
-                std::shared_ptr<e2ev3::V3Device> device = current;
-                if (!device) device = e2ev3::V3Device::open(userId, b);
                 s.device = device;
                 const Json view = b.server->getDeviceList(userId);
                 Json list = view.value("deviceList", Json(nullptr));
@@ -416,6 +474,12 @@ void DeviceKeysSession::refresh() {
                     }
                     s.waiting.append(QVariantMap{{"deviceId", qs(id)}, {"enrollmentId", enrollmentId}, {"asking", !enrollmentId.isEmpty()}});
                 }
+                // What this computer noticed itself (its keys restored from an older copy) comes first: it's why it isn't linked.
+                const std::vector<e2ev3::StoreEvent> local = b.store->events(userId);
+                for (auto it = local.rbegin(); it != local.rend() && s.events.size() < 3; ++it) {
+                    s.events.append(QVariantMap{{"text", eventText(qs(it->kind))},
+                                                {"when", QDateTime::fromMSecsSinceEpoch(it->atMs).toUTC().toString(Qt::ISODateWithMs)}});
+                }
                 int shown = 0;
                 for (auto it = events.rbegin(); it != events.rend() && shown < 8; ++it, ++shown) {
                     s.events.append(QVariantMap{{"text", eventText(str(*it, "kind"))}, {"when", str(*it, "createdOn")}});
@@ -432,7 +496,7 @@ void DeviceKeysSession::refresh() {
                     s.status = trusted ? QStringLiteral("trusted") : QStringLiteral("pair");
                 }
 #ifdef REDVAULT_HAS_E2E_SIGNAL
-                // rv-signal-v1 (development builds only): turn it on, declare it in the signed list, top keys up.
+                // rv-signal-v1: turn it on, declare it in the signed list, top keys up.
                 // A failure here never blocks the rest of the device-key screen; the next refresh tries again.
                 if (device && linked && listedHere) {
                     try {
@@ -447,9 +511,14 @@ void DeviceKeysSession::refresh() {
         [this](Snapshot s) {
             refreshing_ = false;
             apply(s);
+            if (ensurePending_) {
+                ensurePending_ = false;
+                if (status_ == QStringLiteral("setup")) autoSetUp();
+            }
         },
-        [this](const Failure& failure) {
+        [this, quiet, opened](const Failure& failure) {
             refreshing_ = false;
+            ensurePending_ = false;
             if (failure.status == 401) {
                 emit sessionExpired();
                 return;
@@ -457,15 +526,61 @@ void DeviceKeysSession::refresh() {
             // The server answering 404/503 for protocol 3 means it is off: nothing to show, nothing to report.
             if (failure.status == 404 || failure.status == 503) {
                 status_ = QStringLiteral("off");
+                known_ = true;
                 emit changed();
+                decideChat();
                 return;
             }
-            setError(failure.message);
+            // Anything else (no connection, a server error) is never taken as "off": what was known stays,
+            // and the next check tries again. The device opened from disk is kept, for its pinned chats.
+            if (!device_ && *opened) device_ = *opened;
+            decideChat();
+            if (!quiet) setError(failure.message);
+            // Until the first answer, chats wait on it: ask again soon rather than at the next 6-hour check.
+            if (!known_) QTimer::singleShot(30000, this, [this] { refreshWith(true); });
+        });
+}
+
+void DeviceKeysSession::autoSetUp() {
+    if (status_ != QStringLiteral("setup") || autoSettingUp_ || busy_ || device_) return;
+    autoSettingUp_ = true;
+    // Busy, so Settings' own "Set up" (which would replace this device half way) waits for it.
+    setBusy(true);
+    const std::string userId = identity_->userId;
+    const auto key = identity_->privateKey.view();
+    auto legacy = std::make_shared<crypto::Bytes>(key.begin(), key.end());
+    auto self = this;
+    auto made = std::make_shared<std::shared_ptr<e2ev3::V3Device>>();
+    runInBackground(
+        pool_, this,
+        [self, userId, legacy, made] {
+            try {
+                translated([&] { *made = e2ev3::setUpFirstDevice(userId, *legacy, self->backend()); });
+            } catch (...) {
+                std::fill(legacy->begin(), legacy->end(), 0);
+                throw;
+            }
+            std::fill(legacy->begin(), legacy->end(), 0);
+        },
+        [this, made] {
+            autoSettingUp_ = false;
+            setBusy(false);
+            device_ = *made;
+            recoveryNotice_ = true;
+            emit changed();
+            // Signal next (maintainSignal runs with the refresh), quietly.
+            refreshWith(true);
+        },
+        [this](const Failure& failure) {
+            autoSettingUp_ = false;
+            setBusy(false);
+            // Silent: the next check (unlock, the 6-hour timer, the next sign-in) tries again.
+            if (failure.status == 401) emit sessionExpired();
         });
 }
 
 void DeviceKeysSession::setUp() {
-    if (status_ != QStringLiteral("setup")) return;
+    if (status_ != QStringLiteral("setup") || autoSettingUp_ || device_) return;
     const std::string userId = identity_->userId;
     const auto key = identity_->privateKey.view();
     auto legacy = std::make_shared<crypto::Bytes>(key.begin(), key.end());
@@ -477,7 +592,10 @@ void DeviceKeysSession::setUp() {
             *made = e2ev3::setUpFirstDevice(userId, *legacy, self->backend());
             std::fill(legacy->begin(), legacy->end(), 0);
         },
-        [this, made] { device_ = *made; });
+        [this, made] {
+            device_ = *made;
+            recoveryNotice_ = true;
+        });
 }
 
 void DeviceKeysSession::startPairing() {
@@ -684,6 +802,7 @@ void DeviceKeysSession::createRecoveryKey() {
         "recovery", [device, key] { *key = e2ev3::createRecoveryBackup(*device); },
         [this, key] {
             recoveryKey_ = QString::fromStdString(*key);
+            recoveryNotice_ = false;
             emit changed();
         });
 }
@@ -809,8 +928,48 @@ std::shared_ptr<e2ev3::ChatHistory> DeviceKeysSession::history() {
         const QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         const std::filesystem::path file = std::filesystem::path(root.toStdString()) / "device-keys" / ("chat-" + device_->deviceId());
         history_ = std::make_shared<e2ev3::ChatHistory>(file, device_->deriveKey("redvault-v3-chat-history"));
+        // What the engine already encrypted while Tor was down, sealed under a key of its own (docs/tor-by-default.md).
+        const std::filesystem::path queue = std::filesystem::path(root.toStdString()) / "device-keys" / ("sendq-" + device_->deviceId());
+        queueing_->attach(std::make_shared<e2ev3::SendQueue>(queue, device_->deriveKey("redvault-v3-send-queue")));
     }
     return history_;
+}
+
+void DeviceKeysSession::setTor(TorController* tor) {
+    tor_ = tor;
+    if (tor_ != nullptr && tor_->enabled()) connect(tor_, &TorController::becameConnected, this, &DeviceKeysSession::drainQueued);
+}
+
+bool DeviceKeysSession::torDown() const {
+    return tor_ != nullptr && tor_->enabled() && !tor_->connected();
+}
+
+void DeviceKeysSession::drainQueued() {
+    auto device = device_;
+    if (!device || draining_ || torDown() || !trusted()) return;
+    auto h = history();
+    if (!h || !e2ev3::hasQueuedChat(*h, *queueing_)) return;
+    draining_ = true;
+    auto server = queueing_;
+    auto drained = std::make_shared<e2ev3::QueueDrain>();
+    runInBackground(
+        chatPool_, this, [device, h, server, drained] { translated([&] { *drained = e2ev3::sendQueuedChat(*device, *h, *server); }); },
+        [this, drained] {
+            draining_ = false;
+            if (drained->failed > 0 && !chatId_.isEmpty()) {
+                chatError_ = drained->failed == 1 ? QStringLiteral("A message that waited for Tor couldn't be sent. Retry it, or send it again.")
+                                                  : QStringLiteral("%1 messages that waited for Tor couldn't be sent. Retry them, or send them again.")
+                                                        .arg(drained->failed);
+            }
+            reloadChat();
+            emit chatChanged();
+        },
+        [this](const Failure& failure) {
+            draining_ = false;
+            if (failure.status == 401) emit sessionExpired();
+            reloadChat();
+            emit chatChanged();
+        });
 }
 
 void DeviceKeysSession::reloadChat() {
@@ -824,90 +983,138 @@ void DeviceKeysSession::reloadChat() {
 
 bool DeviceKeysSession::chatPinned(const QString& chatId) {
     const auto h = history();
-    return h && h->pinned(chatId.toStdString());
+    if (h && h->pinned(chatId.toStdString())) return true;
+    // The open chat on device keys, or not decided yet: never the older protocol meanwhile.
+    return !chatId.isEmpty() && chatId == chatId_ &&
+           (chatMode_ == QStringLiteral("device") || chatMode_ == QStringLiteral("checking") || chatMode_ == QStringLiteral("link"));
 }
 
 void DeviceKeysSession::openChat(const QString& chatId, const QString& contactUserId, bool isGroup, bool eligible) {
     chatId_ = chatId;
     chatContactUser_ = contactUserId;
     chatContact_ = QStringLiteral("unknown");
+    contactCheckFor_.clear();
     chatProtocol_.clear();
     chatNotice_.clear();
     unread_.remove(chatId);
     chatIsGroup_ = isGroup;
-    chatEligible_ = eligible && trusted();
+    // Communities and channels keep the older protocol until their own step.
+    chatEligible_ = eligible && available();
     chatError_.clear();
-    const auto h = history();
-    chatActive_ = chatEligible_ && h && h->pinned(chatId.toStdString());
+    chatMode_.clear();
+    chatActive_ = false;
     reloadChat();
-    receiveTimer_.setInterval(chatActive_ ? 5000 : 30000);
     emit chatChanged();
-    if (chatActive_) receiveNow();
-    if (chatEligible_) checkContact();
+    decideChat();
+}
+
+void DeviceKeysSession::decideChat() {
+    QString mode;
+    if (chatId_.isEmpty() || !chatEligible_) {
+        mode.clear();
+    } else if (!known_) {
+        // The server hasn't answered yet (or couldn't be reached): nothing goes out on the older protocol meanwhile.
+        mode = QStringLiteral("checking");
+    } else if (status_ == QStringLiteral("off")) {
+        mode.clear();
+    } else if (status_ == QStringLiteral("setup")) {
+        // This account has no device list yet (it's being set up): not every member has one.
+        mode = QStringLiteral("older");
+    } else {
+        const auto h = history();
+        const bool pinned = h && h->pinned(chatId_.toStdString());
+        if (pinned) {
+            mode = trusted() ? QStringLiteral("device") : QStringLiteral("link");
+        } else if (chatContact_ == QStringLiteral("unknown")) {
+            mode = QStringLiteral("checking");
+        } else if (chatContact_ == QStringLiteral("yes")) {
+            // Every other member has a signed list: device keys, which this computer can send with only once linked.
+            mode = trusted() ? QStringLiteral("device") : QStringLiteral("link");
+        } else {
+            mode = QStringLiteral("older");
+        }
+        if (chatContact_ == QStringLiteral("unknown")) checkContact();
+    }
+    setChatMode(mode);
 }
 
 void DeviceKeysSession::checkContact() {
-    // Does the other side have device keys? Their signed list exists (a group: some other member's does).
-    auto device = device_;
-    if (!device) return;
+    // Does every other member have device keys? Their signed lists exist. Asked of the server directly, so it
+    // works on a computer that isn't linked yet too; the protocol needs this computer's device.
+    if (chatId_.isEmpty() || contactCheckFor_ == chatId_) return;
+    contactCheckFor_ = chatId_;
+    auto device = trusted() ? device_ : nullptr;
+    auto server = server_;
+    const std::string self = identity_->userId;
     const std::string chat = chatId_.toStdString();
     const std::string contact = chatContactUser_.toStdString();
     const bool group = chatIsGroup_;
-    auto answer = std::make_shared<bool>(false);
+    auto answer = std::make_shared<std::optional<bool>>();
     auto protocol = std::make_shared<std::string>();
     const QString forChat = chatId_;
     runInBackground(
         chatPool_, this,
-        [device, chat, contact, group, answer, protocol] {
+        [device, server, self, chat, contact, group, answer, protocol] {
             try {
-                if (!group) *protocol = e2ev3::chatProtocol(*device, chat, contact);
+                if (!group && device) *protocol = e2ev3::chatProtocol(*device, chat, contact);
             } catch (const std::exception&) {
             }
             try {
                 if (group) {
-                    for (const Json& m : device->server().conversationDeviceLists(chat).value("members", Json::array())) {
-                        if (m.value("userId", std::string()) != device->userId() && m.contains("deviceList") && m.at("deviceList").is_object()) *answer = true;
+                    bool every = true;
+                    int others = 0;
+                    for (const Json& m : server->conversationDeviceLists(chat).value("members", Json::array())) {
+                        if (m.value("userId", std::string()) == self) continue;
+                        ++others;
+                        every = every && m.contains("deviceList") && m.at("deviceList").is_object();
                     }
-                } else {
-                    const Json view = device->server().getDeviceList(contact, chat);
+                    *answer = every && others > 0;
+                } else if (!contact.empty()) {
+                    const Json view = server->getDeviceList(contact, chat);
                     *answer = view.contains("deviceList") && view.at("deviceList").is_object();
+                } else {
+                    *answer = false;  // nobody on the other side to have keys
                 }
             } catch (const std::exception&) {
+                // Not known: asked again shortly.
             }
         },
         [this, answer, protocol, forChat] {
             if (forChat != chatId_) return;
-            chatContact_ = *answer ? QStringLiteral("yes") : QStringLiteral("no");
+            contactCheckFor_.clear();
             chatProtocol_ = qs(*protocol);
+            if (!answer->has_value()) {
+                // Couldn't ask: the chat waits (nothing goes out on the older protocol meanwhile) and asks again.
+                QTimer::singleShot(10000, this, [this, forChat] {
+                    if (forChat == chatId_ && chatContact_ == QStringLiteral("unknown")) decideChat();
+                });
+                emit chatChanged();
+                return;
+            }
+            chatContact_ = **answer ? QStringLiteral("yes") : QStringLiteral("no");
             emit chatChanged();
+            decideChat();
         },
-        [](const Failure&) {});
+        [this, forChat](const Failure&) {
+            if (forChat == chatId_) contactCheckFor_.clear();
+        });
 }
 
 void DeviceKeysSession::closeChat() {
     chatId_.clear();
     chatActive_ = false;
+    chatMode_.clear();
     chatContact_ = QStringLiteral("unknown");
+    contactCheckFor_.clear();
     chatModel_.setRows({});
     receiveTimer_.setInterval(30000);
     emit chatChanged();
 }
 
-void DeviceKeysSession::useDeviceKeys() {
-    if (!chatEligible_ || chatId_.isEmpty()) return;
-    chatActive_ = true;
-    chatError_.clear();
-    receiveTimer_.setInterval(5000);
-    emit chatChanged();
-    receiveNow();
-}
-
 void DeviceKeysSession::useOlderProtocol() {
     if (const auto h = history(); h && !chatId_.isEmpty()) h->unpin(chatId_.toStdString());
-    chatActive_ = false;
     chatError_.clear();
-    receiveTimer_.setInterval(30000);
-    emit chatChanged();
+    setChatMode(QStringLiteral("older"));
 }
 
 void DeviceKeysSession::clearChatError() {
@@ -930,7 +1137,7 @@ void DeviceKeysSession::setChatFileActivity(const QString& activity) {
     emit chatChanged();
 }
 
-void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fromComposer) {
+void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fromComposer, ChatWork queue) {
     auto device = device_;
     auto h = history();
     if (!device || !h) return;
@@ -939,21 +1146,37 @@ void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fro
     chatNotice_.clear();
     lastUnreachable_->store(0);
     emit chatChanged();
+    // Tor isn't connected: the send waits, encrypted on this computer, and nothing is tried (docs/tor-by-default.md).
+    const bool offline = torDown();
+    auto waited = std::make_shared<std::atomic<bool>>(false);
     runInBackground(
         chatPool_, this,
-        [device, h, chat = chatId_.toStdString(), contact = chatTarget(), work = std::move(work)] {
+        [device, h, server = queueing_, offline, waited, chat = chatId_.toStdString(), contact = chatTarget(), work = std::move(work),
+         queue = std::move(queue)] {
             translated([&] {
+                // Earlier sends still waiting go first: this one queues behind them, so nothing overtakes.
+                if (queue && (offline || e2ev3::hasQueuedChat(*h, *server))) {
+                    queue(*device, *h, chat, contact);
+                    waited->store(true);
+                    return;
+                }
                 // Anything that arrived first is read before sending (9.6).
                 e2ev3::receiveChat(*device, *h);
                 work(*device, *h, chat, contact);
+                // Tor went down on the way: the send is queued (send_queue.hpp), never lost.
+                if (!h->queued().empty()) waited->store(true);
             });
         },
-        [this, fromComposer] {
+        [this, fromComposer, waited] {
             if (fromComposer) chatSending_ = false;
             const int unreachable = lastUnreachable_->load();
             if (unreachable > 0) {
                 chatNotice_ = unreachable == 1 ? QStringLiteral("Sent, but one of their devices couldn't be reached. It won't get this message.")
                                                : QStringLiteral("Sent, but %1 of their devices couldn't be reached. They won't get this message.").arg(unreachable);
+            }
+            if (waited->load()) {
+                chatNotice_ = QStringLiteral("Waiting for Tor. It's kept encrypted on this computer and sent once Tor connects.");
+                drainQueued();  // only if Tor came back meanwhile
             }
             reloadChat();
             checkContact();  // the protocol may have changed with the lists this send verified
@@ -980,7 +1203,10 @@ void DeviceKeysSession::sendChat(const QString& text) {
                 unreachable->store(e2ev3::sendChat(device, h, chat, contact, body).unreachable);
             }
         },
-        QStringLiteral("The message wasn't sent."), true);
+        QStringLiteral("The message wasn't sent."), true,
+        [body](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChat(device, h, chat, contact, body);
+        });
 }
 
 void DeviceKeysSession::retryChat(const QString& messageId) {
@@ -996,7 +1222,10 @@ void DeviceKeysSession::retryChat(const QString& messageId) {
             [file = *failed->file](e2ev3::V3Device& device, e2ev3::ChatHistory& history, const std::string& conversation, const std::string& contact) {
                 e2ev3::sendChatFile(device, history, conversation, contact, file);
             },
-            QStringLiteral("The file wasn't sent."), true);
+            QStringLiteral("The file wasn't sent."), true,
+            [file = *failed->file](e2ev3::V3Device& device, e2ev3::ChatHistory& history, const std::string& conversation, const std::string& contact) {
+                e2ev3::queueChatFile(device, history, conversation, contact, file);
+            });
     } else {
         sendChat(qs(failed->text));
     }
@@ -1030,7 +1259,10 @@ void DeviceKeysSession::reactChat(const QString& messageId, const QString& emoji
         [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
             e2ev3::sendChatOp(device, h, chat, contact, op);
         },
-        QStringLiteral("That didn't go through. Check your connection and try again."), false);
+        QStringLiteral("That didn't go through. Check your connection and try again."), false,
+        [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChatOp(device, h, chat, contact, op);
+        });
 }
 
 void DeviceKeysSession::editChat(const QString& messageId, const QString& text) {
@@ -1047,7 +1279,10 @@ void DeviceKeysSession::editChat(const QString& messageId, const QString& text) 
         [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
             e2ev3::sendChatOp(device, h, chat, contact, op);
         },
-        QStringLiteral("That didn't go through. Check your connection and try again."), true);
+        QStringLiteral("That didn't go through. Check your connection and try again."), true,
+        [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChatOp(device, h, chat, contact, op);
+        });
 }
 
 void DeviceKeysSession::deleteChat(const QString& messageId) {
@@ -1065,7 +1300,11 @@ void DeviceKeysSession::deleteChat(const QString& messageId) {
             } catch (const std::exception&) {
             }
         },
-        QStringLiteral("That didn't go through. Check your connection and try again."), false);
+        QStringLiteral("That didn't go through. Check your connection and try again."), false,
+        // Waiting for Tor: the delete goes later; the encrypted file's server copy expires on its own.
+        [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChatOp(device, h, chat, contact, op);
+        });
 }
 
 void DeviceKeysSession::sendFile(const QUrl& file) {
@@ -1077,6 +1316,13 @@ void DeviceKeysSession::sendFile(const QUrl& file) {
     const std::filesystem::path path(file.toLocalFile().toStdWString());
     const QString fileUrl = file.toString();
     const QString fallback = QStringLiteral("The file wasn't sent.");
+    if (torDown()) {
+        // The encrypted upload itself needs Tor; nothing is sent any other way.
+        chatError_ = QStringLiteral("Can't reach Tor, so the file wasn't sent. Send it again once Tor is connected.");
+        emit chatChanged();
+        emit chatFileDone(fileUrl);
+        return;
+    }
     chatError_.clear();
     setChatFileActivity(QStringLiteral("Encrypting…"));
     // Stage updates arrive on the worker thread; hop to the UI thread to show them.
@@ -1105,13 +1351,22 @@ void DeviceKeysSession::sendFile(const QUrl& file) {
         [this, device, h, chat, contact, finished](model::FileDescriptor descriptor) {
             runInBackground(
                 chatPool_, this,
-                [device, h, chat, contact, descriptor = std::move(descriptor)] {
+                [device, h, server = queueing_, offline = torDown(), chat, contact, descriptor = std::move(descriptor)] {
                     translated([&] {
+                        // Uploaded, but Tor is down now or earlier sends wait: its message queues behind them.
+                        if (offline || e2ev3::hasQueuedChat(*h, *server)) {
+                            e2ev3::queueChatFile(*device, *h, chat, contact, descriptor);
+                            return;
+                        }
                         e2ev3::receiveChat(*device, *h);
                         e2ev3::sendChatFile(*device, *h, chat, contact, descriptor);
                     });
                 },
-                [finished] { finished(nullptr); }, [finished](const Failure& failure) { finished(&failure); });
+                [this, finished] {
+                    finished(nullptr);
+                    drainQueued();
+                },
+                [finished](const Failure& failure) { finished(&failure); });
         },
         [finished](const Failure& failure) { finished(&failure); });
 }
@@ -1177,6 +1432,7 @@ void DeviceKeysSession::receiveNow() {
     auto device = device_;
     auto h = history();
     if (!device || !h || !trusted() || chatReceiving_) return;
+    drainQueued();  // what waited for Tor, if it's back (queued on the same chat thread, so before this receive)
     chatReceiving_ = true;
     auto fresh = std::make_shared<std::vector<e2ev3::ChatRecord>>();
     auto stats = std::make_shared<e2ev3::ReceiveStats>();

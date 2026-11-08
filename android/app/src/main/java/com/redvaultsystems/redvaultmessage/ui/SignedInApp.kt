@@ -111,6 +111,7 @@ import com.redvaultsystems.redvaultmessage.ui.recovery.RecoveryKeySettingsScreen
 import com.redvaultsystems.redvaultmessage.ui.lock.LocalAppLock
 import com.redvaultsystems.redvaultmessage.ui.lock.LockScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.BlockedUsersScreen
+import com.redvaultsystems.redvaultmessage.ui.settings.DeviceKeysChatsBanner
 import com.redvaultsystems.redvaultmessage.ui.settings.DeviceKeysScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.DeviceKeyChangedNotice
 import com.redvaultsystems.redvaultmessage.ui.settings.DeviceKeySafetyNumberSection
@@ -466,9 +467,9 @@ private fun SignedInContent(
     // Content-free pushes (push/PushRegistrar.kt): ask once for the notification permission Android 13+
     // requires, then pick the route from here, the signed-in screen's activity, since choosing a UnifiedPush
     // distributor can bring up Android's chooser. Without a distributor: the background connection.
-    // Strict no-push still allows the background connection with Tor routing (push/PushRegistrar.kt).
+    // Through Tor there's no push app at all: only the background connection, via the onion service (push/PushRegistrar.kt).
     var notificationsOn by remember { mutableStateOf(session.push.enabled && (!session.push.strictNoPush || session.push.torRouted)) }
-    var strictNoPush by remember { mutableStateOf(session.push.strictNoPush) }
+    val strictNoPush = session.push.strictNoPush
     var backgroundConnection by remember { mutableStateOf(session.push.backgroundConnection) }
     val pushMode by session.push.mode.collectAsStateWithLifecycle()
     // Tor routing only: the gateway's state, for the strip above the tabs, the thread banner and Settings.
@@ -529,6 +530,8 @@ private fun SignedInContent(
         onDispose { processLifecycle.removeObserver(observer) }
     }
     val locked by session.lock.locked.collectAsStateWithLifecycle()
+    // Device keys are kept in order without asking (07-step1 section 1): on start, and each time the app is unlocked.
+    LaunchedEffect(session, locked) { if (!locked) session.deviceKeys?.ensureSoon() }
     if (locked) {
         LockScreen(session.lock, onLockedOut = onLogout)
         return
@@ -677,6 +680,7 @@ private fun SignedInContent(
                     muted = live.muted,
                     typingIn = live.typing.filterValues { it.isNotEmpty() }.keys,
                     drafts = drafts,
+                    banner = { session.deviceKeys?.let { keys -> DeviceKeysChatsBanner(keys, onOpen = { push(Route.DeviceKeys) }) } },
                     stories = {
                         StoriesTray(
                             state = stories,
@@ -716,7 +720,7 @@ private fun SignedInContent(
                 ThreadScreen(
                     conversation = conversation,
                     error = chats.sendError ?: chats.error,
-                    onUseOlderProtocol = if (chats.sendErrorOlder && chats.sendErrorChat == conversation.id) ({ session.chats.useOlderProtocol(conversation.id) }) else null,
+                    deviceKeyChat = session.chats.onDeviceKeys(conversation.id),
                     deviceKeysNote = deviceKeysNote(chats.v3Protocols[conversation.id], chats.v3Held),
                     onBack = ::pop,
                     onSend = { text, replyTo, onResult -> session.chats.send(conversation.id, text, replyTo, onResult) },
@@ -768,7 +772,8 @@ private fun SignedInContent(
                     onChannelPostShown = { postId -> session.channels.countViews(listOf(postId)) },
                     selfHandle = account.profile.handle,
                     // Not into a channel this user only reads.
-                    forwardTargets = chats.conversations.filter { it.id != conversation.id && it.meta.community?.canPost != false },
+                    // A chat on device keys can't take forwarded messages yet (step 2): it isn't offered.
+                    forwardTargets = chats.conversations.filter { it.id != conversation.id && it.meta.community?.canPost != false && !session.chats.onDeviceKeys(it.id) },
                     onEdit = { messageId, text, onResult -> session.chats.edit(conversation.id, messageId, text, onResult) },
                     onForward = { messages, toIds, onResult -> session.chats.forwardMany(messages, toIds, onResult) },
                     onDeleteMany = { ids, forEveryone ->
@@ -881,24 +886,6 @@ private fun SignedInContent(
         Route.NetworkRouting -> NetworkRoutingScreen(
             tor = session.tor,
             queued = chats.queued,
-            strictNoPush = strictNoPush,
-            onStrictNoPushChange = { on ->
-                session.push.strictNoPush = on
-                strictNoPush = on
-                notificationsOn = (!on || session.push.torRouted) && session.push.enabled
-                // On: the endpoint goes from our server and the distributor, and the background connection stops;
-                // with Tor routing it then starts again (it only ever reaches our onion service, through Tor).
-                // Off: notifications come back if they were on.
-                if (on) {
-                    val host = activity
-                    scope.launch {
-                        session.push.unregister()
-                        if (session.push.torRouted && host != null) session.push.register(host)
-                    }
-                } else {
-                    registerPush()
-                }
-            },
             onBack = ::pop,
         )
         Route.TransparencyLog -> TransparencyLogScreen(session.security, onBack = ::pop, onOpenFeed = { push(Route.Transparency) })
@@ -976,7 +963,7 @@ private fun SignedInContent(
             },
             notificationsOn = notificationsOn,
             onNotificationsChange = { on ->
-                if (on && strictNoPush) return@SettingsScreen
+                if (on && strictNoPush && !session.push.torRouted) return@SettingsScreen
                 session.push.enabled = on
                 notificationsOn = on
                 // On: the permission answer registers (see askPermission); before Android 13 there's nothing to ask.
@@ -1076,7 +1063,7 @@ private fun SignedInContent(
             linkSecret = route.secret.ifEmpty { null },
             channels = session.channels,
             webAppBase = session.webAppBase,
-            forwardTargets = chats.conversations,
+            forwardTargets = chats.conversations.filter { !session.chats.onDeviceKeys(it.id) },
             onForward = session.chats::forwardChannelPost,
             onOpenChannel = { link ->
                 if (link.id != route.id || (link.secret != null && link.secret != route.secret)) push(Route.Channel(link.id, link.secret.orEmpty()))
@@ -1204,7 +1191,7 @@ private fun shareContacts(chats: ChatsState): List<ShareContact> =
 internal fun deviceKeysNote(protocol: String?, held: Int): String? {
     val parts = buildList {
         when (protocol) {
-            "signal" -> add("Signal sessions (development build), with post-quantum key agreement, to every device in this chat.")
+            "signal" -> add("Signal sessions, with post-quantum key agreement, to every device in this chat.")
             "mixed" -> add("Some devices in this chat use Signal sessions, others the device-key protocol.")
         }
         if (held > 0) {

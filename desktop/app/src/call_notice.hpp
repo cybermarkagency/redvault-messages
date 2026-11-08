@@ -23,7 +23,7 @@ inline CallNotice callNotice(const QString& handle, const QString& kind, bool sh
 /// Device-key messages in chats that aren't open: how many, and nothing else. Nothing at all when notifications are off.
 inline std::optional<CallNotice> deviceKeyNotice(int count, bool notificationsOn) {
     if (!notificationsOn || count <= 0) return std::nullopt;
-    return CallNotice{QStringLiteral("Device keys (preview)"), count == 1 ? QStringLiteral("1 new message") : QStringLiteral("%1 new messages").arg(count)};
+    return CallNotice{QStringLiteral("New messages"), count == 1 ? QStringLiteral("1 new message") : QStringLiteral("%1 new messages").arg(count)};
 }
 
 }  // namespace redvault::app

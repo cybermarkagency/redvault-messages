@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 
 #include "redvault/crypto/base64.hpp"
+#include "redvault/net/curl_transport.hpp"
 #include "redvault/crypto/e2e_crypto.hpp"
 #include "redvault/util/text.hpp"
 
@@ -120,14 +121,37 @@ std::optional<Release> verifyManifest(std::string_view manifestJson, crypto::Byt
 }
 
 bool updatesPermitted(std::string_view apiBase, bool torOnlyBuild) {
-    if (torOnlyBuild) return false;
-    const auto url = net::parseUrl(apiBase);
-    return url && !url->host.ends_with(".onion");
+    const auto api = net::parseUrl(apiBase);
+    if (!api) return false;
+    if (net::isOnionHost(api->host)) return true;
+    // Tor-only, or something that only looks like an onion address: never the normal internet.
+    return !torOnlyBuild && !api->host.ends_with(".onion");
+}
+
+std::optional<UpdateRoute> updateRoute(std::string_view apiBase, bool torOnlyBuild, std::string_view clearManifestUrl,
+                                       std::string_view clearDownloadPrefix) {
+    const auto api = net::parseUrl(apiBase);
+    const auto manifest = net::parseUrl(clearManifestUrl);
+    const auto folder = net::parseUrl(clearDownloadPrefix);
+    if (!api || !manifest || !folder || !updatesPermitted(apiBase, torOnlyBuild)) return std::nullopt;
+    if (net::isOnionHost(api->host)) {
+        // The onion service's copy of the same files (its nginx serves /redvaultmessages/desktop/), over Tor.
+        // Plain http inside Tor: the onion address authenticates the server, and the manifest is signed anyway.
+        const std::string origin = "http://" + api->host;
+        return UpdateRoute{origin + manifest->path, origin + folder->path, true};
+    }
+    return UpdateRoute{std::string(clearManifestUrl), std::string(clearDownloadPrefix), false};
+}
+
+std::string installerUrl(const Release& release, const UpdateRoute& route, std::string_view clearDownloadPrefix) {
+    if (!release.url.starts_with(clearDownloadPrefix)) return {};
+    return route.downloadPrefix + release.url.substr(clearDownloadPrefix.size());
 }
 
 ManifestCheck fetchManifest(net::HttpTransport& transport, const UpdateSource& source) {
-    if (!updatesPermitted(source.apiBase, source.torOnlyBuild)) return {};
-    const auto response = transport.send(net::HttpRequest{"GET", source.manifestUrl, {}, {}});
+    const auto route = updateRoute(source.apiBase, source.torOnlyBuild, source.manifestUrl, source.allowedUrlPrefix);
+    if (!route) return {};
+    const auto response = transport.send(net::HttpRequest{"GET", route->manifestUrl, {}, {}});
     // No release published yet: nginx answers a missing file with the website's page (or a 404).
     // That means "nothing newer", not an error; anything that does look like a manifest still has to verify.
     const auto type = response.header("content-type").value_or("");

@@ -39,7 +39,8 @@ $sdkBin = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\m
     Sort-Object FullName -Descending | Select-Object -First 1 | ForEach-Object { $_.DirectoryName }
 if (-not $sdkBin -and -not $Register) { throw "Windows SDK not found. Install it: winget install Microsoft.WindowsSDK.10.0.26100" }
 
-$env:PATH = "$msys;" + $env:PATH
+# cargo builds the device-key engine (crypto-core).
+$env:PATH = "$msys;" + (Join-Path $env:USERPROFILE ".cargo\bin") + ";" + $env:PATH
 Push-Location $desktop
 try {
     function Invoke-Step([string]$label, [scriptblock]$step) {
@@ -49,7 +50,11 @@ try {
     }
 
     if (-not $SkipBuild) {
-        Invoke-Step "Configure (release)" { cmake --preset release }
+        # Release builds carry device keys with Signal sessions (the preset sets them; passed so an old cache can't undo it).
+        # Tor by default (docs/tor-by-default.md): every published build is Tor-only at the official onion service.
+        $torArgs = & (Join-Path $PSScriptRoot "tor-release-args.ps1")
+        Invoke-Step "Configure (release)" { cmake --preset release -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON @torArgs }
+        & (Join-Path $PSScriptRoot "tor-release-args.ps1") -Verify "build\release\CMakeCache.txt"
         Invoke-Step "Build" { cmake --build --preset release }
         Invoke-Step "Test" { ctest --preset release }
     }

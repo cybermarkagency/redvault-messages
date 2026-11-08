@@ -50,7 +50,7 @@ class SignedInSession(
     val webAppBase: String,
     /** Tor routing's gateway (null for a clearnet server): its status for the shell and Settings › Network routing. */
     val tor: TorController? = null,
-    /** Per-device keys (protocol 3, development only): null unless this build has -PredvaultE2eV3=true. */
+    /** Per-device keys (protocol 3) and Signal sessions: null in a build made with -PredvaultE2eV3=false. */
     val deviceKeys: DeviceKeysSession? = null,
     private val onClosed: () -> Unit,
 ) {

@@ -20,7 +20,7 @@ import java.util.UUID
 /**
  * The v3 chat path (docs/multi-device-threat-model.md section 9): 1:1 and group (Megolm) text, files, reactions,
  * edits and deletes with copies for the sender's own devices, and the receive loop (the envelope and what the chat
- * shows are in ChatContent.kt). DEVELOPMENT ONLY. Implemented against 9.3-9.6;
+ * shows are in ChatContent.kt). Implemented against 9.3-9.6;
  * ask the session that owns the server before changing the format.
  */
 object ChatLimits {
@@ -184,16 +184,40 @@ private suspend fun deliverDirect(
     }
 }
 
+/** A group's listed devices, and whether every member has a signed device list with a device in it. */
+private class GroupDevices(val devices: List<JsonObject>, val everyMemberListed: Boolean)
+
 /** Fetches and verifies every member's list and returns all their listed devices (9.5 step 1). */
-private suspend fun verifiedGroupDevices(device: V3Device, groupId: String): List<JsonObject> {
+private suspend fun verifiedGroupDevices(device: V3Device, groupId: String): GroupDevices {
     val out = ArrayList<JsonObject>()
+    var everyone = true
     for ((userId, view) in device.api.conversationDeviceLists(groupId)) {
-        val list = view.deviceList ?: continue
+        val list = view.deviceList
+        if (list == null) {
+            everyone = false
+            continue
+        }
         val verified = device.op("verifyDeviceList", "deviceList" to list)
         if (!verified.ok) throw EngineException(verified.error ?: "bad_device_list", "$userId: " + (verified.message ?: "the device list doesn't verify"))
-        out += verified.array("devices").map { it.jsonObject }
+        val devices = verified.array("devices").map { it.jsonObject }
+        if (devices.isEmpty()) everyone = false
+        out += devices
     }
-    return out
+    return GroupDevices(out, everyone)
+}
+
+private fun memberWithoutDevices() =
+    EngineException("member_has_no_devices", "This group uses device keys, but a member has none listed. Nothing was sent.")
+
+/**
+ * Whether a group goes out on device keys, by the rule [sendGroupText] follows (07-step1 section 2): every member has
+ * a signed device list. A pinned group where someone has none throws instead of going the usual way.
+ */
+suspend fun groupOnDeviceKeys(device: V3Device, history: ChatHistory, groupId: String): Boolean {
+    val group = groupId.lowercase()
+    if (verifiedGroupDevices(device, group).everyMemberListed) return true
+    if (history.pinned(group)) throw memberWithoutDevices()
+    return false
 }
 
 /** Sends [text] to a group (9.5): Megolm session keys to unshared devices first, then one group message for everyone. */
@@ -219,7 +243,13 @@ private suspend fun deliverGroup(device: V3Device, history: ChatHistory, envelop
     while (true) {
         attempt++
         try {
-            val members = verifiedGroupDevices(device, group)
+            val listed = verifiedGroupDevices(device, group)
+            // Someone has no device keys: the usual way while the group isn't pinned, a refusal once it is.
+            if (!listed.everyMemberListed) {
+                if (history.pinned(group)) throw memberWithoutDevices()
+                return SendOutcome.Protocol1
+            }
+            val members = listed.devices
             if (members.none { it["deviceId"]!!.jsonPrimitive.content == device.deviceId }) {
                 throw EngineException("device_not_listed", "This device isn't in your account's list.")
             }
@@ -391,7 +421,7 @@ suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = 
 
     suspend fun refreshMembers(groupId: String) {
         runCatching {
-            val members = verifiedGroupDevices(device, groupId)
+            val members = verifiedGroupDevices(device, groupId).devices
             device.op("groupSetMembers", "groupId" to groupId, "members" to kotlinx.serialization.json.JsonArray(members))
         }
     }

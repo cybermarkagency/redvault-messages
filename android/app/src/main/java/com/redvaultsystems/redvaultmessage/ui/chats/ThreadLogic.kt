@@ -8,6 +8,7 @@ import com.redvaultsystems.redvaultmessage.data.model.MessageKind
 import com.redvaultsystems.redvaultmessage.data.model.ReactionView
 import com.redvaultsystems.redvaultmessage.data.model.RichMessage
 import com.redvaultsystems.redvaultmessage.devicekeys.ShownMessage
+import com.redvaultsystems.redvaultmessage.devicekeys.V3Chat
 import java.time.LocalDate
 
 /** One row of a thread's list, newest first (the list is drawn bottom-up, so index 0 is at the bottom). */
@@ -116,8 +117,9 @@ internal object V3Messages {
             // No receipts on device keys yet: "Delivered" would claim more than we know.
             v3 = true,
             deleted = shown.deleted,
-            // A send that failed after it was encrypted: the usual "Not sent" row with Retry and Discard.
-            queued = failed,
+            // A send that failed after it was encrypted: the usual "Not sent" row with Retry and Discard. One that waits,
+            // encrypted, in the device-key queue for Tor shows as queued (docs/tor-by-default.md).
+            queued = failed || r.status == V3Chat.QUEUED,
             queueHeld = failed,
             queueError = if (failed) "Not sent: it couldn't reach the server." else null,
         )

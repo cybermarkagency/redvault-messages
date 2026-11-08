@@ -18,6 +18,7 @@
 #include "redvault/crypto/base64.hpp"
 #include "redvault/net/curl_transport.hpp"
 #include "redvault/util/text.hpp"
+#include "tor_controller.hpp"
 #include "update_key.hpp"
 
 #ifdef _WIN32
@@ -46,11 +47,17 @@ constexpr bool kTorOnlyBuild = false;
 constexpr int kFirstCheckMs = 15'000;
 constexpr int kRecheckMs = 12 * 60 * 60 * 1000;
 
-/// Updates come from our own server only, like everything else the app fetches.
-net::CurlTransport::Options updateTransportOptions() {
+/// Updates come from our own server only, like everything else the app fetches: over Tor, the app's own
+/// Tor-only transport to the onion service (no other host, no direct connection); otherwise the website.
+net::CurlTransport::Options updateTransportOptions(const AppController& app, const update::UpdateRoute& route) {
+    if (route.viaTor) return app.transportOptions(std::chrono::seconds(90), std::chrono::seconds(60));
     net::CurlTransport::Options options;
-    if (const auto url = net::parseUrl(update_config::kManifestUrl)) options.allowedHost = url->host;
+    if (const auto url = net::parseUrl(route.manifestUrl)) options.allowedHost = url->host;
     return options;
+}
+
+std::optional<update::UpdateRoute> routeFor(const AppController& app) {
+    return update::updateRoute(app.apiBase(), kTorOnlyBuild, update_config::kManifestUrl, update_config::kDownloadPrefix);
 }
 
 crypto::Bytes publicKey() {
@@ -74,6 +81,12 @@ Updater::Updater(AppController* app, QObject* parent) : QObject(parent), app_(ap
     connect(&timer_, &QTimer::timeout, this, &Updater::check);
     timer_.start();
     QTimer::singleShot(kFirstCheckMs, this, &Updater::check);
+    // Over Tor, a check waits for the connection (nothing is sent while it's down): check once it's up.
+    if (app_->tor() != nullptr && app_->tor()->enabled()) {
+        connect(app_->tor(), &TorController::becameConnected, this, [this] {
+            if (status_ == Status::Idle || status_ == Status::Failed) check();
+        });
+    }
 }
 
 Updater::~Updater() {
@@ -113,7 +126,7 @@ bool Updater::fromStore() {
 }
 
 bool Updater::blockedByTor() const {
-    return !update::updatesPermitted(app_->apiBase(), kTorOnlyBuild);
+    return !routeFor(*app_).has_value();
 }
 
 QString Updater::freshnessWarning() const {
@@ -144,13 +157,17 @@ void Updater::check() {
     }
     // Once an update is found, keep offering it rather than re-checking over it.
     if (status_ == Status::Available) return;
+    const auto route = routeFor(*app_);
+    if (!route) return;
+    // Tor isn't connected yet: nothing goes out, and becameConnected checks again.
+    if (route->viaTor && (app_->tor() == nullptr || !app_->tor()->connected())) return;
     setStatus(Status::Checking);
     update::UpdateSource source{update_config::kManifestUrl, publicKey(), REDVAULT_VERSION, update_config::kDownloadPrefix,
                                 app_->apiBase(), kTorOnlyBuild, QDateTime::currentMSecsSinceEpoch()};
     runInBackground(
         pool_, this,
-        [source]() {
-            net::CurlTransport transport(updateTransportOptions());
+        [source, options = updateTransportOptions(*app_, *route)]() {
+            net::CurlTransport transport(options);
             return update::fetchManifest(transport, source);
         },
         [this](update::ManifestCheck check) {
@@ -177,20 +194,25 @@ void Updater::check() {
 
 void Updater::install() {
     if (!enabled() || status_ != Status::Available || !release_) return;
+    const auto route = routeFor(*app_);
+    if (!route) return;
+    // Over Tor, the onion service's copy of the signed installer (same size and SHA-256, checked below).
+    const std::string url = update::installerUrl(*release_, *route, update_config::kDownloadPrefix);
+    if (url.empty()) return;
     setStatus(Status::Downloading);
     const update::Release release = *release_;
     const fs::path folder = fs::path(QStandardPaths::writableLocation(QStandardPaths::TempLocation).toStdWString()) /
                             ("redvault-update-" + util::randomUuid());
     runInBackground(
         pool_, this,
-        [release, folder]() {
+        [release, folder, url, options = updateTransportOptions(*app_, *route)]() {
             fs::create_directories(folder);
             const fs::path installer = folder / ("redvaultmessages-Setup-" + release.version + ".exe");
             {
                 std::ofstream out(installer, std::ios::binary | std::ios::trunc);
                 if (!out) throw update::UpdateError("Couldn't save the update");
-                net::CurlTransport transport(updateTransportOptions());
-                const auto response = transport.sendStreaming(net::HttpRequest{"GET", release.url, {}, {}}, {.download = &out});
+                net::CurlTransport transport(options);
+                const auto response = transport.sendStreaming(net::HttpRequest{"GET", url, {}, {}}, {.download = &out});
                 if (response.status != 200) throw update::UpdateError("The download failed (" + std::to_string(response.status) + ")");
             }
             // Only the exact installer the signed manifest describes is ever run.

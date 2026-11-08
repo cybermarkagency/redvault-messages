@@ -16,8 +16,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
- * Signal groups on Android (M6, docs/signal-integration/03-group-design.md §6). DEVELOPMENT ONLY:
- * the engine needs the `signal` feature (-PredvaultE2eSignal=true).
+ * Signal groups on Android (M6, docs/signal-integration/03-group-design.md §6). The engine
+ * needs the `signal` feature (on unless built with -PredvaultE2eSignal=false).
  *
  * The flow:
  * - The group's signed roster is brought in line with its active members: the first epoch, or the

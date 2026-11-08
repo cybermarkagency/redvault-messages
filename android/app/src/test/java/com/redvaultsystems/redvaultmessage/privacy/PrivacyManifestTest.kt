@@ -74,6 +74,26 @@ class PrivacyManifestTest {
     }
 
     @Test
+    fun everyHttpClientIsTheTorRoutedOneExceptCallSignalling() {
+        // docs/tor-by-default.md rule 3: every OkHttp client is built in ApiClient, and the app's two (signed in, and
+        // public reads) get the Tor gate. Only LiveKit's group-call signalling has its own: calls never go through Tor.
+        val builders = sources.filter { (_, code) -> "OkHttpClient.Builder()" in code || Regex("""OkHttpClient\(\)""").containsMatchIn(code) }.map { it.first.name }.toSet()
+        assertEquals(setOf("ApiClient.kt"), builders)
+        val app = sources.single { it.first.name == "RedvaultApp.kt" }.second
+        assertTrue("ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)" in app)
+        assertTrue("ApiClient.publicClient(BuildConfig.API_BASE, tor)" in app)
+        assertEquals(listOf("signalingClient = { host -> ApiClient.signalingClient(host) },"),
+            app.lines().filter { "ApiClient.signalingClient(" in it }.map { it.trim() })
+        // The device-key API is built on the same Tor-routed client.
+        assertTrue("RetrofitV3Api(ApiClient.createV3(BuildConfig.API_BASE, httpClient))" in app)
+        assertTrue(Regex("""createV3\((?!BuildConfig\.API_BASE, httpClient\))""").find(app) == null)
+        // No push service run by anyone else through Tor (docs/tor-by-default.md rule 6).
+        val push = sources.single { it.first.name == "PushRegistrar.kt" }.second
+        assertTrue("get() = torBuild || prefs.getBoolean(\"strictNoPush\", false)" in push)
+        assertTrue("!strictNoPush && !torRouted && isValidVapidKey(vapidKey) && hasDistributor -> PushRoute.UnifiedPush" in push)
+    }
+
+    @Test
     fun nothingIsBackedUpToGoogle() {
         assertTrue(manifest.contains("""android:allowBackup="false""""))
     }

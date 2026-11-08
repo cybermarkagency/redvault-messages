@@ -9,7 +9,9 @@ import com.redvaultsystems.redvaultmessage.devicekeys.DeviceKeysSession
 import com.redvaultsystems.redvaultmessage.devicekeys.DeviceStorage
 import com.redvaultsystems.redvaultmessage.devicekeys.EngineRunner
 import com.redvaultsystems.redvaultmessage.devicekeys.NativeEngine
+import com.redvaultsystems.redvaultmessage.devicekeys.QueueingV3Api
 import com.redvaultsystems.redvaultmessage.devicekeys.RetrofitV3Api
+import com.redvaultsystems.redvaultmessage.devicekeys.V3SendQueue
 import com.redvaultsystems.redvaultmessage.data.SealedRecords
 import com.redvaultsystems.redvaultmessage.crypto.ShareCrypto
 import com.redvaultsystems.redvaultmessage.data.ShareRepository
@@ -64,6 +66,7 @@ import com.redvaultsystems.redvaultmessage.data.StorySeenStore
 import com.redvaultsystems.redvaultmessage.data.VerifiedContactsStore
 import com.redvaultsystems.redvaultmessage.data.Outbox
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
+import com.redvaultsystems.redvaultmessage.tor.ReleaseRouting
 import com.redvaultsystems.redvaultmessage.tor.TorController
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.File
@@ -119,10 +122,18 @@ class AppContainer(app: Application) {
     val crypto = E2eCrypto(sodium)
     private val cookieJar = SessionCookieJar()
 
+    init {
+        // A release build only ever talks to the onion API base (docs/tor-by-default.md); the build refuses any other,
+        // and so does the app, in case it's ever built some other way.
+        ReleaseRouting.refusal(BuildConfig.API_BASE, BuildConfig.DEBUG)?.let { error(it) }
+    }
+
     /**
-     * Tor routing (docs/tor-routing-plan.md): with an onion API base, text, photos, files, Stories
-     * and voice messages leave only through the embedded Tor gateway, never directly. Null for a
-     * clearnet server. Calls are WebRTC through the TURN relay either way, never Tor.
+     * Tor by default (docs/tor-by-default.md): the API base is the service's onion address, and everything
+     * (account, messages on either protocol, files, Stories, avatars, the live channel and the background wake
+     * connection) leaves only through the embedded Tor gateway, never directly. Calls are WebRTC through the TURN
+     * relay, never Tor; their signalling still goes through the API, so through Tor. Null only in a debug build
+     * pointed at a local test server.
      */
     val tor: TorController? = BuildConfig.API_BASE.toHttpUrl().host.takeIf(TorController::isOnionHost)?.let { host ->
         // noBackupFilesDir: Tor's guard state and directory cache never go into a device backup.
@@ -143,8 +154,11 @@ class AppContainer(app: Application) {
     private val callCrypto = CallCrypto(sodium, crypto)
     private val groupCallCrypto = GroupCallCrypto(sodium, crypto)
     private val callHistory by lazy { CallHistoryStore(appContext, crypto, callCrypto) }
-    /** The web app's address (call links open there): the API base without its "api/". */
-    private val webAppBase = BuildConfig.API_BASE.removeSuffix("/").removeSuffix("api").let { if (it.endsWith("/")) it else "$it/" }
+    /**
+     * The website's address, for the links people share (call, invite, channel and share links): the public site, not the
+     * onion API, so anyone can open them in a browser. Only text in a message; the app never connects to it.
+     */
+    private val webAppBase = BuildConfig.WEB_APP_BASE
     private val driveCrypto = DriveCrypto(sodium, crypto)
     private val vaultCrypto = VaultCrypto(sodium, crypto, driveCrypto)
     private val fileLocks = FileLocks(driveCrypto, vaultCrypto)
@@ -186,7 +200,7 @@ class AppContainer(app: Application) {
     val chatSettings = ChatSettingsStore(app)
     private val appLockStore = AppLockStore(app, crypto)
     val avatarLoader = AvatarLoader(httpClient, BuildConfig.API_BASE)
-    /** Push through UnifiedPush, or the app's own background connection (push/PushRegistrar.kt). Same client: Tor routing applies. */
+    /** The app's own background connection through the onion service (push/PushRegistrar.kt): same client, so through Tor. */
     val pushRegistrar = PushRegistrar(app, ApiClient.createPush(BuildConfig.API_BASE, httpClient), torBuild = tor != null, signedIn = { hasActiveSession })
     val authRepository = AuthRepository(api, crypto, cookieJar, lastHandleStore, pushRegistrar, recoveryKeys, signInKeys)
 
@@ -220,13 +234,22 @@ class AppContainer(app: Application) {
     fun createSession(identity: SelfIdentity, onSessionExpired: () -> Unit): SignedInSession {
         messageKeys.begin(identity)
         communityKeys.setIdentity(identity)
-        // Tor routing: every message, photo, file and voice message waits sealed in this outbox until the
-        // server has it (data/Outbox.kt). Per account; outside device backups.
+        // Through Tor: every message, photo, file and voice message waits sealed in this outbox until the
+        // server has it (data/Outbox.kt), on either protocol. Per account; outside device backups.
         val outbox = tor?.let {
             Outbox(File(appContext.noBackupFilesDir, "outbox/${identity.userId}"), Outbox.deriveKey(sodium, identity.privateKey), sodium, fileCrypto)
         }
         val communities = CommunitySession(communityApi, communityKeys, onSessionExpired)
-        // Per-device keys (protocol 3): development only, in builds made with -PredvaultE2eV3=true.
+        // Per-device keys (protocol 3) and Signal sessions: in every build unless made with -PredvaultE2eV3=false.
+        // Device-key requests go through the same Tor-routed client; their chat posts that can't go out while Tor is down
+        // wait, already encrypted, in a sealed queue (devicekeys/V3SendQueue.kt) and go out in order once it's up.
+        val v3Dir = File(appContext.noBackupFilesDir, "e2eV3")
+        val v3Outgoing = if (BuildConfig.E2E_V3 && tor != null) {
+            QueueingV3Api(
+                RetrofitV3Api(ApiClient.createV3(BuildConfig.API_BASE, httpClient)),
+                V3SendQueue(File(v3Dir, "send-queue/${identity.userId}"), identity.userId, AndroidKeystoreWrapper()),
+            )
+        } else null
         val deviceKeys = if (BuildConfig.E2E_V3) {
             DeviceKeysSession(
                 userId = identity.userId,
@@ -234,11 +257,13 @@ class AppContainer(app: Application) {
                 // noBackupFilesDir: the device's keys and state never go into a device backup.
                 storage = DeviceStorage(File(appContext.noBackupFilesDir, "e2eV3"), AndroidKeystoreWrapper()),
                 engine = NativeEngine.call()?.let(::EngineRunner),
-                api = RetrofitV3Api(ApiClient.createV3(BuildConfig.API_BASE, httpClient)),
+                api = v3Outgoing ?: RetrofitV3Api(ApiClient.createV3(BuildConfig.API_BASE, httpClient)),
                 onSessionExpired = onSessionExpired,
             )
         } else null
-        val v3Chat = deviceKeys?.let { V3Chat(it, identity.userId, File(appContext.noBackupFilesDir, "e2eV3")) }
+        // Set up and kept in order without asking: now (sign-in, sign-up, start) and every 6 hours.
+        deviceKeys?.startEnsuring()
+        val v3Chat = deviceKeys?.let { V3Chat(it, identity.userId, v3Dir, v3Outgoing) }
         val chats = ChatSession(
             identity, conversationRepository, fileRepository, groupRepository, groupInviteRepository, chatSettings, verifiedContacts, contactKeyPins,
             hiddenMessages, onSessionExpired, outbox = outbox, tor = tor, v3 = v3Chat,
@@ -256,9 +281,9 @@ class AppContainer(app: Application) {
         val vault = VaultRepository(driveApi, api, vaultCrypto, identity, VaultRevStore(appContext), contactKeyPins)
         val drive = DriveRepository(
             driveApi, api, driveCrypto, vaultCrypto, fileCrypto, fileLocks, identity, httpClient, BuildConfig.API_BASE,
-            appContext.contentResolver, appContext.cacheDir, contactKeyPins,
+            appContext.contentResolver, appContext.cacheDir, contactKeyPins, webAppBase,
         )
-        // Tor routing: Files uploads go in parts with a sealed journal, and downloads resume (outside device backups).
+        // Through Tor: Files uploads go in parts with a sealed journal, and downloads resume (outside device backups).
         if (tor != null) {
             drive.enableResumable(
                 File(appContext.noBackupFilesDir, "transfers/${identity.userId}"),

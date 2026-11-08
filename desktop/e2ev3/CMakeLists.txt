@@ -3,9 +3,8 @@
 
 # Per-device encryption keys ("protocol 3", docs/multi-device-threat-model.md):
 # the shared engine in crypto-core (Rust, vodozemac) built by cargo with its C
-# ABI (feature "ffi") into the build tree and linked statically. Development
-# only: the code is compiled in, but nothing uses it unless the server answers
-# /e2e/v3/config with enabled=true (E2E_V3_ENABLED, off by default).
+# ABI (feature "ffi") into the build tree and linked statically. Nothing uses
+# it unless the server answers /e2e/v3/config with enabled=true (E2E_V3_ENABLED).
 #
 # Needs Rust (cargo) on the build machine; --locked keeps the dependency
 # versions exactly as reviewed (crypto-core/Cargo.lock).
@@ -16,10 +15,10 @@ find_program(REDVAULT_CARGO cargo
     REQUIRED)
 
 set(_e2e_target_dir "${CMAKE_BINARY_DIR}/crypto-core-target")
-# rv-signal-v1 adds libsignal (AGPL-3.0-only) to the engine: development only (see the top-level option).
+# rv-signal-v1 adds libsignal (AGPL-3.0-only, the app's own licence) to the engine (see the top-level option).
 if(REDVAULT_E2E_SIGNAL)
     set(_e2e_features "ffi signal")
-    message(WARNING "REDVAULT_E2E_SIGNAL is ON: this build links libsignal (AGPL-3.0-only). Do not distribute it until the release gates in docs/legal/REDVAULT_AGPL_COMPLIANCE_REPORT.md are cleared.")
+    message(STATUS "Device keys: Signal sessions (libsignal, AGPL-3.0-only) included")
 else()
     set(_e2e_features "ffi")
 endif()
@@ -60,6 +59,7 @@ add_library(redvault_e2ev3 STATIC
     src/device.cpp
     src/pairing.cpp
     src/chat.cpp
+    src/send_queue.cpp
 )
 target_include_directories(redvault_e2ev3 PUBLIC include)
 if(REDVAULT_E2E_SIGNAL)

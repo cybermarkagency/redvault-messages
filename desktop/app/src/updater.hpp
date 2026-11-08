@@ -25,9 +25,10 @@ class AppController;
  * Checks for, downloads and installs signed updates (exposed to QML as the
  * `Updater` singleton). Checks shortly after start and every 12 hours: a
  * plain GET with no cookie, no identifying headers, and nothing about the
- * user, and never at all from a Tor-only build or against an onion service
- * (the check would leave over the clear internet, and it offers the normal
- * edition). Everything is verified in the core (redvault/update/update.hpp)
+ * user. Talking to the onion service (every Tor-only build, docs/tor-by-default.md)
+ * the manifest and installer come from that onion service, through the same
+ * Tor transport as everything else, and never over the normal internet; while
+ * Tor isn't connected nothing is checked. Everything is verified in the core (redvault/update/update.hpp)
  * before it's trusted: the manifest's Ed25519 signature against the key
  * built into this app, newer version only, our download folder only, and
  * the installer's exact size and SHA-256. Installing runs the per-user
@@ -46,7 +47,7 @@ class Updater : public QObject {
     Q_PROPERTY(bool enabled READ enabled CONSTANT)
     /// Installed from the Microsoft Store, which does the updating instead.
     Q_PROPERTY(bool fromStore READ fromStore CONSTANT)
-    /// A Tor-only build, or a server on an onion address: this app never contacts the update server.
+    /// No update route that stays inside Tor (a Tor-only build pointed at something that isn't an onion service): nothing is checked.
     Q_PROPERTY(bool blockedByTor READ blockedByTor CONSTANT)
     /// Non-empty when the signed update information is expired or has no expiry date.
     Q_PROPERTY(QString freshnessWarning READ freshnessWarning NOTIFY changed)

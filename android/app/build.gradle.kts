@@ -10,30 +10,30 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-val apiBase: String = (project.findProperty("redvaultApiBase") as String?)
-    ?: "https://www.redvaultsystems.com/redvaultmessages/api/"
+// Tor by default, one app (docs/tor-by-default.md): the app talks only to the service's onion address, through the
+// embedded Tor gateway (tor-core, Arti, always built below), for everything but calls. A release build refuses any
+// other API base (checkTorOnlyRelease). Development override only: a debug build may point at a local test server
+// (-PredvaultApiBase=http://10.0.2.2:3000/api/), and that debug build then talks to it directly, without Tor.
+val onionApiBase = "http://4cydjhdc3lmhg7l6ykjont7dms2alunglmnlznlmjjwkyc67m5h325yd.onion/redvaultmessages/api/"
+val apiBase: String = (project.findProperty("redvaultApiBase") as String?) ?: onionApiBase
 require(apiBase.endsWith("/")) { "redvaultApiBase must end with '/'" }
-
-// Tor routing (docs/tor-routing-plan.md). With an onion API base the app embeds the Tor gateway
-// (tor-core, Arti, built here with cargo for each ABI) and sends text, photos, files, Stories and
-// voice messages only through it. redvaultTorOnly=true makes a build that refuses any other server:
-// it only builds with an onion API base. Neither is on for production until it's approved.
 val apiHost: String = URI(apiBase).host ?: ""
-val torRouting: Boolean = apiHost.endsWith(".onion") || (project.findProperty("redvaultTorCore") as String?) == "true"
-val torOnly: Boolean = (project.findProperty("redvaultTorOnly") as String?) == "true"
+val torOnly: Boolean = apiHost.endsWith(".onion")
+// The public website, for links people share (share links, invites, call and channel links): only text in a message,
+// never a connection the app makes. A local debug server is its own site.
+val webAppBase: String = (project.findProperty("redvaultWebAppBase") as String?)
+    ?: if (torOnly) "https://www.redvaultsystems.com/redvaultmessages/" else apiBase.removeSuffix("/").removeSuffix("api").let { if (it.endsWith("/")) it else "$it/" }
+require(webAppBase.startsWith("https://") || !torOnly) { "redvaultWebAppBase must be an https:// address" }
 
-// Per-device keys ("protocol 3", docs/multi-device-threat-model.md): DEVELOPMENT ONLY. With
-// -PredvaultE2eV3=true the shared Rust engine (crypto-core, JNI feature) is built with cargo for each ABI
-// and packaged, and the Device keys screen shows when the server also has E2E_V3_ENABLED. Off by default:
-// a normal build has neither the engine nor the screen.
-val e2eV3: Boolean = (project.findProperty("redvaultE2eV3") as String?) == "true"
-// rv-signal-v1 (docs/signal-integration/): -PredvaultE2eSignal=true adds libsignal (AGPL-3.0-only) to the
-// engine. The owner chose AGPL-3.0-only (2026-11-07), but such a build must not be given to anyone until the
-// release gates in docs/legal/REDVAULT_AGPL_COMPLIANCE_REPORT.md are cleared (legal review pending).
-val e2eSignal: Boolean = (project.findProperty("redvaultE2eSignal") as String?) == "true"
+// Per-device keys ("protocol 3", docs/multi-device-threat-model.md) and rv-signal-v1 (docs/signal-integration/,
+// libsignal, AGPL-3.0-only): on by default, the way messages are sent (docs/signal-integration/07-step1-default-path.md).
+// The shared Rust engine (crypto-core, JNI feature) is built with cargo for each ABI and packaged; the app uses it
+// when the server has E2E_V3_ENABLED. A test build can leave them out with -PredvaultE2eV3=false or
+// -PredvaultE2eSignal=false.
+val e2eV3: Boolean = (project.findProperty("redvaultE2eV3") as String?)?.let { it == "true" } ?: true
+val e2eSignal: Boolean = (project.findProperty("redvaultE2eSignal") as String?)?.let { it == "true" } ?: e2eV3
 require(!e2eSignal || e2eV3) { "redvaultE2eSignal needs redvaultE2eV3=true" }
 val e2eFeatures: String = if (e2eSignal) "jni signal" else "jni"
-require(!torOnly || apiHost.endsWith(".onion")) { "redvaultTorOnly needs an onion redvaultApiBase (http://<v3>.onion/.../api/)" }
 
 // AGPL-3.0-only source offer (Settings > Open-Source Licenses and Source Code, see README).
 // redvaultSourceCodeUrl: https URL of the source for this version ("{version}" is replaced with
@@ -71,16 +71,12 @@ android {
         applicationId = "com.redvaultsystems.redvaultmessage"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.5.0"
-        // The Tor-only edition installs next to the normal app instead of replacing it.
-        if (torOnly) {
-            applicationIdSuffix = ".tor"
-            versionNameSuffix = "-tor"
-        }
+        versionCode = 10
+        versionName = "0.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
+        buildConfigField("String", "WEB_APP_BASE", javaString(webAppBase))
         buildConfigField("boolean", "TOR_ONLY", torOnly.toString())
         buildConfigField("boolean", "E2E_V3", e2eV3.toString())
         buildConfigField("boolean", "E2E_SIGNAL", e2eSignal.toString())
@@ -124,8 +120,8 @@ android {
     sourceSets {
         getByName("main") {
             assets.directories.add("../../legal")
-            // The Tor gateway's native library, when this build routes through Tor (buildTorCore below).
-            if (torRouting) jniLibs.directories.add(layout.buildDirectory.dir("torJniLibs").get().asFile.path)
+            // The Tor gateway's native library (buildTorCore below), in every build.
+            jniLibs.directories.add(layout.buildDirectory.dir("torJniLibs").get().asFile.path)
             // The Java side of the engine's JNI binding (com.redvaultsystems.e2ee.NativeE2ee) and its library.
             java.directories.add("../../crypto-core/bindings/android")
             if (e2eV3) jniLibs.directories.add(layout.buildDirectory.dir("e2eeJniLibs").get().asFile.path)
@@ -220,8 +216,9 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
 
 // --- The Tor gateway (tor-core) for Android, built with cargo and the NDK ---
 // Properties: redvaultTorAbis (default arm64-v8a,x86_64), redvaultNdkVersion, redvaultCargo.
-// Needs the Rust targets (rustup target add aarch64-linux-android x86_64-linux-android ...).
-if (torRouting) {
+// Needs the Rust targets (rustup target add aarch64-linux-android x86_64-linux-android ...). Always built: Tor is the
+// app's only way to its server (docs/tor-by-default.md).
+run {
     val torCore = rootProject.file("../tor-core")
     val ndkVersion = (project.findProperty("redvaultNdkVersion") as String?) ?: "29.0.14206865"
     val abis = ((project.findProperty("redvaultTorAbis") as String?) ?: "arm64-v8a,x86_64").split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -277,6 +274,24 @@ if (torRouting) {
     }
     tasks.named("preBuild") { dependsOn(buildTorCore) }
 }
+
+// A release build only ever talks to the onion API base through Tor: any other redvaultApiBase fails the build here,
+// before anything is compiled. (ReleaseRouting.kt checks the same at start-up; ReleaseRoutingTest checks both.)
+val checkTorOnlyRelease = tasks.register("checkTorOnlyRelease") {
+    description = "Refuses a release build whose API base isn't an onion address"
+    val base = apiBase
+    val onion = torOnly
+    val netConfig = file("src/main/res/xml/network_security_config.xml")
+    doLast {
+        require(onion && base.startsWith("http://")) {
+            "A release build must use the onion API base (http://<v3>.onion/.../api/), not '$base'. " +
+                "-PredvaultApiBase with another server is for debug builds only."
+        }
+        val host = URI(base).host
+        require(netConfig.readText().contains(">$host<")) { "network_security_config.xml must allow cleartext to $host only" }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(checkTorOnlyRelease) }
 
 // --- The per-device-keys engine (crypto-core), for the device (cargo + the NDK) and for JVM unit tests ---
 // Properties: redvaultE2eV3, redvaultE2eAbis (default arm64-v8a,x86_64), redvaultNdkVersion, redvaultCargo.

@@ -11,7 +11,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * Linking a device by QR code (docs/multi-device-threat-model.md): for two phones that can see each other. The
  * new device shows a code that carries its identity, a signed one-time key and a secret nonce; a trusted device
  * scans it with its camera, adds exactly that device to the signed list and sends it the account key. Nobody
- * compares numbers, because the code only ever travelled by camera, not through the server. DEVELOPMENT ONLY.
+ * compares numbers, because the code only ever travelled by camera, not through the server.
  */
 
 /** On the new device (already registered with startNewDevice): the text to show as a QR code. */

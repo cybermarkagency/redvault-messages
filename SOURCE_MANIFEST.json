@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-08T04:41:01+00:00",
- "repository_commit": "91e43d2242cb4adc65d5134acd7ee46ae9c21612",
- "branch": "push/unifiedpush",
+ "generated": "2026-11-08T23:17:55+00:00",
+ "repository_commit": "cd972ca6a73d459adffec00d67981ff964c9ee15",
+ "branch": "release/0.6.0-tor",
  "uncommitted_changes_included": false,
  "app_versions": {
-  "desktop": "0.6.0",
-  "android": "0.5.0",
+  "desktop": "0.7.0",
+  "android": "0.6.0",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -54,18 +54,18 @@
   },
   {
    "path": ".github/workflows/license-compliance.yml",
-   "sha256": "e34743c2e1e5e364c11ebf3773117ae0eb92c203e88373beb2d208afa7195f91",
-   "bytes": 2176
+   "sha256": "8bc1647e741ea5e925e292899d47727ff434cdb1b454747ada27e3eec700912b",
+   "bytes": 2231
   },
   {
    "path": ".gitleaks.toml",
-   "sha256": "8b113b46258d2451c612836bb114b59680c6298aeedbca960ca9e9b550ff2584",
-   "bytes": 940
+   "sha256": "183e5e985ee45ee04caf02108aa607c8d7e03898214ad837c7890c5b605a8b60",
+   "bytes": 967
   },
   {
    "path": ".gitleaksignore",
-   "sha256": "76882ea4793d5024641c670c3aed398c96ccbc325404332a0d7bacf250ef4cbc",
-   "bytes": 1792
+   "sha256": "a26d0ac708da40828e28e5faae78f8f7792dd0dfa5903cd6cc9c3b57a7f6a3cc",
+   "bytes": 1796
   },
   {
    "path": "android/.gitattributes",
@@ -79,18 +79,18 @@
   },
   {
    "path": "android/LICENSE",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "android/README.md",
-   "sha256": "c0085806953b7a6b03f53ea3e798fbc53bead0522d9e9e67288c902c4b1f5d05",
-   "bytes": 13665
+   "sha256": "a6021e17f0f06b19a885089b96a0435fae68bfd472c3333bd02d5500a27defe1",
+   "bytes": 14940
   },
   {
    "path": "android/app/build.gradle.kts",
-   "sha256": "cf30a6310bf33b63daf07b72df6120aca215903610036763674a65151c6ca1ac",
-   "bytes": 20013
+   "sha256": "5c3cddf90cead0aee0ce864ccf5f35c13faf048dafe5f3f3637a4823981e2498",
+   "bytes": 21192
   },
   {
    "path": "android/app/proguard-rules.pro",
@@ -149,8 +149,8 @@
   },
   {
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/devicekeys/SignalProbeTest.kt",
-   "sha256": "21c24df245022deaa1f4c005b735f8a4a15bf63b7ae1ded2d1e9950792fac01f",
-   "bytes": 8825
+   "sha256": "c8dbaeb0f75843b7586789990b0c7b4c39fa532c6a7082f5f70d3dd89e822b8d",
+   "bytes": 9003
   },
   {
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/stories/StoryDeviceTest.kt",
@@ -179,28 +179,28 @@
   },
   {
    "path": "android/app/src/main/assets/legal/LICENSE.txt",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "android/app/src/main/assets/legal/THIRD_PARTY_NOTICES.txt",
-   "sha256": "bdeedcc80e0912c5f095eb17baad43bd3980abb41a4c477acb152574ada248aa",
-   "bytes": 3375018
+   "sha256": "e07732ab6bd9922022a2d3674140ceac1271b034b92f5c9e1cf6429e03abb7a5",
+   "bytes": 3438378
   },
   {
    "path": "android/app/src/main/assets/licenses/bricolage-grotesque-OFL.txt",
-   "sha256": "923f4ddf0fd39f9b7794ab0df7332f3d95dc43e8ad7ec2289d6d9e8491177f51",
-   "bytes": 4401
+   "sha256": "537f64ee4afd4ff0f2aad3c8646efd608cb49b8a216cc720de4832c6922cb3ba",
+   "bytes": 4494
   },
   {
    "path": "android/app/src/main/assets/licenses/ibm-plex-mono-OFL.txt",
-   "sha256": "23b0a9d0c6d3f140a0b77e483c5cfa6bba574325ef5cb189ed9f2fec4884533f",
-   "bytes": 5299
+   "sha256": "03b9b5ee8909a33418aaebfa6a807da48c6edebdde79b5b026258a2463e2919b",
+   "bytes": 5392
   },
   {
    "path": "android/app/src/main/assets/licenses/ibm-plex-sans-OFL.txt",
-   "sha256": "d0283623ef57e722fd0eb688a8041589670c608ab780cd3612d06ba6f153d3fd",
-   "bytes": 4429
+   "sha256": "a8b8906fa622f65203a8c4eb7b467967c7823f4445ed7f05bd378d6b9ecf9b5d",
+   "bytes": 4522
   },
   {
    "path": "android/app/src/main/assets/licenses/lucide-LICENSE.txt",
@@ -214,8 +214,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/RedvaultApp.kt",
-   "sha256": "60bdd375b8a4d9e3a616724e4ab400ad4f5119106f4248d3bb8b6e08a26de581",
-   "bytes": 21505
+   "sha256": "3bbd57fad39e0f3d290c9a954188395c465173b452100f35f8ea19f5aa303f90",
+   "bytes": 23105
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ShareIntents.kt",
@@ -424,8 +424,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/DriveRepository.kt",
-   "sha256": "3c81e014f3e8146da39e6cd2468b84519314e5f2f7dacdce65ec40d499def7f7",
-   "bytes": 40320
+   "sha256": "a473106a8308052375ff3b61e6620d50f03c31ff717bab1b3d49f85170f245b6",
+   "bytes": 40496
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/FileKeyRepository.kt",
@@ -439,8 +439,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/FileRepository.kt",
-   "sha256": "5c7c2c1a7311894ff2e89474714d06ac89929f144e58684f0f720b80a0cd77af",
-   "bytes": 21160
+   "sha256": "14e56e2aaf18e097dd2789f96fca0d51e73ab3566061959acae67e1047e48479",
+   "bytes": 21920
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/FriendRepository.kt",
@@ -544,7 +544,7 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/ApiClient.kt",
-   "sha256": "ffddac6264ad1be69aec56394a4ee4505002aea91de45e622a5d9af757d875b3",
+   "sha256": "2cd0207e65cc2923ac0f31811c3d1574ee66b309b6a9224e8d8f70cd5c050fef",
    "bytes": 12166
   },
   {
@@ -594,8 +594,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/PushApi.kt",
-   "sha256": "d54e4758de277184eed7194c12816add6b9a5c111fceead09c2dbe1e307a613b",
-   "bytes": 2233
+   "sha256": "af7e9204e8be1fbd7942194c301a0ce2b74486741e0407db604f8d81fa66a584",
+   "bytes": 2285
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/SecurityApi.kt",
@@ -629,8 +629,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/ChatModels.kt",
-   "sha256": "6190a507af726a3842b57946bb196063e5bd306ce0e5dd2cdc589716f0542644",
-   "bytes": 9950
+   "sha256": "ad3cb01316bdb898601acb8223d3945dba5735b7ef02eb355aa15f4c8e76faf4",
+   "bytes": 9929
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/Communities.kt",
@@ -654,8 +654,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/OpenSourceInfo.kt",
-   "sha256": "19f197c308208ded04b68afeb039509b279bcd13a6aeae59ecaf7877b4762ee4",
-   "bytes": 4963
+   "sha256": "b68bbf536a8eeeb9e0a6c85c19c0283b59782e45376b459e2e671de933760976",
+   "bytes": 5057
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/RichMessage.kt",
@@ -679,8 +679,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Chat.kt",
-   "sha256": "022f45486f10abeff220e9ff29e915201e1641e97b42acf1c34588e3601f715b",
-   "bytes": 27203
+   "sha256": "b2942761a1d604a71d62ebdafd20399f8761ba768e756bd653bc79e7b028dc70",
+   "bytes": 29151
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/ChatContent.kt",
@@ -689,28 +689,28 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/ChatHistory.kt",
-   "sha256": "35b61d1673e17705fd62a5c132f8ec244cf962d4400866150b0ede51aade5526",
-   "bytes": 7726
+   "sha256": "9a36d9e3be508a9dba56c2942175787a07527fd4ef3426e3b182341f0d6e9625",
+   "bytes": 7743
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeySafety.kt",
-   "sha256": "0f8e143061fe45548f6e0e5254ee3d1ef6e8e1ed97c0e430a2624d60411d7274",
-   "bytes": 4194
+   "sha256": "f0090fe660c1241fd1597da66dbd9cfcd279c780e7ccbc015861e8e25a72577c",
+   "bytes": 4268
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeysSession.kt",
-   "sha256": "16907353145079704303b66acf3be1070359dec7ae487bccd1a5f68900168efe",
-   "bytes": 22524
+   "sha256": "6e3e9aa9200f65f2ff1cdc937f76e7cef52efdfeac4ea521cb9ba2496946aca5",
+   "bytes": 31151
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceStorage.kt",
-   "sha256": "61fea8fec17219d8f4dd8f2b2f698dd88c47a9622f6cac11ca7db7113113ebff",
-   "bytes": 8238
+   "sha256": "148f7c2d70ff40f6ea979ddfd6f4f3c864cbc5b8eb02187b2ccd1795e09926a0",
+   "bytes": 16426
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Engine.kt",
-   "sha256": "45e70892137c39a7f69ebb96a466da83a5bfa489848c454c8bb493d201699802",
-   "bytes": 4027
+   "sha256": "779d0cbfe0ea6fc99d21c7ef9f985fe3c094150e10ca3f9d336c8730457dc3af",
+   "bytes": 4000
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Mailbox.kt",
@@ -724,33 +724,38 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/QrPairing.kt",
-   "sha256": "ebdbee91851c11e02ed18554b816116f103939c1b8c5d1fb7922e08837a401b0",
-   "bytes": 2879
+   "sha256": "58ec37029b43612538287f1adb289eba422095a652d3d26cbb4145abcd13a5d3",
+   "bytes": 2861
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Signal.kt",
-   "sha256": "7350bee5eec645c089f590be5a80f1ffe6d235c8f37720188ec4bb82292da248",
-   "bytes": 4361
+   "sha256": "e573662d272275e393a037ebb907960892696f8e402ccc29de77e659cdcadc86",
+   "bytes": 4387
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/SignalGroup.kt",
-   "sha256": "7d372a515f0ecc6d47c25404df1797a2ca9fc9f6752a97062d21e6c81e16758f",
-   "bytes": 5741
+   "sha256": "29ccabbf6fadbe386020a8630e90fd177564be94669b72def4473b6bf7ece0ae",
+   "bytes": 5846
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Api.kt",
-   "sha256": "fb72a1c15947bcf86d7b7228a54081cc35559973fb5431b0cc862e4550386db5",
-   "bytes": 16001
+   "sha256": "ff0a1d37cea81dc55e4c6a4b72beae9686451d8067c9841ce18d520f5d105499",
+   "bytes": 16322
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Chat.kt",
-   "sha256": "4112a89d9bd68f89c366d528d10cb8b128d6bd324b13869cbef2e650f1061e9e",
-   "bytes": 11337
+   "sha256": "575f033e226a809eaec6b70ba350dc08d926990d4e0818a4b75a1a44bf24164a",
+   "bytes": 13905
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Device.kt",
-   "sha256": "45ceabe3dad0aac421fedad8c654dd24e4c4e3a7ad85bc1521b43a74cd1273ef",
-   "bytes": 11420
+   "sha256": "e0264f213e28bffd7e11991368fa798ad69d7df2ca54223dc5210ab78ab9fe6f",
+   "bytes": 11352
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3SendQueue.kt",
+   "sha256": "2a0be26b5d7bca0b52278fb0de60862ce02c9d8eb0af0072947dd154d73a74fb",
+   "bytes": 12451
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/identity/Glyph.kt",
@@ -774,28 +779,33 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/Notifications.kt",
-   "sha256": "0a803aab3eb97c1e28595e3bdb2ed8ff90c079d67afbc40b4fcf73fe717507fd",
-   "bytes": 6235
+   "sha256": "36a99606dadbe4125f911f8c893b51bc867ed02848e933d8d61e2557aea56a44",
+   "bytes": 6366
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/PushFallbackService.kt",
-   "sha256": "9c51c8184274f1c940ac25f02f64b2cacf69e11cafdbd4159751fc6751fb8f46",
-   "bytes": 6834
+   "sha256": "adcf4d950a8f20db46fae16a323bd11b1a8ba4bb64715333cd879c9877d2bb7a",
+   "bytes": 6996
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/PushRegistrar.kt",
-   "sha256": "8bed5c586ea73939c1e8eca8915274b576d19efcaddb9b851737b0333f739f8d",
-   "bytes": 15072
+   "sha256": "b55fd71db4792108e0c113b2128ed9df459b8d1d8749f87d00eeaad292e579f2",
+   "bytes": 16306
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/PushWaitLoop.kt",
-   "sha256": "4364b6ae3118bba1bdfcfc130dc41877d820fe2c6345fa9bf6418c47ea823b98",
-   "bytes": 3078
+   "sha256": "e2b827cccd6163aeecf1e1b925a7108796e6884d42583ea6be79c64ecb72444a",
+   "bytes": 3161
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/UnifiedPushReceiver.kt",
-   "sha256": "6a296a35523a3e44e920f6690d0abf753c013819845c8fd245620c000214499c",
-   "bytes": 2276
+   "sha256": "e8478447e3b83ac12e6c1f92cabf0b9aa97a37234173b808fecec76f6e6b261b",
+   "bytes": 2324
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/tor/ReleaseRouting.kt",
+   "sha256": "1275baad3714d2c2fe738c5aae96768722bf508c0fab166294c4ce2e944adb7b",
+   "bytes": 1618
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/tor/TorController.kt",
@@ -824,13 +834,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInApp.kt",
-   "sha256": "231812c092b9f03b95e34acbbac259e73a1dfc2ffc07474869c268391deadf0f",
-   "bytes": 67893
+   "sha256": "2720ebf36c068a73e1a0ae18905d54b16aa026ee75d8506aa94b312eb50b1907",
+   "bytes": 68701
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInSession.kt",
-   "sha256": "7650db95c9678e6a804c0a6cb05c9e76219427c51aab28a5bb7fe937a5e03223",
-   "bytes": 3289
+   "sha256": "34d1767b7555ebefdfc1ac74d9eefa910a28e1b1b8435a37f771bbee2a2aa6ff",
+   "bytes": 3291
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/TimeFormat.kt",
@@ -929,13 +939,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatSession.kt",
-   "sha256": "947cda0b462bfe614d5605127cdde67d72d27d5a2ee7d1601eeb0cdc39bcf305",
-   "bytes": 70318
+   "sha256": "ae2af87b2af80a7c4d24f6b0310bbe2a8ab8c7d789921e24a00d3997c7746e45",
+   "bytes": 74329
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatsScreen.kt",
-   "sha256": "443a32dcde469e4bdd18d6bbf3a48781d65b05a5f100d26ee071578916de73a0",
-   "bytes": 18942
+   "sha256": "caf97670bc6333d7b4bb3812002e1d8e4d0fb9f3f805399e933851cc0bb77a05",
+   "bytes": 19120
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/EmojiPicker.kt",
@@ -974,13 +984,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ThreadLogic.kt",
-   "sha256": "c3cef3ba2fb7041171171f0053ea04e592cc4d7704ada3ac931bc9c39bab0aa6",
-   "bytes": 6670
+   "sha256": "6dd067def43a08255b43b316779104b58db4a3f497c64e719f5109bb915f820e",
+   "bytes": 6878
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ThreadScreen.kt",
-   "sha256": "5582a3d2ce4ea2b3292e9f8356a7456185d169e9fc73617b76a1edef120161e8",
-   "bytes": 119254
+   "sha256": "76c8846298c21f0dba4a6ebdc45a008b87a7211a5e006334674b571ad37a2a22",
+   "bytes": 121202
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/VoiceRecorder.kt",
@@ -1149,13 +1159,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/DeviceKeysScreen.kt",
-   "sha256": "e46f1c7546639b7083686350cc2ccb43c10517ec28361ff67bc593cb3c2e9946",
-   "bytes": 26156
+   "sha256": "4137836758f5bc130759df8b971411415a27f7998f0162476f13ea21a7b064f9",
+   "bytes": 28715
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/NetworkRoutingScreen.kt",
-   "sha256": "fdb5e7f5a04ce59ed31b6f5c4882865cca03120d4cba961ce0677197818df529",
-   "bytes": 12193
+   "sha256": "07a32abee0603e12848ecc12f7f4e7fd1660a71f24e4f4ed147d8f10b287ffc9",
+   "bytes": 9504
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/OpenSourceSection.kt",
@@ -1179,8 +1189,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SettingsScreens.kt",
-   "sha256": "a42559e50ba70f1fb7c53f0939c0c300c2858430c44e727a9952db407ba67f54",
-   "bytes": 37999
+   "sha256": "fb6f5842e8d087d8ddcd268f758a977f71ddf2a3bb250d157d44583889a7b312",
+   "bytes": 38633
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/ComposerParts.kt",
@@ -1789,8 +1799,8 @@
   },
   {
    "path": "android/app/src/main/res/xml/network_security_config.xml",
-   "sha256": "fe4a771428db0ab50e7e757a3e0631b6d9904667ed362b36ebec3511e331ac90",
-   "bytes": 781
+   "sha256": "4c6a55d71ef5d2b72f9ed053017a6325f4b3d1b7ee4e9db79363d66b50dcaea1",
+   "bytes": 956
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/calls/GroupCallGuardsTest.kt",
@@ -1969,8 +1979,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/data/model/OpenSourceInfoTest.kt",
-   "sha256": "a98ca2324516870141f893a8573d6fc0ae879bd91e7440c3c4dad07e4099430c",
-   "bytes": 4754
+   "sha256": "c68e1a68b93ab6ff6afee076a81fca2098aefa077979b0ea5d3ffdcfca7c17db",
+   "bytes": 4856
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/data/model/RichFeaturesTest.kt",
@@ -1989,13 +1999,13 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/ChatTest.kt",
-   "sha256": "4cb63d1abe04d43d057b7515bab5c760bb5685d048fc69b8c2c205957a869a44",
-   "bytes": 13878
+   "sha256": "f35d7da107cc148420e9147bf4c8e3ad2cc25370739fc1a761c9818ea95d7d93",
+   "bytes": 14043
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeySafetyTest.kt",
-   "sha256": "7647786ccbb3c861d097a9184262e14843601f603d29c7d1f675807be41b9c87",
-   "bytes": 4606
+   "sha256": "775514e0f3b8b6b1c464e96dbdecacfa589e58aa43c334a39783c1009492bb86",
+   "bytes": 4710
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeysTest.kt",
@@ -2003,19 +2013,39 @@
    "bytes": 12120
   },
   {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceStorageCounterTest.kt",
+   "sha256": "da3d14e5531d1bfd779f73d48c25e49d0ed4894d1cdcb00b4c8b31c18d6116dc",
+   "bytes": 8383
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/EnsureDeviceKeysTest.kt",
+   "sha256": "5daa4e7cedb15f24016878e2dbb207952691e02a92d217bc57a6da13bf9897c4",
+   "bytes": 7623
+  },
+  {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/FakeV3Api.kt",
-   "sha256": "988e991b39440f777684eba429e7bb08f2363f6c3aea202bc135acf7f726a9ef",
-   "bytes": 14645
+   "sha256": "3bb929a470143317d8f68c5541a880079c29149b25b43f376ef04fd93c0e5d62",
+   "bytes": 14938
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/SignalChatTest.kt",
-   "sha256": "fb5def70405fcae6fdbbccf730308d708f44fb7fe10ea6f4ce41f342da73a090",
-   "bytes": 9524
+   "sha256": "48d132b76397f75ab4e00b59e55a98f1b441201615e7dca68d93b8742a66a5d5",
+   "bytes": 9702
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3ChatTest.kt",
-   "sha256": "3db6a55f1221c4d64b56433dad5202a4944510244f9da1d6216b39b56c4038f9",
-   "bytes": 13311
+   "sha256": "d4aa0f8b2c66351556ea9fa557ac7161b037d90d481ec2a51e3dc2d5366e8d48",
+   "bytes": 18570
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3OverTorTest.kt",
+   "sha256": "d79b300c706fd6fcc34271eaa0502c2b7a84c4e01363528af652bc0666d1f17f",
+   "bytes": 5021
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3SendQueueTest.kt",
+   "sha256": "3e4b7c30f4b6b555f1a91eda1ff11d6b0131f7bfa831a86aecd61573f72f952f",
+   "bytes": 10350
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/identity/GlyphTest.kt",
@@ -2029,13 +2059,13 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/NoMetadataTest.kt",
-   "sha256": "c7c5f6a786c6c20cff1fb8dcac2a38604bbb2c9432ff6e608fe51717a20d812c",
-   "bytes": 6149
+   "sha256": "2586d52fd9665e733578fb8ef45868b0d3fcc4e17090d88ec34fc39b14d0a251",
+   "bytes": 7895
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/PrivacyManifestTest.kt",
-   "sha256": "4857ddcd41b166aa8cd9e66c08fa394a8a77b3177417310a4e1924421054ebe8",
-   "bytes": 5797
+   "sha256": "c1fb93c31150d1db75410faec56baf957d0b447df00932d07e94c2ed9a186ed1",
+   "bytes": 7563
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/PublicChannelReadsTest.kt",
@@ -2044,13 +2074,13 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/SecretHandlingSourceTest.kt",
-   "sha256": "dec0e355e0c031fa899b58b6742ee8bc3e4f1dd95383cf23d83d58c99a2de28f",
-   "bytes": 6473
+   "sha256": "74c33900e93b49d5f2abdedc8f959a207d68322ef92434830dd8b72458850207",
+   "bytes": 8597
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/push/PushTest.kt",
-   "sha256": "db6df09266540c36c616aeb8634b280465d00d881f28fdffe8bef5f1585e8b83",
-   "bytes": 10218
+   "sha256": "d9d50c7462d8615079cf0997f07d1989c49ebe5098da20e24c724557a01d2b90",
+   "bytes": 11070
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/stories/StoryBuilderTest.kt",
@@ -2103,9 +2133,19 @@
    "bytes": 1691
   },
   {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/tor/ForwardingGate.kt",
+   "sha256": "070ff13f4877bd1c3d4b73d1ad353142d69bb0ac030eeba1bd5561d8b2b947a7",
+   "bytes": 3591
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/tor/ReleaseRoutingTest.kt",
+   "sha256": "95c593853bdd118d79126a6cf0d616a884ddd61657ca93c2b5242784240bc694",
+   "bytes": 4957
+  },
+  {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/tor/TorRoutingTest.kt",
-   "sha256": "b00321545269e0f5ec69a09cf49bacae8c60e7c7573dc23732ca972ca6ad1683",
-   "bytes": 8946
+   "sha256": "b052d4e20eceae41ecd644ac56016511b8f0247573824258292fe84e3a472aa2",
+   "bytes": 10536
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/DayLabelTest.kt",
@@ -2204,8 +2244,8 @@
   },
   {
    "path": "android/gradle.properties",
-   "sha256": "23cb55a86637193f4d6ac1861d61eaf2e711c7d3965876cc3b5331a2acf1649b",
-   "bytes": 487
+   "sha256": "7aafc2e4691a441cc8e345f8feebc8e0595ee63c4b67bbdaa15d6164113ebf01",
+   "bytes": 674
   },
   {
    "path": "android/gradle/libs.versions.toml",
@@ -2264,18 +2304,18 @@
   },
   {
    "path": "crypto-core/Cargo.lock",
-   "sha256": "8edb1e2cc44b62077c29c28726fe0f7072ad733da58a597b53b5ad409a687865",
-   "bytes": 55698
+   "sha256": "c1ce09376e41764f785d0821521efcb9f5cea5ef28a2205850b2f9783559e650",
+   "bytes": 57939
   },
   {
    "path": "crypto-core/Cargo.toml",
-   "sha256": "8746804756e20e708b7ee566217fee4e39045ff5d15efeed86df42edbe788b83",
-   "bytes": 2182
+   "sha256": "cbf91ffe1f4cb0e4601d0c15411698a69addb1bf387f134d5174d0a113cf2d81",
+   "bytes": 2240
   },
   {
    "path": "crypto-core/LICENSE",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "crypto-core/README.md",
@@ -2299,63 +2339,63 @@
   },
   {
    "path": "crypto-core/examples/engine_stdio.rs",
-   "sha256": "bfb5c46e56931bb9020a2900204311abde612aecd6e3debb11243e61b77a66f3",
-   "bytes": 864
+   "sha256": "9aed71845b45112427f7c7a33f74107acd210e3e13e1275bce64cfc2ec157cef",
+   "bytes": 887
   },
   {
    "path": "crypto-core/examples/make_capability_vector.rs",
-   "sha256": "ecbf9facd27b565629095355d6b08b3ab4817503938bf6ac2c5e18ae90c40f52",
-   "bytes": 1824
+   "sha256": "69428dd64ad7195988134212fa485e5e77729aec437d3ad1e6b9997e6f0ea5ac",
+   "bytes": 1861
   },
   {
    "path": "crypto-core/examples/make_roster_vector.rs",
-   "sha256": "fca02f0948bbf0f53ac55508aae6daedf0d0e460c12fae35aadb87ac1ec058ca",
-   "bytes": 2008
+   "sha256": "ed3cd1afa732688d0d5ac3cb2c76406431131502af4e549abaf4327724bcf8b6",
+   "bytes": 2048
   },
   {
    "path": "crypto-core/examples/signal_xplat.rs",
-   "sha256": "a37b8efab5e6f42070fb61841ae514ce1adbb083e64af1a52caa8de4f1f4145e",
-   "bytes": 7183
+   "sha256": "aae9a8acad6282d853148b626fb067cb5858093c2853e1526f9c5c2136c457d1",
+   "bytes": 7313
   },
   {
    "path": "crypto-core/examples/state_size.rs",
-   "sha256": "17c5c0efdf0b8d060d68f64dba697cc2e3cac5c337a550c843366692af4e57e4",
-   "bytes": 1066
+   "sha256": "aa6e7011bc5ab1befb1181fc36e0ece329ad913369e4988bbf599b0df830abb0",
+   "bytes": 1084
   },
   {
    "path": "crypto-core/fuzz/.gitignore",
-   "sha256": "f70e1c78716e7ef6c4211d6ca9a4c4e6847314662fc8786b16156e3e94f9f99d",
-   "bytes": 48
+   "sha256": "2b874f3298bad987aae501b04b8804b7112634d7f183aa55486eb873306a47ca",
+   "bytes": 53
   },
   {
    "path": "crypto-core/fuzz/Cargo.toml",
-   "sha256": "fcea785761c448162b048a692079a19b2911f6308f54954720e6a468b83b54db",
-   "bytes": 959
+   "sha256": "b34f354c71fbb32c954cfa24a43b6e5279046e2222d24d289e854a208a0b8527",
+   "bytes": 1005
   },
   {
    "path": "crypto-core/fuzz/fuzz_targets/common.rs",
-   "sha256": "bdcdaf809babe8e8df4fb2ae3191b58795691921f59280a0b5c9066d919e71a2",
-   "bytes": 4630
+   "sha256": "81e899c9f8f71f9059b9fa6ded79d9ffd1c8015c855602f9578385a853070f72",
+   "bytes": 4727
   },
   {
    "path": "crypto-core/fuzz/fuzz_targets/engine_json.rs",
-   "sha256": "34990505fcd979f3f0cf2dfa706b5bb63615773e0169f8575a9255a6a82da5d1",
-   "bytes": 574
+   "sha256": "25807d857087e5d30649fd19c2f3ff3273d80f01b58eee4700c1bfc47f34e81c",
+   "bytes": 589
   },
   {
    "path": "crypto-core/fuzz/fuzz_targets/group_decrypt.rs",
-   "sha256": "047e32efe25e4b563a15989acb8cbc2595981115fb7a540602df22375815a6c1",
-   "bytes": 1335
+   "sha256": "68df0c25998a2ab91c40fa8d2d0658a999217a2b2c3f8a6c83a82c1b358e0f1a",
+   "bytes": 1371
   },
   {
    "path": "crypto-core/fuzz/fuzz_targets/roster_verify.rs",
-   "sha256": "6a086dd00e1da794154b977170fb5b58d7af310b95635b10e66df1e0b3ca6540",
-   "bytes": 1591
+   "sha256": "62b334ea7afd2dc7ef24af49b275cd00be1f8d7efdddb3f48993bfd8d8a09d2a",
+   "bytes": 1631
   },
   {
    "path": "crypto-core/fuzz/fuzz_targets/signal_decrypt.rs",
-   "sha256": "99a1732cfe1c12c93f29baf1455b8d4317fddf92c436d537c0041a97b3d26bcb",
-   "bytes": 1267
+   "sha256": "f2e4a0adea39549c31f9b660d598c4241e5aa6529d44fc43d7f17296a3c05948",
+   "bytes": 1297
   },
   {
    "path": "crypto-core/include/redvault_e2ee.h",
@@ -2404,8 +2444,8 @@
   },
   {
    "path": "crypto-core/src/engine.rs",
-   "sha256": "69cd6b2a3bd08b09ad71077720678be255f38b1868d3281285f2b65e01414960",
-   "bytes": 43347
+   "sha256": "2cd673b61f29fd45ea89bf938ac569f70a233c862a457e1953cd7829cb2afd13",
+   "bytes": 44185
   },
   {
    "path": "crypto-core/src/ffi.rs",
@@ -2414,8 +2454,8 @@
   },
   {
    "path": "crypto-core/src/identity.rs",
-   "sha256": "8869197e0f1d02ffd6d85562c77f141a91bc4c56c2a2a28bc8f57be9f6fb4d3e",
-   "bytes": 45400
+   "sha256": "138330f69e4f5ce0e61b1009d73e6d6317dad678ef4563b04e2357554cc3f830",
+   "bytes": 46866
   },
   {
    "path": "crypto-core/src/jni_binding.rs",
@@ -2424,8 +2464,8 @@
   },
   {
    "path": "crypto-core/src/lib.rs",
-   "sha256": "75db19f1286b9fe72c0fb48e2108749942bb331c404b24064d3a139b33b8eede",
-   "bytes": 1487
+   "sha256": "98ccb4e78edfb40ac69c0b55925a9be4e93ac3a15c85eb6e070bddc18ab730ee",
+   "bytes": 1526
   },
   {
    "path": "crypto-core/src/pairing.rs",
@@ -2434,23 +2474,23 @@
   },
   {
    "path": "crypto-core/src/roster.rs",
-   "sha256": "6124c3051895ee8c8e20297c0bc7ae868bace8b5c56f89d8e790f78405232e8f",
-   "bytes": 12716
+   "sha256": "3ed6baf8c6fd2403d04922f6fa1e77215c250aa929d2702376432dd42533224c",
+   "bytes": 13004
   },
   {
    "path": "crypto-core/src/signal.rs",
-   "sha256": "0bf95e6a83f44d8ec49b0f4ff8740752af259ecbba5811cd4dce0b7ece99de7f",
-   "bytes": 34903
+   "sha256": "60c645edd6c92eb64d2483e275727247b33da350a9df27067360ab55caa39162",
+   "bytes": 35611
   },
   {
    "path": "crypto-core/src/signal_group.rs",
-   "sha256": "1c2edd32f2b7445d2e7d2744478bece0074acf081e7aab56bffaa9153683ffce",
-   "bytes": 16817
+   "sha256": "9620b1737ada78486e65d9fd1636909f784629c8ab8f7e41233b380b8c1a8dff",
+   "bytes": 17109
   },
   {
    "path": "crypto-core/src/signal_state.rs",
-   "sha256": "ae18ad56b85e7aeb47f0dec839132c89cbf093edab3af2d4840093b8fe58eb67",
-   "bytes": 15044
+   "sha256": "054aa9df53a97e8310b7f54dd52cb8389a97c111d2240f4e6d374df7bdf8659b",
+   "bytes": 15386
   },
   {
    "path": "crypto-core/src/stories.rs",
@@ -2464,8 +2504,8 @@
   },
   {
    "path": "crypto-core/tests/capability_vector.rs",
-   "sha256": "94b521d0a14091a9d79bb2dc951e384727210104772073c8f803e0871025c241",
-   "bytes": 1543
+   "sha256": "774c8eb72697495b65f6e3de3451e4960f43d1a3c880f39c7fad86a5980d7d2c",
+   "bytes": 1579
   },
   {
    "path": "crypto-core/tests/common/mod.rs",
@@ -2494,28 +2534,28 @@
   },
   {
    "path": "crypto-core/tests/signal.rs",
-   "sha256": "a55e852120328abe0a9bdb789c7dd9cf969bbc1da8c3052e742885de7a6fdab7",
-   "bytes": 28312
+   "sha256": "18dc0cbb2335d73cab55c0c8cf7798857aa25f2975e2b180c649c4fe08aaae54",
+   "bytes": 28963
   },
   {
    "path": "crypto-core/tests/signal_capabilities.rs",
-   "sha256": "4977b3ae60ea898de9786f995288fb2bc6be9b8010cb8b63dc45ab65e7d644d7",
-   "bytes": 7238
+   "sha256": "336a047484d266c3ffbaa67a3616baa4c7b00f29bbdee2ab0824441846371deb",
+   "bytes": 9338
   },
   {
    "path": "crypto-core/tests/signal_group.rs",
-   "sha256": "663e0c06323d5afc2da5d62b3c4458b80554ced71305c53da829a0c900909345",
-   "bytes": 10699
+   "sha256": "ac1a7fc698ed0227f0a8e7b68b4620b06fdbe67251de579f683dd466003a3f3e",
+   "bytes": 10922
   },
   {
    "path": "crypto-core/tests/signal_m5.rs",
-   "sha256": "be4813b9f4ba4232b74bcb529daf28230e70069004646f77947a2d16d36d00e9",
-   "bytes": 7478
+   "sha256": "753646d186ade956060c998aa733f7f0856689e837e286343394f11fef8b1e26",
+   "bytes": 7604
   },
   {
    "path": "crypto-core/tests/signal_routing.rs",
-   "sha256": "f9981eced05949beb12bbfe1a574241f0bde04d95e39ca6623d74e75c28eb7d6",
-   "bytes": 8848
+   "sha256": "ddaf40b55565faf4f23e6d1d5a921fed03a3ae528fb2bfc3ffb4b20852c5746b",
+   "bytes": 9014
   },
   {
    "path": "crypto-core/tests/stories.rs",
@@ -2524,18 +2564,18 @@
   },
   {
    "path": "crypto-core/tests/vectors/group_roster_chain.json",
-   "sha256": "c55fa69a183517ef62113c0d3c82bd1fe577f99b4b5045bc872f38ee95626978",
-   "bytes": 1701
+   "sha256": "8feaeab2292cc6b7859c9d79a0bfdc1a9360777cbdd526d98ca6c753f5e74408",
+   "bytes": 1744
   },
   {
    "path": "crypto-core/tests/vectors/signal_capability_list.json",
-   "sha256": "e0388638660962ced11fd26a96701d78e34c70862b91bc5d265400758fbac216",
-   "bytes": 1428
+   "sha256": "3529e15134d7b813b9cf0f1b566be6b039bf4bfec9a5bedaa350711817fbaf04",
+   "bytes": 1463
   },
   {
    "path": "crypto-core/tools/make_sbom.py",
-   "sha256": "af22c22a8b836ebe5e83983f6bda41d0335018505995ff14b5db51786f6c19bc",
-   "bytes": 3354
+   "sha256": "c622338a738d5d1d6207f0d6b7be54ed4fb586bb88cc34ff48d83121dbf6b3f9",
+   "bytes": 3444
   },
   {
    "path": "desktop/.gitattributes",
@@ -2549,33 +2589,33 @@
   },
   {
    "path": "desktop/CMakeLists.txt",
-   "sha256": "9329043d1a9c2a73b89086fa40927b0394354c7dfc93e3feeb5d9e92b4370fa7",
-   "bytes": 5635
+   "sha256": "45b7999d7d4896cb26882bfcaa786ed1c3eacf3fe75c5af9a421b6eb837ccff1",
+   "bytes": 6100
   },
   {
    "path": "desktop/CMakePresets.json",
-   "sha256": "e54b0d8f86747495f74f5c6c2c206fd768a1bc8c6fb767eb91210c05f2423085",
-   "bytes": 837
+   "sha256": "df2fa47e07467606d198d3a8d55f7e5845c4171432f52433ff525226fa3d6c30",
+   "bytes": 1164
   },
   {
    "path": "desktop/E2E_V3.md",
-   "sha256": "a42dee6db0b97f7ad15ba3a95024ff402609562998ba6c56f169c9b63b47f25c",
-   "bytes": 4414
+   "sha256": "1c599c7463e2f26d3bbd3f85ed1eef94272cc0260c293cdc8570502b8f8c57a8",
+   "bytes": 6568
   },
   {
    "path": "desktop/LICENSE",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "desktop/README.md",
-   "sha256": "bbc650f11e3cbfcba890389104fc86342413bcfc707dee6eb328fc896f016928",
-   "bytes": 20325
+   "sha256": "1502e4b92a440c69e3eedd3dbb5a2007fa973b95dd1cb96c76f7cdd018b9f7b5",
+   "bytes": 22788
   },
   {
    "path": "desktop/app/CMakeLists.txt",
-   "sha256": "6a1f950f8b76ad07313e12e7685393da0d101c31c8fe69053f71b3125f922082",
-   "bytes": 18596
+   "sha256": "d1a66099944d12113218e30ea052dcddec8718047732901ce0a9fe6fa90a4fb0",
+   "bytes": 19081
   },
   {
    "path": "desktop/app/fonts/BricolageGrotesque-OFL.txt",
@@ -3299,13 +3339,13 @@
   },
   {
    "path": "desktop/app/legal/LICENSE.txt",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "desktop/app/legal/THIRD_PARTY_NOTICES.txt",
-   "sha256": "e308f441df1c1c5476868762193f125bc2f96a7e2cc7deae85d8a4c2189d9a8d",
-   "bytes": 5228450
+   "sha256": "358ca52c02c75619ee458d367acf624a8561c2fad920d044ab3308953ebaa5c4",
+   "bytes": 5326143
   },
   {
    "path": "desktop/app/qml/AdminView.qml",
@@ -3314,8 +3354,8 @@
   },
   {
    "path": "desktop/app/qml/AppShell.qml",
-   "sha256": "5ef992501825125de5a22d96a4d0b3132344757501993c09c4bb325a43007abf",
-   "bytes": 7590
+   "sha256": "d2fdd41e61ca5709d48ea5c45e678aec183e7623e33358bbdcd944506e780249",
+   "bytes": 10329
   },
   {
    "path": "desktop/app/qml/Avatar.qml",
@@ -3419,8 +3459,8 @@
   },
   {
    "path": "desktop/app/qml/ChatsView.qml",
-   "sha256": "a233da019b6937fd475f4f2a93cb50af5b2b9a5fed728aa82fee7f5e7ac8227a",
-   "bytes": 20315
+   "sha256": "f95f1d28f999b181b4c4d34aab2581eeae629bc4dab57de7aed06d927b3fa257",
+   "bytes": 20305
   },
   {
    "path": "desktop/app/qml/Chip.qml",
@@ -3489,8 +3529,8 @@
   },
   {
    "path": "desktop/app/qml/DeviceKeysSection.qml",
-   "sha256": "568c19a9461ba5c70cccdd70b054b5172714d646e6a32bf60c4434f0c61976f7",
-   "bytes": 19657
+   "sha256": "0591442f7c145d958553fa8def67e3d82affaefbaf2f23f54ac245c39a7d47b8",
+   "bytes": 19178
   },
   {
    "path": "desktop/app/qml/DevicePicker.qml",
@@ -3679,8 +3719,8 @@
   },
   {
    "path": "desktop/app/qml/NetworkRoutingSection.qml",
-   "sha256": "12b2d60377c75776f9e701f53eab6b555eb01da150c70e3e214534b2ef313bf4",
-   "bytes": 6937
+   "sha256": "6f326c5091c63ae7234dbf7ef651a59662762be02d7fbb714110619bc8573291",
+   "bytes": 7199
   },
   {
    "path": "desktop/app/qml/NewGroupDialog.qml",
@@ -3689,8 +3729,8 @@
   },
   {
    "path": "desktop/app/qml/OpenSourceSection.qml",
-   "sha256": "b4ddd94f1ce9ad0ca40e09f881a787c81c7402df45cbf03470a9e4414ca2c366",
-   "bytes": 3464
+   "sha256": "2a6cb23a6bc1987f360c1f6f1dc01950e4102b270b0400af0b48acb0268bd510",
+   "bytes": 3575
   },
   {
    "path": "desktop/app/qml/PaidMessageBar.qml",
@@ -3709,8 +3749,8 @@
   },
   {
    "path": "desktop/app/qml/PlainTextDocumentDialog.qml",
-   "sha256": "cd9d8ac3f5543e4829f3a43aa7ca7f4ed37a67e8c3f655c8827cf6e0e6274627",
-   "bytes": 2313
+   "sha256": "79bf6d138563ed104aaecd1fc7b0037e054a13b3504620c45096b6ef2d596e3d",
+   "bytes": 2387
   },
   {
    "path": "desktop/app/qml/PlanCard.qml",
@@ -3789,8 +3829,8 @@
   },
   {
    "path": "desktop/app/qml/SettingsView.qml",
-   "sha256": "2ad0ca6d56fd56a175f3d7250a2e4b39c9d4ff44f012c87223a88de52da9a648",
-   "bytes": 61559
+   "sha256": "57ca00e3cff0884723e82e05d2dee95951877a657e2cccb34dc5d4ee37c0d455",
+   "bytes": 61572
   },
   {
    "path": "desktop/app/qml/ShareLinkDialog.qml",
@@ -3879,8 +3919,8 @@
   },
   {
    "path": "desktop/app/qml/ThreadView.qml",
-   "sha256": "d521308b123b419fc1001e0a355bbc41629df42c0e7ea017216bb69361942819",
-   "bytes": 99794
+   "sha256": "7441459b53694b9c5eae11e75fb363bacd0860d5f8b7f64753b686a3f74fada2",
+   "bytes": 99570
   },
   {
    "path": "desktop/app/qml/TipDialog.qml",
@@ -3889,8 +3929,8 @@
   },
   {
    "path": "desktop/app/qml/TorStatusChip.qml",
-   "sha256": "b238b6d66c3cd64882d3a383febbf605ad94bcd972c65d76cf68508eab8d5692",
-   "bytes": 3088
+   "sha256": "915e6e2ee3d5dcb59c10013d43b41e8e76cd93cfcb790c18c89935db08b6b252",
+   "bytes": 3099
   },
   {
    "path": "desktop/app/qml/TransparencyLogView.qml",
@@ -3934,13 +3974,13 @@
   },
   {
    "path": "desktop/app/src/app_controller.cpp",
-   "sha256": "5fab78ac941a7e754e9c69587d8e208dcb7cfeed0fc7407f897442845e3802b9",
-   "bytes": 22498
+   "sha256": "6c96354445d33d96b7d30c551c5fe816d514f99cce770445f0c2930fec732d57",
+   "bytes": 23725
   },
   {
    "path": "desktop/app/src/app_controller.hpp",
-   "sha256": "d757ed4c26187eee7804af7569702d346494906213e4f7cae8840d1ea10b5803",
-   "bytes": 12682
+   "sha256": "a0691de2a92b3b9ffde2727632fcf24f1c7f9f99ed2b658c807c845f07d95b39",
+   "bytes": 12951
   },
   {
    "path": "desktop/app/src/app_lock.cpp",
@@ -3979,8 +4019,8 @@
   },
   {
    "path": "desktop/app/src/call_notice.hpp",
-   "sha256": "132799819707c5899ca880c67ccb53b4ba3efbef9db5dd975cc2a63f94b8a16f",
-   "bytes": 1193
+   "sha256": "1851155fa50b258f31d3beaf25df7ad3bbcf84ba1404dc8d09992f2a5637a209",
+   "bytes": 1184
   },
   {
    "path": "desktop/app/src/channel_media.cpp",
@@ -4044,13 +4084,13 @@
   },
   {
    "path": "desktop/app/src/chat_session.cpp",
-   "sha256": "6e5b79081be8af8f72641237cc90263a99fcb00d9c454834aa1b225af1da5052",
-   "bytes": 80288
+   "sha256": "d686ea777f9974e8bd9cc9cba81af309a86cd695d054569c236ef88ecf4ab624",
+   "bytes": 80423
   },
   {
    "path": "desktop/app/src/chat_session.hpp",
-   "sha256": "e8bb530a18b79b91a402ece707378412a2e8208c65b4977bd3ba5d857243d491",
-   "bytes": 26098
+   "sha256": "3b14a802acca976b9ddd306736740573d27cedbcdbfeb5f10304063d4a1faf8d",
+   "bytes": 26504
   },
   {
    "path": "desktop/app/src/community_admin_session.cpp",
@@ -4084,13 +4124,13 @@
   },
   {
    "path": "desktop/app/src/device_keys_session.cpp",
-   "sha256": "4bd629d387f01cb93d545a427c530fd6420f1970bf22923dd5f3d73a47b3da93",
-   "bytes": 50645
+   "sha256": "63e43149811d622357f0be8bcb156b6cb34440b71dffe7014cdab995f1bf6e67",
+   "bytes": 65491
   },
   {
    "path": "desktop/app/src/device_keys_session.hpp",
-   "sha256": "0c609decbfe9ae9409723142bb7d7c40fa46aa853a5604098032c9fc418c9798",
-   "bytes": 16648
+   "sha256": "e695b801ae433f0aee9a4bc1e360f7d3b4437688dabd9e007329e8cd44cadbdf",
+   "bytes": 21245
   },
   {
    "path": "desktop/app/src/earnings_session.cpp",
@@ -4179,8 +4219,8 @@
   },
   {
    "path": "desktop/app/src/main.cpp",
-   "sha256": "e515fac10d1f965e518713ed019369abb5aebac65bc11b8752f30caa1d7be7e1",
-   "bytes": 10061
+   "sha256": "ed1c43a781a33b394b476390c6cc9f6036da495b7949a75bfc8d1c6442655865",
+   "bytes": 10194
   },
   {
    "path": "desktop/app/src/media_io.cpp",
@@ -4229,8 +4269,8 @@
   },
   {
    "path": "desktop/app/src/source_info.hpp",
-   "sha256": "48593ea39666598ed67d5e6f8b896cc27bfdb9ab8b9103dd48b5b273cb0d5662",
-   "bytes": 3340
+   "sha256": "0e61a61ac6898f5c97992abe87b27a6c68bdc3190acfd1b70ceab018f53aa68e",
+   "bytes": 3412
   },
   {
    "path": "desktop/app/src/stories_session.cpp",
@@ -4259,13 +4299,13 @@
   },
   {
    "path": "desktop/app/src/updater.cpp",
-   "sha256": "f73f4d36a00730dc22580207cb1accb905963705e4dd50f16c17409130573bf8",
-   "bytes": 8272
+   "sha256": "5c18364196b7b5f90cb7918bdcbe3324dd50678992f5d5bebb303ce8e3fcf05e",
+   "bytes": 9710
   },
   {
    "path": "desktop/app/src/updater.hpp",
-   "sha256": "3662e0566754c8dda59c2a37ef092c306d93c756588e5e48912ce1c692be50c4",
-   "bytes": 3622
+   "sha256": "53244526ebe727b3a9beb4500823cf9443215e5cbfdd60257aeacb0e2275b7cc",
+   "bytes": 3775
   },
   {
    "path": "desktop/app/src/vault_session.cpp",
@@ -4309,8 +4349,13 @@
   },
   {
    "path": "desktop/cmake/source_info.cmake",
-   "sha256": "3133c80d41e1ead758f0cfafce487d28008672cf6f631b440b517fee18057e39",
-   "bytes": 1647
+   "sha256": "be4720420b99a047b42471dc62e3b2dab20db743fe68d6e9767d8f45a159b2c0",
+   "bytes": 1673
+  },
+  {
+   "path": "desktop/cmake/tor_settings.cmake",
+   "sha256": "0b17b0669947272a21b6ac2f93444b300e80c7bacb87676b40f6976e625881d6",
+   "bytes": 2318
   },
   {
    "path": "desktop/core/CMakeLists.txt",
@@ -4629,8 +4674,8 @@
   },
   {
    "path": "desktop/core/include/redvault/update/update.hpp",
-   "sha256": "c13f13d8c1e3cfe2df70840592879d79d978df4023da0d2935a14a7965b4754e",
-   "bytes": 5529
+   "sha256": "9e01104b59c0267230e02815d36d1c693efc70a45977b0bd1327f73dc0669e45",
+   "bytes": 6883
   },
   {
    "path": "desktop/core/include/redvault/util/private_files.hpp",
@@ -4944,8 +4989,8 @@
   },
   {
    "path": "desktop/core/src/update/update.cpp",
-   "sha256": "cb7e754baca8b8be60d609461ca0a35b84e7d033d85d55a54102dc86f7fd71de",
-   "bytes": 11130
+   "sha256": "84ef79dd6f8090ada99e2b0ad96bdc58ad5336df09dcfd9271e8096234154676",
+   "bytes": 12654
   },
   {
    "path": "desktop/core/src/util/private_files.cpp",
@@ -4964,23 +5009,23 @@
   },
   {
    "path": "desktop/e2ev3/CMakeLists.txt",
-   "sha256": "7aa5fc8cee22d90931436ec936d610ca20f390da1559cf00e9a26533d428b3e9",
-   "bytes": 3583
+   "sha256": "6e35c71c95600aaf4530d9b19d02d5c27b152dc7997f83062b720635b431d7a5",
+   "bytes": 3510
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/chat.hpp",
-   "sha256": "b504ac40d3a2ab00760c8f94feeb171188091ed868fb3251f3c429f7a19d2b76",
-   "bytes": 7551
+   "sha256": "c2a74968cc3883c5ba092b4c22542808738e044dab8851b8aea61fac172804bc",
+   "bytes": 10097
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/device.hpp",
-   "sha256": "e3926ab6affabe244615083895773bb78b47b8ab5503d9837727a72dcd96f002",
-   "bytes": 11268
+   "sha256": "1504cf0a40ef3a4ed59372efe1ec660d26e5f056770298f4a877026c71435057",
+   "bytes": 11478
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/device_store.hpp",
-   "sha256": "235300983dc97ca1161336ad4bfb95c54a422e67653230c70d1d4282d19cc0de",
-   "bytes": 2420
+   "sha256": "a6a64fc7f27192204871dfe1c350dbe41d40cb78418c8bf7cbc4b02c502b2d47",
+   "bytes": 5331
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/engine.hpp",
@@ -4998,24 +5043,29 @@
    "bytes": 3156
   },
   {
+   "path": "desktop/e2ev3/include/redvault/e2ev3/send_queue.hpp",
+   "sha256": "95a586e51c00ddc9bd168d77dd7a09244b686cd5325db2dbf4d2cb639575624a",
+   "bytes": 8174
+  },
+  {
    "path": "desktop/e2ev3/include/redvault/e2ev3/v3_server.hpp",
-   "sha256": "9e59d9959f61c9d44c691159d8d139674b750c1a878489615e74c4491b782e3d",
-   "bytes": 6039
+   "sha256": "47b0bf0d47eda22681fd55002a866596b278dccbec745271e1a95db6d60ca92c",
+   "bytes": 6142
   },
   {
    "path": "desktop/e2ev3/src/chat.cpp",
-   "sha256": "e1d0f8288c8f54c76a573cda244a05331ba143d84d5de6184e5dea3501ff1074",
-   "bytes": 36859
+   "sha256": "0cdcb7ef00a6deaf890a21b32d040130f50b12e818ecddeccc64aea4185881bc",
+   "bytes": 44570
   },
   {
    "path": "desktop/e2ev3/src/device.cpp",
-   "sha256": "8824bde3b0c6d12fc0eaba8631a41221986a6369b83577bc944839dd18e8247e",
-   "bytes": 23396
+   "sha256": "b66e9f5d2e59404af85bd1be90ee27c9583350a80046cd0ab4420dcfa15c83ff",
+   "bytes": 23884
   },
   {
    "path": "desktop/e2ev3/src/device_store.cpp",
-   "sha256": "9c9736bcc8bde44d7c39b92b97308c1314b8b3d9c386c645a001abda76545cef",
-   "bytes": 3382
+   "sha256": "c5a7a7d49f7d8f5bd503d1a77b6b3b6928ad11188e84f85334f3b17f61b81738",
+   "bytes": 14321
   },
   {
    "path": "desktop/e2ev3/src/engine.cpp",
@@ -5043,9 +5093,14 @@
    "bytes": 7105
   },
   {
+   "path": "desktop/e2ev3/src/send_queue.cpp",
+   "sha256": "4c860672c4d2ffa643a7380ad7ef1ed61058bd7c1db7f4401b373a4c45f7627d",
+   "bytes": 8703
+  },
+  {
    "path": "desktop/e2ev3/src/v3_server.cpp",
-   "sha256": "14ac52a4fd5db038a6c84df83c86f835a0c9d1c7e5158b42abb4c6a9de2feb1e",
-   "bytes": 6157
+   "sha256": "164a1ce4a03ce25d54ad89ccdd6eb9dc1c706c59f5224f7af7933fda8de6320a",
+   "bytes": 6310
   },
   {
    "path": "desktop/groupcall/CMakeLists.txt",
@@ -5269,28 +5324,33 @@
   },
   {
    "path": "desktop/packaging/msys2-shipped-packages.txt",
-   "sha256": "c6431c60c74a40ebec3602fd9630a534f33076066cd91e82693d06b9cdf1c08d",
-   "bytes": 3211
+   "sha256": "90bec43140e2f74becc5d69b38760ef4a74c322362fe8fb852440d526e73df79",
+   "bytes": 3310
   },
   {
    "path": "desktop/packaging/package-linux.sh",
-   "sha256": "ef91d7a243d8b4ef95de966ff2e7570c64a32ef5962b88e9aee899db130f3401",
-   "bytes": 4202
+   "sha256": "244b016e9062a232884f2a52675a93bbc8932ac39767726389460ecf4ff81852",
+   "bytes": 5359
   },
   {
    "path": "desktop/packaging/package-msix.ps1",
-   "sha256": "8a2eab736211b6e77b81b87e833e24db17022803eb0d8a7be9b9d3fa1d72ceca",
-   "bytes": 5395
+   "sha256": "98db5eaa080c2a87a1082e87c53cc0854244175c5626c8a698a2065216ad9630",
+   "bytes": 5967
   },
   {
    "path": "desktop/packaging/package.ps1",
-   "sha256": "a722e6cce31c5684edd2fa178f7e91cbdd7dd040e29cdeca5fbd3933fa8dd77f",
-   "bytes": 4721
+   "sha256": "7c373ecc09a8407935422708962a724e8c290cac721793714de661a4b189992d",
+   "bytes": 5280
   },
   {
    "path": "desktop/packaging/redvault.iss",
    "sha256": "ef75ff698fea9a54691824d3b510dc607c67e8b45775a6e1a6d6d84b23fca9de",
    "bytes": 3017
+  },
+  {
+   "path": "desktop/packaging/tor-release-args.ps1",
+   "sha256": "156f2efcd74f5e7b832fa2c3ddb5c2564dc31463557b30bb9e27d21fd83eb83f",
+   "bytes": 1959
   },
   {
    "path": "desktop/privacy-proof/desktop-wire-capture.txt",
@@ -5349,8 +5409,8 @@
   },
   {
    "path": "desktop/tests/CMakeLists.txt",
-   "sha256": "2e9dc327ff79571575bf6a1a691656436c09415ca099a5958f3b8b9ccd35aef3",
-   "bytes": 10367
+   "sha256": "3bf7f55038fb1ccbd490dba126bfadeb84c9ce29b2ca672e9f2963377f2dc876",
+   "bytes": 13345
   },
   {
    "path": "desktop/tests/account_repository_test.cpp",
@@ -5409,8 +5469,8 @@
   },
   {
    "path": "desktop/tests/chat_guard_test.cpp",
-   "sha256": "a78d939c7866d900b1bb7427664d938807205d99cf1dbd08a30597edb7e4e55e",
-   "bytes": 17364
+   "sha256": "aa84bb470d6e50dec5f27c1dc0fa955b02b5aaf91dae182ae9a950dfaf7460ef",
+   "bytes": 18070
   },
   {
    "path": "desktop/tests/community_api_test.cpp",
@@ -5453,9 +5513,14 @@
    "bytes": 20663
   },
   {
+   "path": "desktop/tests/e2ev3_rollback_test.cpp",
+   "sha256": "cdc7e5f65203c6e261c51e91aac818e02f0691172aa5c1526cd2acfcee74dca6",
+   "bytes": 13630
+  },
+  {
    "path": "desktop/tests/e2ev3_test.cpp",
-   "sha256": "681a14697f009483c6363a94059d46acb5a398dc35003ed28f693e875fb161f2",
-   "bytes": 49976
+   "sha256": "e6d048bad163a9fb127e29d499b5716dea7443e955830a5e6160e03bd7f1e29e",
+   "bytes": 61974
   },
   {
    "path": "desktop/tests/earnings_test.cpp",
@@ -5549,8 +5614,8 @@
   },
   {
    "path": "desktop/tests/open_source_test.cpp",
-   "sha256": "53b49aef971ed92e7aed0ac8e5986822c710c22462ff0d25c94b122b1fc017bd",
-   "bytes": 4964
+   "sha256": "e2fe0d38fddbe476c84d5608e17a465d430479fd9160fb02de412586bd49050d",
+   "bytes": 5060
   },
   {
    "path": "desktop/tests/outbox_test.cpp",
@@ -5564,8 +5629,8 @@
   },
   {
    "path": "desktop/tests/privacy_test.cpp",
-   "sha256": "6bff7601c2a3f4f7629f1f07746856d052e4c9ebca1f17c0f67b89d9e479eace",
-   "bytes": 15861
+   "sha256": "fcea0f079033070a94ac4178b92aa55862d25cdf9f8680bfb8f47c3acb66b950",
+   "bytes": 18028
   },
   {
    "path": "desktop/tests/qml_channel_stubs/App.qml",
@@ -5714,8 +5779,8 @@
   },
   {
    "path": "desktop/tests/update_test.cpp",
-   "sha256": "2b0eb9278b65a9d68c7252829e1ba871332ef9cb6dc01746a62f71e585e15d5c",
-   "bytes": 14663
+   "sha256": "1482f288ddd29e2ea01fcf5617e1df34ce37b920385e2ebc961b7ba112593a6b",
+   "bytes": 17118
   },
   {
    "path": "desktop/tests/vault_binding_test.cpp",
@@ -5973,6 +6038,16 @@
    "bytes": 11463
   },
   {
+   "path": "desktop/tools/tor_routing_check/CMakeLists.txt",
+   "sha256": "35c3f7ac7e7bfa35c8b7453ed1bd4bb9c1041af8d1aa971560cfd734be0ae90b",
+   "bytes": 838
+  },
+  {
+   "path": "desktop/tools/tor_routing_check/main.cpp",
+   "sha256": "d2bad3121cfba9cbb57d4f9df107284ffb76a63dc773aa82c6c44c4c9d9ee394",
+   "bytes": 6016
+  },
+  {
    "path": "desktop/tools/v3_probe/CMakeLists.txt",
    "sha256": "636303347a79fc471355afe03c6b719b6266a524f039611bab349b4b53dbdd2f",
    "bytes": 523
@@ -5989,13 +6064,13 @@
   },
   {
    "path": "desktop/tools/v3_probe/signal-run.mjs",
-   "sha256": "91e4d4277435f339c5dfbb43749fd525a40c9ba88ab7b6bb9eef4137787501ff",
-   "bytes": 30169
+   "sha256": "d5384b652e6df90fa084f48cd5649073dd886a1f8bc60ce0ca45cca5a4fdfa43",
+   "bytes": 30773
   },
   {
    "path": "desktop/tools/v3_probe/wsl_tunnel.py",
-   "sha256": "5688ad27d6b02967b6329776303b2a8cb7b29d2f4fb7efe66c535f3dd18d3b53",
-   "bytes": 2782
+   "sha256": "5f129bad44a4e37c52ac2c056ac02de97fcb0728f39a8d33fe7a90ddcf1d8e58",
+   "bytes": 2856
   },
   {
    "path": "desktop/tools/woff_to_ttf.py",
@@ -6009,33 +6084,33 @@
   },
   {
    "path": "docs/legal/LIBSIGNAL_MODIFICATIONS.md",
-   "sha256": "0faf61917551359f2ca0492a853a196b9581946c9d416614e112566020a853b7",
-   "bytes": 2419
+   "sha256": "e791e614b2976656549d2aab1b2769594874f30bae2a0225bb55a0d933f8fb09",
+   "bytes": 2469
   },
   {
    "path": "docs/legal/THIRD_PARTY_NOTICES.md",
-   "sha256": "b80733e077a9ec5f913fda405a975e352a6eb20db79f6958fb36c7eac7174f7d",
-   "bytes": 1618
+   "sha256": "0c4cb656e2c99ca65f6330ae06fcacc3d472f11372fb818e4b6e7b788ce3689c",
+   "bytes": 1651
   },
   {
    "path": "docs/legal/sbom/crypto-core-signal.cdx.json",
-   "sha256": "5ad50dcdfa366fe1cdeb15da86093b611e3417bfef59c0fd85c6e8a1c88fdbf5",
-   "bytes": 77490
+   "sha256": "1e0c4171d2dfee9180ac0b5590dc2cad3554c9e5a7fcc59aab6cff0d47b4fc61",
+   "bytes": 81035
   },
   {
    "path": "docs/legal/sbom/crypto-core-web.cdx.json",
-   "sha256": "33ecbc1d29a26c78ff7c74457cfebfe0d5a0eeab1aac9d3e3d2e343a29c463fc",
-   "bytes": 33518
+   "sha256": "718b53f166ee4bbecfa29dccaee7145c70c4b366888ab151f35d8f0783bf92eb",
+   "bytes": 35053
   },
   {
    "path": "docs/legal/sbom/tor-core.cdx.json",
-   "sha256": "4408382b9d4021791c8f2365e153f574c6d17dbc91e83cd97fca84d2b6a22bc1",
-   "bytes": 179057
+   "sha256": "9bb90c9533c682fd0d4058a79d49b0be61f0ce7b743c84fd9513260f2058d212",
+   "bytes": 187227
   },
   {
    "path": "docs/legal/sbom/web-ui.cdx.json",
-   "sha256": "9ad8f70b32f661ed937f0d9cf9f0227e1fcf8b2b996ba6fe544c812372e0024d",
-   "bytes": 46977
+   "sha256": "4716ba65734a97664fb51e499ccc2535595db8e9ef555c5cd52773f0b3c9227d",
+   "bytes": 48839
   },
   {
    "path": "legal/privacy-policy.md",
@@ -6049,43 +6124,43 @@
   },
   {
    "path": "tools/compliance/check.py",
-   "sha256": "07faeb03b686d190eded9bb3a4bebba81428750da8dc88a8dc576f81954e35cf",
-   "bytes": 13365
+   "sha256": "2b474a366a414da34aaec4cae72d7c56125cc2ea0df6092cf930db13d713ce37",
+   "bytes": 13594
   },
   {
    "path": "tools/compliance/license_headers.py",
-   "sha256": "697a661344a889581c7b7291c30c02b2e7e9b57585d20a45b2a53a6d899a1836",
-   "bytes": 4294
+   "sha256": "98b6ef8299d5193bd1ed449518fed0bb7073808581fb0d36492099bef4d6e6c4",
+   "bytes": 4413
   },
   {
    "path": "tools/compliance/make_source_release.py",
-   "sha256": "1cdf71ad79ecef40242a8f704e6ac43615f3c194eb8ff57ad587bd13891f6c89",
-   "bytes": 6435
+   "sha256": "266e60be900575c04d0719b85370872dbb84ffe322745176a02132680153033c",
+   "bytes": 6547
   },
   {
    "path": "tools/compliance/source-release/CONTRIBUTING.md",
-   "sha256": "665cbbde5fb4e9354d8a5892b9f01725e68ca067aabb04b6996fb67145d8fa30",
-   "bytes": 602
+   "sha256": "8a244833b8d8bab3331bc0c732033d341c0ba71ce91cd62eba29ecedbacb97f7",
+   "bytes": 616
   },
   {
    "path": "tools/compliance/source-release/NOTICE.md",
-   "sha256": "a8f14097f9662f4cc14bed7cbb6695515c3419895e884fda780a1d2a1c620424",
-   "bytes": 826
+   "sha256": "fd7f8f6dee3d57bb0906eef25bc1b4775e7429c0ef4c6f05cca88737ed46c14b",
+   "bytes": 843
   },
   {
    "path": "tools/compliance/source-release/README.md",
-   "sha256": "5e6e8b6534b1d233eb3a0e629d29604967b0953b7ed0f1081e73643eb3c7b4e7",
-   "bytes": 1598
+   "sha256": "74ff5c3c32d41abcea8a472ae37e0a1c3b8e93575bca78fc7e7a7f9129f3dcea",
+   "bytes": 1629
   },
   {
    "path": "tools/compliance/source-release/TRADEMARKS.md",
-   "sha256": "83fa8f653000d4685798e1ec39fff4758cce3663308bb98ea2ee8ed6a9f3af1f",
-   "bytes": 1193
+   "sha256": "744866934d93d6713317a86fa5cd575ea7e43c5b40de3f92d4595fe20ff8b6f6",
+   "bytes": 1222
   },
   {
    "path": "tools/compliance/third_party_notices.py",
-   "sha256": "36f7cb99104905a8bd37a87428b91c9b14a062b12d0f9ec057407cddf8d0ed13",
-   "bytes": 12243
+   "sha256": "813812290933e007d4988cb1ce8199297f378b2fda66844e2ec346dcd9929bac",
+   "bytes": 12505
   },
   {
    "path": "tor-core/.gitignore",
@@ -6099,13 +6174,13 @@
   },
   {
    "path": "tor-core/Cargo.toml",
-   "sha256": "f666fbe8414c7e7467300d53b41716d9aaf2c043b634a9d1fb9a958e9e2d3433",
-   "bytes": 2590
+   "sha256": "1e9945ef9c7c670b1311f0d5d59a9c5741628631fe5027c33ab21a9da7796426",
+   "bytes": 2658
   },
   {
    "path": "tor-core/LICENSE",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "tor-core/README.md",
@@ -6469,8 +6544,8 @@
   },
   {
    "path": "ui/LICENSE",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "ui/README.md",
@@ -6494,18 +6569,18 @@
   },
   {
    "path": "ui/package.json",
-   "sha256": "d4a0488d2905456586115727324ccc10d8dd8679336256528714b569e8b532e4",
-   "bytes": 1332
+   "sha256": "c8f44db156a04911853f28a7bc80de3c5074d2a8e42af5fef8e6fd6f779e434a",
+   "bytes": 1376
   },
   {
    "path": "ui/public/legal/LICENSE.txt",
-   "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-   "bytes": 34523
+   "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+   "bytes": 35184
   },
   {
    "path": "ui/public/legal/THIRD_PARTY_NOTICES.txt",
-   "sha256": "cc0ad7155c0507494f2a7052cd10fead70b36a9b4fd0f2fcaa253f43e70b9c6d",
-   "bytes": 735763
+   "sha256": "1afdb3c9674e900132aeef59906eda8c24440b6172b3b1754647ddcd3127399f",
+   "bytes": 749550
   },
   {
    "path": "ui/share/index.html",
@@ -6704,13 +6779,13 @@
   },
   {
    "path": "ui/src/components/OpenSourceDialog.tsx",
-   "sha256": "83cce803564ff1ed09139ab81da2394ab7dea2a57ed9dfd2540cb54ceea6806a",
-   "bytes": 2592
+   "sha256": "73541531ca39dade02a91b30058eef8b8f55374c0585a1df194ed6a2fd5404f0",
+   "bytes": 2658
   },
   {
    "path": "ui/src/components/OpenSourceNotice.tsx",
-   "sha256": "027d15efe04c17fa39b26c2d6c334aea07bb9fe683d6910bd321bfc7d5356506",
-   "bytes": 4465
+   "sha256": "f1c02b3178aff3a2e31ab8b6f5033fb4f24a1b92d1879f0ae353e9b9e70437af",
+   "bytes": 4566
   },
   {
    "path": "ui/src/components/QrScanner.module.css",
@@ -7359,8 +7434,8 @@
   },
   {
    "path": "ui/src/lib/sourceOffer.ts",
-   "sha256": "fdb10d43aaf61ba7bd2e2d9bc5db8952230a5d29cc3d5f684f6771209979cd0f",
-   "bytes": 3106
+   "sha256": "cfa4ba90822c588645283e016966e06ca716caa09ea6b5461ed62681b0c30d55",
+   "bytes": 3180
   },
   {
    "path": "ui/src/lib/storageAnalytics.ts",
@@ -7829,8 +7904,8 @@
   },
   {
    "path": "ui/src/screens/settings/GeneralSettings.tsx",
-   "sha256": "6a0ac7c90ac4a432cd80ecbf8f7921350aac93f7e933d74aefb405ae2ffd3017",
-   "bytes": 10820
+   "sha256": "611fac4aa52af4d8ca7ad2fe7da949c7735ed0ebe04cf57c71796444ab486b1c",
+   "bytes": 11078
   },
   {
    "path": "ui/src/screens/settings/LinkedDevices.tsx",
@@ -7859,8 +7934,8 @@
   },
   {
    "path": "ui/src/screens/settings/SettingsPages.module.css",
-   "sha256": "cd653b76c82784f16f6469770da589b63ab1586fecd7988539e380968c8ab9ed",
-   "bytes": 3885
+   "sha256": "2454d5a9ae92d096a4bc110560be732bc3bd6f13465bf7dbf45bd1764128fc81",
+   "bytes": 3893
   },
   {
    "path": "ui/src/screens/settings/StorySettings.tsx",
@@ -8239,8 +8314,8 @@
   },
   {
    "path": "ui/src/test/sourceOffer.test.ts",
-   "sha256": "9e7729fc2d73e6c2e4d3f3e327bd4d3df73205a3e042b05ad97b2081087feabf",
-   "bytes": 2774
+   "sha256": "4eb381f7cff4d6e244ec3fed689a61e2315f2aad2e93980b0215f8cc80c8bd83",
+   "bytes": 2821
   },
   {
    "path": "ui/src/test/storageAnalytics.test.ts",
@@ -8334,8 +8409,8 @@
   },
   {
    "path": "ui/src/vite-env.d.ts",
-   "sha256": "1124f620e2beae69d0d681c7d15141ebf214d4e83393a068115f5af732d93a0f",
-   "bytes": 664
+   "sha256": "7b17fa896282276c2d1a1a511451cf56eb98fbbf24b2a110d121658b2778fe3a",
+   "bytes": 674
   },
   {
    "path": "ui/tsconfig.json",

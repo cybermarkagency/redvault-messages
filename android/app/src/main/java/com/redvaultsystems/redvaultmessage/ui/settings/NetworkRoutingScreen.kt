@@ -39,24 +39,18 @@ import com.redvaultsystems.redvaultmessage.tor.TorStatus
 import com.redvaultsystems.redvaultmessage.ui.components.Callout
 import com.redvaultsystems.redvaultmessage.ui.components.CalloutTone
 import com.redvaultsystems.redvaultmessage.ui.components.RoundButton
-import com.redvaultsystems.redvaultmessage.ui.components.RvSwitch
 import com.redvaultsystems.redvaultmessage.ui.components.SectionCaps
-import com.redvaultsystems.redvaultmessage.ui.files.MonoFamily
 import com.redvaultsystems.redvaultmessage.ui.theme.RedvaultFonts
 import com.redvaultsystems.redvaultmessage.ui.theme.RedvaultTheme
 
 /**
- * Settings › Privacy › Network routing (docs/tor-routing-plan.md): how each kind
- * of traffic leaves the phone. Read-only on purpose: there is no switch that
- * sends Tor-only features directly. The one choice here is Android's strict
- * no-push mode.
+ * Settings › Privacy & Security › Network routing (docs/tor-by-default.md rule 7): how traffic leaves the phone,
+ * read-only. There is no switch: everything but calls goes through Tor, and nothing is ever sent another way.
  */
 @Composable
 fun NetworkRoutingScreen(
     tor: TorController?,
     queued: Int,
-    strictNoPush: Boolean,
-    onStrictNoPushChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = RedvaultTheme.colors
@@ -72,94 +66,67 @@ fun NetworkRoutingScreen(
             Text("Network routing", fontFamily = RedvaultFonts.display, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.text)
 
             if (tor == null) {
+                // Only a debug build pointed at a local test server.
                 Callout(
-                    "This server isn't on Tor routing yet: everything goes over HTTPS to the message relay, which sees your IP address. Calls go through the call relay (TURN).",
+                    "Development server: this test build talks to it directly, without Tor. Calls go through the call relay (TURN).",
                     CalloutTone.Neutral, R.drawable.ui_info,
                 )
-            } else {
-                SectionCaps("Tor", edge = 0.dp)
-                Card {
-                    val (label, tone) = when (status?.state) {
-                        TorState.Connected -> "Connected" to colors.accent
-                        TorState.Connecting -> "Connecting · ${status.progress}%" to colors.warn
-                        else -> "Unavailable" to colors.danger
-                    }
-                    Line("Tor", status?.detail?.takeIf { it.isNotBlank() } ?: "Built into this app", label, tone)
-                    Divider()
-                    Line("Onion service", tor.onionHost.take(16) + "…" + tor.onionHost.takeLast(12), if (queued > 0) "$queued queued" else "", colors.text3)
-                }
-                if (status?.state == TorState.Unavailable) Callout(TOR_UNAVAILABLE_MESSAGE, CalloutTone.Warn, R.drawable.ui_alert_circle)
             }
 
-            SectionCaps("How each kind of traffic travels", edge = 0.dp)
             Card {
-                val route = if (tor != null) "Tor only" else "HTTPS"
-                listOf("Text messages", "Encrypted photos", "Encrypted files", "Private Stories", "Voice messages").forEachIndexed { i, feature ->
-                    if (i > 0) Divider()
-                    Line(feature, "End-to-end encrypted", route, if (tor != null) colors.accent else colors.text2)
-                }
+                Line(
+                    "Messages, files and account",
+                    "Text, photos, files, voice messages, Stories, avatars and notifications",
+                    if (tor != null) "Through Tor" else "Direct (test server)",
+                    if (tor != null) colors.accent else colors.text2,
+                )
                 Divider()
-                Line("Voice and video calls", "End-to-end encrypted media", "WebRTC + TURN", colors.text2)
+                Line("Calls", "Voice and video, end-to-end encrypted", "Encrypted relay (not Tor)", colors.text2)
             }
+
             if (tor != null) {
+                SectionCaps("Tor", edge = 0.dp)
+                Card {
+                    val (label, tone) = torLabel(status)
+                    Line("Tor connection", status?.detail?.takeIf { it.isNotBlank() } ?: "Built into this app", label, tone)
+                    if (queued > 0) {
+                        Divider()
+                        Line("Waiting to send", "Encrypted on this phone until Tor connects", "$queued queued", colors.text3)
+                    }
+                }
+                if (status?.state == TorState.Unavailable) Callout(TOR_UNAVAILABLE_MESSAGE, CalloutTone.Warn, R.drawable.ui_alert_circle)
                 Text(
-                    "Messages, photos, files, Stories and voice messages leave this phone only through Tor, to the service's onion address. " +
-                        "There's no setting that sends them another way: if Tor can't connect, they wait here, encrypted, and go out once it does. " +
-                        "They're never shown as sent before the server has them.",
+                    "Messages, files and your account reach the service only through Tor, at its onion address. There's no setting that sends " +
+                        "them another way: if Tor can't connect, they wait here, encrypted, and go out once it does. They're never shown as sent " +
+                        "before the server has them. Notifications come from the app's own background connection, through Tor too: no push " +
+                        "service run by anyone else is used.",
                     color = colors.text2, fontSize = 14.sp,
                 )
             }
             Text(
                 "Calls don't go through Tor: Tor can't carry live audio and video well. They're relayed through the call server's TURN relay, " +
                     "so the people you call never learn your IP address, but the relay itself does while the call lasts. Calls are end-to-end encrypted " +
-                    "either way; they aren't anonymous.",
+                    "either way; they aren't anonymous. Setting up a call still goes through Tor.",
                 color = colors.text2, fontSize = 14.sp,
             )
             Text(
                 "Tor hides your IP address from the message server and the network from what you send; it doesn't make you anonymous by itself. " +
-                    "What you write, who you write to, and the device you use can still identify you.",
+                    "What you write, who you write to, and the device you use can still identify you. Links you open go to your browser, outside the app.",
                 color = colors.text3, fontSize = 13.sp,
             )
-
-            run {
-                SectionCaps("Notifications", edge = 0.dp)
-                Card {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Strict no-push mode", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                if (tor != null) {
-                                    "Never a push service run by someone else. Notifications come only from this server, through Tor."
-                                } else {
-                                    "No push registration and no background connection: nothing can wake this phone for Redvault."
-                                },
-                                color = colors.text3, fontSize = 12.5.sp,
-                            )
-                        }
-                        RvSwitch(checked = strictNoPush, onCheckedChange = onStrictNoPushChange, description = "Strict no-push mode")
-                    }
-                }
-                Text(
-                    if (strictNoPush && tor != null) {
-                        "On: no UnifiedPush app is used. Notifications come only through Redvault's own background connection to this " +
-                            "server, inside Tor, never directly (turn it off under Notifications if you don't want it). It uses more " +
-                            "battery than a push app, and a Tor reconnect can delay a notification by tens of seconds. A push says only " +
-                            "that something arrived: never who from, which chat, or any text."
-                    } else if (strictNoPush) {
-                        "On: you only get messages and calls while the app is open. No notification arrives when it's closed, and a call to you rings only if the app is open."
-                    } else {
-                        "Off: notifications come through your UnifiedPush app (such as ntfy) if you have one, or else through Redvault's own " +
-                            "background connection to this server. A push says only that something arrived (\"You have a new message\"): never " +
-                            "who from, which chat, or any text, and it's encrypted for this phone. The push app talks to its own push server " +
-                            (if (tor != null) "outside Tor, " else "") +
-                            "so that server learns when pushes reach this phone; our server learns the push address and when it sends one." +
-                            (if (tor != null) " The background connection goes through Tor like everything else." else "")
-                    },
-                    color = colors.text3, fontSize = 13.sp,
-                )
-            }
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+/** "Connecting through Tor…" / "Can't reach Tor" (docs/tor-by-default.md rule 4), the same words everywhere. */
+@Composable
+private fun torLabel(status: TorStatus?): Pair<String, Color> {
+    val colors = RedvaultTheme.colors
+    return when (status?.state) {
+        TorState.Connected -> "Connected" to colors.accent
+        TorState.Connecting -> "Connecting through Tor… ${status.progress}%" to colors.warn
+        else -> "Can't reach Tor" to colors.danger
     }
 }
 
@@ -177,14 +144,14 @@ private fun Line(title: String, detail: String, value: String, tone: Color) {
     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = colors.text, fontSize = 15.sp)
-            Text(detail, color = colors.text3, fontSize = 12.5.sp, fontFamily = if (title == "Onion service") MonoFamily else null)
+            Text(detail, color = colors.text3, fontSize = 12.5.sp)
         }
         if (value.isNotEmpty()) Text(value, color = tone, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 /**
- * The thin strip above the tabs (Tor routing only): Tor connecting / connected / unavailable, what's
+ * The thin strip above the tabs (whenever the app goes through Tor): connecting / connected / can't reach Tor, what's
  * waiting, and, during a call, that it goes WebRTC through the TURN relay rather than Tor.
  */
 @Composable
@@ -192,13 +159,13 @@ fun TorStatusStrip(status: TorStatus, queued: Int, pausedUploads: Int, callActiv
     val colors = RedvaultTheme.colors
     val (text, tone) = when (status.state) {
         TorState.Connected -> "Tor connected" to colors.accent
-        TorState.Connecting -> "Tor connecting · ${status.progress}%" to colors.warn
-        TorState.Unavailable -> "Tor unavailable" to colors.danger
+        TorState.Connecting -> "Connecting through Tor… ${status.progress}%" to colors.warn
+        TorState.Unavailable -> "Can't reach Tor" to colors.danger
     }
     val extras = buildList {
         if (queued > 0) add("$queued queued")
         if (pausedUploads > 0) add("$pausedUploads upload${if (pausedUploads == 1) "" else "s"} paused")
-        if (callActive) add("call via WebRTC + TURN relay")
+        if (callActive) add("call via encrypted relay, not Tor")
     }
     Row(
         Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 16.dp, vertical = 6.dp),

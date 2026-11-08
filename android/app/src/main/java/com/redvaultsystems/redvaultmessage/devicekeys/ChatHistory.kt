@@ -14,7 +14,7 @@ import javax.crypto.spec.SecretKeySpec
 
 /**
  * One message in this device's local v3 history (docs/multi-device-threat-model.md 9.7). Never uploaded.
- * [direction] is "in" or "out"; [status] is "sent", "failed" or "received". Records written before files and ops
+ * [direction] is "in" or "out"; [status] is "sent", "queued" (waiting, encrypted, for Tor), "failed" or "received". Records written before files and ops
  * existed have neither field, and read back as plain text messages.
  */
 @Serializable
@@ -67,7 +67,7 @@ interface ChatHistory {
 /**
  * History kept encrypted at rest: one AES-256-GCM file per account, under a key derived from the device's
  * storage key (V3Device.historyKey), so it is only readable while that key's Keystore wrapper works.
- * Written whole on each change (a development preview: the file is small); wiped with the device.
+ * Written whole on each change (the file is small); wiped with the device.
  */
 class EncryptedChatHistory(private val file: File, private val key: ByteArray) : ChatHistory {
     @Serializable

@@ -110,8 +110,17 @@ class PushTest {
         assertEquals(PushRoute.Off, route(strict = true, tor = true, notifications = false))
         assertEquals(PushRoute.Off, route(strict = true, tor = true, enabled = false))
         assertEquals(PushRoute.BackgroundConnection, fallbackRoute(enabled = true, strictNoPush = true, backgroundConnection = true, notificationsAllowed = true, torRouted = true))
-        // Tor routing alone changes nothing when strict mode is off.
-        assertEquals(PushRoute.UnifiedPush, route(tor = true))
+    }
+
+    @Test
+    fun throughTorThereIsNoPushServiceOnlyTheBackgroundConnection() {
+        // docs/tor-by-default.md rule 6: never UnifiedPush through Tor, even with a key and a distributor installed.
+        assertEquals(PushRoute.BackgroundConnection, route(tor = true))
+        assertEquals(PushRoute.BackgroundConnection, route(tor = true, strict = false))
+        assertEquals(PushRoute.BackgroundConnection, fallbackRoute(enabled = true, strictNoPush = false, backgroundConnection = true, notificationsAllowed = true, torRouted = true))
+        // The person's own switches still count.
+        assertEquals(PushRoute.Off, route(tor = true, notifications = false))
+        assertEquals(PushRoute.Off, route(tor = true, enabled = false))
     }
 
     @Test

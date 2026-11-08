@@ -119,7 +119,7 @@ data class Message(
     val queued: Boolean = false,
     /** Why the last attempt failed, safe to show. */
     val queueError: String? = null,
-    /** Sent or received with per-device keys (protocol 3, development preview) rather than the usual encryption. */
+    /** Sent or received with per-device keys (protocol 3) rather than the usual encryption. */
     val v3: Boolean = false,
     /** The server refused it: it waits for Retry or Discard. */
     val queueHeld: Boolean = false,

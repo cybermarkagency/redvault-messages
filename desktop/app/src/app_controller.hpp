@@ -114,6 +114,8 @@ public:
     AccountSession* account() const { return account_.get(); }
     AppLock* lock() const { return lock_.get(); }
     const std::string& apiBase() const { return apiBase_; }
+    /// The transport settings every request uses: only to our own server, and only through Tor when tor_ is enabled.
+    net::CurlTransport::Options transportOptions(std::chrono::seconds connectTimeout, std::chrono::seconds stallTimeout) const;
     LiveSession* live() const { return live_.get(); }
     CallController* calls() const { return calls_.get(); }
     GroupCallController* groupCalls() const { return groupCalls_.get(); }
@@ -172,7 +174,7 @@ signals:
     void recoveryNeedsCodeChanged();
     void handleChanged();
     /// A followed channel's new post, for the tray notifications.
-    /// Device-key messages arrived in chats that are not open (preview).
+    /// Device-key messages arrived in chats that are not open.
     void deviceKeyMessages(int count);
     void channelPostNotification(const QString& channelId, const QString& channelName, const QString& preview);
     /// Forwarded from the chat session, for the tray notifications.
@@ -198,8 +200,6 @@ private:
     std::string apiBase_;
     std::string allowedHost_;
     TorController* tor_ = nullptr;
-    /// The transport settings every request uses (Tor-only when tor_ is enabled).
-    net::CurlTransport::Options transportOptions(std::chrono::seconds connectTimeout, std::chrono::seconds stallTimeout) const;
     std::shared_ptr<net::SessionCookieJar> cookies_;
     std::shared_ptr<api::ApiClient> api_;
     std::shared_ptr<data::AuthRepository> auth_;

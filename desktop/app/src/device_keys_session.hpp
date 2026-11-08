@@ -31,6 +31,7 @@
 namespace redvault::app {
 
 struct Failure;
+class TorController;
 
 /// The open chat's device-key messages (docs/multi-device-threat-model.md section 9.7), oldest first.
 class V3ChatModel : public QAbstractListModel {
@@ -73,11 +74,20 @@ private:
 };
 
 /**
- * Settings > Device keys (preview): per-device encryption keys ("protocol 3",
- * docs/multi-device-threat-model.md), the desktop counterpart of the web app's
- * screens/settings/DeviceKeys.tsx. A development preview: it does nothing
- * unless this build includes the engine (REDVAULT_E2E_V3) AND the server has
- * E2E_V3_ENABLED. Messages keep using the current encryption.
+ * Settings > Devices & encryption: per-device encryption keys ("protocol 3",
+ * docs/multi-device-threat-model.md) with Signal sessions, the default path for
+ * one-to-one chats and plain groups (docs/signal-integration/07-step1-default-path.md).
+ * It does nothing unless this build includes the engine (REDVAULT_E2E_V3) AND
+ * the server has E2E_V3_ENABLED.
+ *
+ * ensureDeviceKeys() runs after sign-in, on unlock and every 6 hours: the first
+ * device is set up without asking when the account has no signed list, and
+ * Signal is kept up to date on a trusted one. A computer that isn't in the
+ * account's list is never added automatically (`needsLink`).
+ *
+ * A chat picks its protocol by itself (`chatMode`): device keys when every
+ * member has a signed device list, or once the chat is pinned to them; the
+ * older protocol only while some member has no list and the chat isn't pinned.
  *
  * The device's keys live only on this computer: the engine's state in a file,
  * its storage key in DPAPI / the system keyring / a user-only file (key_vault.hpp).
@@ -115,14 +125,25 @@ class DeviceKeysSession : public QObject {
     /// {text, when} newest first.
     Q_PROPERTY(QVariantList events READ events NOTIFY changed)
     Q_PROPERTY(bool trusted READ trusted NOTIFY changed)
-    /// The open chat's device-key messages, and whether the chat is in device-key mode (pinned, or switched on by the person).
+    /// The open chat's device-key messages, and whether the chat is in device-key mode (pinned, or every member has device keys).
     Q_PROPERTY(redvault::app::V3ChatModel* chat READ chat CONSTANT)
     Q_PROPERTY(bool chatActive READ chatActive NOTIFY chatChanged)
+    /**
+     * How the open chat sends: "" (not this one: a community, or no engine / the server has it off),
+     * "checking" (not known yet: nothing is sent until it is), "device" (device keys),
+     * "older" (some member has no device keys and the chat isn't pinned: the older protocol),
+     * "link" (they have device keys but this computer isn't linked: nothing can be sent until it is).
+     */
+    Q_PROPERTY(QString chatMode READ chatMode NOTIFY chatChanged)
+    /// The account has a signed device list and this computer isn't in it: link it in Settings.
+    Q_PROPERTY(bool needsLink READ needsLink NOTIFY changed)
+    /// Shown once after this computer was set up as the first device: offer to create a recovery key.
+    Q_PROPERTY(bool recoveryNotice READ recoveryNotice NOTIFY changed)
     Q_PROPERTY(bool chatSending READ chatSending NOTIFY chatChanged)
     Q_PROPERTY(QString chatError READ chatError NOTIFY chatChanged)
     /// What's happening to a file in a device-key chat ("Uploading..."), empty when nothing is.
     Q_PROPERTY(QString chatFileActivity READ chatFileActivity NOTIFY chatChanged)
-    /// Whether the other side of the open chat has device keys: "unknown", "yes" or "no" (a group: whether any other member has).
+    /// Whether the other side of the open chat has device keys: "unknown", "yes" or "no" (a group: whether every other member has).
     Q_PROPERTY(QString chatContact READ chatContact NOTIFY chatChanged)
     /// Which protocol the open one-to-one chat uses (M5): "signal" (Signal sessions with every device), "olm" (the
     /// device-key protocol), "mixed" (some of each), or "" (not known, or a group).
@@ -164,6 +185,9 @@ public:
     bool interrupted() const { return interrupted_; }
     V3ChatModel* chat() { return &chatModel_; }
     bool chatActive() const { return chatActive_; }
+    QString chatMode() const { return chatMode_; }
+    bool needsLink() const { return status_ == QStringLiteral("pair") || status_ == QStringLiteral("removed"); }
+    bool recoveryNotice() const { return recoveryNotice_ && status_ == QStringLiteral("trusted"); }
     bool chatSending() const { return chatSending_; }
     QString chatError() const { return chatError_; }
     QString chatFileActivity() const { return chatFileActivity_; }
@@ -173,15 +197,16 @@ public:
     QString chatNotice() const { return chatNotice_; }
     QVariantMap unreadChats() const { return unread_; }
 
-    /// Whether this chat sends only with device keys, open or not (the in-call chat panel has to know too).
+    /// Whether this chat must not send with the older protocol, open or not (the in-call chat panel has to know too):
+    /// it's pinned to device keys, or it's the open chat and it uses device keys or isn't decided yet.
     Q_INVOKABLE bool chatPinned(const QString& chatId);
-    /// The chat on screen: loads its device-key history, and switches device-key mode on when the chat is pinned to it.
+    /// Why the older protocol can't send in this chat when it isn't simply on device keys ("checking", "link"); empty otherwise.
+    QString chatRefusal(const QString& chatId) const;
+    /// The chat on screen: loads its device-key history and works out its mode (chatMode).
     Q_INVOKABLE void openChat(const QString& chatId, const QString& contactUserId, bool isGroup, bool eligible);
     Q_INVOKABLE void closeChat();
-    /// The person chooses device keys for this chat; the first message sent pins it.
-    Q_INVOKABLE void useDeviceKeys();
-    /// The explicit step back to the current protocol (9.1): unpins; messages stay in the device-key history.
-    Q_INVOKABLE void useOlderProtocol();
+    /// Unpins the open chat from device keys (9.1). Not offered anywhere in the app (no way back, step 1); kept for tests and tools.
+    void useOlderProtocol();
     Q_INVOKABLE void sendChat(const QString& text);
     Q_INVOKABLE void retryChat(const QString& messageId);
     /// Adds the emoji, or takes it away if it's already your reaction.
@@ -200,6 +225,20 @@ public:
 
     /// Asks the server whether protocol 3 is on and reads this computer's device and the account's list.
     Q_INVOKABLE void refresh();
+    /// The background check (after sign-in, on unlock, every 6 hours): sets up the first device when the account has
+    /// no signed list, keeps Signal up to date when trusted. Silent: a failure is retried at the next one.
+    Q_INVOKABLE void ensureDeviceKeys();
+    /// Whether the app is locked now (the check waits for the unlock).
+    void setLockCheck(std::function<bool()> locked) { locked_ = std::move(locked); }
+    /**
+     * The app's Tor gateway (docs/tor-by-default.md). Every request already goes through the app's one
+     * transport, so through Tor; this only decides when a send waits: while Tor isn't connected a send is
+     * queued (encrypted on this computer) instead of failing, and the queue goes, in order, once it is.
+     */
+    void setTor(TorController* tor);
+    Q_INVOKABLE void dismissRecoveryNotice();
+    /// Opens Settings > Devices & encryption (a banner or a chat asks for it).
+    Q_INVOKABLE void showSettings() { emit showSettingsRequested(); }
     /// This computer becomes the first trusted device; the account's current key vouches for it.
     Q_INVOKABLE void setUp();
     /// A new computer: makes its own keys and asks the trusted devices to approve it; then shows `joinCodes`.
@@ -214,7 +253,7 @@ public:
     Q_INVOKABLE void rejectAnswer();
     /// Removes a trusted device from the list.
     Q_INVOKABLE void revoke(const QString& deviceId);
-    /// Turns Signal off for one of this account's devices, in the signed list. Contacts are told (development builds).
+    /// Turns Signal off for one of this account's devices, in the signed list. Contacts are told. Not offered in the app.
     Q_INVOKABLE void turnOffSignal(const QString& deviceId);
     /// Removes a device that was never approved.
     Q_INVOKABLE void removeWaiting(const QString& deviceId);
@@ -255,13 +294,26 @@ signals:
     void chatFileDone(const QString& fileUrl);
     void chatFileSaved(const QString& path);
     void sessionExpired();
+    void showSettingsRequested();
 
 private:
     void setBusy(bool busy);
     void setError(const QString& message);
     bool ready() const;
+    void refreshWith(bool quiet);
+    /// Works out the open chat's mode from what's known now (status, pin, the members' lists).
+    void decideChat();
+    void setChatMode(const QString& mode);
     bool refreshing_ = false;
     bool interrupted_ = false;
+    /// A refresh answered (the server's flag and this computer's status are known), so chats can be decided.
+    bool known_ = false;
+    /// An ensureDeviceKeys() check is waiting for its refresh: set up the first device if that's what it finds.
+    bool ensurePending_ = false;
+    bool autoSettingUp_ = false;
+    bool recoveryNotice_ = false;
+    std::function<bool()> locked_;
+    QTimer ensureTimer_;
 
 #ifdef REDVAULT_HAS_E2E_V3
     struct Snapshot;
@@ -271,9 +323,18 @@ private:
     e2ev3::Backend backend();
     void abandonJoin(const QString& message);
     void finishAnswer();
+    /// The first device, set up by ensureDeviceKeys(): like setUp() but silent.
+    void autoSetUp();
 
     std::shared_ptr<e2ev3::DeviceStore> store_;
     std::shared_ptr<e2ev3::V3Server> server_;
+    /// server_ itself: the HTTP server, with chat sends queued while Tor is down (send_queue.hpp).
+    std::shared_ptr<e2ev3::QueueingV3Server> queueing_;
+    /// Tor routing is on and Tor isn't connected: sends wait.
+    bool torDown() const;
+    /// Sends what waited for Tor, in order (nothing if Tor is down or nothing waits).
+    void drainQueued();
+    bool draining_ = false;
     // One instance of the device for the session: its state lives in memory between engine calls.
     std::shared_ptr<e2ev3::V3Device> device_;
     std::shared_ptr<e2ev3::ChatHistory> history();
@@ -281,7 +342,8 @@ private:
     void checkContact();
     using ChatWork = std::function<void(e2ev3::V3Device&, e2ev3::ChatHistory&, const std::string& chat, const std::string& contact)>;
     /// Runs one send on the chat thread, after reading what arrived first (9.6). `fromComposer`: it holds the composer until it's done.
-    void runChat(ChatWork work, const QString& fallback, bool fromComposer);
+    /// `queue`: what to do instead while Tor is down or earlier sends still wait (queue it, so nothing overtakes).
+    void runChat(ChatWork work, const QString& fallback, bool fromComposer, ChatWork queue = {});
     void chatFailed(const Failure& failure, const QString& fallback);
     void setChatFileActivity(const QString& activity);
     std::optional<e2ev3::ChatRecord> shownMessage(const QString& messageId);
@@ -301,6 +363,7 @@ private:
 
     std::shared_ptr<api::ApiClient> api_;
     std::shared_ptr<const data::SelfIdentity> identity_;
+    TorController* tor_ = nullptr;
     QThreadPool pool_;
     QThreadPool waitPool_;
     QThreadPool chatPool_;
@@ -309,6 +372,9 @@ private:
     QString chatId_;
     QString chatContactUser_;
     QString chatContact_ = QStringLiteral("unknown");
+    QString chatMode_;
+    /// The chat whose members' lists are being asked for (one check at a time).
+    QString contactCheckFor_;
     QString chatProtocol_;
     int chatHeld_ = 0;
     QString chatNotice_;

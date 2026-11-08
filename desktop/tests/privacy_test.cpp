@@ -27,6 +27,7 @@
 #include "redvault/api/channel_api.hpp"
 #include "redvault/net/cookie_jar.hpp"
 #include "redvault/net/curl_transport.hpp"
+#include "redvault/update/update.hpp"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -308,6 +309,41 @@ TEST_CASE("no connection is ever opened to a third party", "[privacy]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
     CHECK(server.connections() == 0);
     appendToReport("=== third-party request to " + thirdParty + "\nrefused before connecting; connections the server saw: " +
+                   std::to_string(server.connections()) + "\n\n");
+}
+
+TEST_CASE("Tor by default: the real onion service is the only server, and nothing leaves without Tor", "[privacy][tor]") {
+    // docs/tor-by-default.md: the release default, built from cmake/tor_settings.cmake.
+    const std::string base = REDVAULT_TEST_ONION_API_BASE;
+    const auto url = net::parseUrl(base);
+    REQUIRE(url);
+    CHECK(url->scheme == "http");
+    REQUIRE(net::isOnionHost(url->host));
+    CHECK(url->path == "/redvaultmessages/api/");
+
+    RecordingServer server;
+    net::CurlTransport::Options options;
+    options.allowedHost = url->host;
+    options.torGate = [] { return std::optional<net::SocksEndpoint>(); };  // Tor down
+    net::CurlTransport transport(options);
+    // Tor down: nothing is sent, and there is no direct retry.
+    CHECK_THROWS_AS(transport.send({"GET", base + "public/routing", {}, {}}), net::TorUnavailableError);
+    // The normal site and anything else are refused before a socket opens, Tor or not.
+    for (const std::string other : {std::string("https://www.redvaultsystems.com/redvaultmessages/api/public/routing"),
+                                    "http://127.0.0.1:" + std::to_string(server.port()) + "/api/public/routing"}) {
+        CHECK_THROWS_AS(transport.send({"GET", other, {}, {}}), net::NetworkError);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    CHECK(server.connections() == 0);
+    CHECK(transport.socketLog().allowed == 0);
+
+    // Updates come from the same onion service, never the normal internet.
+    const auto route = update::updateRoute(base, true, "https://www.redvaultsystems.com/redvaultmessages/desktop/latest.json",
+                                           "https://www.redvaultsystems.com/redvaultmessages/desktop/");
+    REQUIRE(route);
+    CHECK(net::parseUrl(route->manifestUrl)->host == url->host);
+    CHECK(net::parseUrl(route->downloadPrefix)->host == url->host);
+    appendToReport("=== Tor by default: " + url->host + " only; with Tor down nothing was sent, other hosts refused, connections: " +
                    std::to_string(server.connections()) + "\n\n");
 }
 
