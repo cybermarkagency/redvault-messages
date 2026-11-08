@@ -71,8 +71,8 @@ android {
         applicationId = "com.redvaultsystems.redvaultmessage"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.4.0"
+        versionCode = 9
+        versionName = "0.5.0"
         // The Tor-only edition installs next to the normal app instead of replacing it.
         if (torOnly) {
             applicationIdSuffix = ".tor"

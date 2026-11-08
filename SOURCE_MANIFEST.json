@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-08T00:04:46+00:00",
- "repository_commit": "abd59a3a95a3b2148f25960ca0daede468c00652",
+ "generated": "2026-11-08T04:41:01+00:00",
+ "repository_commit": "91e43d2242cb4adc65d5134acd7ee46ae9c21612",
  "branch": "push/unifiedpush",
  "uncommitted_changes_included": false,
  "app_versions": {
   "desktop": "0.6.0",
-  "android": "0.4.0",
+  "android": "0.5.0",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -89,8 +89,8 @@
   },
   {
    "path": "android/app/build.gradle.kts",
-   "sha256": "d1f66d404b43de0441cca334169fbca1fd13574ea2e1f8153ac52191ad98104f",
-   "bytes": 20379
+   "sha256": "cf30a6310bf33b63daf07b72df6120aca215903610036763674a65151c6ca1ac",
+   "bytes": 20013
   },
   {
    "path": "android/app/proguard-rules.pro",
