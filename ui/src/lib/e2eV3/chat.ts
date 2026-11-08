@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Protocol-3 chat messages on this device (docs/multi-device-threat-model.md
 // section 9): the envelope inside the Olm/Megolm plaintext, the per-device
 // history that never leaves this browser, and the one-to-one and group

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Where the backend lives — root-relative /api in dev, or a prefixed path
 // (e.g. /redvaultmessages/api) when VITE_API_BASE is set at build time.
 // See the comment at the top of api.ts.

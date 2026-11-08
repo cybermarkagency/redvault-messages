@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import sodium from "libsodium-wrappers-sumo";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadCallHistory, recordCall, type CallRecord } from "../lib/callHistory.js";

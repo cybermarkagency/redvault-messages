@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Interactive stickers on this device: answering, reading what the author published, and, for the
 // author, opening the answers sealed to them and publishing totals. The crypto is in
 // lib/storyCrypto.ts; the design and what the server can learn in docs/stories-advanced/.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Drives AuthRepository against a tiny in-memory stand-in for the server's
 // auth routes, with real crypto, so register → login → recover round-trips
 // the same key material the server would store.

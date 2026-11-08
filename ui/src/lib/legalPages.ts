@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The public Privacy Policy and Terms of Service pages
 // (www.redvaultsystems.com/redvaultmessages/privacy.html and terms.html),
 // rendered at build time from legal/*.md, the same text every app shows at

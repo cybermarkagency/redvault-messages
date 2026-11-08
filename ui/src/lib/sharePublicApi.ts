@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The share page's calls to /api/public/shares (docs/public-share-links.md).
 // No cookie, no referrer, nothing cached: opening a link never involves an
 // account, and the link's secret never leaves this page (only tokens derived

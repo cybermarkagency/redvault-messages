@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Runs the Linux probe inside WSL: rv-tor-probe with the given arguments, fresh
 # state/cache dirs under ~/rv-tor-run/<name> unless KEEP=1.
 set -e

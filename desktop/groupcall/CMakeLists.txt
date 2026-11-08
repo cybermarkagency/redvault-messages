@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Group calls: LiveKit's prebuilt native client library (livekit-ffi), loaded
 # at run time and driven with its protobuf protocol.
 #

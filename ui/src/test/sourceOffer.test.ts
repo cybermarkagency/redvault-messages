@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The AGPL source offer's build configuration (src/lib/sourceOffer.ts).
 import { describe, expect, it } from "vitest";
 import { APP_VERSION, legalFileUrl, parseHttpsUrl, resolveSourceOffer } from "../lib/sourceOffer.js";

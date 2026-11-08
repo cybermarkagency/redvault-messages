@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Interactive story stickers: parsing, sealed answers and sealed totals are the web app's byte for
 // byte (vectors made by its own code: vectors/make_story_interactive_vectors.ts), and everything a
 // malicious server or sender could change is refused.

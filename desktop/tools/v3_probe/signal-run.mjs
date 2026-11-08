@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // M4 (docs/signal-integration/): rv-signal-v1 between the real apps' code on three platforms, through the
 // REAL server code on a throwaway PostgreSQL cluster. Development only: throwaway accounts, nothing deployed.
 //

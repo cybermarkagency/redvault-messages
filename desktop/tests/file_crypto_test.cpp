@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Pins the desktop file encryption to the web client's format
 // (ui/src/lib/fileCrypto.ts), using the same vector as Android's FileCryptoTest.
 

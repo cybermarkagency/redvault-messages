@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // New-post notifications for followed channels, worked out on this device:
 // the app checks each followed channel itself (public reads, no cookie), so
 // the server still keeps no follower list and followers stay unlimited and

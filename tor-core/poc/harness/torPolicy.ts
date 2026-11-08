@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /**
  * Prototype of the server-side half of the Tor-only policy (to move into
  * server/src/middleware once approved). The server can't trust anything a

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Local-only convenience: remembers the handle (never the password or any
 // key material) of whoever last signed in on this browser, so a reload
 // doesn't look like "the account vanished" — it lands on the Log in tab

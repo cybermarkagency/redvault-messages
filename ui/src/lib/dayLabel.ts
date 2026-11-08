@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /** The day shown between messages in a chat or a channel: "Today", "Yesterday", or the date. */
 export function dayLabel(epochMs: number): string {
   const day = new Date(epochMs);

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Turns /proc/net/{tcp,tcp6,udp,udp6} samples (from socket-sampler.sh) into the
 connection log check_relays.py reads ("kind|local|remote|port|state"), keeping
 only sockets owned by one Android app UID.

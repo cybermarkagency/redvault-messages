@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Short authentication words for a call ("harbor velvet orbit cinder").
 // Derived from both sides' DTLS certificate fingerprints, which is what the
 // encrypted media is actually pinned to: if anyone were relaying the media

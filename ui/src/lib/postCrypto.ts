@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Exclusive posts, end-to-end encrypted (docs/creator-earnings.md).
 //
 // Each post has its own random key K. Its body (text, and the key + header

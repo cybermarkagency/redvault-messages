@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # The engine for the web app (ui/src/lib/e2eV3): WebAssembly plus its JS glue
 # in crypto-core/pkg/web, which the web app loads only when the protocol-3
 # preview is switched on. Needs Rust 1.99.1 with the wasm32 target and

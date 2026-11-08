@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Samples the device's socket tables every half second until stopped, for the
 # Android leak check: procnet_to_connlog.py then keeps the app's own UID and
 # check_relays.py checks every remote end against the Tor consensus.

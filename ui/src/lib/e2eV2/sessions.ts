@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Sessions between this device and each other device (plain data, no I/O).
 //
 // Each remote device has a SessionRecord: the session in use plus a few

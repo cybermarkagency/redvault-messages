@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Shared set-up for the fuzz targets: real devices made once per process through the engine's
 //! public JSON interface (no private access), with a Signal session and a group between them.
 #![allow(dead_code)]

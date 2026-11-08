@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Regression test for the Windows bootstrap hang (Arti issues #2678 and #2726):
 //! saturating-time 0.5.0 loops forever on Windows the first time a SystemTime
 //! limit is needed, which Arti hits while parsing the consensus. The fix is

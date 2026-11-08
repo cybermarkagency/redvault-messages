@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Per-device, per-account preferences that never leave this browser:
 // favorites, muted contacts, chosen audio/video devices, and small UI
 // choices. None of this is sent to the server. Every access is guarded:

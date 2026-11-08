@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Message signatures (db/migrations/030, docs/group-keys-and-signatures.md).
 //
 // Everyone in a chat holds its key, so encryption alone can't tell members

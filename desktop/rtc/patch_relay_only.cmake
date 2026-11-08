@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Makes libdatachannel's Relay policy true on the wire. Included after FetchContent has the sources.
 #
 # TransportPolicy::Relay only stops local candidates being announced. libjuice

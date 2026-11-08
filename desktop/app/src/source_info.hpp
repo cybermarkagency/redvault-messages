@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 #pragma once
 
 // Settings > About, "Open-Source Licenses and Source Code": the source link and contact come from the build

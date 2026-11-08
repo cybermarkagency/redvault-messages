@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Produces post_vectors.json with the web app's own code, so the desktop
 // app's exclusive-post crypto and body format are pinned to it byte for
 // byte. Not part of any build: copy it into ui/src/test/ as

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // A one-to-one call between two real web-app users in two headless browsers (fake microphones), through the real
 // coturn the test server hands out (REST credentials), watched with the browsers' own WebRTC statistics.
 //

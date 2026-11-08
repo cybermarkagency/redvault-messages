@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Produces story_vectors.json with the web app's own code, so the desktop
 // app's story crypto and formats are pinned to it byte for byte. Not part of
 // any build: copy it into ui/src/test/ as makeStoryVectors.test.ts, run

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Captions (subtitles) for video and audio stories: typed by the author, or imported from an .srt file.
 // Nothing is transcribed for you: speech recognition would mean sending the recording to a service.
 import { MAX_CAPTIONS, MAX_CAPTION_END_MS, MAX_CAPTION_TEXT, parseCaptions, type StoryCaption } from "../storyCrypto.js";

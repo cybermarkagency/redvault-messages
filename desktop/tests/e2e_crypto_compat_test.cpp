@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Pins the desktop crypto to the web client byte-for-byte. Every expected
 // value below was produced by the web client's own libsodium build
 // (libsodium-wrappers-sumo, the same calls as ui/src/lib/e2eCrypto.ts and

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Starts a program and records every TCP connection and UDP endpoint the OS
 # reports for its process (sampled every 200 ms until it exits). Used by the
 # Windows leak test: afterwards every remote address must be loopback or a

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Message formatting (model/text_format.hpp): markers, word boundaries,
 // links, spoilers, and above all that nothing a sender types becomes markup.
 

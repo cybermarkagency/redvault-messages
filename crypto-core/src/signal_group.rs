@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Signal groups (M6, docs/signal-integration/03-group-design.md §6): libsignal sender keys,
 //! delivered to each member device inside its pairwise rv-signal-v1 session (PQXDH + SPQR), for
 //! groups whose membership is a verified signed roster (src/roster.rs).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Deterministic visual identity: key glyphs and safety numbers are derived
 // on demand from a seed string — nothing is stored. In this prototype the
 // seed is a display handle; a production build must seed from the actual

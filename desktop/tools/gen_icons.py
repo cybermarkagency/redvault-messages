@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Generates desktop/app/icons/ui/*.svg from the web app's design icons
 (ui/src/components/icons24.tsx), so both apps draw the same icons.
 

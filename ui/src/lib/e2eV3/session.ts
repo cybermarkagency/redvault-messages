@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The protocol-3 chat session of the signed-in account in this browser: its
 // device, its history, and the mailbox poll (one at a time). Everything is
 // off, and costs nothing, unless the server has E2E_V3_ENABLED, this build has

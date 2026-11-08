@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Call links: a random 32-byte secret per link, carried in the link's URL
 // fragment (#…), which browsers never send to any server. The link's name
 // and the call's offer and answer are encrypted and authenticated with it,

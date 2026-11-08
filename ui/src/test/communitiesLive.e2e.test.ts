@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /**
  * Live end-to-end check of paid communities: this app's real community
  * crypto against a running API over HTTP. Skipped unless COMMUNITIES_E2E_API

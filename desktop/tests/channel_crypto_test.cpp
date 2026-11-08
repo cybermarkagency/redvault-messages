@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Private channel links and channel posts forwarded into chats, pinned to
 // the web app with vectors its own code produced
 // (vectors/make_channel_vectors.ts): a private link made in any app opens in

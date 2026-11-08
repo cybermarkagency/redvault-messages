@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The safety number as a QR code, for verifying in person: each phone
 // shows "my key, and the key I have for you"; scanning the other phone's
 // code checks both halves at once. A match proves neither side's key was

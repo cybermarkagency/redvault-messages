@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Reads `apt-cache show <name>` from stdin; prints the SHA-256 of the stanza whose Filename ends with <file>."""
 import re
 import sys

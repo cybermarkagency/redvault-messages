@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useState } from "react";
 import { LegalDocumentDialog } from "../components/LegalDocumentDialog.js";
 import type { LegalDocumentId } from "../lib/legalDocuments.js";

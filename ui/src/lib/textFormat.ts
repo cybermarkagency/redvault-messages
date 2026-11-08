@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Message formatting: WhatsApp-style markers inside the ordinary text, so an
 // app that doesn't render them still shows something readable. The same
 // rules as the desktop app (desktop/core/.../model/text_format.hpp):

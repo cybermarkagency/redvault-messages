@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useState } from "react";
 import { GlobeIcon, PhoneIcon } from "../../components/icons24.js";
 import { useAppState } from "../../state/AppStateContext.js";

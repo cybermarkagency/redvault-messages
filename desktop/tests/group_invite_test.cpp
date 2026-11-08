@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Group invite links: the crypto is pinned to the web app with vectors its
 // own code produced (vectors/make_group_invite_vectors.ts), so a link made in
 // any app opens in every other; the API calls go out as the web app sends them.

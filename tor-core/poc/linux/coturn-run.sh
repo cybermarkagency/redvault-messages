@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Runs the real coturn (installed with aptroot.sh) the way production does: REST-style credentials from a
 # shared secret ("use-auth-secret": username "<expiry>:<random>", credential = base64 HMAC-SHA1(secret, username)).
 # Test-only values: realm, ports, no TLS. Prints the address to put in TURN_URLS.

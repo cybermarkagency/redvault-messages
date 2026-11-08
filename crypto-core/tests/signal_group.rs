@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! M6: Signal groups. Sender keys sealed over the pairwise Signal sessions, for groups whose
 //! membership is a verified, signed roster chain (src/roster.rs, src/signal_group.rs).
 //!

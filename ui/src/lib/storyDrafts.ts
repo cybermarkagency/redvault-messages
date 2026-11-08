@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Unfinished stories, kept on this device only.
 //
 // Nothing readable is stored: the details are sealed with a key derived one-way from the account's

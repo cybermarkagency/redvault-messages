@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Channels part three: richer posts. The API calls go out as the web app
 // sends them (ui/src/lib/api.ts), posts parse in every shape the server
 // sends (server/src/routes/channelRoutes.ts postDto), uploads stream from

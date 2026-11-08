@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The loopback SOCKS5 gate the apps' HTTP clients use (libcurl `socks5h://`,
 //! OkHttp `Proxy.Type.SOCKS`).
 //!

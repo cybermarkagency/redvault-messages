@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Ring and ringback tones, synthesized in the page (no audio files to load).
 // Best effort: a browser that blocks audio before any interaction stays quiet.
 

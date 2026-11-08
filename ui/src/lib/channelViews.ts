@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Channel view counts: each device counts a post once, whether it saw it in
 // the channel or as a forwarded copy in a chat. The report carries post ids
 // only (no account, no cookie), so the server learns how many devices saw a

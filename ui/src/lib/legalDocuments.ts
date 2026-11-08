@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The RedVault Messages Terms of Service and Privacy Policy, from legal/ at
 // the repository root (the desktop and Android apps read the same files).
 // Bundled into the app, so reading them never makes a network request.

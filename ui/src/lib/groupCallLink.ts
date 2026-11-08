@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Group call links: the address of a call that's going on in a group chat.
 // The member who starts the call posts it in the chat, and the others paste
 // it into "Join with a link" to join.

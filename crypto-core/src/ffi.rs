@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! C ABI for the desktop C++ app (Windows and Linux): see include/redvault_e2ee.h.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};

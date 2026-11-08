@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Building blocks for the forward-secret message protocol (docs/e2e-v2-protocol.md):
 // byte helpers, HKDF/HMAC-SHA256, X25519, XChaCha20-Poly1305 and XEdDSA.
 // Curve and AEAD operations use libsodium, like the rest of the app's

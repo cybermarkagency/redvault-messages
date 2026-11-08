@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Audio editing, all on this device: decode, trim, fade, normalise, voice filters, a loudness picture and
 // WAV output. The signal processing works on plain Float32Array samples (mono), so it is the same code
 // everywhere and tested without a browser; only `decodeToMono` needs the browser's decoder.

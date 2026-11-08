@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The real web app's user actions, as page scripts (sign up, add a friend, accept, open a chat, call).
 // Each is what a person does with the screen: real clicks on real buttons, found by their visible text or label.
 import { sleep } from "./cdp.mjs";

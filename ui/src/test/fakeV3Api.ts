@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // An in-memory stand-in for the protocol-3 endpoints of ../lib/api.js
 // (server/src/services/v3DeviceService.ts), for lib/e2eV3 tests. It keeps the
 // server's compare-and-set on lists and its "own account or shared

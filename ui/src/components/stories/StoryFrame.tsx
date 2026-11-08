@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { StoryColor, StoryMeta, StoryOverlay } from "../../lib/storyCrypto.js";
 import styles from "./Stories.module.css";

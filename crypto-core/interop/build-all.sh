@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds the engine and every test driver for the cross-platform run, from
 # Git Bash on Windows: the Windows C++ driver (MinGW), the JNI library for the
 # desktop JVM and for Android (NDK r29), the WebAssembly packages (browser and

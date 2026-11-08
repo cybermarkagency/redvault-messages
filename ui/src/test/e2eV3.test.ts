@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // @vitest-environment node
 // Protocol 3 in the web app (lib/e2eV3): the real engine (crypto-core's Node
 // build of the same WebAssembly the browser loads), two or three simulated

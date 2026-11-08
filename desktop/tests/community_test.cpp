@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Communities through the real repositories and crypto, against an in-memory
 // server that keeps the same key-epoch rules as server/src/services/
 // communityService.ts: it holds only sealed copies and ciphertext, refuses a

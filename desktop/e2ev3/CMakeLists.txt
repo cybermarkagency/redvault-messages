@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Per-device encryption keys ("protocol 3", docs/multi-device-threat-model.md):
 # the shared engine in crypto-core (Rust, vodozemac) built by cargo with its C
 # ABI (feature "ffi") into the build tree and linked statically. Development

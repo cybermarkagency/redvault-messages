@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Reactions, edits, deletes and files on device keys, against the vectors every client shares.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

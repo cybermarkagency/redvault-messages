@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # A rehearsal of the staging onion setup (deploy/install_tor_onion.sh + deploy/check_internal_binds.sh) on this PC, because
 # the staging server isn't reachable from here. It does NOT run the installer (root, apt, systemd); it renders the torrc and
 # the nginx site from the installer's own text (render_deploy.py) and runs them for real, in user space inside WSL (Ubuntu):

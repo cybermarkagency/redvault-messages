@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useRef, useState } from "react";
 import { decodeToMono, durationMs as monoDuration, finishVoice, resample, STORY_AUDIO_RATE, VOICE_FILTER_LABELS, VOICE_FILTERS, waveformBars, type Mono, type VoiceFilterId } from "../../../lib/studio/audioDsp.js";
 import { describeCameraError, stopStream } from "../../../lib/studio/camera.js";

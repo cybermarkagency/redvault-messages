@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds the redvaultmessages installer: release build, tests, a self-contained
 # dist\redvaultmessages folder, then dist\redvaultmessages-Setup-<version>.exe.
 #

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! M3: the engine picks the protocol for the apps. `encryptMany` uses rv-signal-v1 for every
 //! recipient device that speaks it (pinned, or declared in a verified signed list) and Olm for
 //! the others. `decrypt` opens either, by the message's protocol tag, and never tries a message

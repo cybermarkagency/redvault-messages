@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // "Download all": already-decrypted files packed into one .zip, here in the
 // browser (stored, not compressed: most shared files are compressed
 // already, and it keeps memory flat). Plain ZIP without ZIP64, so up to

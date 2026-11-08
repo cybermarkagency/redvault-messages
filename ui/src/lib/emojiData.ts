@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Generated from desktop/app/qml/EmojiData.js (names from the Unicode character
 // database, for search), by category. Emoji are plain text in messages: nothing
 // here leaves the browser. Imported only when an emoji picker opens.

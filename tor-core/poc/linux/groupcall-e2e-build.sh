@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds the desktop group-call test participant for Linux (groupcall-e2e/CMakeLists.txt) in ~/rv-linux. Needs aptroot.sh
 # to have installed: cmake ninja-build libsodium-dev libcurl4-openssl-dev nlohmann-json3-dev protobuf-compiler libprotobuf-dev.
 # Downloads LiveKit's prebuilt liblivekit_ffi.so (pinned version and SHA-256, checked by desktop/groupcall/CMakeLists.txt).

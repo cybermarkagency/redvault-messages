@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Installs LiveKit's server for Linux into ~/livekit (no root), checking the download against the SHA-256 listed in
 # the same release's checksums.txt. Test use only.
 set -euo pipefail

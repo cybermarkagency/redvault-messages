@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Tor-only messaging (docs/tor-routing-plan.md): tor-core (Rust, Arti) built
 # by cargo into the build tree and linked as a shared library, the same way
 # on Windows (redvault_tor.dll next to the program) and Linux

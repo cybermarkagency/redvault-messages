@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Proof that the web app itself never collects location or usage data, and
 // never talks to a third party that could see a visitor's IP address.
 // Scans every shipped source file (tests excluded) plus index.html and the

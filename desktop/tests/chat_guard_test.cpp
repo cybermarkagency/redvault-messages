@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The real ChatSession against the fake server: nothing goes out of a chat that can't take it. Each refusal is checked
 // by counting what reached the server, next to a control showing the same call does send when nothing is wrong.
 #include <catch2/catch_test_macros.hpp>

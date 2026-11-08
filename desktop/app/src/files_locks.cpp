@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Files: extra locks on files, and the person's own encryption keys
 // (FilesSession's half for the Encryption keys page and the lock dialogs).
 #include <QClipboard>

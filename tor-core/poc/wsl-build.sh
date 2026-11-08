@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Linux half of the proof of concept, run inside WSL Ubuntu: unit tests and the
 # probe binaries (output in ~/rv-tor-target/debug).
 set -e

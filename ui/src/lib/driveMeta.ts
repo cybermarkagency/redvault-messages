@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Files ("drive") metadata, as the desktop app writes it
 // (desktop/core/src/data/drive_repository.cpp, drive_crypto.cpp): a JSON
 // object padded with spaces to a 128-byte bucket, sealed with a key derived

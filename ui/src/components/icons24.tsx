@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The desktop design's icons: 24×24, stroke = currentColor, round caps and
 // joins, in the style of Lucide. Always decorative (aria-hidden); the
 // button around an icon carries the label.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // A desktop group call participant without the window: the real GroupCallSession (room keys, LiveKit media
 // through livekit-ffi, the live channel, the invite message) against a real server, with a synthetic tone as the
 // microphone and a test picture as the camera, measuring what comes back. For checking interoperability with

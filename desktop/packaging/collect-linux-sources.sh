@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Collects the source code of every third-party library the Linux AppImage
 # bundles, so it can be published next to the AppImage (the GPL, LGPL, MPL
 # and AGPL require the source of what we ship to be available).

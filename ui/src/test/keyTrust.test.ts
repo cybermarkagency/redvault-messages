@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Protocol 1 key trust: the attacks from audit/tests EXPOSE-2 and finding H-2, now refused, with controls.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

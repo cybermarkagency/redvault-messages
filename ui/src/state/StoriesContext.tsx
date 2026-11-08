@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Stories for the signed-in account: the feed (refreshed every minute while
 // the tab is visible), story settings, and which story viewer or composer is
 // open. Every plan can post; see docs/stories.md.

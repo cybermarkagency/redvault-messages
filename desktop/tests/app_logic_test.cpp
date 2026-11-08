@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The app's logic with no window: the real AppLock with real QSettings in a throwaway folder, and the real
 // MiniChat.qml loaded against stand-ins for the app's types (tests/qml_stubs). Nothing here is a person clicking.
 #include <catch2/catch_test_macros.hpp>

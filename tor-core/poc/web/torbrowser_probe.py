@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Drives the real Redvault web app inside Tor Browser over Marionette
 (docs/tor-routing-plan.md, 13.4). Each subcommand does one real user action
 and prints one JSON line, so a run can be interleaved with another browser

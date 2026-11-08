@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Call media engine: libdatachannel (ICE/TURN, DTLS-SRTP, RTP/RTCP) with
 # Opus audio and VP8 video, Qt-free so it's tested like the core.
 #

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # LiveKit (installed by livekit-wsl.sh) for the relay tests: signalling on the WSL address, media only via an
 # external TURN (the static-credential coturn), because LiveKit's own TURN refuses private-address peers, which a
 # private test network is made of (production has a public address, so its own TURN is used there).

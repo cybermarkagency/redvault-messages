@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The password manager, compatible with the desktop app's vault
 // (desktop/core/src/vault_crypto.cpp, data/vault_repository.cpp). Every item
 // is a JSON object, padded with spaces to a 256-byte bucket and sealed with a

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Initials-on-tint avatars from the design. The tint is picked from the
 // handle, so the same person always gets the same color.
 

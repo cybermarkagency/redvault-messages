@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The engine behind every binding: one JSON request in, one JSON response out.
 //!
 //! The engine keeps no state between calls. Each request carries the device's

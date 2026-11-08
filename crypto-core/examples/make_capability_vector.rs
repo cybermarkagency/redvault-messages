@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Writes tests/vectors/signal_capability_list.json: a real signed device list
 //! with an rv-signal-v1 capability, and the device certificate it pins. The
 //! engine's tests (in every build) and the server's tests read this file, to

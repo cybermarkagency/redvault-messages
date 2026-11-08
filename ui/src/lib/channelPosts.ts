@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Helpers for channel posts on this device: what kind of media a file is,
 // how long things are, the formatting toolbar, and what this device
 // remembers (your votes, where you stopped in a podcast). None of what's

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The Device keys (preview) panel on Linked devices, with the real engine
 // (crypto-core's Node build) and an in-memory protocol-3 server. Skipped when
 // crypto-core/build-web.sh hasn't been run.

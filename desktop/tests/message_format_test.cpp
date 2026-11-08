@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Ports of Android's RichMessageTest and FileMessageTest (themselves pinned
 // to ui/src/test/richMessage.test.ts and fileMessage.ts), so a reply,
 // reaction or file sent from any client reads the same on the others.

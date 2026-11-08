@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // CurlTransport's Tor mode (docs/tor-routing-plan.md): every request goes to
 // the onion host through the gateway's SOCKS5 port, nothing else is possible,
 // and with no gateway nothing is sent at all. A fake SOCKS5 gate stands in

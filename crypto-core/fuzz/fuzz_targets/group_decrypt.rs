@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Mutated group message bodies, epochs and distribution ids at a member device: a clean refusal
 //! or the original plaintext, never a panic.
 #![no_main]

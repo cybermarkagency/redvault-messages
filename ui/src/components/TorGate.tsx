@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useState, type ReactNode } from "react";
 import { fetchRouting, onionUrl, onOnionOrigin, type RoutingInfo } from "../lib/torRouting.js";
 import styles from "./TorGate.module.css";

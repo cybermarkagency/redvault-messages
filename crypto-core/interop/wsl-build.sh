@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # The Linux half of build-all.sh, run inside WSL Ubuntu: the engine's tests and
 # the C++ driver against the Linux static library (output: ~/rv-bin/cpp_driver).
 set -e

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Proves the vendored tor-core/patches/saturating-time is exactly the published
 # crates.io saturating-time 0.5.0 plus saturating-time-0.5.0-windows.diff, and
 # nothing else, so a reviewer only has to read the diff (about 8 lines).

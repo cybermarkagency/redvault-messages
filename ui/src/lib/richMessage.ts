@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Replies and reactions, carried inside the ordinary E2EE message body so
 // the server learns nothing new about them — to it they're just more
 // ciphertext. Mirrored byte-for-byte by the Android app

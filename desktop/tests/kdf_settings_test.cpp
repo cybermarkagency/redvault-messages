@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Key-stretching settings (M-1): what a server names is checked before anything is derived or sent.
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>

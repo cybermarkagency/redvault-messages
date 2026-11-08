@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Group invite links: …/?invite=<id>#<secret>. The 32-byte secret lives only
 // in the URL fragment, which browsers never send to any server. From it come
 // two keys that can't be worked out from each other:

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Proof that what the desktop app actually puts on the wire says nothing
 // about the person: the real libcurl transport and ApiClient talk to a
 // loopback server that records every request byte for byte. No device, OS,

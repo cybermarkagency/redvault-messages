@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The real VaultSession against a fake server: the page gets the count of items left out.
 #include <catch2/catch_test_macros.hpp>
 

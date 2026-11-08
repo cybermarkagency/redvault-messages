@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds dist/redvaultmessages-<version>-x86_64.AppImage: release build,
 # tests, `cmake --install` into an AppDir, then linuxdeploy bundles Qt (its
 # plugins and the app's QML imports) and every library the binary needs, and

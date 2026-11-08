@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The unlocked password vault, in memory only. Locking (Lock now, 5 minutes
 // idle, the app lock, signing out) drops every decrypted item. Items are the
 // same ones the desktop app shows: sealed with the account's vault key on

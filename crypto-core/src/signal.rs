@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Signal sessions for protocol 3 devices: libsignal's PQXDH and Triple Ratchet
 //! (Double Ratchet + SPQR), between two devices that protocol 3 already knows.
 //!

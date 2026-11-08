@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Qt-free core: crypto, HTTP, API client/DTOs and repositories, shared by the
 # desktop UI and the tests. Keeping it free of Qt means it builds and tests
 # with nothing but a compiler, libsodium, libcurl and nlohmann/json.

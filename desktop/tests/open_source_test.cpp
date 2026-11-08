@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Settings > About, "Open-Source Licenses and Source Code": the licence texts are built in (the same
 // qt_add_resources files as the app, see tests/CMakeLists.txt) and the source link from the build is only ever
 // shown as a plain https:// link. The configure-time check runs as its own ctest (source_settings_*).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Produces story_draft_vectors.json with the web app's own code (lib/storyDrafts.ts), so the desktop
 // app's sealed drafts use the same key derivation, binding and layout. Drafts never leave a device, so
 // nothing crosses between apps; this only pins that the two stores mean the same thing. Not part of any

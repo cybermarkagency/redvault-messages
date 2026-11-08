@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // End-to-end protection for call setup. The server relays offers and
 // answers but must not be able to read, change or forge them: the SDP they
 // carry includes each side's DTLS certificate fingerprint, and WebRTC only

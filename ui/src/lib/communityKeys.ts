@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The epoch keys this browser holds for each community conversation, kept in
 // memory only (like every other conversation key here), plus the upkeep any
 // member's app does: delivering the current key to members who are waiting

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Test helper: a device as an app would hold it (its encrypted state and storage key).
 #![allow(dead_code)]
 

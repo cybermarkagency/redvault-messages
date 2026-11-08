@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The committed capability vector (examples/make_capability_vector.rs) verifies
 //! in every build, including the web app's, which has no `signal` feature.
 mod common;

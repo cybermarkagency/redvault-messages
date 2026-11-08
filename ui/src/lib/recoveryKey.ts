@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Account recovery key — mirrored exactly by the Android app
 // (android/.../crypto/RecoveryKey.kt; the shared test vectors pin both).
 //

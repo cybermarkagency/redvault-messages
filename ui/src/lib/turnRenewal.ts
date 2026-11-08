@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // TURN credentials for long one-to-one calls (docs/tor-routing-plan.md, decision 5).
 //
 // The server issues coturn REST credentials whose username is

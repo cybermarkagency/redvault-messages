@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """tcp_forward.py <listen-ip> <listen-port> <target-ip> <target-port>: relays TCP, for the netns lab's access to the
 Windows-side API (the namespace "cli" can only reach this machine's root namespace)."""
 import socket, sys, threading

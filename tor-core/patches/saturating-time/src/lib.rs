@@ -1,4 +1,7 @@
 #![doc = include_str!("../README.md")]
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // @@ begin lint list maintained by maint/add_warning @@
 #![allow(renamed_and_removed_lints)] // @@REMOVE_WHEN(ci_arti_stable)
 #![allow(unknown_lints)] // @@REMOVE_WHEN(ci_arti_nightly)

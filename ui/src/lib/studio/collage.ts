@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Collages: two to four photos in one picture, laid out on this device. The result is a normal story
 // photo (a fresh JPEG), so nothing about it needs special handling afterwards.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Files uploaded to you through your Contributor links: the Files badge and
 // a notification ("3 encrypted files were added through your “Project”
 // link"), worked out on this device. The server only says that something

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Async orchestration for the real backend: crypto + network calls that end
 // by dispatching one or more plain, synchronous actions into the reducer.
 // Screens call these instead of dispatching network-shaped actions directly.

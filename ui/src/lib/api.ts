@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import type { RecoveryMaterial } from "./recoveryKey.js";
 // Thin fetch wrapper for the real backend. Requests go to relative /api
 // paths — the Vite dev server proxies those to the server (see

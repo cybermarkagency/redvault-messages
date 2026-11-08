@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The SOCKS gate as a whole (not just the handshake): where it listens, how
 //! its credentials are handled, and that it can't be used as an open proxy.
 //! Uses the test-hooks blocked network, so no Tor traffic leaves the machine.

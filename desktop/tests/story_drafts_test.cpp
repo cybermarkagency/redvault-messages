@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Story drafts: the sealed details are the web app's layout, byte for byte (vectors made by its own code:
 // vectors/make_story_draft_vectors.ts), nothing readable is stored, and a draft can't be moved to another
 // account or id, opened with another key, or changed on disk without being dropped.

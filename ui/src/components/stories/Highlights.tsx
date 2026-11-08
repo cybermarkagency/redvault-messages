@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as sapi from "../../lib/storiesApi.js";
 import { decodeHighlights, decodeStory, saveHighlight, type HighlightView, type Story } from "../../lib/stories.js";

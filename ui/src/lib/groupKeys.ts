@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Group key epochs (db/migrations/030, docs/group-keys-and-signatures.md).
 //
 // A group's key is numbered. When anyone leaves or is removed, the server

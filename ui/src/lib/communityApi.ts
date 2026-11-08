@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Paid communities: the server's /api/communities, /api/community-subscriptions
 // and /api/admin/communities (docs/paid-communities.md). Every amount comes
 // from the server in integer minor units; this app never decides a price,

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Community group keys with epochs (docs/paid-communities.md, "Encrypted
 // membership"). Same primitives as every other group here — a random
 // XChaCha20-Poly1305 key, sealed to each member with crypto_box_seal — plus

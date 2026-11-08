@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Protocol-3 chat in the app (docs/multi-device-threat-model.md section 9):
 // V3Receiver keeps this account's device mailbox polled while signed in, and
 // useV3Chat gives one conversation its messages and its send. Both do nothing

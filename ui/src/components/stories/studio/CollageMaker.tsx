@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useRef, useState } from "react";
 import { drawCollage, layoutsFor, MAX_COLLAGE_PHOTOS, renderCollage } from "../../../lib/studio/collage.js";
 import type { PreparedMedia } from "../../../lib/stories.js";

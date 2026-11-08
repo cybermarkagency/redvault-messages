@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { BellIcon, GlobeIcon, HeadphonesIcon, InfoIcon, LogIcon, MonitorIcon, ShieldIcon, StoriesIcon, UserIcon } from "../components/icons24.js";
 import { DurationSelect } from "../components/DurationSelect.js";

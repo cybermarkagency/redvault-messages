@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Draws the Microsoft Store logos from brand/make_icons.py, each at its final
 # size so none is a blurry resize of another.
 #

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Refusals that protect people on the desktop: which files open with one click, where the app may connect, what the
 // app leaves readable on disk. Each attack has a control next to it showing the ordinary case still works.
 #include <catch2/catch_test_macros.hpp>

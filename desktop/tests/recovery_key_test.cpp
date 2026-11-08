@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Pinned to the same vector as ui/src/test/recoveryKey.test.ts and Android's
 // RecoveryKeyTest, so a key made on one app works on the others.
 

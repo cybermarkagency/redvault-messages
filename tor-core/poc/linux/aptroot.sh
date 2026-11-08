@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Installs Ubuntu packages and the dependencies this machine lacks into a private folder, WITHOUT root and
 # without touching the system: apt works out what's missing (read-only), each .deb is downloaded from the
 # Ubuntu archive and checked against the SHA-256 apt lists for it, then unpacked with dpkg -x.

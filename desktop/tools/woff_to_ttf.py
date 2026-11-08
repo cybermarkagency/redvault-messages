@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Converts WOFF (1.0) fonts to plain TrueType/OpenType, which every font
 backend Qt uses can load (DirectWrite on Windows can't read WOFF).
 

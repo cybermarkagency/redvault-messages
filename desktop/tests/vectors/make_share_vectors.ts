@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Produces share_vectors.json with the web app's own code, so the desktop
 // and Android apps' public share links (docs/public-share-links.md) are
 // pinned to it byte for byte. Not part of any build: copy it into

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Recording a camera or microphone stream with the browser's MediaRecorder. The result is an ordinary
 // file blob; the story code encrypts it like any other media before it leaves the device.
 

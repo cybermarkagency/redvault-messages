@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The milestone scenarios against the engine itself (every binding passes
 //! the same JSON to the same function, so these hold for all of them; the
 //! cross-platform run in interop/ checks the bindings agree byte for byte).

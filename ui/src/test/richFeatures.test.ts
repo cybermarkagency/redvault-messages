@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Edits, forwards, pins, polls and formatting: the same wire format and rules
 // as the desktop app (desktop/tests/message_format_test.cpp,
 // conversation_repository_test.cpp and text_format_test.cpp).

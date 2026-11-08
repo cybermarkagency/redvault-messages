@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Photo editing, all on this device: crop, rotate, flip, colour correction, filters and drawing.
 //
 // An edit is a plain value (EditState). The maths that decides what the result looks like is in pure

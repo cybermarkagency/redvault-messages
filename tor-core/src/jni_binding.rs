@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! JNI binding for Android: the native methods of com.redvaultsystems.tor.NativeTor.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};

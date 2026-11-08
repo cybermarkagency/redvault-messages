@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // SVG charts for the analytics pages, per the desktop handoff: one series
 // each, one y-axis, blue (#3987e5) for single series, fixed colours for
 // file types, 4px rounded bar tops with 2px gaps, a hover tooltip on every

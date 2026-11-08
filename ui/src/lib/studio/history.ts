@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Undo and redo for the studio's editors: a plain value at each step, nothing mutated in place.
 
 export interface History<T> {

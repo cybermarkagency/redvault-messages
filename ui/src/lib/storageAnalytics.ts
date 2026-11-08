@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Storage analytics, computed entirely on this device from the account's
 // own Files metadata (decrypted here, lib/driveMeta.ts), its share links and
 // the encrypted journal of earlier visits (lib/analyticsJournal.ts). Pure

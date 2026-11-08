@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TopBar } from "../components/TopBar.js";
 import { ApiError } from "../lib/api.js";

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Client-side half of stage-3 "Transaction verified" — see
 // server/src/crypto/commitment.ts, which this MUST match byte-for-byte.
 // Computes the same canonical-string SHA-256 commitment over the exact

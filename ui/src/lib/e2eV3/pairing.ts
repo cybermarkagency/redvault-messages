@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Pairing a new browser with a trusted device of the same account by
 // comparing codes (crypto-core/src/pairing.rs: vodozemac's SAS with a key
 // commitment), for when neither can scan the other's QR code. The server only

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // This browser's protocol-3 device (docs/multi-device-threat-model.md §5):
 // the engine's encrypted state, and the 32-byte storage key it's encrypted
 // under, which is itself wrapped by a NON-EXTRACTABLE WebCrypto AES-GCM key.

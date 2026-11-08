@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Verifiers for the transparency log's Merkle proofs: a port of
 // server/src/crypto/merkle.ts (RFC 9162), run here so this device checks
 // the log itself instead of taking the server's word for it. Hashing uses

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The fail-closed outbox (docs/tor-routing-plan.md): messages and files queued
 // while Tor is down are sealed on disk, survive a restart, and can only be read
 // with the signed-in account's key.

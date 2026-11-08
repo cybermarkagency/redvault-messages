@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Signal sessions (rv-signal-v1) through the engine's real JSON interface:
 //! PQXDH, the Triple Ratchet, certificates, downgrade pins and the failure
 //! paths. Every test drives `engine::handle`, the same entry point the apps use.

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds libredvault_tor.so exactly as the Linux desktop build does (the CMake target redvault_tor_build: cargo build
 # --release --locked --lib --features ffi) inside the tree core-build.sh configured, then lists what the library
 # exports and links. Run core-build.sh first.

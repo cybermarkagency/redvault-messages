@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Interop check between the desktop call engine and a real browser.
 //
 // Serves a page on 127.0.0.1 that runs the same WebRTC steps as the web app

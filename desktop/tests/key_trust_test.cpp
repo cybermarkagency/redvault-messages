@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Protocol 1 key trust: the rules on their own, mirroring ui/src/test/keyTrust.test.ts, and the shared vectors.
 #include <catch2/catch_test_macros.hpp>
 

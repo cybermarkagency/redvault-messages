@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The plan picker in Settings: Free, Pro and Premium side by side, what each
 // includes and costs, and what choosing one does. Every action ends in a
 // real change on the server: a Stripe checkout (whose webhook moves the

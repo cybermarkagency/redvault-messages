@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # The desktop core's real end-to-end Tor run (poc/desktop-driver/tor_e2e_driver.cpp) on Linux: the Linux build of the core,
 # talking through the Linux build of the Rust gateway (libredvault_tor.so, from tor-lib-build.sh), over the real Tor
 # network, to the harness's onion service. Needs core-build.sh and tor-lib-build.sh to have run.

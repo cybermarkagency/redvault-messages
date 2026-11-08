@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Proof of concept only: the desktop core (desktop/core, unchanged) over the
 # embedded Tor gateway. Builds the core in its own binary dir, so the desktop
 # app's build is untouched.

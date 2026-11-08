@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # gitleaks configuration (used by .github/workflows/license-compliance.yml).
 # Default rules, minus the "generic-api-key" false positives on fixed test
 # keys: test vectors and test files hold deliberately published test keys,

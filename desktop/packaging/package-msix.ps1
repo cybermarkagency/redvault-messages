@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds the Microsoft Store package: dist\redvaultmessages-<version>.msix.
 # Same files as the Inno Setup installer, wrapped as an MSIX that the Store
 # signs itself (no code-signing certificate needed). In a Store install the

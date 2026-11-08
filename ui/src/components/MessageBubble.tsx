@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useEffect, useState } from "react";
 import { countChannelViews } from "../lib/channelViews.js";
 import { REACTION_EMOJI, type ReactionEmoji } from "../lib/richMessage.js";

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useState } from "react";
 import { evenCaptions, formatClock, parseClock, parseSrt } from "../../../lib/studio/captions.js";
 import { MAX_CAPTIONS, MAX_CAPTION_TEXT, parseCaptions, type StoryCaption } from "../../../lib/storyCrypto.js";

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Prints the encrypted state size of a Signal-enabled device for several one-time key counts.
 use redvault_e2ee::engine::handle;
 use serde_json::{json, Value};

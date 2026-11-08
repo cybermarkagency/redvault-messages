@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Pairing a new device with a trusted one when neither can scan a QR code:
 //! vodozemac's SAS (the short authentication string Matrix uses to verify
 //! devices across an untrusted server).

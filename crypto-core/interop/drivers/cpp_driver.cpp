@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Desktop (Windows and Linux) test driver: the C++ side of the C ABI.
 // Reads one JSON request per line on stdin, answers one JSON response per
 // line on stdout, through rv_e2ee_call, exactly as the desktop app would.

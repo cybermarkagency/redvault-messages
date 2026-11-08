@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The "Open-Source Licenses and Source Code" section (Settings > About and the sign-in screens).
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

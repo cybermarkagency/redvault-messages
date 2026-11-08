@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Share links to files in someone's encrypted Files (…?file=<id>#<secret>).
 //
 // The desktop app makes these (desktop/core/src/drive_crypto.cpp and

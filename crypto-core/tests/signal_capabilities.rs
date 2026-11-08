@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Capabilities in the signed device list (M2). A trusted device declares that
 //! one of its account's devices speaks rv-signal-v1 with exactly one
 //! certificate, so a server can neither hide nor swap that certificate.

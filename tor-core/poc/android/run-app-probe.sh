@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Runs the real Android app's Tor probe (androidTest .../tor/TorAppProbeTest.kt)
 # on an emulator, with the leak evidence alongside:
 #   - the device's socket tables sampled every 0.5 s (socket-sampler.sh), for

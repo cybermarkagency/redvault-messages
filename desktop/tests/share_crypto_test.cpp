@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Public share links (docs/public-share-links.md), pinned to the web app with
 // vectors its own code produced (vectors/make_share_vectors.ts): a link made
 // in any app opens in every other, the tokens the server checks are the same,

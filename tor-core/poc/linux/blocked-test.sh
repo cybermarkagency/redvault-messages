@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Fail-closed test on Linux: the gateway is pointed at an unreachable directory
 # (a censored/offline network). It must report "unavailable", refuse to carry
 # the request, and the process must not connect anywhere but loopback.

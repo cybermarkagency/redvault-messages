@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Trust in protocol 1 conversation keys (SECURITY_DESIGN_AND_MIGRATION.md, C-2 and H-2).
 //
 // crypto_box_seal says nothing about who sealed a key, so the server could

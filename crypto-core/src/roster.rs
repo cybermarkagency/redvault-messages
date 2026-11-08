@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Signed group rosters with history (M6, docs/signal-integration/03-group-design.md §6).
 //!
 //! A roster says which accounts are in a group at one epoch. A member device

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Renders the files deploy/install_tor_onion.sh would write, without running it (it needs root, apt and systemd).
 
 The script writes its torrc and nginx site with unquoted heredocs; this lifts those heredocs out of the real script and

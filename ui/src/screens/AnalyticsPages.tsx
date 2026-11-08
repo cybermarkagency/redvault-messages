@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The seven Analytics pages (desktop handoff: Overview, Storage, Uploads,
 // Cleanup, PC backup, Share links, Activity & alerts). Everything shown is
 // computed on this device (lib/storageAnalytics.ts).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Encrypted Stories (docs/vodozemac-poc.md, "Stories").
 //!
 //! Each story gets a **fresh random key**; its content is encrypted once with

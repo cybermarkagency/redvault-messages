@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import jsQR from "jsqr";
 import { useEffect, useRef, useState } from "react";
 import styles from "./QrScanner.module.css";

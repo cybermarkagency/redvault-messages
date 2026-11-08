@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Tor routing for the web app (docs/tor-routing-plan.md).
 //
 // The web app can't route anything through Tor by itself: JavaScript has no

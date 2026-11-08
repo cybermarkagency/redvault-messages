@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Protocol 3 on the desktop, end to end against the REAL server code on a
 // throwaway PostgreSQL cluster (development only; nothing deployed, no real
 // account). Desktop computers are redvault_v3_probe processes (the same library

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Group voice/video calls with screen sharing, in group chats.
 //
 //   - Media: WebRTC through a LiveKit SFU on this app's own server, which

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Shared in-memory stand-in for ../lib/api.js, used by test files that need
 // the app to get past onboarding (register/login) without a live server.
 // Real crypto (e2eCrypto.js) still runs for real — only the network layer

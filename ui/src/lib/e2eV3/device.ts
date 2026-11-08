@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // This browser's protocol-3 device and what it does with the server
 // (docs/multi-device-threat-model.md). A preview: off unless the server has
 // E2E_V3_ENABLED and this build includes the engine. Protocol 1 is untouched.

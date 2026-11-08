@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Where the gateway may go: an exact list of v3 onion services.
 //!
 //! The SOCKS port is the only way the apps reach the network for messaging, so

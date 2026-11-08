@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Community epoch keys: pinned to the web app with vectors its own code
 // produced (vectors/make_community_vectors.ts). Sealed copies are randomized,
 // so the desktop opens the web's copies (and refuses the bad ones), and the

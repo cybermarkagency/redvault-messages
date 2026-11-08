@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // PQXDH key agreement (https://signal.org/docs/specifications/pqxdh/), with
 // X25519, SHA-256 and ML-KEM-768. The identity key is the account's
 // existing X25519 key, shared by all of the account's devices; each device

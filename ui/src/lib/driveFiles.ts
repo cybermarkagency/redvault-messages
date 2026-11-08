@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The web app's Files: listing, uploading, new folders and downloads, with
 // the same encrypted metadata the desktop and Android apps write
 // (driveMeta.ts) and the same file format (fileCrypto.ts). Every transfer

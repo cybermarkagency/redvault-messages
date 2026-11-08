@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The Double Ratchet (https://signal.org/docs/specifications/doubleratchet/)
 // for one pair of devices, and the wire format of the messages it produces.
 // Every message gets a fresh key that's deleted once used, and each reply

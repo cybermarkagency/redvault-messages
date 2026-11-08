@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { describe, expect, it } from "vitest";
 import { createInitialState, reducer } from "../state/reducer.js";
 import type { AppState } from "../state/reducer.js";

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Moves encrypted file blobs to/from wherever the API's transfer target
 // says — only ever ciphertext. Two shapes (see server
 // storage/fileObjectStorage.ts):

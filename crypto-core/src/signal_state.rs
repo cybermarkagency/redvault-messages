@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Signal session state as stored inside the engine's encrypted state, device
 //! certificates, signed device capabilities, and the downgrade guard for
 //! protocol 3's Olm.

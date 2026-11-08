@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import * as api from "../lib/api.js";
 import { beginForwardSecrecy, stopForwardSecrecy } from "../lib/e2eV2/device.js";
 import { setKeyRingOwner } from "../lib/groupKeys.js";

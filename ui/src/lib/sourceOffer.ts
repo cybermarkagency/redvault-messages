@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The AGPL-3.0-only source offer (AGPL section 13): where people using the web
 // app over the network can get its Corresponding Source, and whom to tell if
 // they can't. Both come from build configuration, never from code, so no

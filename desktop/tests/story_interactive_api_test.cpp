@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Audiences, lifetimes and the interactive stories API: who gets a story, and that every call
 // sends exactly what the server expects (docs/stories-advanced/api.md).
 #include <catch2/catch_test_macros.hpp>

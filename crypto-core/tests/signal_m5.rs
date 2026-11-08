@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! M5 engine support for the apps' screens: which protocol each device gets
 //! (`chatProtocols`), a signed way to turn Signal off for a device
 //! (`clearSignalCapability`), and what a contact's newly verified list changed

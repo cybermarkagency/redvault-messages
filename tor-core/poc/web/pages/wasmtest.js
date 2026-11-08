@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // What a page under the Redvault web app's policy can do in this browser, at its current security level.
 // The tiny module is the smallest valid WebAssembly binary: "\0asm" + version 1.
 (async () => {

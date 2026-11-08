@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Local-only trust store: "have I confirmed this contact's safety number?"
 // Verification is a judgment about a PUBLIC KEY, not a session or a
 // conversation, so it's never sent to the server (which shouldn't know or

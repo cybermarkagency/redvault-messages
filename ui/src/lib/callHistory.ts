@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Call history, kept only on this device and encrypted there. The server
 // never records calls (server/src/services/callService.ts), so this is the
 // only record of them anywhere: who, when, how long. It's encrypted with a

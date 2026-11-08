@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // This browser as a forward-secret device (docs/e2e-v2-protocol.md).
 //
 // Sending: every message body is encrypted once with a fresh random key,

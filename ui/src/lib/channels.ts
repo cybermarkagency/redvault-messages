@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Channels on this device: following them (lib/localPrefs.ts followedChannels;
 // the server never learns who follows what) and private channels' links.
 //

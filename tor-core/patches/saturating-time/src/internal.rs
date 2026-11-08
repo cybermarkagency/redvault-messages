@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Internal parts used for sealing.
 //!
 //! This module primarily consists of the internal [`SaturatingTime`] trait, an

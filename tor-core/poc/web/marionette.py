@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """A minimal Marionette client (Firefox's remote-control protocol, which Tor
 Browser ships), with no dependencies. Used by torbrowser_probe.py to drive the
 real web app inside Tor Browser.

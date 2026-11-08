@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Channels: following lives only on this computer (model/channels.hpp, the
 // web app's lib/channels.ts), and reading goes out without the session
 // cookie (with a private channel's access token when there is one), so the

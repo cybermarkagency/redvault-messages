@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Converts Lucide SVG icons into Android VectorDrawables.
 
 The desktop app bundles Lucide icons (desktop/app/icons/lucide, ISC

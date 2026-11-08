@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Checking the transparency log on this device:
 //   1. the latest checkpoint's Ed25519 signature, under a log key pinned
 //      the first time this browser saw it;

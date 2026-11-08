@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Per-device identities for existing accounts (docs/multi-device-threat-model.md): pairing by
 //! comparing codes, the legacy certificate on the account key, the legacy key carried to new
 //! devices, and one message to many devices.

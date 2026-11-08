@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The desktop's side of public share links (data/share_repository.hpp):
 // what a folder link shows as Files changes, and what goes to the server
 // when a link is made (only verifiers and ciphertext, never a name).

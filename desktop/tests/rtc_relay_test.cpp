@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Relay-only calls, tested with real ICE agents. A real TURN server (libjuice's own) runs on loopback, and plain UDP
 // sockets stand in for an address the other person wants this computer to reveal itself to: each one records every
 // datagram it gets and which port it came from. Relay traffic arrives from the TURN server's relay ports, so a packet

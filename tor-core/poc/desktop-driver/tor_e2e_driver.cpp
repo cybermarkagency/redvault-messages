@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // End-to-end proof of concept: the desktop core's own repositories (real
 // end-to-end encryption, real server code) talking to the scratch API only
 // through the embedded Tor gateway and a v3 onion service.

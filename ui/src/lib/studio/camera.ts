@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The camera and microphone for the story studio. Permission is asked only when someone opens the camera
 // or starts a recording, never earlier; if it is refused, or there is no camera, the studio falls back to
 // choosing a file and says so.

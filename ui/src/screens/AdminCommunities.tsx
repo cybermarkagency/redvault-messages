@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useCallback, useEffect, useState } from "react";
 import * as communityApi from "../lib/communityApi.js";
 import { type AdminOverviewDto, type AdminTransactionDto, formatMoney, formatRate, type ReportDto } from "../lib/communityApi.js";

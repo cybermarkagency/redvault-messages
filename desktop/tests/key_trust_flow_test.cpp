@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Key trust through the real repositories, with several people's apps against one fake server: the same cases as
 // android's KeyTrustFlowTest. Every message and key below goes through the real crypto.
 #include <catch2/catch_test_macros.hpp>

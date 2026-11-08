@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Creator earnings: the server's /api/earnings (docs/creator-earnings.md):
 // paid messages, tips and exclusive posts. Every price and fee comes from
 // the server; this app never decides an amount (beyond the tip a person

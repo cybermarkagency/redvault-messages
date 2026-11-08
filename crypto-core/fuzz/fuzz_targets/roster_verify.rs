@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Arbitrary roster chains (any JSON), and a real roster with mutated fields, given to rosterVerify
 //! on a device that knows the issuer: a clean refusal, never a panic. A mutated roster is never
 //! accepted with members other than the signed ones.

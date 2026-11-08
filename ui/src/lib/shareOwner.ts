@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The owner's side of public share links (docs/public-share-links.md):
 // making them, keeping a folder link's items in step with Files, passwords,
 // regenerating, and the files people upload through Contributor links.

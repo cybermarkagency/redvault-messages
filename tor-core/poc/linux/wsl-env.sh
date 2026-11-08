@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # What the WSL distro offers for building and running server-side test tools, without root.
 . /etc/os-release; echo "os: $PRETTY_NAME  kernel: $(uname -r)"
 for t in gcc g++ clang cmake ninja make pkg-config cargo rustc curl python3 pip3 patchelf dpkg apt-get nginx turnserver go; do

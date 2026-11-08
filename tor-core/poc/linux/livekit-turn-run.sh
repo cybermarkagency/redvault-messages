@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # LiveKit with ONLY its built-in TURN (no external coturn), as production runs it (deploy/install_livekit.sh: turn.enabled,
 # a domain, a UDP port), inside the netns lab's "srv" namespace (see netns-lab.sh), where its only address is PUBLIC_IP.
 #

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The other half of the Android <-> web check: opens stories the ANDROID code made with the WEB app's own code.
 // The Kotlin test StoryBuilderTest (writeAStoryOfEachKindForTheWebToOpen) writes
 // android/app/build/story-android-out/android_posted.json. Not part of any build: copy this file into ui/src/test/

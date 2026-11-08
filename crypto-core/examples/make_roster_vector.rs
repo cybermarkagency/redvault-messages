@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Writes tests/vectors/group_roster_chain.json: a real two-roster chain (epoch 1, then
 //! epoch 2 removing a member), signed by an account's key, together with that account's
 //! signed device list. The server's tests check that they verify the same bytes. The keys

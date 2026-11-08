@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The shared encryption engine (crypto-core: vodozemac Olm and Megolm, device
 // lists, pairing), compiled to WebAssembly by crypto-core/build-web.sh. It's
 // optional: a build without crypto-core/pkg/web simply has no protocol-3

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { useState } from "react";
 import { recoverAccount } from "../state/actions.js";
 import { useAppState } from "../state/AppStateContext.js";

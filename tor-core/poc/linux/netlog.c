@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /*
  * Linux leak-test shim (LD_PRELOAD): logs every outgoing connect(), every
  * name lookup (getaddrinfo, gethostbyname*) and every UDP datagram to port

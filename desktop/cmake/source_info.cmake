@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Checks REDVAULT_SOURCE_CODE_URL and REDVAULT_SOURCE_CONTACT (see the top-level CMakeLists.txt), which become
 # the source link and contact in Settings > About, "Open-Source Licenses and Source Code". A bad value stops the
 # configure step rather than shipping a broken or non-https link. Also runs as a script, for the tests:

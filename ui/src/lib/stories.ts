@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Stories on this device: opening the feed, posting, and keeping keys
 // topped up for friends added later. The crypto is in lib/storyCrypto.ts;
 // the wire format in lib/storiesApi.ts; the design in docs/stories.md.

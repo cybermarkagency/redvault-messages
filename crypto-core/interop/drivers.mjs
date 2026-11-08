@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The platform drivers shared by run.mjs (relay) and server-run.mjs (the real API).
 // Each runs the engine through that platform's own binding, one JSON request per
 // line in and one response per line out:

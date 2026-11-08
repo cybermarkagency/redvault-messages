@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Samples every TCP connection and UDP endpoint of every process whose image is under -Root
 # (Tor Browser's firefox, tor and lyrebird), every 0.3 s, until <Out>\stop exists.
 param([Parameter(Mandatory)] [string] $Root, [Parameter(Mandatory)] [string] $Out)

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Parses response bodies in the exact shapes the live server returns (the
 // same samples as Android's DtoParsingTest), so a mismatch fails here
 // instead of as "Something went wrong." in the app.

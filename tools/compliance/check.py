@@ -192,6 +192,19 @@ def check_source_offer(release: bool) -> None:
     record("PASS", "source offer", "source URL settings are https or unset; source tooling present")
 
 
+def check_license_headers(release: bool) -> None:
+    # The licence's "How to Apply" asks for a notice at the top of each source file.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import license_headers
+    missing = [f for f in license_headers.published_files()
+               if not license_headers.has_header((ROOT / f).read_text(encoding="utf-8-sig", errors="replace"))]
+    if missing:
+        record("FAIL" if release else "WARN", "licence headers",
+               f"{len(missing)} source file(s) without the SPDX line, e.g. {missing[0]}: run tools/compliance/license_headers.py")
+    else:
+        record("PASS", "licence headers", "every published source file starts with the SPDX licence and copyright lines")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", action="store_true", help="also fail on release-eligibility gaps")
@@ -200,6 +213,7 @@ def main() -> int:
         check()
     check_notices(a.release)
     check_source_offer(a.release)
+    check_license_headers(a.release)
     # A PASS line is only kept when its check recorded no FAIL.
     failed_checks = {n for lvl, n, _ in results if lvl == "FAIL"}
     shown = [(l, n, d) for l, n, d in results if not (l == "PASS" and any(f.startswith(n.split()[0]) for f in failed_checks))]

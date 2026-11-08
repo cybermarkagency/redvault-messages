@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Stands in for the API's onion listener (127.0.0.1:3001): answers every request with the path and headers it received,
 and for PUT/POST counts and hashes the body as it streams past (nothing is stored)."""
 import hashlib

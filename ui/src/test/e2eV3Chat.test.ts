@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // @vitest-environment node
 // Protocol-3 chat (lib/e2eV3/chat.ts, docs/multi-device-threat-model.md section 9):
 // the real engine, simulated browsers (separate IndexedDBs) and an in-memory

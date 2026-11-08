@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Copied from the 2026-11-04 assessment scripts for the M4 run (docs/signal-integration/). Loopback only.
 # Reverse tunnel so a Linux app in WSL can reach a server on Windows' 127.0.0.1 (assessment only).
 # WSL side:     python3 revtunnel.py wsl   -> app port 127.0.0.1:3055, agent port 127.0.0.1:3056 (both loopback in WSL)

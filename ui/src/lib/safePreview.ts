@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { blobBytes } from "./blobBytes.js";
 
 // Which shared or uploaded files may be previewed in a browser, and how.

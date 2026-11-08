@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Client-side prep for a profile picture upload. The image itself is real
 // and shared — visible to every user, stored in Backblaze B2 (see
 // server/src/storage/b2AvatarStorage.ts) — this module only handles

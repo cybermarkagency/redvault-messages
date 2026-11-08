@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 package com.redvaultsystems.redvaultmessage.data.model
 
 /** Server-enforced disappearing-message timers, matching ui/src/types.ts DURATION_SECONDS. */

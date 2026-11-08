@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Paid messages, tips and exclusive posts: the post crypto and body format
 // are the web app's byte for byte (vectors made by its own code:
 // vectors/make_post_vectors.ts), amounts read and show the same, and the API

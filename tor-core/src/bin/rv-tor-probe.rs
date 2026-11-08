@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Test probe for the gateway (Windows, Linux): starts it, prints status
 //! changes as JSON lines on stderr, and optionally makes HTTP requests through
 //! the SOCKS gate the way an app would (socks5h: the hostname goes to the

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Stories: the server's /api/stories (docs/stories.md). Everything here is
 // ciphertext or ids; the server never sees what a story shows.
 import { ApiError } from "./api.js";

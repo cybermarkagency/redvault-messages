@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The recipient's side of a share link: opening it, reading its folder
 // tree, downloading (resumable, decrypted here) and, for Contributor links,
 // uploading (encrypted here, part by part, resumable). See

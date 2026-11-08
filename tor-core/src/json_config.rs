@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! What the C ABI and JNI share: a JSON config, and a handle that owns the
 //! Tokio runtime the gateway runs on.
 

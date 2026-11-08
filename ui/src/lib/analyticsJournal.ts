@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Storage analytics journal: what this app has seen of the account's Files
 // on earlier visits, so it can show history the metadata alone can't
 // (daily totals, files deleted for good, renames and moves, restores,

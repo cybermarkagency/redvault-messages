@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The channel page in its real QML (app/qml) and over the real ChannelPostModel, with stand-ins for the C++ session
 // types (tests/qml_channel_stubs). Nothing here is a person clicking; what it pins is what must never drift: a reader
 // has no composer, a post looks like the channel's and claims no encryption, and the thread runs as a chat does.

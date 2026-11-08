@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Redvault's shared end-to-end encryption core (proof of concept).
 //!
 //! One implementation for every client: built to WebAssembly for the web app,

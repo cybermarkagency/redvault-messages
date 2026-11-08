@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Builds and tests the desktop core (no Qt app, no calls) on Linux, inside WSL, with the user-space dependencies from
 # aptroot.sh (cmake ninja-build libsodium-dev libcurl4-openssl-dev nlohmann-json3-dev catch2) and Rust from ~/.cargo.
 # It covers what the Windows build can't: the Tor transport's socket guard on POSIX sockets, the SOCKS client, the

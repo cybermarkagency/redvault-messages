@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The web side of the Android live-call probe (android/app/src/androidTest/.../calls/CallRelayProbeTest.kt): a real web-app
 // user in a headless browser that accepts the phone's friend request, answers the phone's call, then calls the phone back,
 // and watches both calls with the browser's own WebRTC statistics (relay-only, audio arriving).

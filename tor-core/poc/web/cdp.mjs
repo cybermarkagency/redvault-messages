@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // A small Chrome DevTools Protocol client and browser launcher (Edge or Chrome, headless, fake microphone and
 // camera), with no dependencies: Node's built-in WebSocket. Used by call_relay_test.mjs to drive the real web app.
 import { spawn } from "node:child_process";

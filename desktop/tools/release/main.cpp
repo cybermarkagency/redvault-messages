@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // redvault_release: creates the offline release key and signs update
 // manifests for the desktop app's auto-update. Run on the release machine
 // only; the key file never goes to the server or into git.

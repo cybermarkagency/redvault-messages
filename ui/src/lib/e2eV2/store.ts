@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // This browser's forward-secret device state: its prekeys, its Double
 // Ratchet sessions and the messages it has already decrypted (a message
 // key is deleted once used, so the plaintext kept here is the only copy

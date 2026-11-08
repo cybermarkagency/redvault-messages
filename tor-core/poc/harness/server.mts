@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /**
  * Scratch Redvault API for the Tor proof of concept: the real server code
  * (server/src/app.ts) on in-memory repositories, behind three loopback

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // A desktop computer for the end-to-end run against the real server
 // (desktop/tools/v3_probe/run.mjs), development only. Reads one JSON command
 // per line on stdin and answers one JSON line on stdout, driving exactly the

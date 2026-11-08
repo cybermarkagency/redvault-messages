@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
 import { defineConfig, searchForWorkspaceRoot, type Plugin } from "vite";

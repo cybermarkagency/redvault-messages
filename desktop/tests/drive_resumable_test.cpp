@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Resumable Files-tab transfers over Tor (docs/tor-routing-plan.md): uploads
 // in parts that survive an interruption or a restart, downloads that continue
 // with HTTP Range, cancellation, and integrity checks on every piece.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Test only: publishes a throwaway v3 onion service (Arti) whose port 80
 //! forwards to a local TCP port, so the gateway can be tested end to end over
 //! the real Tor network without touching the production server.

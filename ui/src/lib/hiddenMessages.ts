@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // "Delete for me": message ids this browser hides for the signed-in user.
 // Local only — the other participant still has the message, and the server
 // is never told (use delete-for-everyone for that).

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Starts Tor Browser (the portable build, already extracted and signature-checked)
 # with Marionette on, a fresh private profile, and a connection sampler that
 # records every TCP/UDP endpoint of Tor Browser's processes, for the leak check

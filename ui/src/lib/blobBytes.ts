@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Reading a Blob's bytes everywhere this app runs: Blob.arrayBuffer() and
 // Blob.text() are missing in older Safari (and jsdom); FileReader isn't.
 

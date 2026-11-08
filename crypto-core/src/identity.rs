@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Account identity and device management (docs/vodozemac-poc.md, "Identity").
 //!
 //! - **Account signing key.** An Ed25519 key per account, made on the first

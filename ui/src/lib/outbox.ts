@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Messages waiting for the connection (Tor Browser lost Tor, or the onion
 // service is unreachable): the web side of the apps' sealed outbox
 // (docs/tor-routing-plan.md, desktop data/outbox, Android data/Outbox.kt).

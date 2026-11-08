@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Joins a LiveKit room through the same code the desktop app uses for group
 // calls (redvault_groupcall), sends a synthetic tone and test picture, and
 // reports what arrives, so the media path can be checked without a camera,

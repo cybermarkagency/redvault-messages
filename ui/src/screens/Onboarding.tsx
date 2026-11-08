@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { RecoverAccount } from "./RecoverAccount.js";
 import { type MouseEvent, useEffect, useState } from "react";
 import { KeyGlyph } from "../components/KeyGlyph.js";

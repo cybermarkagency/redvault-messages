@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # The desktop group-call test participant (desktop/tools/groupcall_e2e) built on its own for Linux: the core, the
 # group-call wrapper around LiveKit's prebuilt liblivekit_ffi.so (downloaded and SHA-256 checked by groupcall's
 # CMakeLists) and the tool, without the Qt app or the 1:1 call engine (libdatachannel).

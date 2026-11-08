@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The live channel to the server (GET /api/live/events, a long poll) and
 // what rides on it: call signaling (handed to CallProvider), typing
 // indicators, and contacts' online status.

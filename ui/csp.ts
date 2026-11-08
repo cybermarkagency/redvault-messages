@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /**
  * Production-only Content-Security-Policy: the built app may only talk to,
  * and load anything from, its own origin — so no analytics, fonts, CDNs,

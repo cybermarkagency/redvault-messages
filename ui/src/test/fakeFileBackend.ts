@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // In-memory stand-in for the encrypted-file endpoints (api.ts) and the
 // blob transfer layer (fileTransfer.ts), layered over ./fakeApiBackend.js.
 // Records every argument that crosses the "network" boundary so tests can

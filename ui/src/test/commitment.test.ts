@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { createHash, randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as commitment from "../lib/commitment.js";

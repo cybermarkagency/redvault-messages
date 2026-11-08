@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Downgrade protection for forward-secret messaging (protocol 2).
 //
 // Once a conversation has used protocol 2 on this browser — a message sent

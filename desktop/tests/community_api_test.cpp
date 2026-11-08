@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The community calls that carry no keys: links, pictures and the
 // administrators' routes. Requests are checked byte for byte against what the
 // web app's communityApi.ts sends, and the picture fetch must refuse every

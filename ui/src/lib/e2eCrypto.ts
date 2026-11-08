@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Browser-side E2E crypto for Redvaultsystem — same primitives and flows as
 // ../../../client/src/crypto.ts (that module documents the design in full),
 // re-implemented here because it can't be imported directly into a Vite

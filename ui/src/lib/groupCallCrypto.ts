@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // End-to-end encryption for group calls.
 //
 // Group calls go through a LiveKit SFU, which forwards each person's media

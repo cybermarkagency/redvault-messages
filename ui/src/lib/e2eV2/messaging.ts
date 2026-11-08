@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Sending a message body with whichever protocol the conversation allows:
 // forward-secret (protocol 2) whenever this browser has a device and
 // everyone in the conversation has at least one, otherwise the

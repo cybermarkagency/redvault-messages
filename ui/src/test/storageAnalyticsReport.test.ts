@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { addDays, type AnalyticsJournal, DAY_MS, startOfDay } from "../lib/analyticsJournal.js";
 import type { BackupLinkDto } from "../lib/api.js";

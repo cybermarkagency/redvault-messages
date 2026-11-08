@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! Cross-platform check for rv-signal-v1: each step runs on a different
 //! machine's build of the engine, and the steps hand JSON to each other through
 //! a file. Only the engine's public JSON interface is used.

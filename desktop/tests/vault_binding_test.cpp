@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Vault items bound to their record, mirroring android's VaultBindingTest: the server here is the attacker, and answers
 // whatever a test says. Sealing is real.
 #include <catch2/catch_test_macros.hpp>

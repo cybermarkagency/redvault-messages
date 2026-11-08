@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 //! The C ABI the desktop app calls. Also clean under Miri:
 //! `MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri test --features ffi --test ffi`.
 #![cfg(feature = "ffi")]

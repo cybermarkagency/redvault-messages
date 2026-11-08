@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Parses the Terms of Service and Privacy Policy (legal/*.md at the repository
 // root). No imports, so the build (vite.config.ts) can use it as well as the app.
 

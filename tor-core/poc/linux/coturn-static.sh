@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # A second coturn with a fixed username and password, for LiveKit's `rtc.turn_servers` (LiveKit can only hand out static
 # credentials for an external TURN server). The one-to-one calls use coturn-run.sh's REST-secret instance instead.
 set -euo pipefail

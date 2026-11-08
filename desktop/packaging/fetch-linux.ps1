@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # Puts the Linux AppImage next to the Windows installer: dist\redvaultmessages-<version>-x86_64.AppImage.
 #
 #   powershell -ExecutionPolicy Bypass -File packaging\fetch-linux.ps1

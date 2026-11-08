@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 #pragma once
 
 // A fake server that knows several people's apps at once, for key trust: each person sees their own sealed copies

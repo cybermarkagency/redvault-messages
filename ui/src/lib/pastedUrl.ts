@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 /**
  * The address in something someone pasted: a bare link, or a whole message
  * with a link in it. Relative addresses (/?join=…) count too. Null when

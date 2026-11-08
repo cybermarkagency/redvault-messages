@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Templates for text stories: a look (background, font, colours) and often a sticker to fill in. They are
 // starting points: everything stays editable, and nothing is fetched from anywhere.
 import { newStickerId, parseStickers, type StoryBackground, type StoryFont, type StoryOverlay, type StorySticker } from "../storyCrypto.js";

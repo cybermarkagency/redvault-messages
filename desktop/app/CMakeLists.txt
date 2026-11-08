@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # The Qt 6 / QML desktop app on top of redvault_core. All crypto, HTTP and
 # data logic stays in the core; this layer is views, models and threading.
 qt_standard_project_setup(REQUIRES 6.5)

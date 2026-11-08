@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Creator earnings on this device: paying (and waiting for the server to
 // confirm it), exclusive posts (encrypting, opening, and the creator app's
 // job of sealing each buyer the key). The rules live on the server

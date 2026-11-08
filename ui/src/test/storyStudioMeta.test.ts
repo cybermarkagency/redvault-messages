@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as crypto from "../lib/e2eCrypto.js";
 import * as sapi from "../lib/storiesApi.js";

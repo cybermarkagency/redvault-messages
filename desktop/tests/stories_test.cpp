@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Stories: the crypto and formats are the web app's byte for byte (vectors
 // made by its own code: vectors/make_story_vectors.ts), and the API calls
 // send what the server expects.

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 # A small "internet" on this machine for LiveKit's built-in TURN, run as root in WSL (it only creates network namespaces
 # and veth pairs inside this VM; `netns-lab.sh down` removes them):
 #

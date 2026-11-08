@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 """Leak check: every non-loopback address a test process talked to must be a
 Tor relay listed in the consensus its gateway downloaded (or one of Arti's
 built-in fallback directories, which are relays too).

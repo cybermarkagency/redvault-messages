@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Forwards one TCP port on the WSL virtual-network address of this Windows PC to a loopback port, so a program inside
 // WSL can reach the test harness's control port (WSL2 can't reach the Windows loopback). Test use only: it listens on
 // the WSL-only address, never on 0.0.0.0.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // The interop run's stand-in for the server: a device directory (public
 // identities and signed one-time keys, each key handed out once), a mailbox per
 // device for Olm and group messages, and a job queue the browser page uses as

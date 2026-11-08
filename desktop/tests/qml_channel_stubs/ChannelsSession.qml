@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Stand-in for ChannelsSession: what the channel page reads, and a record of what it asks for.
 // `posts` is set to the real ChannelPostModel by the test.
 import QtQml

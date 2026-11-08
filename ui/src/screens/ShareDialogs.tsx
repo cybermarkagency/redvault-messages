@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { AlertTriangleIcon, CheckIcon, CopyIcon, InfoIcon, LinkIcon, ShareIcon } from "../components/icons24.js";
 import { ToggleSwitch } from "../components/ToggleSwitch.js";

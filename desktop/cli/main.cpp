@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // redvault_cli: a small command-line check of the core against a real
 // server, before there's a desktop window on top of it. Every run signs in
 // fresh (the session lives in memory only) and signs out again at the end.

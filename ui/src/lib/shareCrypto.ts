@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
 // Public share links for Files: the protocol's cryptography
 // (docs/public-share-links.md). The desktop (desktop/core/src/share_crypto.cpp)
 // and Android (crypto/ShareCrypto.kt) implement the same functions and are
