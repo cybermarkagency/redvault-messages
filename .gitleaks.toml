@@ -25,3 +25,9 @@ paths = [
   '''^tor-core/poc/''',
   '''^crypto-core/fuzz/corpus/''',
 ]
+# The sealed backup route's gateway PUBLIC key configuration (an OHTTP key config, pinned in every
+# published app; android/gradle.properties). Only this one setting, hex only.
+regexTarget = "match"
+regexes = [
+  '''redvaultSealedKeyConfig=[0-9a-f]+''',
+]
