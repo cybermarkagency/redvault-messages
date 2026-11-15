@@ -6,7 +6,7 @@ Builds the local, UNPUBLISHED source-release staging folder for the RedVault
 client apps (AGPL-3.0-only Corresponding Source), plus SOURCE_MANIFEST.json
 tying it to the commit and app versions it was made from.
 
-  python tools/compliance/make_source_release.py --out C:/Users/user/Documents/redvault-clients-export
+  python tools/compliance/make_source_release.py --out ../redvault-source-release
 
 What goes in: tracked + new non-ignored files of the client folders (never
 build output, node_modules or git-ignored secrets), the legal texts the apps
