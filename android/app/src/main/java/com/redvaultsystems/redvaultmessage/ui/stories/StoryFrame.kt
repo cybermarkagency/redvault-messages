@@ -3,13 +3,25 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import android.graphics.SurfaceTexture
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.view.Surface
 import android.view.TextureView
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalContext
+import com.redvaultsystems.redvaultmessage.data.model.StoryAnimation
+import com.redvaultsystems.redvaultmessage.studio.MotionFrame
+import com.redvaultsystems.redvaultmessage.studio.StoryMotion
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -126,8 +138,8 @@ internal object StoryStyle {
 /**
  * One story drawn into its frame: a text story's words on its background, or a photo or video, with the text and emoji
  * that were placed on it and, over a video, the subtitle for now. Sizes are fractions of the frame's width (the web's
- * container units), so it looks the same at any size. Overlay animations (`anim`) aren't played: they show still, as in
- * apps from before they existed.
+ * container units), so it looks the same at any size. Overlay animations (`anim`) are played, still when the phone has animations removed
+ * or the story is held (a finger down); the composer shows words still.
  */
 @Composable
 internal fun StoryFrame(
@@ -138,8 +150,13 @@ internal fun StoryFrame(
     caption: String?,
     modifier: Modifier = Modifier,
     muted: Boolean = false,
+    /** The decrypted voice recording of an audio story, and how far it has played (0 to 1). */
+    audio: File? = null,
+    audioProgress: Float = 0f,
     onVideoPosition: (positionMs: Long, durationMs: Long) -> Unit = { _, _ -> },
     onVideoEnded: () -> Unit = {},
+    /** Told about the player that plays a voice story, once, so a test can look at the sound it makes. */
+    onPlayer: (MediaPlayer) -> Unit = {},
     /** The stickers' surroundings; without it a story's stickers aren't drawn (the composer's preview has none). */
     stickers: StickerEnv? = null,
 ) {
@@ -163,11 +180,34 @@ internal fun StoryFrame(
                 )
             }
             StoryKind.Image -> if (photo != null) {
-                Image(photo, contentDescription = "Story photo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                Image(photo, contentDescription = stringResource(R.string.ui_story_photo), contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             }
             StoryKind.Video -> if (video != null) VideoSurface(video, meta.media?.width ?: 9, meta.media?.height ?: 16, paused, muted, onVideoPosition, onVideoEnded)
+            StoryKind.Audio -> {
+                val font = meta.font ?: StoryFont.Classic
+                Box(Modifier.fillMaxSize().background(StoryStyle.brush(meta.background ?: StoryBackground.Night)))
+                Column(
+                    Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = width * 0.08f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(width * 0.06f),
+                ) {
+                    meta.text?.let {
+                        Text(
+                            StoryStyle.shown(font, it),
+                            color = Color.White,
+                            fontFamily = StoryStyle.family(font),
+                            fontWeight = StoryStyle.weight(font),
+                            fontSize = cq(6.5f),
+                            lineHeight = cq(8.2f),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    WaveformBars(meta.waveform, audioProgress, Modifier.fillMaxWidth().height(width * 0.4f))
+                }
+                if (audio != null) AudioPlayback(audio, paused, muted, onVideoPosition, onVideoEnded, onPlayer)
+            }
         }
-        for (overlay in meta.overlays) OverlayView(overlay, width) { cq(it) }
+        for (overlay in meta.overlays) OverlayView(overlay, width, paused) { cq(it) }
         if (stickers != null) for (sticker in meta.stickers) StickerPlaced(sticker) { StickerView(sticker, width, stickers) }
         if (caption != null) {
             Text(
@@ -186,7 +226,7 @@ internal fun StoryFrame(
 }
 
 @Composable
-private fun BoxWithConstraintsScope.OverlayView(o: StoryOverlay, frameWidth: androidx.compose.ui.unit.Dp, cq: (Float) -> androidx.compose.ui.unit.TextUnit) {
+private fun BoxWithConstraintsScope.OverlayView(o: StoryOverlay, frameWidth: androidx.compose.ui.unit.Dp, paused: Boolean, cq: (Float) -> androidx.compose.ui.unit.TextUnit) {
     // The overlay is centred on (x, y) of the frame: measure it, then shift it by half its size.
     var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     val px = with(LocalDensity.current) { frameWidth.toPx() }
@@ -200,30 +240,149 @@ private fun BoxWithConstraintsScope.OverlayView(o: StoryOverlay, frameWidth: and
             .offset { IntOffset((o.x * px - size.width / 2f).roundToInt(), (o.y * py - size.height / 2f).roundToInt()) }
             .onSizeChanged { size = it }
             .graphicsLayer { rotationZ = o.rotation.toFloat(); scaleX = o.scale.toFloat(); scaleY = o.scale.toFloat() },
+        motion = if (o.anim != null) rememberMotion(o.anim, paused) else null,
     )
 }
 
-/** The words or emoji of an overlay, drawn the way every app draws them (placement is up to the caller). */
+/**
+ * The moment-by-moment look of an animated overlay ([StoryMotion]), updated once per screen frame while it plays. It stands still when the phone has
+ * animations removed (Settings, Accessibility) or [paused] (a finger held on the story), and carries on from where it was.
+ */
 @Composable
-internal fun OverlayText(o: StoryOverlay, frameWidth: androidx.compose.ui.unit.Dp, cq: (Float) -> androidx.compose.ui.unit.TextUnit, modifier: Modifier = Modifier) {
+internal fun rememberMotion(anim: StoryAnimation?, paused: Boolean): State<MotionFrame> {
+    val context = LocalContext.current
+    val reduced = remember { StoryMotion.reduced(context) }
+    val frame = remember(anim) { mutableStateOf(MotionFrame.STILL) }
+    val elapsed = remember(anim) { LongArray(1) }
+    LaunchedEffect(anim, paused, reduced) {
+        if (anim == null || reduced || paused) return@LaunchedEffect
+        val base = elapsed[0]
+        val start = withFrameNanos { it }
+        while (true) {
+            withFrameNanos { now ->
+                elapsed[0] = base + (now - start) / 1_000_000
+                frame.value = StoryMotion.frame(anim, elapsed[0])
+            }
+        }
+    }
+    return frame
+}
+
+/**
+ * The words or emoji of an overlay, drawn the way every app draws them (placement is up to the caller). With a [motion] the text (not its box)
+ * moves, as on the web.
+ */
+@Composable
+internal fun OverlayText(
+    o: StoryOverlay,
+    frameWidth: androidx.compose.ui.unit.Dp,
+    cq: (Float) -> androidx.compose.ui.unit.TextUnit,
+    modifier: Modifier = Modifier,
+    motion: State<MotionFrame>? = null,
+) {
     val boxed = !o.isEmoji && o.boxed
     val text = if (o.isEmoji) o.text else StoryStyle.shown(o.font, o.text)
-    Text(
-        text,
-        color = when {
-            o.isEmoji -> Color.White
-            boxed -> StoryStyle.boxedInk(o.color)
-            else -> StoryStyle.color(o.color)
-        },
-        fontFamily = if (o.isEmoji) null else StoryStyle.family(o.font),
-        fontWeight = if (o.isEmoji) null else StoryStyle.weight(o.font),
-        fontSize = if (o.isEmoji) cq(15f) else cq(6f),
-        style = TextStyle(lineHeight = if (o.isEmoji) cq(15f) else cq(7.2f), textAlign = TextAlign.Center),
-        modifier = modifier
-            .widthIn(max = frameWidth * 0.86f)
-            .then(if (boxed) Modifier.background(StoryStyle.color(o.color), RoundedCornerShape(6.dp)) else Modifier)
-            .padding(horizontal = if (o.isEmoji) 0.dp else 8.dp, vertical = if (o.isEmoji) 0.dp else 3.dp),
-    )
+    val glyphs: @Composable (Modifier) -> Unit = { inner ->
+        Text(
+            text,
+            color = when {
+                o.isEmoji -> Color.White
+                boxed -> StoryStyle.boxedInk(o.color)
+                else -> StoryStyle.color(o.color)
+            },
+            fontFamily = if (o.isEmoji) null else StoryStyle.family(o.font),
+            fontWeight = if (o.isEmoji) null else StoryStyle.weight(o.font),
+            fontSize = if (o.isEmoji) cq(15f) else cq(6f),
+            style = TextStyle(lineHeight = if (o.isEmoji) cq(15f) else cq(7.2f), textAlign = TextAlign.Center),
+            modifier = inner,
+        )
+    }
+    val surround = modifier
+        .widthIn(max = frameWidth * 0.86f)
+        .then(if (boxed) Modifier.background(StoryStyle.color(o.color), RoundedCornerShape(6.dp)) else Modifier)
+        .padding(horizontal = if (o.isEmoji) 0.dp else 8.dp, vertical = if (o.isEmoji) 0.dp else 3.dp)
+    if (motion == null) {
+        glyphs(surround)
+    } else {
+        Box(surround) {
+            glyphs(
+                Modifier.graphicsLayer {
+                    val f = motion.value
+                    scaleX = f.scale
+                    scaleY = f.scale
+                    translationY = f.liftOfHeight * size.height
+                    alpha = f.alpha
+                },
+            )
+        }
+    }
+}
+
+/** What a voice story shows before it has a picture of its own: bars for its loudness, the part already played lit. */
+@Composable
+internal fun WaveformBars(bars: List<Int>?, progress: Float, modifier: Modifier = Modifier) {
+    val data = bars?.takeIf { it.isNotEmpty() } ?: List(40) { 30 + (it * 37) % 50 }
+    val lit = Color.White
+    val dim = StoryStyle.track
+    Canvas(modifier) {
+        val slot = size.width / data.size
+        val barWidth = slot * 0.62f
+        data.forEachIndexed { i, v ->
+            val h = size.height * (8 + v * 0.9f) / 100f
+            drawRoundRect(
+                color = if (i.toFloat() / data.size < progress) lit else dim,
+                topLeft = androidx.compose.ui.geometry.Offset(i * slot + (slot - barWidth) / 2, (size.height - h) / 2),
+                size = androidx.compose.ui.geometry.Size(barWidth, h),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2),
+            )
+        }
+    }
+}
+
+/**
+ * A voice recording played from this app's private cache by the system's MediaPlayer: nothing to see, so it is just the sound
+ * and the same clock the video has (position out, "ended" out), paused while a finger is down, silenced by the viewer's mute.
+ */
+@Composable
+private fun AudioPlayback(file: File, paused: Boolean, muted: Boolean, onPosition: (Long, Long) -> Unit, onEnded: () -> Unit, onPlayer: (MediaPlayer) -> Unit) {
+    val player = remember(file) { MediaPlayer().also(onPlayer) }
+    var ready by remember(file) { mutableStateOf(false) }
+    val latestEnded by rememberUpdatedState(onEnded)
+    DisposableEffect(player) {
+        player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+        player.setOnPreparedListener { it.isLooping = false; ready = true; it.start() }
+        player.setOnCompletionListener { latestEnded() }
+        // A recording this phone can't play is skipped, not stared at.
+        player.setOnErrorListener { _, _, _ -> latestEnded(); true }
+        try {
+            player.setDataSource(file.absolutePath)
+            player.prepareAsync()
+        } catch (e: Exception) {
+            latestEnded()
+        }
+        onDispose { runCatching { player.release() } }
+    }
+    PlayerEffects(player, ready, paused, muted, onPosition)
+}
+
+/** What both players do while they play: the volume follows the mute, pause holds the sound, the position is reported ten times a second. */
+@Composable
+private fun PlayerEffects(player: MediaPlayer, ready: Boolean, paused: Boolean, muted: Boolean, onPosition: (Long, Long) -> Unit) {
+    LaunchedEffect(player, ready, muted) {
+        if (ready) runCatching { player.setVolume(if (muted) 0f else 1f, if (muted) 0f else 1f) }
+    }
+    LaunchedEffect(player, ready, paused) {
+        if (!ready) return@LaunchedEffect
+        if (paused) {
+            runCatching { player.pause() }
+        } else {
+            runCatching { player.start() }
+            while (true) {
+                runCatching { onPosition(player.currentPosition.toLong(), player.duration.toLong()) }
+                delay(100)
+            }
+        }
+    }
 }
 
 /**
@@ -267,19 +426,5 @@ private fun VideoSurface(file: File, videoWidth: Int, videoHeight: Int, paused: 
             },
         )
     }
-    LaunchedEffect(player, ready, muted) {
-        if (ready) runCatching { player.setVolume(if (muted) 0f else 1f, if (muted) 0f else 1f) }
-    }
-    LaunchedEffect(player, ready, paused) {
-        if (!ready) return@LaunchedEffect
-        if (paused) {
-            runCatching { player.pause() }
-        } else {
-            runCatching { player.start() }
-            while (true) {
-                runCatching { onPosition(player.currentPosition.toLong(), player.duration.toLong()) }
-                delay(100)
-            }
-        }
-    }
+    PlayerEffects(player, ready, paused, muted, onPosition)
 }

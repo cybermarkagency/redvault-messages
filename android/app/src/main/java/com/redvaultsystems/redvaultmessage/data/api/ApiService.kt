@@ -164,6 +164,13 @@ interface ApiService {
     @POST("billing/resume")
     suspend fun resumePlan(): PlanStatusDto
 
+    @GET("billing/config")
+    suspend fun billingConfig(): BillingConfigDto
+
+    /** Card subscribers: Pro to Premium or back (server/src/routes/billingRoutes.ts). */
+    @POST("billing/switch")
+    suspend fun switchPlan(@Body body: SwitchPlanRequest): PlanStatusDto
+
     @GET("v1/files/storage")
     suspend fun fileStorageUsage(): FileStorageUsageDto
 

@@ -5,6 +5,8 @@
 # the shared engine in crypto-core (Rust, vodozemac) built by cargo with its C
 # ABI (feature "ffi") into the build tree and linked statically. Nothing uses
 # it unless the server answers /e2e/v3/config with enabled=true (E2E_V3_ENABLED).
+# It also carries the sealed backup route (feature "sealed-transport",
+# src/sealed_route.cpp, docs/tor-sealed-fallback.md).
 #
 # Needs Rust (cargo) on the build machine; --locked keeps the dependency
 # versions exactly as reviewed (crypto-core/Cargo.lock).
@@ -17,10 +19,10 @@ find_program(REDVAULT_CARGO cargo
 set(_e2e_target_dir "${CMAKE_BINARY_DIR}/crypto-core-target")
 # rv-signal-v1 adds libsignal (AGPL-3.0-only, the app's own licence) to the engine (see the top-level option).
 if(REDVAULT_E2E_SIGNAL)
-    set(_e2e_features "ffi signal")
+    set(_e2e_features "ffi signal sealed-transport")
     message(STATUS "Device keys: Signal sessions (libsignal, AGPL-3.0-only) included")
 else()
-    set(_e2e_features "ffi")
+    set(_e2e_features "ffi sealed-transport")
 endif()
 set(REDVAULT_E2E_LIBRARY "${_e2e_target_dir}/release/libredvault_e2ee.a")
 
@@ -60,6 +62,9 @@ add_library(redvault_e2ev3 STATIC
     src/pairing.cpp
     src/chat.cpp
     src/send_queue.cpp
+    src/community.cpp
+    src/stories.cpp
+    src/sealed_route.cpp
 )
 target_include_directories(redvault_e2ev3 PUBLIC include)
 if(REDVAULT_E2E_SIGNAL)

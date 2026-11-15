@@ -19,9 +19,9 @@ Item {
     ConfirmDialog {
         id: revokeDialog
         property string linkId
-        title: "Revoke this link?"
-        message: "It stops working at once for everyone: no more opening, downloads or uploads. Files people already downloaded stay on their devices; nothing can take those back. This can't be undone."
-        confirmText: "Revoke link"
+        title: qsTr("Revoke this link?")
+        message: qsTr("It stops working at once for everyone: no more opening, downloads or uploads. Files people already downloaded stay on their devices; nothing can take those back. This can't be undone.")
+        confirmText: qsTr("Revoke link")
         danger: true
         onConfirmed: view.shares.revoke(linkId)
     }
@@ -29,9 +29,9 @@ Item {
         id: deleteDialog
         property string linkId
         property bool active
-        title: "Delete this link?"
-        message: (active ? "It stops working at once, and " : "It ") + "leaves your list. Files that came in through it stay in Incoming."
-        confirmText: "Delete link"
+        title: qsTr("Delete this link?")
+        message: (active ? qsTr("It stops working at once, and ") : qsTr("It ")) + qsTr("leaves your list. Files that came in through it stay in Incoming.")
+        confirmText: qsTr("Delete link")
         danger: true
         onConfirmed: view.shares.remove(linkId)
     }
@@ -45,11 +45,11 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 4
-            Text { text: "Shared links"; color: Theme.text; font.family: Theme.displayFamily; font.pixelSize: Theme.fontDisplay; font.weight: Font.Bold }
+            Text { text: qsTr("Shared links"); color: Theme.text; font.family: Theme.displayFamily; font.pixelSize: Theme.fontDisplay; font.weight: Font.Bold }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Links anyone can open in a browser, without an account. Each one is separate: its own permission, password and expiry."
+                text: qsTr("Links anyone can open in a browser, without an account. Each one is separate: its own permission, password and expiry.")
                 color: Theme.text2
             }
         }
@@ -64,7 +64,7 @@ Item {
             Icon { Layout.alignment: Qt.AlignHCenter; name: "link"; size: 28; color: Theme.text3 }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: view.shares.loaded ? "No links yet. Use Share on a file or folder." : "Loading…"
+                text: view.shares.loaded ? qsTr("No links yet. Use Share on a file or folder.") : qsTr("Loading…")
                 textFormat: Text.PlainText
                 color: Theme.text3
             }
@@ -108,16 +108,16 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
-                                text: card.modelData.itemMissing ? "The shared item is no longer in your files"
-                                      : (card.modelData.kind === "folder" ? "Folder · " : "File · ") + card.modelData.itemName
+                                text: card.modelData.itemMissing ? qsTr("The shared item is no longer in your files")
+                                      : (card.modelData.kind === "folder" ? qsTr("Folder · ") : qsTr("File · ")) + card.modelData.itemName
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.pixelSize: 12
                             }
                         }
                         Pill { text: card.modelData.permission === "contributor" ? "View, download, upload" : "View and download" }
-                        Pill { text: card.modelData.statusText; tone: card.modelData.active ? "accent" : "danger" }
-                        Pill { visible: card.modelData.hasPassword; text: "Password" }
+                        Pill { text: card.modelData.statusText; tone: card.modelData.active ? "ok" : "danger" }
+                        Pill { visible: card.modelData.hasPassword; text: qsTr("Password") }
                     }
 
                     GridLayout {
@@ -150,9 +150,9 @@ Item {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         text: (card.modelData.permission === "contributor"
-                               ? "Anyone with this link can view and download files, and upload new files. They cannot delete or replace your files."
-                               : "Anyone with this link can view and download files. Uploading and editing are disabled.")
-                              + " Visitors are anonymous: counts only, no names or addresses."
+                               ? qsTr("Anyone with this link can view and download files, and upload new files. They cannot delete or replace your files.")
+                               : qsTr("Anyone with this link can view and download files. Uploading and editing are disabled."))
+                              + qsTr(" Visitors are anonymous: counts only, no names or addresses.")
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: 12
@@ -165,14 +165,14 @@ Item {
                             visible: card.modelData.active && card.modelData.url.length > 0
                             secondary: true
                             iconName: "copy"
-                            text: "Copy link"
+                            text: qsTr("Copy link")
                             onClicked: view.shares.copyLink(card.modelData.id)
                         }
                         RvButton {
                             visible: card.modelData.status !== "revoked"
                             secondary: true
                             iconName: "sliders"
-                            text: "Settings"
+                            text: qsTr("Settings")
                             enabled: card.modelData.canManage && !view.shares.busy
                             onClicked: editDialog.openFor(card.modelData, "settings")
                         }
@@ -180,7 +180,7 @@ Item {
                             visible: card.modelData.status !== "revoked" && card.modelData.permission === "contributor"
                             secondary: true
                             iconName: "upload"
-                            text: "Turn off uploads"
+                            text: qsTr("Turn off uploads")
                             enabled: !view.shares.busy
                             onClicked: view.shares.turnOffUploads(card.modelData.id)
                         }
@@ -188,7 +188,7 @@ Item {
                             visible: card.modelData.status !== "revoked"
                             secondary: true
                             iconName: "key"
-                            text: card.modelData.hasPassword ? "Password" : "Add password"
+                            text: card.modelData.hasPassword ? qsTr("Password") : qsTr("Add password")
                             enabled: card.modelData.canManage && !view.shares.busy
                             onClicked: editDialog.openFor(card.modelData, "password")
                         }
@@ -196,7 +196,7 @@ Item {
                             visible: card.modelData.status !== "revoked"
                             secondary: true
                             iconName: "refresh"
-                            text: "New link"
+                            text: qsTr("New link")
                             enabled: card.modelData.canManage && !view.shares.busy
                             onClicked: editDialog.openFor(card.modelData, "regenerate")
                         }
@@ -204,7 +204,7 @@ Item {
                             visible: card.modelData.status !== "revoked"
                             primary: false
                             danger: true
-                            text: "Revoke"
+                            text: qsTr("Revoke")
                             enabled: !view.shares.busy
                             onClicked: {
                                 revokeDialog.linkId = card.modelData.id
@@ -215,7 +215,7 @@ Item {
                             primary: false
                             danger: true
                             iconName: "trash"
-                            text: "Delete"
+                            text: qsTr("Delete")
                             enabled: !view.shares.busy
                             onClicked: {
                                 deleteDialog.linkId = card.modelData.id

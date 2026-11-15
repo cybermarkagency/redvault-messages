@@ -57,7 +57,7 @@ class StoryFeedVectorsTest {
     private val bobPublic = keys.obj("bob").b64("publicKey")
     private val bobPrivate = keys.obj("bob").b64("privateKey")
     private val webVisible = v.arr("webVisible").map { it.jsonObject }
-    private val audioId = v.arr("skippedByAndroid").map { it.jsonObject }.single().str("id")
+    private val unknownKindId = "5a000000-0000-4000-8000-000000000005"
 
     private fun friends(): Map<String, StoryFriend> =
         v.arr("friendsOfBob").map { it.jsonObject }.associate { f ->
@@ -73,15 +73,15 @@ class StoryFeedVectorsTest {
     private val shown get() = decoded().authors.flatMap { it.stories }
 
     @Test
-    fun showsWhatTheWebShowsExceptTheKindsItDoesNotKnow() {
-        val expected = webVisible.map { it.str("id") }.filter { it != audioId }
-        assertEquals(expected, shown.map { it.id })
+    fun showsWhatTheWebShows() {
+        // Every story the web shows, voice stories included, in the same order; only a kind nobody has made yet is left out (the web leaves it out too).
+        assertEquals(webVisible.map { it.str("id") }, shown.map { it.id })
         assertEquals(listOf("alice", "carol"), decoded().authors.map { it.author.handle })
     }
 
     @Test
     fun readsEachStoryTheWayTheWebDoes() {
-        for (web in webVisible.filter { it.str("id") != audioId }) {
+        for (web in webVisible) {
             val story = shown.single { it.id == web.str("id") }
             val meta = web.obj("meta")
             assertEquals(web.str("authorId"), story.authorId)
@@ -98,6 +98,7 @@ class StoryFeedVectorsTest {
             assertOverlays(meta.arr("overlays"), story)
             assertCaptions(meta["captions"]?.jsonArray ?: JsonArray(emptyList()), story)
             assertMedia(meta["media"]?.jsonObject, story)
+            assertEquals(meta["waveform"]?.jsonArray?.map { it.jsonPrimitive.doubleOrNull!!.toInt() }, story.meta.waveform)
         }
     }
 
@@ -143,14 +144,28 @@ class StoryFeedVectorsTest {
     }
 
     @Test
-    fun anAudioStoryAndAnUnknownKindAreSkippedWithoutHidingTheAuthorsOtherStories() {
-        for (id in listOf(audioId, "5a000000-0000-4000-8000-000000000005")) {
-            val outcome = decoder.decode(dtoOf(id), friends().getValue(ids.str("alice")).publicKey, bobPrivate)
-            assertEquals(SkipReason.UnsupportedKind, (outcome as StoryDecoding.Skipped).reason)
-        }
-        // The author's text, photo and video stories are all still there, in the order they were posted.
+    fun aKindNobodyHasMadeYetIsSkippedWithoutHidingTheAuthorsOtherStories() {
+        val outcome = decoder.decode(dtoOf(unknownKindId), friends().getValue(ids.str("alice")).publicKey, bobPrivate)
+        assertEquals(SkipReason.UnsupportedKind, (outcome as StoryDecoding.Skipped).reason)
+        // The author's text, photo, video and voice stories are all still there, in the order they were posted.
         val alice = decoded().authors.first { it.author.handle == "alice" }.stories
-        assertEquals(listOf(StoryKind.Text, StoryKind.Image, StoryKind.Video, StoryKind.Text), alice.map { it.kind })
+        assertEquals(listOf(StoryKind.Text, StoryKind.Image, StoryKind.Video, StoryKind.Audio, StoryKind.Text), alice.map { it.kind })
+    }
+
+    @Test
+    fun aVoiceStoryIsReadAsTheWebReadsIt() {
+        val web = webVisible.single { it.str("kind") == "audio" }
+        val story = shown.single { it.id == web.str("id") }
+        assertEquals(StoryKind.Audio, story.kind)
+        assertEquals("Voice note", story.meta.text)
+        assertEquals("night", story.meta.background?.wire)
+        assertEquals("classic", story.meta.font?.wire)
+        assertEquals(1, story.meta.media!!.width)
+        assertEquals(1, story.meta.media!!.height)
+        assertEquals(9_000L, story.meta.media!!.durationMs)
+        assertEquals("audio/webm", story.meta.media!!.mime)
+        assertEquals(32, story.meta.waveform!!.size)
+        assertEquals("Voice note", story.preview())
     }
 
     @Test
@@ -199,8 +214,8 @@ class StoryFeedVectorsTest {
     @Test
     fun anAuthorWhoseEveryStoryIsSkippedIsNotInTheTray() {
         val aliceId = ids.str("alice")
-        val skippedOnly = feed().authors.single { it.authorId == aliceId }.stories.filter { it.kind == "audio" || it.kind == "reel" }
-        assertEquals(2, skippedOnly.size)
+        val skippedOnly = feed().authors.single { it.authorId == aliceId }.stories.filter { it.kind == "reel" }
+        assertEquals(1, skippedOnly.size)
         val tray = decoder.decodeFeed(StoryFeed(emptyList(), listOf(StoryAuthorGroup(aliceId, skippedOnly))), bobPublic, bobPrivate, friends(), emptySet())
         assertTrue(tray.authors.isEmpty())
     }

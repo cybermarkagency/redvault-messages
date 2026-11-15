@@ -36,119 +36,126 @@ Item {
         }
     }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        CallBar {
-            Layout.fillWidth: true
-            calls: App.calls
-        }
-
-        GroupCallBar {
-            Layout.fillWidth: true
-            groupCalls: App.groupCalls
-        }
-
-        // Devices & encryption: this computer isn't linked to the account's devices (it stays until it is), or,
-        // once, right after it was set up as the first device: make a recovery key.
-        Rectangle {
-            id: deviceKeysBanner
-            readonly property bool link: App.deviceKeys !== null && App.deviceKeys.needsLink
-            readonly property bool recovery: App.deviceKeys !== null && App.deviceKeys.recoveryNotice
-            Layout.fillWidth: true
-            visible: (link || recovery) && !(shell.page === "settings" && settingsView.section === "devicekeys")
-            implicitHeight: visible ? deviceKeysRow.implicitHeight + 16 : 0
-            color: link ? Theme.warnSoft : Theme.accentSoft
-            RowLayout {
-                id: deviceKeysRow
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 16
-                spacing: 10
-                Icon {
-                    name: deviceKeysBanner.link ? "triangle-alert" : "key"
-                    size: 16
-                    color: deviceKeysBanner.link ? Theme.warn : Theme.accent
-                }
-                Text {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 0
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    color: deviceKeysBanner.link ? Theme.warn : Theme.accent
-                    font.pixelSize: Theme.fontSmall + 1
-                    text: deviceKeysBanner.link
-                          ? "Link this computer to your other devices to use the Signal protocol here: pair it with a device you already use, or use your recovery key."
-                          : "Create a recovery key so you can restore your device keys on a new phone or computer."
-                }
-                RvButton {
-                    text: deviceKeysBanner.link ? "Link this computer" : "Create recovery key"
-                    primary: true
-                    implicitHeight: 30
-                    onClicked: App.deviceKeys.showSettings()
-                }
-                RvButton {
-                    visible: !deviceKeysBanner.link
-                    text: "Not now"
-                    implicitHeight: 30
-                    onClicked: App.deviceKeys.dismissRecoveryNotice()
-                }
+        NavRail {
+            Layout.fillHeight: true
+            current: shell.page
+            chatsBadge: shell.session.unreadTotal
+            contactsBadge: shell.people.incoming.length
+            inboxBadge: App.inbox ? App.inbox.unread : 0
+            channelsBadge: App.channels ? App.channels.unreadChannels : 0
+            filesBadge: App.shares ? App.shares.incomingCount : 0
+            avatarUrl: shell.account.avatarUrl
+            showAdmin: App.superAdmin && App.communityAdmin !== null
+            onNavigate: (page) => {
+                shell.page = page
+                if (page === "passwords" && App.devices) App.devices.reload()
             }
         }
 
-        // Tor / call status (docs/tor-routing-plan.md), always visible while it matters.
-        Item {
-            Layout.fillWidth: true
-            implicitHeight: statusChip.visible ? statusChip.implicitHeight + 12 : 0
-            visible: statusChip.visible
-            TorStatusChip {
-                id: statusChip
-                anchors.right: parent.right
-                anchors.rightMargin: 16
-                anchors.verticalCenter: parent.verticalCenter
-                tor: App.tor
-                callActive: (App.calls !== null && (App.calls.phase === "active" || App.calls.phase === "reconnecting"))
-                            || (App.groupCalls !== null && App.groupCalls.inCall)
-                onOpenSettings: {
-                    settingsView.section = "network"
-                    shell.page = "settings"
-                }
-            }
-        }
-
-        RowLayout {
+        // Everything right of the rail: call bars, banners, the Tor strip, then the page.
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
 
-            NavRail {
-                Layout.fillHeight: true
-                current: shell.page
-                chatsBadge: shell.session.unreadTotal
-                contactsBadge: shell.people.incoming.length
-                inboxBadge: App.inbox ? App.inbox.unread : 0
-                channelsBadge: App.channels ? App.channels.unreadChannels : 0
-                filesBadge: App.shares ? App.shares.incomingCount : 0
-                avatarUrl: shell.account.avatarUrl
-                showAdmin: App.superAdmin && App.communityAdmin !== null
-                onNavigate: (page) => {
-                    shell.page = page
-                    if (page === "privacy") settingsView.section = "privacy"
-                    if (page === "passwords" && App.devices) App.devices.reload()
+            CallBar {
+                Layout.fillWidth: true
+                calls: App.calls
+            }
+
+            GroupCallBar {
+                Layout.fillWidth: true
+                groupCalls: App.groupCalls
+            }
+
+            // Devices & encryption: this computer isn't linked to the account's devices (it stays until it is), or,
+            // once, right after it was set up as the first device: make a recovery key.
+            Rectangle {
+                id: deviceKeysBanner
+                readonly property bool link: App.deviceKeys !== null && App.deviceKeys.needsLink
+                readonly property bool recovery: App.deviceKeys !== null && App.deviceKeys.recoveryNotice
+                Layout.fillWidth: true
+                visible: (link || recovery) && !(shell.page === "settings" && settingsView.section === "devicekeys")
+                implicitHeight: visible ? deviceKeysRow.implicitHeight + 16 : 0
+                color: link ? Theme.warnSoft : Theme.accentSoft
+                RowLayout {
+                    id: deviceKeysRow
+                    anchors.fill: parent
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 16
+                    spacing: 10
+                    Icon {
+                        name: deviceKeysBanner.link ? "triangle-alert" : "key"
+                        size: 16
+                        color: deviceKeysBanner.link ? Theme.warn : Theme.accent
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        color: deviceKeysBanner.link ? Theme.warn : Theme.accent
+                        font.pixelSize: Theme.fontSmall + 1
+                        text: deviceKeysBanner.link
+                              ? qsTr("Link this computer to your other devices to use the Signal protocol here: pair it with a device you already use, or use your recovery key.")
+                              : qsTr("Create a recovery key so you can restore your device keys on a new phone or computer.")
+                    }
+                    RvButton {
+                        text: deviceKeysBanner.link ? qsTr("Link this computer") : qsTr("Create recovery key")
+                        primary: true
+                        implicitHeight: 30
+                        onClicked: App.deviceKeys.showSettings()
+                    }
+                    RvButton {
+                        visible: !deviceKeysBanner.link
+                        text: qsTr("Not now")
+                        implicitHeight: 30
+                        onClicked: App.deviceKeys.dismissRecoveryNotice()
+                    }
+                }
+            }
+
+            // Tor / call status (docs/tor-routing-plan.md), always visible while it matters.
+            // An open chat shows the Tor part in its own header instead, so the strip
+            // stays away from the Chats page then, unless a call is on.
+            Item {
+                readonly property bool chatShowsIt: shell.page === "chats" && shell.session.currentChatId.length > 0 && !statusChip.callActive
+                Layout.fillWidth: true
+                implicitHeight: visible ? statusChip.implicitHeight + 12 : 0
+                visible: statusChip.visible && !chatShowsIt
+                TorStatusChip {
+                    id: statusChip
+                    anchors.right: parent.right
+                    anchors.rightMargin: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    tor: App.tor
+                    callActive: (App.calls !== null && (App.calls.phase === "active" || App.calls.phase === "reconnecting"))
+                                || (App.groupCalls !== null && App.groupCalls.inCall)
+                    onOpenSettings: {
+                        settingsView.section = "network"
+                        shell.page = "settings"
+                    }
                 }
             }
 
             StackLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: ["chats", "calls", "contacts", "settings", "files", "passwords", "inbox", "channels", "communities", "admin", "earnings"].indexOf(shell.page === "privacy" ? "settings" : shell.page)
+                currentIndex: ["chats", "calls", "contacts", "settings", "files", "passwords", "inbox", "channels", "communities", "admin", "earnings"].indexOf(shell.page)
 
                 ChatsView {
                     id: chatsView
                     session: shell.session
                     people: shell.people
                     account: shell.account
+                    onOpenNetworkSettings: {
+                        settingsView.section = "network"
+                        shell.page = "settings"
+                    }
                 }
                 CallsView {
                     calls: App.calls
@@ -172,6 +179,7 @@ Item {
                 SettingsView {
                     id: settingsView
                     account: shell.account
+                    people: shell.people
                 }
                 FilesView {
                     files: App.files
@@ -188,10 +196,7 @@ Item {
                 ChannelsView {
                     channels: App.channels
                     active: shell.page === "channels"
-                    onOpenPlans: {
-                        settingsView.section = "account"
-                        shell.page = "settings"
-                    }
+                    onOpenPlans: PlanGate.openPlans()
                 }
                 CommunitiesView {
                     communities: App.communities
@@ -229,8 +234,25 @@ Item {
     // A community's page opened from its chat, or its chat opened from its page.
     Connections {
         target: App.communities
-        function onShowRequested() { shell.page = "communities" }
+        function onShowRequested() { if (App.communitiesEnabled) shell.page = "communities" }
         function onShowChatRequested() { shell.page = "chats" }
+    }
+
+    // A paid feature tapped on a plan without it (PlanGate.ask), and "See plans" anywhere.
+    UpgradeDialog {
+        id: upgradeDialog
+        onSeePlans: PlanGate.openPlans()
+    }
+    Connections {
+        target: PlanGate
+        function onUpgradeRequested(tier, feature) { upgradeDialog.show(tier, feature) }
+        function onPlansRequested() {
+            settingsView.section = "account"
+            shell.page = "settings"
+            // From inside a call: shrink it to its bar so the plans are visible.
+            if (App.calls !== null && App.calls.phase.length > 0) App.calls.setMinimized(true)
+            if (App.groupCalls !== null && App.groupCalls.present) App.groupCalls.setMinimized(true)
+        }
     }
 
     // A group invite link, pasted or clicked in a chat.

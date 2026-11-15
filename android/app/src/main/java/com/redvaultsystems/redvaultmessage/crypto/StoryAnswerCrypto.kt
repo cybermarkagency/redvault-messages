@@ -69,6 +69,31 @@ class StoryAnswerCrypto(private val sodium: LazySodium) {
         return openPayload(payload, ANON_MAGIC, storyId, sticker)
     }
 
+    // --- Part D (docs/signal-integration/12-part-d-stories.md): device-keys stories ---
+
+    /**
+     * What an anonymous answer on a device-keys story seals once per author device (RVSD): the same payload as RVSA, so
+     * the story and sticker ids inside still stop a server moving it.
+     */
+    fun anonymousPayload(storyId: String, sticker: AnswerableSticker, answer: StoryAnswer): ByteArray =
+        payload(ANON_MAGIC, storyId, sticker.id, checked(answer, sticker))
+
+    /** Reads an opened RVSD copy (see [anonymousPayload]). */
+    fun openAnonymousPayload(storyId: String, sticker: AnswerableSticker, payload: ByteArray): StoryAnswer =
+        openPayload(payload, ANON_MAGIC, storyId, sticker)
+
+    /** The answer JSON a named `storyanswer` carries, checked against its sticker first. */
+    fun answerJson(sticker: AnswerableSticker, answer: StoryAnswer): String = StoryAnswers.toJson(checked(answer, sticker))
+
+    /** A named `storyanswer`'s JSON, read with the sticker's own rules. */
+    fun parseAnswerJson(sticker: AnswerableSticker, json: String): StoryAnswer = try {
+        StoryAnswers.parse(Json.parseToJsonElement(json), sticker)
+    } catch (e: AnswerException) {
+        throw e
+    } catch (e: Exception) {
+        throw AnswerException()
+    }
+
     /** Seals the totals of one sticker with the story's key. [nonce] is random unless a test pins it. */
     fun sealTotals(
         storyId: String,

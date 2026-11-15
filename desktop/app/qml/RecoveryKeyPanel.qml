@@ -18,8 +18,8 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "If you ever forget your password, this key is the only way back into your account and messages. "
-              + "Write it down or keep it in a password manager. It won't be shown again, and nobody (including us) can recover it for you."
+        text: qsTr("If you ever forget your password, this key is the only way back into your account and messages. ")
+              + qsTr("Write it down or keep it in a password manager. It won't be shown again, and nobody (including us) can recover it for you.")
         color: Theme.text2
         font.pixelSize: Theme.fontSmall + 1
     }
@@ -48,7 +48,7 @@ ColumnLayout {
                 return lines.join("\n")
             }
             color: Theme.text
-            font.family: "Consolas"
+            font.family: Theme.monoFamily
             font.pixelSize: 18
             font.letterSpacing: 1
         }
@@ -59,7 +59,7 @@ ColumnLayout {
         RvButton {
             primary: false
             iconName: panel.copied ? "check" : "copy"
-            text: panel.copied ? "Copied" : "Copy"
+            text: panel.copied ? qsTr("Copied") : qsTr("Copy")
             onClicked: {
                 // Kept out of Windows clipboard history and cloud sync.
                 App.copySecret(panel.recoveryKey)
@@ -72,7 +72,7 @@ ColumnLayout {
     CheckBox {
         id: saved
         Layout.fillWidth: true
-        text: "I've saved my recovery key somewhere safe"
+        text: qsTr("I've saved my recovery key somewhere safe")
         contentItem: Text {
             textFormat: Text.PlainText
             leftPadding: saved.indicator.width + 8
@@ -85,7 +85,7 @@ ColumnLayout {
 
     RvButton {
         Layout.fillWidth: true
-        text: "Done"
+        text: qsTr("Done")
         enabled: saved.checked
         onClicked: panel.finished()
     }

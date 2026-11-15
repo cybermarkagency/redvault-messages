@@ -112,6 +112,9 @@ interface V3Service {
 
     @POST("e2e/v3/conversations/{id}/rosters")
     suspend fun postRoster(@Path("id") conversationId: String, @Body body: JsonElement): JsonObject
+
+    @GET("e2e/v3/users/{user}/signal-certificates")
+    suspend fun signalCertificates(@Path("user") userId: String, @Query("conversationId") conversationId: String?): JsonArray
 }
 
 /** A device the server lists for this account; [listed] means it is in the signed list (trusted). */
@@ -175,6 +178,13 @@ interface V3Api {
 
     /** One `{userId, deviceId, certificate, bundle}` per device; one-time keys are used up. */
     suspend fun signalClaim(conversationId: String?, devices: List<Pair<String, String>>): List<JsonObject> =
+        throw ApiException(503, "e2e_signal_disabled", "Signal sessions aren't available here.")
+
+    /**
+     * The Signal certificate each listed device of [userId] declared, as (deviceId, certificate). [conversationId] is the
+     * conversation (or, Part D, the device-keys story) both accounts share; null for this account's own devices.
+     */
+    suspend fun signalCertificates(userId: String, conversationId: String? = null): List<Pair<String, JsonObject>> =
         throw ApiException(503, "e2e_signal_disabled", "Signal sessions aren't available here.")
 
     /** M6: a conversation's signed rosters after [after], oldest first (0: the whole history). */
@@ -306,6 +316,13 @@ class RetrofitV3Api(private val service: V3Service) : V3Api {
         }
         return apiCall(json) { service.signalClaim(body) }.map { it.jsonObject }
     }
+
+    override suspend fun signalCertificates(userId: String, conversationId: String?): List<Pair<String, JsonObject>> =
+        apiCall(json) { service.signalCertificates(userId, conversationId) }.mapNotNull {
+            val c = it as? JsonObject ?: return@mapNotNull null
+            val certificate = c["certificate"] as? JsonObject ?: return@mapNotNull null
+            c.str("deviceId") to certificate
+        }
 
     override suspend fun rosters(conversationId: String, after: Int): List<JsonObject> =
         apiCall(json) { service.rosters(conversationId, after) }.map { it.jsonObject }

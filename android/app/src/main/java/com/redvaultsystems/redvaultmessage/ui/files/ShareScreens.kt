@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.files
 
+import androidx.compose.ui.res.stringResource
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
@@ -125,7 +126,7 @@ private fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit)
                 fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (on) colors.accent else colors.surface2)
+                    .background(if (on) colors.accentFill else colors.surface2)
                     .clickable(role = Role.RadioButton) { onSelect(i) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             )
@@ -173,8 +174,8 @@ private fun LinkResult(state: SharesState, onDone: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface2).padding(14.dp),
             )
             if (state.madeHasPassword) Callout(PASSWORD_NOTE, CalloutTone.Neutral, R.drawable.ui_info)
-            PillButton("Copy link", { copyText(context, url, secret = false) }, Modifier.fillMaxWidth())
-            PillButton("Share…", { shareSheet(context, url) }, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
+            PillButton(stringResource(R.string.ui_copy_link), { copyText(context, url, secret = false) }, Modifier.fillMaxWidth())
+            PillButton(stringResource(R.string.ui_share_2), { shareSheet(context, url) }, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
         }
     }
 }
@@ -211,7 +212,7 @@ fun ShareLinkScreen(shares: SharesSession, state: SharesState, entry: DriveEntry
     val existing = state.linksFor(entry.id)
 
     FullSheet(
-        title = "Share link",
+        title = stringResource(R.string.ui_share_link),
         onCancel = onBack,
         primary = if (state.busy) "Encrypting…" else "Create link",
         primaryEnabled = !state.busy && (!withPassword || password.length >= 8) && (expiry != Expiry.Custom || customAt > System.currentTimeMillis()),
@@ -238,7 +239,7 @@ fun ShareLinkScreen(shares: SharesSession, state: SharesState, entry: DriveEntry
         },
     ) {
         Text(entry.name, color = colors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        Text("Anyone with the link can open it in a browser, without an account. It's decrypted in their browser; the server never sees it.", color = colors.text2, fontSize = 13.sp)
+        Text(stringResource(R.string.ui_anyone_with_the_link_can_open), color = colors.text2, fontSize = 13.sp)
         if (existing.isNotEmpty()) {
             FieldLabel("Links you made")
             existing.forEach { s ->
@@ -247,10 +248,10 @@ fun ShareLinkScreen(shares: SharesSession, state: SharesState, entry: DriveEntry
                     Text(s.box?.label ?: entry.name, color = colors.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Tag(if (s.link.permission == "contributor") "Contributor" else "Viewer")
                     Tag(statusText(s), statusTone(s))
-                    if (s.active && s.url.isNotEmpty()) TextButton(onClick = { copyText(context, s.url, secret = false) }) { Text("Copy", color = colors.accent) }
+                    if (s.active && s.url.isNotEmpty()) TextButton(onClick = { copyText(context, s.url, secret = false) }) { Text(stringResource(R.string.ui_copy), color = colors.accent) }
                 }
             }
-            TextButton(onClick = onManage) { Text("Manage links", color = colors.accent) }
+            TextButton(onClick = onManage) { Text(stringResource(R.string.ui_manage_links), color = colors.accent) }
         }
         FieldLabel("New link")
         DsTextField(label, { label = it.take(120) }, "Name (only you see it): ${entry.name}")
@@ -333,7 +334,7 @@ fun SharedLinksScreen(
                     confirm = null
                 }) { Text(if (what == "revoke") "Revoke" else "Delete", color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     val order = mapOf("active" to 0, "expired" to 1, "revoked" to 2)
@@ -341,7 +342,7 @@ fun SharedLinksScreen(
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().navigationBarsPadding()) {
         SheetBar("Shared links", onBack, cancelText = "Back")
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Text("Links anyone can open in a browser, without an account. Each one is separate: its own permission, password and expiry.", color = colors.text2, fontSize = 14.sp) }
+            item { Text(stringResource(R.string.ui_links_anyone_can_open_in_a), color = colors.text2, fontSize = 14.sp) }
             state.error?.let { item { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle, Modifier.clickable { shares.dismissMessages() }) } }
             state.notice?.let { item { Callout(it, CalloutTone.Ok, R.drawable.ui_check, Modifier.clickable { shares.dismissMessages() }) } }
             if (links.isEmpty()) item { Text(if (state.loaded) "No links yet. Use Share link on a file or folder." else "Loading…", color = colors.text3, fontSize = 14.sp) }
@@ -382,17 +383,17 @@ fun SharedLinksScreen(
                     Text((if (d.permission == "contributor") CONTRIBUTOR_TEXT else VIEWER_TEXT) + " Visitors are anonymous: counts only, no names or addresses.", color = colors.text3, fontSize = 12.sp)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (s.active && s.url.isNotEmpty()) {
-                            PillButton("Copy link", { copyText(context, s.url, secret = false) }, style = PillStyle.Secondary)
-                            PillButton("Share…", { shareSheet(context, s.url) }, style = PillStyle.Secondary)
+                            PillButton(stringResource(R.string.ui_copy_link), { copyText(context, s.url, secret = false) }, style = PillStyle.Secondary)
+                            PillButton(stringResource(R.string.ui_share_2), { shareSheet(context, s.url) }, style = PillStyle.Secondary)
                         }
                         if (!d.revoked) {
-                            PillButton("Settings", { onEdit(d.id, "settings") }, style = PillStyle.Secondary, enabled = s.box != null && !state.busy)
-                            if (d.permission == "contributor") PillButton("Turn off uploads", { shares.turnOffUploads(d.id) }, style = PillStyle.Secondary, enabled = !state.busy)
+                            PillButton(stringResource(R.string.ui_settings), { onEdit(d.id, "settings") }, style = PillStyle.Secondary, enabled = s.box != null && !state.busy)
+                            if (d.permission == "contributor") PillButton(stringResource(R.string.ui_turn_off_uploads), { shares.turnOffUploads(d.id) }, style = PillStyle.Secondary, enabled = !state.busy)
                             PillButton(if (d.password != null) "Password" else "Add password", { onEdit(d.id, "password") }, style = PillStyle.Secondary, enabled = s.box != null && !state.busy)
-                            PillButton("New link", { onEdit(d.id, "regenerate") }, style = PillStyle.Secondary, enabled = s.box != null && !state.busy)
-                            PillButton("Revoke", { confirm = "revoke" to s }, style = PillStyle.Danger, enabled = !state.busy)
+                            PillButton(stringResource(R.string.ui_new_link), { onEdit(d.id, "regenerate") }, style = PillStyle.Secondary, enabled = s.box != null && !state.busy)
+                            PillButton(stringResource(R.string.ui_revoke), { confirm = "revoke" to s }, style = PillStyle.Danger, enabled = !state.busy)
                         }
-                        PillButton("Delete", { confirm = "delete" to s }, style = PillStyle.Danger, enabled = !state.busy)
+                        PillButton(stringResource(R.string.ui_delete), { confirm = "delete" to s }, style = PillStyle.Danger, enabled = !state.busy)
                     }
                 }
             }
@@ -468,15 +469,15 @@ fun ShareLinkEditScreen(shares: SharesSession, state: SharesState, linkId: Strin
     ) {
         when (mode) {
             "password" -> {
-                Text("Anyone opening the link will need it. The link itself stays the same; people who already downloaded files keep them.", color = colors.text2, fontSize = 14.sp)
+                Text(stringResource(R.string.ui_anyone_opening_the_link_will_need), color = colors.text2, fontSize = 14.sp)
                 DsTextField(password, { password = it }, "At least 8 characters", password = true)
                 Callout(PASSWORD_NOTE, CalloutTone.Neutral, R.drawable.ui_info)
                 if (d.password != null) {
-                    TextButton(onClick = { submitted = true; shares.setPassword(d.id, "") }, enabled = !state.busy) { Text("Remove password", color = colors.danger) }
+                    TextButton(onClick = { submitted = true; shares.setPassword(d.id, "") }, enabled = !state.busy) { Text(stringResource(R.string.ui_remove_password), color = colors.danger) }
                 }
             }
             "regenerate" -> {
-                Text("The current link stops working at once, including downloads in progress. Its settings and counts stay. Files people already downloaded stay with them.", color = colors.text2, fontSize = 14.sp)
+                Text(stringResource(R.string.ui_the_current_link_stops_working_at), color = colors.text2, fontSize = 14.sp)
                 Switch("Password", if (d.password != null) "Type it again (or a new one): it isn't stored anywhere." else "Needed to open the new link.", withPassword) { withPassword = it }
                 if (withPassword) DsTextField(password, { password = it }, "At least 8 characters", password = true)
             }
@@ -485,7 +486,7 @@ fun ShareLinkEditScreen(shares: SharesSession, state: SharesState, linkId: Strin
                 if (d.kind == "folder") {
                     Switch("Recipients can upload", if (contributor) CONTRIBUTOR_TEXT else VIEWER_TEXT, contributor) { contributor = it }
                     if (d.permission == "contributor" && !contributor) {
-                        Callout("Uploads stop at once: any still in progress are cancelled. Files already received stay in Incoming.", CalloutTone.Neutral, R.drawable.ui_info)
+                        Callout(stringResource(R.string.ui_uploads_stop_at_once_any_still), CalloutTone.Neutral, R.drawable.ui_info)
                     }
                     if (contributor) {
                         LimitField("Largest file (MB)", maxFileMb, { maxFileMb = it }, decimal = true)
@@ -541,10 +542,10 @@ fun IncomingScreen(shares: SharesSession, state: SharesState, files: FilesState,
         AlertDialog(
             onDismissRequest = { risky = null },
             containerColor = colors.surface,
-            title = { Text("Save a file that can run code?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_save_a_file_that_can_run), color = colors.text) },
             text = { Text("“${file?.name}” is a kind of file that can run programs or scripts when opened. Someone anonymous uploaded it. Only open it if you know what it is.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { risky = null; save(id) }) { Text("Save anyway", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { risky = null }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { risky = null; save(id) }) { Text(stringResource(R.string.ui_save_anyway), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { risky = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     rejecting?.let { id ->
@@ -552,10 +553,10 @@ fun IncomingScreen(shares: SharesSession, state: SharesState, files: FilesState,
         AlertDialog(
             onDismissRequest = { rejecting = null },
             containerColor = colors.surface,
-            title = { Text("Reject this file?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_reject_this_file), color = colors.text) },
             text = { Text("“${file?.name}” is deleted for good and stops counting toward your storage. Whoever uploaded it isn't told.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { rejecting = null; shares.rejectIncoming(id) }) { Text("Reject", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { rejecting = null }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { rejecting = null; shares.rejectIncoming(id) }) { Text(stringResource(R.string.ui_reject), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { rejecting = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     accepting?.let { id ->
@@ -574,24 +575,24 @@ fun IncomingScreen(shares: SharesSession, state: SharesState, files: FilesState,
             title = { Text("Add “${file?.name}” to your files", color = colors.text) },
             text = {
                 LazyColumn {
-                    item { Text("It's moved, not copied: it stays encrypted, now with your own Files key. Choose a folder:", color = colors.text2, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp)) }
+                    item { Text(stringResource(R.string.ui_it_s_moved_not_copied_it), color = colors.text2, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp)) }
                     items(listOf("" to "My files (top level)") + folders) { (folderId, path) ->
                         Text(path, color = colors.text, fontSize = 15.sp, modifier = Modifier.fillMaxWidth().clickable { accepting = null; shares.acceptIncoming(id, folderId) }.padding(vertical = 12.dp))
                     }
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { accepting = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { accepting = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().navigationBarsPadding()) {
         SheetBar("Incoming", onBack, cancelText = "Back")
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item { Text("Files people uploaded through your links. Review them, then add them to your files or reject them.", color = colors.text2, fontSize = 14.sp) }
+            item { Text(stringResource(R.string.ui_files_people_uploaded_through_your_links), color = colors.text2, fontSize = 14.sp) }
             item {
                 Callout(
-                    "Anyone with a Contributor link can upload, and uploaders are anonymous. These files are encrypted for you alone, so RedVault can't scan them for malware: only open what you expect.",
+                    stringResource(R.string.ui_anyone_with_a_contributor_link_can),
                     CalloutTone.Warn,
                     R.drawable.ui_alert_circle,
                 )
@@ -619,9 +620,9 @@ fun IncomingScreen(shares: SharesSession, state: SharesState, files: FilesState,
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillButton("Save a copy", { if (SharesSession.isRisky(f.name)) risky = f.dto.id else save(f.dto.id) }, style = PillStyle.Secondary, enabled = openable && !state.busy)
-                        PillButton("Add to Files", { accepting = f.dto.id }, style = PillStyle.Secondary, enabled = openable && !state.busy)
-                        PillButton("Reject", { rejecting = f.dto.id }, style = PillStyle.Danger, enabled = !state.busy)
+                        PillButton(stringResource(R.string.ui_save_a_copy), { if (SharesSession.isRisky(f.name)) risky = f.dto.id else save(f.dto.id) }, style = PillStyle.Secondary, enabled = openable && !state.busy)
+                        PillButton(stringResource(R.string.ui_add_to_files), { accepting = f.dto.id }, style = PillStyle.Secondary, enabled = openable && !state.busy)
+                        PillButton(stringResource(R.string.ui_reject), { rejecting = f.dto.id }, style = PillStyle.Danger, enabled = !state.busy)
                     }
                 }
             }

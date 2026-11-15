@@ -68,7 +68,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "Devices & encryption"
+        text: qsTr("Devices & encryption")
         color: Theme.text
         font.family: Theme.displayFamily
         font.pixelSize: 26
@@ -77,7 +77,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "Your messages use the Signal protocol. Each device gets its own encryption keys, and a new device is trusted only when one of your trusted devices approves it."
+        text: qsTr("Your messages use the Signal protocol. Each device gets its own encryption keys, and a new device is trusted only when one of your trusted devices approves it.")
         color: Theme.text2
         font.pixelSize: 14
     }
@@ -104,7 +104,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 0
                 spacing: 2
-                Title { text: "Key protection on this computer" }
+                Title { text: qsTr("Key protection on this computer") }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
@@ -126,9 +126,9 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: root.keys && root.keys.pendingReset.effectiveAt !== undefined
-                  ? "Someone asked to reset this account's keys. It takes effect on "
+                  ? qsTr("Someone asked to reset this account's keys. It takes effect on ")
                     + new Date(root.keys.pendingReset.effectiveAt).toLocaleString()
-                    + " unless a trusted device cancels it. If it wasn't you, cancel it and change your password."
+                    + qsTr(" unless a trusted device cancels it. If it wasn't you, cancel it and change your password.")
                   : ""
             textFormat: Text.PlainText
             color: Theme.warn
@@ -136,7 +136,7 @@ ColumnLayout {
         RvButton {
             visible: root.keys !== null && root.keys.trusted
             enabled: root.idle
-            text: "Cancel reset"
+            text: qsTr("Cancel reset")
             danger: true
             onClicked: root.keys.cancelReset()
         }
@@ -147,11 +147,11 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.keys !== null && root.keys.status === "setup"
         spacing: 8
-        Title { text: "Set up device keys on this computer" }
-        Detail { text: "This computer becomes your first trusted device. Your current key vouches for the new one. This normally happens on its own after you sign in; if it didn't, set it up here." }
+        Title { text: qsTr("Set up device keys on this computer") }
+        Detail { text: qsTr("This computer becomes your first trusted device. Your current key vouches for the new one. This normally happens on its own after you sign in; if it didn't, set it up here.") }
         RvButton {
             enabled: root.idle
-            text: "Set up"
+            text: qsTr("Set up")
             onClicked: root.keys.setUp()
         }
     }
@@ -161,25 +161,25 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.keys !== null && root.keys.status === "pair"
         spacing: 10
-        Title { text: "Link this computer: pair it with a trusted device" }
-        Detail { text: "Your password alone can't make this computer trusted. Open Devices & encryption on a trusted device and compare the codes." }
+        Title { text: qsTr("Link this computer: pair it with a trusted device") }
+        Detail { text: qsTr("Your password alone can't make this computer trusted. Open Devices & encryption on a trusted device and compare the codes.") }
 
         Detail {
             visible: root.keys !== null && root.keys.interrupted && !root.keys.joining
             color: Theme.warn
-            text: "Pairing was interrupted: this computer has keys, but no trusted device has approved them yet. Start again."
+            text: qsTr("Pairing was interrupted: this computer has keys, but no trusted device has approved them yet. Start again.")
         }
         RvButton {
             visible: root.keys !== null && root.keys.interrupted && !root.keys.joining
             enabled: root.idle
-            text: "Start over"
+            text: qsTr("Start over")
             primary: false
             onClicked: root.keys.startOver()
         }
 
         Detail {
             visible: root.keys !== null && root.keys.joining && root.keys.joinCodes.length === 0
-            text: "Waiting for a trusted device to answer…"
+            text: qsTr("Waiting for a trusted device to answer…")
         }
         Codes {
             visible: root.keys !== null && root.keys.joinCodes.length > 0
@@ -187,7 +187,7 @@ ColumnLayout {
         }
         Detail {
             visible: root.keys !== null && root.keys.joinCodes.length > 0
-            text: "Do these match the numbers on your trusted device?"
+            text: qsTr("Do these match the numbers on your trusted device?")
         }
         RowLayout {
             visible: root.keys !== null && root.keys.joining
@@ -195,11 +195,11 @@ ColumnLayout {
             RvButton {
                 visible: root.keys !== null && root.keys.joinCodes.length > 0
                 enabled: root.idle
-                text: "They match"
+                text: qsTr("They match")
                 onClicked: root.keys.confirmJoin()
             }
             RvButton {
-                text: root.keys && root.keys.joinCodes.length > 0 ? "They don't" : "Cancel"
+                text: root.keys && root.keys.joinCodes.length > 0 ? qsTr("They don't") : qsTr("Cancel")
                 danger: true
                 primary: false
                 onClicked: root.keys.cancelJoin()
@@ -208,15 +208,15 @@ ColumnLayout {
         RvButton {
             visible: root.keys !== null && !root.keys.joining && !root.keys.interrupted
             enabled: root.idle
-            text: "Start pairing"
+            text: qsTr("Start pairing")
             onClicked: root.keys.startPairing()
         }
 
         Divider {}
-        Title { text: "No trusted device left? Use your recovery key" }
+        Title { text: qsTr("No trusted device left? Use your recovery key") }
         RvTextField {
             Layout.fillWidth: true
-            placeholderText: "XXXX-XXXX-…"
+            placeholderText: qsTr("XXXX-XXXX-…")
             text: root.recoveryInput
             onTextChanged: root.recoveryInput = text
             font.family: Theme.monoFamily
@@ -224,7 +224,7 @@ ColumnLayout {
         }
         RvButton {
             enabled: root.idle && root.recoveryInput.trim().length > 0 && !(root.keys && root.keys.joining)
-            text: "Restore"
+            text: qsTr("Restore")
             primary: false
             onClicked: {
                 root.keys.restore(root.recoveryInput)
@@ -241,12 +241,12 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "This computer was removed from your trusted devices."
+            text: qsTr("This computer was removed from your trusted devices.")
             color: Theme.warn
         }
         RvButton {
             enabled: root.idle
-            text: "Delete its keys"
+            text: qsTr("Delete its keys")
             danger: true
             onClicked: root.keys.forgetDevice()
         }
@@ -270,7 +270,7 @@ ColumnLayout {
                     spacing: 2
                     RowLayout {
                         spacing: 8
-                        Text { text: "Trusted device"; color: Theme.text; font.weight: Font.Medium }
+                        Text { text: qsTr("Trusted device"); color: Theme.text; font.weight: Font.Medium }
                         Rectangle {
                             visible: trustedRow.modelData.isThis
                             implicitWidth: thisLabel.implicitWidth + 14
@@ -280,7 +280,7 @@ ColumnLayout {
                             Text {
                                 id: thisLabel
                                 anchors.centerIn: parent
-                                text: "This computer"
+                                text: qsTr("This computer")
                                 color: Theme.accent
                                 font.pixelSize: 11
                                 font.weight: Font.DemiBold
@@ -297,7 +297,7 @@ ColumnLayout {
                             Text {
                                 id: signalLabel
                                 anchors.centerIn: parent
-                                text: "Signal"
+                                text: qsTr("Signal")
                                 color: Theme.accent
                                 font.pixelSize: 11
                                 font.weight: Font.DemiBold
@@ -316,7 +316,7 @@ ColumnLayout {
                 RvButton {
                     visible: trustedRow.modelData.canRemove
                     enabled: root.idle
-                    text: "Remove"
+                    text: qsTr("Remove")
                     danger: true
                     primary: false
                     onClicked: root.keys.revoke(trustedRow.modelData.deviceId)
@@ -338,11 +338,11 @@ ColumnLayout {
                 readonly property bool mine: root.keys !== null && root.keys.answeringDeviceId === waitingRow.modelData.deviceId
                 Layout.fillWidth: true
                 spacing: 6
-                Title { text: "Signed in, not trusted" }
+                Title { text: qsTr("Signed in, not trusted") }
                 Detail {
                     text: waitingRow.modelData.asking
-                          ? "Asking to pair. Compare the codes on both screens before approving."
-                          : "If you don't recognize it, remove it and change your password."
+                          ? qsTr("Asking to pair. Compare the codes on both screens before approving.")
+                          : qsTr("If you don't recognize it, remove it and change your password.")
                 }
                 Codes {
                     visible: waitingRow.mine && root.keys.answerCodes.length > 0
@@ -350,25 +350,25 @@ ColumnLayout {
                 }
                 Detail {
                     visible: waitingRow.mine && root.keys.answerCodes.length > 0
-                    text: "Do these match the numbers on the new device?"
+                    text: qsTr("Do these match the numbers on the new device?")
                 }
                 RowLayout {
                     spacing: 8
                     RvButton {
                         visible: !waitingRow.mine && waitingRow.modelData.asking && root.keys.answeringDeviceId === ""
                         enabled: root.idle
-                        text: "Compare codes"
+                        text: qsTr("Compare codes")
                         onClicked: root.keys.compareCodes(waitingRow.modelData.deviceId)
                     }
                     RvButton {
                         visible: waitingRow.mine && root.keys.answerCodes.length > 0
                         enabled: root.idle
-                        text: "They match"
+                        text: qsTr("They match")
                         onClicked: root.keys.approve()
                     }
                     RvButton {
                         visible: waitingRow.mine
-                        text: "They don't"
+                        text: qsTr("They don't")
                         danger: true
                         primary: false
                         onClicked: root.keys.rejectAnswer()
@@ -376,7 +376,7 @@ ColumnLayout {
                     RvButton {
                         visible: !waitingRow.mine
                         enabled: root.idle
-                        text: "Remove"
+                        text: qsTr("Remove")
                         danger: true
                         primary: false
                         onClicked: root.keys.removeWaiting(waitingRow.modelData.deviceId)
@@ -391,8 +391,8 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.keys !== null && root.keys.status === "trusted"
         spacing: 8
-        Title { text: "Recovery key" }
-        Detail { text: "For when you have no trusted device left. Write it down; it's shown once and never stored here or on the server." }
+        Title { text: qsTr("Recovery key") }
+        Detail { text: qsTr("For when you have no trusted device left. Write it down; it's shown once and never stored here or on the server.") }
         TextEdit {
             Layout.fillWidth: true
             visible: root.keys !== null && root.keys.recoveryKey.length > 0
@@ -409,12 +409,12 @@ ColumnLayout {
             spacing: 8
             RvButton {
                 enabled: root.idle
-                text: root.keys && root.keys.recoveryKey.length > 0 ? "Make a new one" : "Create"
+                text: root.keys && root.keys.recoveryKey.length > 0 ? qsTr("Make a new one") : qsTr("Create")
                 onClicked: root.keys.createRecoveryKey()
             }
             RvButton {
                 visible: root.keys !== null && root.keys.recoveryKey.length > 0
-                text: "I wrote it down"
+                text: qsTr("I wrote it down")
                 primary: false
                 onClicked: root.keys.dismissRecoveryKey()
             }
@@ -426,12 +426,12 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.keys !== null && root.keys.status === "trusted"
         spacing: 8
-        Title { text: "Delete this computer's device keys" }
-        Detail { text: "Removes this computer's keys and the device-key messages stored here. Your other devices and the recovery key are unaffected, but this computer would have to be paired again." }
+        Title { text: qsTr("Delete this computer's device keys") }
+        Detail { text: qsTr("Removes this computer's keys and the device-key messages stored here. Your other devices and the recovery key are unaffected, but this computer would have to be paired again.") }
         RvButton {
             visible: !root.confirmForget
             enabled: root.idle
-            text: "Delete device keys…"
+            text: qsTr("Delete device keys…")
             danger: true
             primary: false
             onClicked: root.confirmForget = true
@@ -441,7 +441,7 @@ ColumnLayout {
             spacing: 8
             RvButton {
                 enabled: root.idle
-                text: "Yes, delete them"
+                text: qsTr("Yes, delete them")
                 danger: true
                 onClicked: {
                     root.confirmForget = false
@@ -449,7 +449,7 @@ ColumnLayout {
                 }
             }
             RvButton {
-                text: "Keep them"
+                text: qsTr("Keep them")
                 primary: false
                 onClicked: root.confirmForget = false
             }
@@ -459,7 +459,7 @@ ColumnLayout {
     // --- Security events ---
     Caption {
         visible: root.keys !== null && root.keys.events.length > 0
-        text: "Recent device-key events"
+        text: qsTr("Recent device-key events")
     }
     Card {
         Layout.fillWidth: true

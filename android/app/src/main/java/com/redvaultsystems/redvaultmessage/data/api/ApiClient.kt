@@ -79,6 +79,24 @@ object ApiClient {
             .apply { if (tor != null) TorRouting.install(this, tor) }
             .build()
 
+    /**
+     * The sealed backup route's own client (docs/tor-sealed-fallback.md): through the same Tor gate, https only, and only
+     * [gatewayUrl]'s host; no cookie jar and none of the headers [StripIdentifyingHeaders] drops. What it carries is
+     * already sealed to the gateway's key (tor/SealedRoute.kt).
+     */
+    fun sealedRouteClient(gatewayUrl: String, tor: TorGateSource): OkHttpClient {
+        val host = gatewayUrl.toHttpUrl().host
+        return TorRouting.installForWebsite(
+            OkHttpClient.Builder()
+                .addInterceptor(OwnServerOnly(host))
+                .addNetworkInterceptor(StripIdentifyingHeaders)
+                .followRedirects(false)
+                .followSslRedirects(false),
+            tor,
+            host,
+        ).build()
+    }
+
     fun create(baseUrl: String, client: OkHttpClient): ApiService =
         Retrofit.Builder()
             .baseUrl(baseUrl)

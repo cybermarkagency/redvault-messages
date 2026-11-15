@@ -122,6 +122,14 @@ struct GroupCallSession::Call {
     std::unique_ptr<gcm::RoomKeyExchange> exchange;
     std::shared_ptr<Room> room;
     std::vector<api::live::LiveEvent> buffer;
+    /// Part B: room keys over device keys, and the ones that came before the room was connected.
+    bool deviceKeys = false;
+    struct DeviceKey {
+        std::int64_t epoch = 0;
+        std::string from;
+        std::shared_ptr<const crypto::SecretBytes> key;
+    };
+    std::vector<DeviceKey> keyBuffer;
     std::set<std::string> speaking;
     std::string localIdentity;
     bool ringing = false;
@@ -353,7 +361,11 @@ void GroupCallSession::connect(const api::groupcalls::Join& join) {
     config.selfPrivateKey = env_.self->privateKey.view();
     config.publicKeyOf = [this](const std::string& userId) { return publicKeyOf(userId); };
     config.now = env_.now;
+    // Part B: a group on device keys hands its room keys out as device-key messages; the two paths never mix in a call.
+    config.deviceKeys = env_.deviceKeys && env_.deviceKeys(join.conversationId);
+    call_->deviceKeys = config.deviceKeys;
     call_->exchange = std::make_unique<gcm::RoomKeyExchange>(std::move(config));
+    if (call_->deviceKeys && env_.deviceKeyCall) env_.deviceKeyCall(join.callId, join.conversationId, true);
 
     view_.callId = join.callId;
     view_.conversationId = join.conversationId;
@@ -468,6 +480,14 @@ void GroupCallSession::onConnected(std::uint64_t generation, std::shared_ptr<Roo
     const std::string callId = call_->callId;
     for (const auto& event : buffered) {
         if (event.callId == callId && call_ && !call_->closed) handleCallEvent(event);
+    }
+    if (call_) {
+        auto keys = std::move(call_->keyBuffer);
+        call_->keyBuffer.clear();
+        for (auto& k : keys) {
+            if (!call_ || call_->closed || !call_->exchange) break;
+            apply(call_->exchange->onDeviceKey(k.epoch, k.from, std::move(k.key)));
+        }
     }
     if (call_) refreshTiles();
     changed();
@@ -597,6 +617,23 @@ void GroupCallSession::onLiveEvent(const api::live::LiveEvent& event) {
     handleCallEvent(event);
 }
 
+void GroupCallSession::onDeviceKey(const std::string& callId, const std::string& conversationId, std::int64_t epoch,
+                                   const std::string& fromUserId, std::shared_ptr<const crypto::SecretBytes> key) {
+    if (!call_ || call_->closed || !call_->deviceKeys || call_->callId != callId || call_->conversationId != conversationId || !key) return;
+    // Only a member of the group, as this app knows it now.
+    const auto group = env_.group(conversationId);
+    if (!group) return;
+    bool member = false;
+    for (const auto& m : group->members) member = member || m.userId == fromUserId;
+    // A community lists only who wrote here: there the exchange's own check (the keyholder the call's roster names) decides.
+    if ((!member && !group->community) || fromUserId == env_.self->userId) return;
+    if (!call_->ready || !call_->exchange) {
+        if (call_->keyBuffer.size() < kMaxBuffered) call_->keyBuffer.push_back(Call::DeviceKey{epoch, fromUserId, std::move(key)});
+        return;
+    }
+    apply(call_->exchange->onDeviceKey(epoch, fromUserId, std::move(key)));
+}
+
 void GroupCallSession::handleCallEvent(const api::live::LiveEvent& event) {
     if (!call_ || !call_->exchange) return;
     gcm::RoomKeyExchange::Outcome outcome;
@@ -604,6 +641,11 @@ void GroupCallSession::handleCallEvent(const api::live::LiveEvent& event) {
         std::vector<gcm::RosterMember> members;
         for (const auto& m : event.members) members.push_back(gcm::RosterMember{m.userId, m.identity});
         outcome = call_->exchange->onRoster(event.epoch, event.keyholder.value_or(""), members);
+        if (call_->deviceKeys && env_.deviceKeyMembers) {
+            std::vector<std::string> ids;
+            for (const auto& m : members) ids.push_back(m.userId);
+            env_.deviceKeyMembers(call_->callId, call_->conversationId, ids);
+        }
         if (outcome.rosterChanged) {
             active_[call_->conversationId] = ActiveCall{call_->callId, call_->kind, static_cast<int>(members.size())};
             if (hooks_.activeChanged) hooks_.activeChanged();
@@ -623,6 +665,27 @@ void GroupCallSession::apply(const gcm::RoomKeyExchange::Outcome& outcome) {
     view_.keyReady = call_->exchange->keyReady();
     if (outcome.clearNotice) view_.notice.clear();
     if (outcome.notice) view_.notice = *outcome.notice;
+
+    // Part B: the keyholder's key goes to each participant's devices as a device-key message, never to /keys.
+    if (outcome.deviceKey && !outcome.deviceKeyRecipients.empty()) {
+        const auto alive = std::weak_ptr<bool>(alive_);
+        const auto generation = call_->generation;
+        auto postFn = env_.post;
+        auto failed = [=, this](const std::string& error) {
+            if (error.empty()) return;
+            postFn([=, this] {
+                if (!alive.lock() || generation != generation_ || !call_) return;
+                view_.notice = "Couldn't hand out the call key. Others may not hear you.";
+                changed();
+            });
+        };
+        if (env_.sendDeviceKey) {
+            env_.sendDeviceKey(call_->callId, call_->conversationId, outcome.sendEpoch, outcome.deviceKey, outcome.deviceKeyRecipients,
+                               failed);
+        } else {
+            failed("no device keys");
+        }
+    }
 
     const bool install = outcome.install.has_value();
     const bool sendKeys = !outcome.toSend.empty();
@@ -825,6 +888,7 @@ void GroupCallSession::finish(const std::string& message) {
     auto room = call_->room;
     const bool joined = call_->joinedServer;
     const std::string callId = call_->callId;
+    if (call_->deviceKeys && env_.deviceKeyCall) env_.deviceKeyCall(callId, call_->conversationId, false);
     shared_->setRoom(nullptr);
     call_.reset();
 

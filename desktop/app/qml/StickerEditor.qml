@@ -34,9 +34,9 @@ Rectangle {
     readonly property var titles: ({ poll: "Poll", quiz: "Quiz", question: "Question", slider: "Emoji slider", countdown: "Countdown",
                                      link: "Link", mention: "Mention", date: "Date or time", location: "Place" })
     readonly property var emojis: ["😍", "🔥", "😂", "👍", "❤️", "😮"]
-    readonly property var deadlines: [{ label: "When the story ends", hours: 0 }, { label: "In 1 hour", hours: 1 }, { label: "In 6 hours", hours: 6 },
-                                      { label: "In 12 hours", hours: 12 }, { label: "In 24 hours", hours: 24 }]
-    readonly property var dateStyles: [{ label: "Date and time", value: "datetime" }, { label: "Date only", value: "date" }, { label: "Time only", value: "time" }]
+    readonly property var deadlines: [{ label: qsTr("When the story ends"), hours: 0 }, { label: qsTr("In 1 hour"), hours: 1 }, { label: qsTr("In 6 hours"), hours: 6 },
+                                      { label: qsTr("In 12 hours"), hours: 12 }, { label: qsTr("In 24 hours"), hours: 24 }]
+    readonly property var dateStyles: [{ label: qsTr("Date and time"), value: "datetime" }, { label: qsTr("Date only"), value: "date" }, { label: qsTr("Time only"), value: "time" }]
     readonly property var friendChoices: {
         const out = [{ userId: "", handle: "Choose…" }]
         const list = editor.stories ? editor.stories.friends : []
@@ -51,7 +51,7 @@ Rectangle {
     color: Theme.surface
     radius: Theme.radiusCard
     Accessible.role: Accessible.Dialog
-    Accessible.name: (editor.titles[editor.type] || "Sticker") + " sticker"
+    Accessible.name: (editor.titles[editor.type] || qsTr("Sticker")) + qsTr(" sticker")
 
     function pad2(n) {
         return (n < 10 ? "0" : "") + n
@@ -131,11 +131,11 @@ Rectangle {
         case "countdown":
             c.text = titleField.text.trim()
             c.when = editor.whenMs()
-            if (isNaN(c.when)) { editor.error = "Type the time like 2026-12-25 18:30 (year-month-day hour:minute)."; return }
+            if (isNaN(c.when)) { editor.error = qsTr("Type the time like 2026-12-25 18:30 (year-month-day hour:minute)."); return }
             break
         case "date":
             c.when = editor.whenMs()
-            if (isNaN(c.when)) { editor.error = "Type the time like 2026-12-25 18:30 (year-month-day hour:minute)."; return }
+            if (isNaN(c.when)) { editor.error = qsTr("Type the time like 2026-12-25 18:30 (year-month-day hour:minute)."); return }
             c.style = editor.dateStyle
             break
         case "link":
@@ -169,7 +169,7 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: (editor.initial ? "Edit " : "New ") + (editor.titles[editor.type] || "sticker").toLowerCase()
+            text: (editor.initial ? qsTr("Edit ") : qsTr("New ")) + (editor.titles[editor.type] || "sticker").toLowerCase()
             textFormat: Text.PlainText
             color: Theme.text
             font.pixelSize: Theme.fontTitle
@@ -189,7 +189,7 @@ Rectangle {
                 // The question (poll, quiz, question, slider)
                 Field {
                     visible: editor.asksQuestion
-                    label: editor.type === "question" ? "Your question" : editor.type === "slider" ? "Your prompt" : "Question"
+                    label: editor.type === "question" ? qsTr("Your question") : editor.type === "slider" ? qsTr("Your prompt") : qsTr("Question")
                     RvTextField {
                         id: questionField
                         objectName: "stickerQuestion"
@@ -204,7 +204,7 @@ Rectangle {
                     Layout.fillWidth: true
                     visible: editor.hasOptions
                     spacing: 6
-                    Text { text: "Options"; color: Theme.text2; font.pixelSize: Theme.fontSmall }
+                    Text { text: qsTr("Options"); color: Theme.text2; font.pixelSize: Theme.fontSmall }
                     Repeater {
                         model: optionsModel
                         delegate: RowLayout {
@@ -218,21 +218,21 @@ Rectangle {
                                 visible: editor.type === "quiz"
                                 checked: editor.correct === optionRow.index
                                 onClicked: editor.correct = optionRow.index
-                                Accessible.name: "Option " + (optionRow.index + 1) + " is the right answer"
+                                Accessible.name: "Option " + (optionRow.index + 1) + qsTr(" is the right answer")
                             }
                             RvTextField {
                                 objectName: "stickerOption" + optionRow.index
                                 Layout.fillWidth: true
                                 text: optionRow.text
                                 maximumLength: 40
-                                placeholderText: "Option " + (optionRow.index + 1)
+                                placeholderText: qsTr("Option ") + (optionRow.index + 1)
                                 Accessible.name: "Option " + (optionRow.index + 1)
                                 onTextEdited: optionsModel.setProperty(optionRow.index, "text", text)
                             }
                             IconButton {
                                 visible: optionsModel.count > 2
                                 iconName: "close"
-                                tip: "Remove option " + (optionRow.index + 1)
+                                tip: qsTr("Remove option ") + (optionRow.index + 1)
                                 onClicked: {
                                     optionsModel.remove(optionRow.index)
                                     if (editor.correct >= optionsModel.count - 1 || editor.correct === optionRow.index) editor.correct = 0
@@ -243,13 +243,13 @@ Rectangle {
                     RvButton {
                         visible: optionsModel.count < 4
                         secondary: true
-                        text: "Add an option"
+                        text: qsTr("Add an option")
                         onClicked: optionsModel.append({ text: "" })
                     }
                     Text {
                         Layout.fillWidth: true
                         visible: editor.type === "quiz"
-                        text: "The right answer is revealed after someone answers. It isn't secret from their app, which holds the whole story."
+                        text: qsTr("The right answer is revealed after someone answers. It isn't secret from their app, which holds the whole story.")
                         wrapMode: Text.Wrap
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
@@ -258,7 +258,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "quiz"
-                    label: "Explanation (optional)"
+                    label: qsTr("Explanation (optional)")
                     RvTextField {
                         id: explanationField
                         objectName: "stickerExplanation"
@@ -269,7 +269,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "poll"
-                    label: "Voting closes"
+                    label: qsTr("Voting closes")
                     note: "The deadline is exact in the app; the count uses times to the minute."
                     StoryCombo {
                         objectName: "stickerDeadline"
@@ -284,7 +284,7 @@ Rectangle {
 
                 Field {
                     visible: editor.hasResults
-                    label: "Who sees the results"
+                    label: qsTr("Who sees the results")
                     note: "Totals only, never who chose what. They update while your app is open."
                     StoryCombo {
                         Layout.fillWidth: true
@@ -317,7 +317,7 @@ Rectangle {
                     Layout.fillWidth: true
                     visible: editor.type === "slider"
                     spacing: 6
-                    Text { text: "Emoji"; color: Theme.text2; font.pixelSize: Theme.fontSmall }
+                    Text { text: qsTr("Emoji"); color: Theme.text2; font.pixelSize: Theme.fontSmall }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
@@ -345,7 +345,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "countdown"
-                    label: "What is it counting down to?"
+                    label: qsTr("What is it counting down to?")
                     RvTextField {
                         id: titleField
                         objectName: "stickerTitle"
@@ -356,7 +356,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "countdown" || editor.type === "date"
-                    label: "When"
+                    label: qsTr("When")
                     note: "Year-month-day hour:minute, in this computer's time zone. Everyone sees it in theirs."
                     RvTextField {
                         id: whenField
@@ -370,7 +370,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "date"
-                    label: "Show"
+                    label: qsTr("Show")
                     StoryCombo {
                         Layout.fillWidth: true
                         model: editor.dateStyles
@@ -383,7 +383,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "link"
-                    label: "Web address"
+                    label: qsTr("Web address")
                     RvTextField {
                         id: urlField
                         objectName: "stickerUrl"
@@ -395,7 +395,7 @@ Rectangle {
 
                 Field {
                     visible: editor.type === "link" || editor.type === "location"
-                    label: editor.type === "link" ? "Text on the sticker" : "Place name"
+                    label: editor.type === "link" ? qsTr("Text on the sticker") : qsTr("Place name")
                     note: editor.type === "link" ? "Friends are asked before the link opens, and see the site it goes to."
                                                   : "Only what you type is shared. Your device's location is never read."
                     RvTextField {
@@ -403,14 +403,14 @@ Rectangle {
                         objectName: "stickerLabel"
                         Layout.fillWidth: true
                         maximumLength: editor.type === "link" ? 40 : 60
-                        placeholderText: editor.type === "link" ? "Defaults to the site name" : ""
-                        Accessible.name: editor.type === "link" ? "Text on the sticker" : "Place name"
+                        placeholderText: editor.type === "link" ? qsTr("Defaults to the site name") : ""
+                        Accessible.name: editor.type === "link" ? qsTr("Text on the sticker") : qsTr("Place name")
                     }
                 }
 
                 Field {
                     visible: editor.type === "mention"
-                    label: "Friend"
+                    label: qsTr("Friend")
                     note: "They only see it if they can see this story. Nobody is notified."
                     StoryCombo {
                         Layout.fillWidth: true
@@ -439,7 +439,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            RvButton { secondary: true; text: "Cancel"; onClicked: editor.canceled() }
+            RvButton { secondary: true; text: qsTr("Cancel"); onClicked: editor.canceled() }
             Item { Layout.fillWidth: true }
             RvButton { objectName: "stickerSave"; text: editor.initial ? "Save" : "Add"; onClicked: editor.save() }
         }

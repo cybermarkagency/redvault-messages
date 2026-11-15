@@ -4,8 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as communityApi from "../lib/communityApi.js";
 import { type AdminOverviewDto, type AdminTransactionDto, formatMoney, formatRate, type ReportDto } from "../lib/communityApi.js";
-import { describeError, formatDate } from "./Communities.js";
-import { parseDollars } from "./CommunityCreate.js";
+import { describeError, formatDate, parseDollars } from "../lib/communityFormat.js";
 import styles from "./Communities.module.css";
 
 type Section = "overview" | "transactions" | "creators" | "communities" | "reports";

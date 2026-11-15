@@ -16,10 +16,6 @@ import { API_BASE } from "./apiBase.js";
 export const TOR_UNAVAILABLE_MESSAGE =
   "Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored.";
 
-/** Tor Browser turns WebRTC off, on purpose: it would reveal the IP address. */
-export const CALLS_UNAVAILABLE_MESSAGE =
-  "Calls aren't available in Tor Browser: it turns WebRTC off so it can't reveal your IP address. Use the desktop or Android app for calls (they go through the call relay, not Tor).";
-
 export type TorRoutingMode = "off" | "report" | "notice" | "enforce";
 
 /** GET /api/public/routing (server/src/middleware/torRouting.ts). */
@@ -33,15 +29,6 @@ export interface RoutingInfo {
 /** This page was loaded from an onion address, so (in Tor Browser) all of its requests go through Tor. */
 export function onOnionOrigin(): boolean {
   return window.location.hostname.toLowerCase().endsWith(".onion");
-}
-
-/**
- * Tor Browser turns WebRTC off (it would reveal the IP address), so calls
- * can't work there. Calls are never Tor-anonymous anyway: they go through
- * the TURN relay, in the desktop and Android apps.
- */
-export function webRtcAvailable(): boolean {
-  return typeof RTCPeerConnection !== "undefined";
 }
 
 /** What the server says about Tor routing; null when it can't be asked (an older server, or offline). */

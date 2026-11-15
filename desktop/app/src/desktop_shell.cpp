@@ -54,14 +54,14 @@ DesktopShell::DesktopShell(AppController* app, QObject* parent)
     if (!QSystemTrayIcon::isSystemTrayAvailable()) return;
 
     menu_ = std::make_unique<QMenu>();
-    menu_->addAction(QStringLiteral("Open redvaultmessages"), this, &DesktopShell::showWindow);
+    menu_->addAction(QStringLiteral("Open RedVaultMessages"), this, &DesktopShell::showWindow);
     lockAction_ = menu_->addAction(QStringLiteral("Lock now"), this, [this] { app_->lock()->lockNow(); });
     menu_->addSeparator();
     menu_->addAction(QStringLiteral("Quit (signs you out)"), app_, &AppController::quit);
     connect(menu_.get(), &QMenu::aboutToShow, this, &DesktopShell::updateMenu);
 
     tray_ = std::make_unique<QSystemTrayIcon>(icon_);
-    tray_->setToolTip(QStringLiteral("redvaultmessages"));
+    tray_->setToolTip(QStringLiteral("RedVaultMessages"));
     tray_->setContextMenu(menu_.get());
     connect(tray_.get(), &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) showWindow();
@@ -200,7 +200,7 @@ void DesktopShell::hideToTray() {
     window_->hide();
     if (tray_ && !toldAboutTray_) {
         toldAboutTray_ = true;
-        tray_->showMessage(QStringLiteral("redvaultmessages is still running"),
+        tray_->showMessage(QStringLiteral("RedVaultMessages is still running"),
                            QStringLiteral("You'll get notifications here. Quit from this icon's menu to sign out."),
                            icon_, 6000);
     }
@@ -243,7 +243,7 @@ void DesktopShell::notifyIncoming(const QString& chatId, const QString& title, i
     }
     lastNotifiedChatId_ = chatId;
     lastNotifiedChannelId_.clear();
-    if (tray_) tray_->showMessage(QStringLiteral("redvaultmessages"), text, icon_, 5000);
+    if (tray_) tray_->showMessage(QStringLiteral("RedVaultMessages"), text, icon_, 5000);
     if (window_) window_->alert(0);  // flash the taskbar button until the window is used
 }
 
@@ -261,7 +261,7 @@ void DesktopShell::notifyChannelPost(const QString& channelId, const QString& ch
     const bool named = notificationShowsSender() && !app_->lock()->locked();
     lastNotifiedChannelId_ = channelId;
     if (tray_) {
-        tray_->showMessage(named ? channelName : QStringLiteral("redvaultmessages"),
+        tray_->showMessage(named ? channelName : QStringLiteral("RedVaultMessages"),
                            named ? preview : QStringLiteral("New post in a channel you follow"), icon_, 6000);
     }
 }

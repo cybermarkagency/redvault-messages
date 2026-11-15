@@ -36,23 +36,23 @@ ColumnLayout {
 
     ConfirmDialog {
         id: resetDialog
-        title: "Reset the invite link?"
-        message: "The current link stops working."
-        confirmText: "Reset link"
+        title: qsTr("Reset the invite link?")
+        message: qsTr("The current link stops working.")
+        confirmText: qsTr("Reset link")
         onConfirmed: section.invites.resetLink()
     }
     ConfirmDialog {
         id: turnOffDialog
-        title: "Turn off the invite link?"
-        message: "It stops working, and pending requests are dropped."
-        confirmText: "Turn off link"
+        title: qsTr("Turn off the invite link?")
+        message: qsTr("It stops working, and pending requests are dropped.")
+        confirmText: qsTr("Turn off link")
         danger: true
         onConfirmed: section.invites.turnOff()
     }
 
     Text {
         Layout.topMargin: 6
-        text: "INVITE LINK"
+        text: qsTr("INVITE LINK")
         color: Theme.text3
         font.pixelSize: 11
         font.weight: Font.DemiBold
@@ -72,13 +72,13 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "Anyone with the link can join, or ask to join if you approve new members. The group stays end-to-end encrypted: the link's secret never reaches the server."
+            text: qsTr("Anyone with the link can join, or ask to join if you approve new members. The group stays end-to-end encrypted: the link's secret never reaches the server.")
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
         }
         RvButton {
             iconName: "link"
-            text: "Create invite link"
+            text: qsTr("Create invite link")
             enabled: !section.invites.busy
             onClicked: section.invites.createLink()
         }
@@ -107,7 +107,7 @@ ColumnLayout {
             }
             RvButton {
                 iconName: "copy"
-                text: section.copied ? "Copied" : "Copy"
+                text: section.copied ? qsTr("Copied") : qsTr("Copy")
                 onClicked: section.invites.copyLink()
             }
         }
@@ -115,16 +115,16 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: section.invites.linkUrl.length === 0
             wrapMode: Text.Wrap
-            text: "This group's link couldn't be opened on this computer."
+            text: qsTr("This group's link couldn't be opened on this computer.")
             color: Theme.text2
         }
 
         RvSwitch {
             Layout.fillWidth: true
             visible: section.invites.canManage
-            label: "Approve new members"
-            description: section.invites.approval ? "An admin lets in each person who opens the link."
-                                                  : "Anyone who opens the link joins straight away."
+            label: qsTr("Approve new members")
+            description: section.invites.approval ? qsTr("An admin lets in each person who opens the link.")
+                                                  : qsTr("Anyone who opens the link joins straight away.")
             checked: section.invites.approval
             enabled: !section.invites.busy && section.invites.linkUrl.length > 0
             onToggled: (on) => section.invites.setApproval(on)
@@ -135,14 +135,14 @@ ColumnLayout {
             spacing: 4
             RvButton {
                 primary: false
-                text: "Reset link"
+                text: qsTr("Reset link")
                 enabled: !section.invites.busy
                 onClicked: resetDialog.open()
             }
             RvButton {
                 primary: false
                 danger: true
-                text: "Turn off link"
+                text: qsTr("Turn off link")
                 enabled: !section.invites.busy
                 onClicked: turnOffDialog.open()
             }
@@ -153,7 +153,7 @@ ColumnLayout {
     Text {
         Layout.topMargin: 6
         visible: section.invites.canManage && section.invites.requests.length > 0
-        text: "REQUESTS TO JOIN (" + section.invites.requests.length + ")"
+        text: qsTr("REQUESTS TO JOIN (") + section.invites.requests.length + ")"
         textFormat: Text.PlainText
         color: Theme.text3
         font.pixelSize: 11
@@ -191,14 +191,14 @@ ColumnLayout {
                 }
                 RvButton {
                     implicitHeight: 28
-                    text: "Approve"
+                    text: qsTr("Approve")
                     enabled: !section.invites.busy
                     onClicked: section.invites.approve(request.modelData.userId)
                 }
                 RvButton {
                     primary: false
                     implicitHeight: 28
-                    text: "Decline"
+                    text: qsTr("Decline")
                     enabled: !section.invites.busy
                     onClicked: section.invites.decline(request.modelData.userId)
                 }

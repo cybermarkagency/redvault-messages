@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -89,7 +91,7 @@ fun ChannelsTab(channels: ChannelSession, premium: Boolean, onOpen: (ChannelLink
     val followed by channels.followed.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(if (followed.isNotEmpty()) ChannelTab.Following else ChannelTab.Discover) }
     Column(Modifier.fillMaxSize().background(colors.bg)) {
-        TabHeader("Channels")
+        TabHeader(stringResource(R.string.ui_channels))
         SecurityLine("Not end-to-end encrypted · follows stay on this phone", R.drawable.ui_globe)
         Text(
             "Channels aren't end-to-end encrypted like your chats: anyone can read a public channel, and anyone with the link can read a " +
@@ -129,16 +131,16 @@ private fun NotificationPrompt(channels: ChannelSession) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Get a notification when a channel you follow posts, while the app is running.", color = colors.text2, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.ui_get_a_notification_when_a_channel), color = colors.text2, fontSize = 13.sp, modifier = Modifier.weight(1f))
         TextButton(onClick = {
             channels.askedForNotifications = true
             dismissed = true
             ask.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }) { Text("Turn on", color = colors.accent, fontWeight = FontWeight.SemiBold) }
+        }) { Text(stringResource(R.string.ui_turn_on), color = colors.accent, fontWeight = FontWeight.SemiBold) }
         TextButton(onClick = {
             channels.askedForNotifications = true
             dismissed = true
-        }) { Text("Not now", color = colors.text3) }
+        }) { Text(stringResource(R.string.ui_not_now), color = colors.text3) }
     }
 }
 
@@ -172,8 +174,8 @@ private fun Following(channels: ChannelSession, onOpen: (ChannelLink) -> Unit, o
             verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("You don't follow any channels yet.", color = colors.text2, fontSize = 14.sp, textAlign = TextAlign.Center)
-            PillButton("Discover channels", onDiscover, style = PillStyle.Secondary, height = 44.dp)
+            Text(stringResource(R.string.ui_you_don_t_follow_any_channels), color = colors.text2, fontSize = 14.sp, textAlign = TextAlign.Center)
+            PillButton(stringResource(R.string.ui_discover_channels), onDiscover, style = PillStyle.Secondary, height = 44.dp)
         }
         return
     }
@@ -187,9 +189,9 @@ private fun Following(channels: ChannelSession, onOpen: (ChannelLink) -> Unit, o
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(f.name, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Text("This channel was deleted, or made private and you don't have its new link.", color = colors.text3, fontSize = 13.sp)
+                        Text(stringResource(R.string.ui_this_channel_was_deleted_or_made), color = colors.text3, fontSize = 13.sp)
                     }
-                    TextButton(onClick = { channels.unfollow(f.id) }) { Text("Remove", color = colors.accent) }
+                    TextButton(onClick = { channels.unfollow(f.id) }) { Text(stringResource(R.string.ui_remove), color = colors.accent) }
                 }
                 channel != null -> ChannelRow(channels, channel, unread = Channels.hasUnread(f, channel), access = channels.accessFor(f.secret)) {
                     onOpen(ChannelLink(f.id, f.secret))
@@ -238,7 +240,7 @@ private fun Discover(channels: ChannelSession, onOpen: (ChannelLink) -> Unit) {
         if (more) {
             item {
                 Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    PillButton("Show more", {
+                    PillButton(stringResource(R.string.ui_show_more), {
                         scope.launch {
                             val shown = results.orEmpty()
                             val next = runCatching { channels.search(query, shown.size) }.getOrDefault(emptyList())
@@ -252,10 +254,10 @@ private fun Discover(channels: ChannelSession, onOpen: (ChannelLink) -> Unit) {
         // Private channels aren't in the directory: they open from their link.
         item {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Have a channel's link? Private channels open only from theirs.", color = RedvaultTheme.colors.text3, fontSize = 13.sp)
+                Text(stringResource(R.string.ui_have_a_channel_s_link_private), color = RedvaultTheme.colors.text3, fontSize = 13.sp)
                 DsTextField(pasted, { pasted = it; linkProblem = null }, "Paste a channel link")
                 linkProblem?.let { Notice(it) }
-                PillButton("Open link", {
+                PillButton(stringResource(R.string.ui_open_link), {
                     val link = Channels.parse(pasted)
                     if (link == null) linkProblem = "That isn't a channel link." else {
                         pasted = ""
@@ -286,12 +288,20 @@ private fun Yours(channels: ChannelSession, premium: Boolean, onOpen: (ChannelLi
         item {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when {
-                    // Google Play: no upgrade button here, just what the plan allows.
-                    !premium -> Text(
-                        "Creating a channel needs Premium. Anyone can follow channels on any plan.",
-                        color = colors.text2,
-                        fontSize = 14.sp,
-                    )
+                    !premium -> {
+                        Text(
+                            stringResource(R.string.ui_creating_a_channel_needs_premium_anyone),
+                            color = colors.text2,
+                            fontSize = 14.sp,
+                        )
+                        PillButton(
+                            stringResource(R.string.ui_see_plans),
+                            onClick = { PlanGate.ask("premium", "Creating a channel") },
+                            style = PillStyle.Secondary,
+                            height = 40.dp,
+                            icon = R.drawable.ui_lock,
+                        )
+                    }
                     creating -> {
                         DsTextField(name, { if (it.length <= MAX_NAME) name = it; error = null }, "Channel name")
                         DsTextField(
@@ -326,14 +336,14 @@ private fun Yours(channels: ChannelSession, premium: Boolean, onOpen: (ChannelLi
                                     }
                                 }
                             }, enabled = name.isNotBlank() && !busy, busy = busy, height = 44.dp)
-                            PillButton("Cancel", { creating = false }, style = PillStyle.Secondary, enabled = !busy, height = 44.dp)
+                            PillButton(stringResource(R.string.ui_cancel), { creating = false }, style = PillStyle.Secondary, enabled = !busy, height = 44.dp)
                         }
                     }
-                    else -> PillButton("New channel", { creating = true }, Modifier.fillMaxWidth(), height = 46.dp, icon = R.drawable.ui_plus)
+                    else -> PillButton(stringResource(R.string.ui_new_channel), { creating = true }, Modifier.fillMaxWidth(), height = 46.dp, icon = R.drawable.ui_plus)
                 }
                 when {
-                    mine == null -> Text("Loading…", color = colors.text3, fontSize = 14.sp)
-                    mine.orEmpty().isEmpty() && premium && !creating -> Text("You haven't made a channel yet.", color = colors.text3, fontSize = 14.sp)
+                    mine == null -> Text(stringResource(R.string.ui_loading), color = colors.text3, fontSize = 14.sp)
+                    mine.orEmpty().isEmpty() && premium && !creating -> Text(stringResource(R.string.ui_you_haven_t_made_a_channel), color = colors.text3, fontSize = 14.sp)
                 }
             }
         }
@@ -371,7 +381,7 @@ private fun ChannelRow(channels: ChannelSession, channel: ChannelDto, unread: Bo
                 )
                 if (channel.isPrivate) {
                     Text(
-                        "Private",
+                        stringResource(R.string.ui_private),
                         color = colors.text2,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,

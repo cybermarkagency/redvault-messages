@@ -1,0 +1,1579 @@
+{
+ "comment": "Protocol 3 chat content, part A (docs/signal-integration/08-part-a-chat-features.md): replies, forwards, polls, pins, receipts, disappearing messages. Every client must give the same result for each case, in any arrival order. decode is called with now = 2000; fold with the case's now (no expiry when absent). Compare every field of each expected message.",
+ "conversation": "11111111-1111-4111-8111-111111111111",
+ "fold": [
+  {
+   "name": "a reply points at the message it answers",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "body": "yes",
+     "reply": {
+      "target": "bbbbbbbb-0000-4000-8000-000000000001",
+      "preview": "hi?"
+     }
+    },
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "hi?"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "hi?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    },
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "text": "yes",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": "bbbbbbbb-0000-4000-8000-000000000001",
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a reply to a message this device never had still says what it answers",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "body": "yes",
+     "reply": {
+      "target": "bbbbbbbb-0000-4000-8000-000000000009",
+      "preview": "older"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "text": "yes",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": "bbbbbbbb-0000-4000-8000-000000000009",
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a forwarded message is marked",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "look",
+     "fwd": true
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "look",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": true,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a poll counts one vote per person",
+   "records": [
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "carol",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    },
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000004",
+     "from": "dave",
+     "ts": 4000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       1,
+       2,
+       0
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a person's latest vote counts, by their clock then by id",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      2
+     ]
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       0,
+       1
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "an empty vote takes a person's vote back",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": []
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       0,
+       0
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a single-choice poll ignores a vote for two options",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0,
+      1
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       0,
+       0
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a multiple-choice poll counts each chosen option",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Bring?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": true
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0,
+      2
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Bring?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": true,
+      "votes": [
+       1,
+       0,
+       1
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a vote for an option the poll doesn't have is ignored",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      5
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       0,
+       0
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "ending a poll: votes from before the end count, later ones don't",
+   "records": [
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000004",
+     "from": "carol",
+     "ts": 4000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    },
+    {
+     "t": "end",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "alice",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    },
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B"
+      ],
+      "multi": false,
+      "votes": [
+       1,
+       0
+      ],
+      "ended": true
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "only the person who made a poll can end it",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B"
+     ],
+     "multi": false
+    },
+    {
+     "t": "end",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "mallory",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       1
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "the latest pin or unpin of a message stands",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "plan"
+    },
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 1500,
+     "body": "ok"
+    },
+    {
+     "t": "pin",
+     "id": "bbbbbbbb-0000-4000-8000-000000000004",
+     "from": "alice",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "pinned": false
+    },
+    {
+     "t": "pin",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "pinned": true
+    },
+    {
+     "t": "pin",
+     "id": "bbbbbbbb-0000-4000-8000-000000000005",
+     "from": "bob",
+     "ts": 2500,
+     "target": "bbbbbbbb-0000-4000-8000-000000000002",
+     "pinned": true
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "plan",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    },
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "text": "ok",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": true,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a deleted message isn't pinned",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "plan"
+    },
+    {
+     "t": "pin",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "pinned": true
+    },
+    {
+     "t": "delete",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "alice",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "",
+     "edited": false,
+     "deleted": true,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "receipts: read beats delivered in any order, one entry per person",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "hi"
+    },
+    {
+     "t": "receipt",
+     "id": "bbbbbbbb-0000-4000-8000-000000000005",
+     "from": "carol",
+     "ts": 3000,
+     "targets": [
+      "bbbbbbbb-0000-4000-8000-000000000001"
+     ],
+     "status": "delivered"
+    },
+    {
+     "t": "receipt",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "targets": [
+      "bbbbbbbb-0000-4000-8000-000000000001"
+     ],
+     "status": "delivered"
+    },
+    {
+     "t": "receipt",
+     "id": "bbbbbbbb-0000-4000-8000-000000000004",
+     "from": "carol",
+     "ts": 2000,
+     "targets": [
+      "bbbbbbbb-0000-4000-8000-000000000001"
+     ],
+     "status": "read"
+    },
+    {
+     "t": "receipt",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 3000,
+     "targets": [
+      "bbbbbbbb-0000-4000-8000-000000000001"
+     ],
+     "status": "read"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "hi",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [
+      {
+       "user": "bob",
+       "status": "read"
+      },
+      {
+       "user": "carol",
+       "status": "read"
+      }
+     ],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a receipt from the message's own sender is ignored",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "hi"
+    },
+    {
+     "t": "receipt",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "alice",
+     "ts": 2000,
+     "targets": [
+      "bbbbbbbb-0000-4000-8000-000000000001"
+     ],
+     "status": "read"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "hi",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a disappearing message shows its end time until then",
+   "now": 30000,
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "soon gone",
+     "exp": 60
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "soon gone",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": 61000
+    }
+   ]
+  },
+  {
+   "name": "a disappearing message is gone after its time, the others stay",
+   "now": 100000,
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "soon gone",
+     "exp": 60
+    },
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "body": "stays"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "text": "stays",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "deleting a poll erases it",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      1
+     ]
+    },
+    {
+     "t": "delete",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "alice",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "",
+     "edited": false,
+     "deleted": true,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a poll can't be edited",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "edit",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "alice",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "body": "Dinner?"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "Lunch?",
+     "edited": false,
+     "deleted": false,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": {
+      "options": [
+       "A",
+       "B",
+       "C"
+      ],
+      "multi": false,
+      "votes": [
+       0,
+       0,
+       0
+      ],
+      "ended": false
+     },
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  },
+  {
+   "name": "a deleted message keeps only its end time",
+   "records": [
+    {
+     "t": "text",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "body": "plan",
+     "exp": 60,
+     "reply": {
+      "target": "bbbbbbbb-0000-4000-8000-000000000009",
+      "preview": "x"
+     },
+     "fwd": true
+    },
+    {
+     "t": "pin",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "bob",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "pinned": true
+    },
+    {
+     "t": "delete",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "alice",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "",
+     "edited": false,
+     "deleted": true,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": 61000
+    }
+   ]
+  },
+  {
+   "name": "votes for a deleted poll change nothing",
+   "records": [
+    {
+     "t": "poll",
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "from": "alice",
+     "ts": 1000,
+     "question": "Lunch?",
+     "options": [
+      "A",
+      "B",
+      "C"
+     ],
+     "multi": false
+    },
+    {
+     "t": "delete",
+     "id": "bbbbbbbb-0000-4000-8000-000000000002",
+     "from": "alice",
+     "ts": 2000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001"
+    },
+    {
+     "t": "vote",
+     "id": "bbbbbbbb-0000-4000-8000-000000000003",
+     "from": "bob",
+     "ts": 3000,
+     "target": "bbbbbbbb-0000-4000-8000-000000000001",
+     "choices": [
+      0
+     ]
+    }
+   ],
+   "expect": [
+    {
+     "id": "bbbbbbbb-0000-4000-8000-000000000001",
+     "text": "",
+     "edited": false,
+     "deleted": true,
+     "reactions": [],
+     "replyTo": null,
+     "forwarded": false,
+     "pinned": false,
+     "poll": null,
+     "receipts": [],
+     "expiresAt": null
+    }
+   ]
+  }
+ ],
+ "decode": [
+  {
+   "name": "a reply",
+   "accept": "message",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "yes",
+    "reply": {
+     "target": "bbbbbbbb-0000-4000-8000-000000000002",
+     "preview": "hi?"
+    }
+   }
+  },
+  {
+   "name": "a reply whose target isn't an id",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "yes",
+    "reply": {
+     "target": "nope",
+     "preview": ""
+    }
+   }
+  },
+  {
+   "name": "a reply preview that's too long",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "yes",
+    "reply": {
+     "target": "bbbbbbbb-0000-4000-8000-000000000002",
+     "preview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   }
+  },
+  {
+   "name": "a forwarded message",
+   "accept": "message",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "look",
+    "fwd": true
+   }
+  },
+  {
+   "name": "fwd that isn't true or false",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "look",
+    "fwd": "yes"
+   }
+  },
+  {
+   "name": "a disappearing message",
+   "accept": "message",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "gone soon",
+    "exp": 3600
+   }
+  },
+  {
+   "name": "a disappearing time over four weeks",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "x",
+    "exp": 2419201
+   }
+  },
+  {
+   "name": "a poll",
+   "accept": "message",
+   "envelope": {
+    "v": 1,
+    "t": "poll",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "question": "Lunch?",
+    "options": [
+     "A",
+     "B"
+    ],
+    "multi": false
+   }
+  },
+  {
+   "name": "a poll with one option",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "poll",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "question": "Lunch?",
+    "options": [
+     "A"
+    ],
+    "multi": false
+   }
+  },
+  {
+   "name": "a poll with the same option twice",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "poll",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "question": "Lunch?",
+    "options": [
+     "A",
+     "A"
+    ],
+    "multi": false
+   }
+  },
+  {
+   "name": "a poll with eleven options",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "poll",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "question": "Q",
+    "options": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10"
+    ],
+    "multi": false
+   }
+  },
+  {
+   "name": "a vote",
+   "accept": "op",
+   "envelope": {
+    "v": 1,
+    "t": "vote",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "target": "bbbbbbbb-0000-4000-8000-000000000002",
+    "choices": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "a vote with a repeated choice",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "vote",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "target": "bbbbbbbb-0000-4000-8000-000000000002",
+    "choices": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "ending a poll",
+   "accept": "op",
+   "envelope": {
+    "v": 1,
+    "t": "end",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "target": "bbbbbbbb-0000-4000-8000-000000000002"
+   }
+  },
+  {
+   "name": "a pin",
+   "accept": "op",
+   "envelope": {
+    "v": 1,
+    "t": "pin",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "target": "bbbbbbbb-0000-4000-8000-000000000002",
+    "pinned": true
+   }
+  },
+  {
+   "name": "a pin without pinned",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "pin",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "target": "bbbbbbbb-0000-4000-8000-000000000002"
+   }
+  },
+  {
+   "name": "a read receipt",
+   "accept": "op",
+   "envelope": {
+    "v": 1,
+    "t": "receipt",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "targets": [
+     "bbbbbbbb-0000-4000-8000-000000000002",
+     "bbbbbbbb-0000-4000-8000-000000000003"
+    ],
+    "status": "read"
+   }
+  },
+  {
+   "name": "a receipt with another status",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "receipt",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "targets": [
+     "bbbbbbbb-0000-4000-8000-000000000002"
+    ],
+    "status": "seen"
+   }
+  },
+  {
+   "name": "a reply without a preview",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "yes",
+    "reply": {
+     "target": "bbbbbbbb-0000-4000-8000-000000000002"
+    }
+   }
+  },
+  {
+   "name": "a preview of 201 UTF-16 units (an emoji counts two)",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "yes",
+    "reply": {
+     "target": "bbbbbbbb-0000-4000-8000-000000000002",
+     "preview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx😀"
+    }
+   }
+  },
+  {
+   "name": "a part A field that is null",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "look",
+    "fwd": null
+   }
+  },
+  {
+   "name": "a part A field on a type that doesn't take it is skipped",
+   "accept": "message",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "hi",
+    "choices": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "a disappearing time that isn't a whole number",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "text",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "body": "x",
+    "exp": 60.0
+   }
+  },
+  {
+   "name": "a receipt for 101 messages",
+   "accept": "ignore",
+   "envelope": {
+    "v": 1,
+    "t": "receipt",
+    "id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "c": "11111111-1111-4111-8111-111111111111",
+    "ts": 1000,
+    "targets": [
+     "bbbbbbbb-0000-4000-8000-000000000010",
+     "bbbbbbbb-0000-4000-8000-000000000011",
+     "bbbbbbbb-0000-4000-8000-000000000012",
+     "bbbbbbbb-0000-4000-8000-000000000013",
+     "bbbbbbbb-0000-4000-8000-000000000014",
+     "bbbbbbbb-0000-4000-8000-000000000015",
+     "bbbbbbbb-0000-4000-8000-000000000016",
+     "bbbbbbbb-0000-4000-8000-000000000017",
+     "bbbbbbbb-0000-4000-8000-000000000018",
+     "bbbbbbbb-0000-4000-8000-000000000019",
+     "bbbbbbbb-0000-4000-8000-000000000020",
+     "bbbbbbbb-0000-4000-8000-000000000021",
+     "bbbbbbbb-0000-4000-8000-000000000022",
+     "bbbbbbbb-0000-4000-8000-000000000023",
+     "bbbbbbbb-0000-4000-8000-000000000024",
+     "bbbbbbbb-0000-4000-8000-000000000025",
+     "bbbbbbbb-0000-4000-8000-000000000026",
+     "bbbbbbbb-0000-4000-8000-000000000027",
+     "bbbbbbbb-0000-4000-8000-000000000028",
+     "bbbbbbbb-0000-4000-8000-000000000029",
+     "bbbbbbbb-0000-4000-8000-000000000030",
+     "bbbbbbbb-0000-4000-8000-000000000031",
+     "bbbbbbbb-0000-4000-8000-000000000032",
+     "bbbbbbbb-0000-4000-8000-000000000033",
+     "bbbbbbbb-0000-4000-8000-000000000034",
+     "bbbbbbbb-0000-4000-8000-000000000035",
+     "bbbbbbbb-0000-4000-8000-000000000036",
+     "bbbbbbbb-0000-4000-8000-000000000037",
+     "bbbbbbbb-0000-4000-8000-000000000038",
+     "bbbbbbbb-0000-4000-8000-000000000039",
+     "bbbbbbbb-0000-4000-8000-000000000040",
+     "bbbbbbbb-0000-4000-8000-000000000041",
+     "bbbbbbbb-0000-4000-8000-000000000042",
+     "bbbbbbbb-0000-4000-8000-000000000043",
+     "bbbbbbbb-0000-4000-8000-000000000044",
+     "bbbbbbbb-0000-4000-8000-000000000045",
+     "bbbbbbbb-0000-4000-8000-000000000046",
+     "bbbbbbbb-0000-4000-8000-000000000047",
+     "bbbbbbbb-0000-4000-8000-000000000048",
+     "bbbbbbbb-0000-4000-8000-000000000049",
+     "bbbbbbbb-0000-4000-8000-000000000050",
+     "bbbbbbbb-0000-4000-8000-000000000051",
+     "bbbbbbbb-0000-4000-8000-000000000052",
+     "bbbbbbbb-0000-4000-8000-000000000053",
+     "bbbbbbbb-0000-4000-8000-000000000054",
+     "bbbbbbbb-0000-4000-8000-000000000055",
+     "bbbbbbbb-0000-4000-8000-000000000056",
+     "bbbbbbbb-0000-4000-8000-000000000057",
+     "bbbbbbbb-0000-4000-8000-000000000058",
+     "bbbbbbbb-0000-4000-8000-000000000059",
+     "bbbbbbbb-0000-4000-8000-000000000060",
+     "bbbbbbbb-0000-4000-8000-000000000061",
+     "bbbbbbbb-0000-4000-8000-000000000062",
+     "bbbbbbbb-0000-4000-8000-000000000063",
+     "bbbbbbbb-0000-4000-8000-000000000064",
+     "bbbbbbbb-0000-4000-8000-000000000065",
+     "bbbbbbbb-0000-4000-8000-000000000066",
+     "bbbbbbbb-0000-4000-8000-000000000067",
+     "bbbbbbbb-0000-4000-8000-000000000068",
+     "bbbbbbbb-0000-4000-8000-000000000069",
+     "bbbbbbbb-0000-4000-8000-000000000070",
+     "bbbbbbbb-0000-4000-8000-000000000071",
+     "bbbbbbbb-0000-4000-8000-000000000072",
+     "bbbbbbbb-0000-4000-8000-000000000073",
+     "bbbbbbbb-0000-4000-8000-000000000074",
+     "bbbbbbbb-0000-4000-8000-000000000075",
+     "bbbbbbbb-0000-4000-8000-000000000076",
+     "bbbbbbbb-0000-4000-8000-000000000077",
+     "bbbbbbbb-0000-4000-8000-000000000078",
+     "bbbbbbbb-0000-4000-8000-000000000079",
+     "bbbbbbbb-0000-4000-8000-000000000080",
+     "bbbbbbbb-0000-4000-8000-000000000081",
+     "bbbbbbbb-0000-4000-8000-000000000082",
+     "bbbbbbbb-0000-4000-8000-000000000083",
+     "bbbbbbbb-0000-4000-8000-000000000084",
+     "bbbbbbbb-0000-4000-8000-000000000085",
+     "bbbbbbbb-0000-4000-8000-000000000086",
+     "bbbbbbbb-0000-4000-8000-000000000087",
+     "bbbbbbbb-0000-4000-8000-000000000088",
+     "bbbbbbbb-0000-4000-8000-000000000089",
+     "bbbbbbbb-0000-4000-8000-000000000090",
+     "bbbbbbbb-0000-4000-8000-000000000091",
+     "bbbbbbbb-0000-4000-8000-000000000092",
+     "bbbbbbbb-0000-4000-8000-000000000093",
+     "bbbbbbbb-0000-4000-8000-000000000094",
+     "bbbbbbbb-0000-4000-8000-000000000095",
+     "bbbbbbbb-0000-4000-8000-000000000096",
+     "bbbbbbbb-0000-4000-8000-000000000097",
+     "bbbbbbbb-0000-4000-8000-000000000098",
+     "bbbbbbbb-0000-4000-8000-000000000099",
+     "bbbbbbbb-0000-4000-8000-000000000100",
+     "bbbbbbbb-0000-4000-8000-000000000101",
+     "bbbbbbbb-0000-4000-8000-000000000102",
+     "bbbbbbbb-0000-4000-8000-000000000103",
+     "bbbbbbbb-0000-4000-8000-000000000104",
+     "bbbbbbbb-0000-4000-8000-000000000105",
+     "bbbbbbbb-0000-4000-8000-000000000106",
+     "bbbbbbbb-0000-4000-8000-000000000107",
+     "bbbbbbbb-0000-4000-8000-000000000108",
+     "bbbbbbbb-0000-4000-8000-000000000109",
+     "bbbbbbbb-0000-4000-8000-000000000110"
+    ],
+    "status": "read"
+   }
+  }
+ ]
+}

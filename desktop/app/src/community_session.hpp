@@ -14,6 +14,7 @@
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -217,6 +218,9 @@ public:
     /// Opens the community a link points at, with its invitation, on the Communities page.
     Q_INVOKABLE void openLink(const QString& text);
 
+    /// Part C2: asks the device-key side for a round of membership tasks now (admit, rosters, rotation).
+    void setMembershipHook(std::function<void()> hook) { membershipNow_ = std::move(hook); }
+
     // --- Helpers for the screens ---
     /// "$10.00" from minor units.
     Q_INVOKABLE QString formatMoney(double amountMinor, const QString& currency = QStringLiteral("usd")) const;
@@ -271,6 +275,7 @@ private:
     QTimer upkeepTimer_;
     QTimer confirmTimer_;
     bool upkeepRunning_ = false;
+    std::function<void()> membershipNow_;
     int confirmTries_ = 0;
 
     QString page_ = QStringLiteral("discover");

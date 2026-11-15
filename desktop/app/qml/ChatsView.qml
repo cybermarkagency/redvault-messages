@@ -8,14 +8,33 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Redvault
 
-// Chats: the list (360px), the open chat, and its details panel (320px).
+// Chats: the searchable list, the open chat, and its details panel, opened
+// on demand. The list narrows in small windows; below 1100px the details
+// panel slides over the conversation instead of taking a column.
+// Keyboard: Ctrl+K searches the list, Up/Down move through it, Enter opens
+// a chat, Escape closes the details panel.
 Item {
     id: root
     required property ChatSession session
     required property PeopleSession people
     required property AccountSession account
     property string filter: "all"   // "all", "unread", "favorites", "groups"
-    property bool detailsOpen: true
+    property bool detailsOpen: false
+    /// The details panel takes a column of its own only when there's room.
+    readonly property bool detailsDocked: root.width > 1100
+    /// The Tor chip in a chat's header was clicked.
+    signal openNetworkSettings()
+
+    Shortcut {
+        sequence: "Ctrl+K"
+        enabled: root.visible
+        onActivated: search.forceActiveFocus()
+    }
+    Shortcut {
+        sequence: "Escape"
+        enabled: root.visible && root.detailsOpen && !root.detailsDocked
+        onActivated: root.detailsOpen = false
+    }
 
     FriendsDialog {
         id: friendsDialog
@@ -32,6 +51,55 @@ Item {
         people: root.people
     }
 
+    // Right-click on a chat row: open, favourite, mute, block (one-to-one chats).
+    Menu {
+        id: rowMenu
+        property string chatId: ""
+        property string userId: ""
+        property string chatTitle: ""
+        property bool favorite: false
+        property bool muted: false
+        function show(chatId, userId, title, favorite, muted) {
+            rowMenu.chatId = chatId
+            rowMenu.userId = userId
+            rowMenu.chatTitle = title
+            rowMenu.favorite = favorite
+            rowMenu.muted = muted
+            popup()
+        }
+        MenuItem {
+            text: qsTr("Open")
+            onTriggered: root.session.openChat(rowMenu.chatId)
+        }
+        MenuItem {
+            text: rowMenu.favorite ? qsTr("Remove from favorites") : qsTr("Add to favorites")
+            visible: rowMenu.userId.length > 0
+            height: visible ? implicitHeight : 0
+            onTriggered: root.session.toggleFavorite(rowMenu.userId)
+        }
+        MenuItem {
+            text: rowMenu.muted ? qsTr("Unmute") : qsTr("Mute notifications")
+            visible: rowMenu.userId.length > 0
+            height: visible ? implicitHeight : 0
+            onTriggered: root.session.toggleMuted(rowMenu.userId)
+        }
+        MenuItem {
+            text: root.people.blocked.indexOf(rowMenu.userId) >= 0 ? qsTr("Unblock") : qsTr("Block…")
+            visible: rowMenu.userId.length > 0
+            height: visible ? implicitHeight : 0
+            onTriggered: root.people.blocked.indexOf(rowMenu.userId) >= 0 ? root.people.unblock(rowMenu.userId)
+                                                                          : blockConfirm.open()
+        }
+    }
+    ConfirmDialog {
+        id: blockConfirm
+        title: qsTr("Block ") + rowMenu.chatTitle + "?"
+        message: qsTr("They won't be able to message or call you. You can unblock them in Settings › Privacy.")
+        confirmText: qsTr("Block")
+        danger: true
+        onConfirmed: root.people.block(rowMenu.userId)
+    }
+
     function openFriends() { friendsDialog.open() }
     function openVerify() { thread.openVerify() }
 
@@ -42,8 +110,12 @@ Item {
         // --- Chat list ---
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: Theme.listWidth
-            color: Theme.panel
+            // A fixed width: nothing inside may widen the column (the chips wrap instead).
+            Layout.preferredWidth: root.width < 1000 ? Theme.listWidthCompact : Theme.listWidth
+            Layout.minimumWidth: Layout.preferredWidth
+            Layout.maximumWidth: Layout.preferredWidth
+            clip: true
+            color: Theme.surface
 
             Rectangle {
                 anchors.right: parent.right
@@ -66,34 +138,34 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: "Chats"
+                        text: qsTr("Chats")
                         color: Theme.text
-                        font.family: Theme.displayFamily
-                        font.pixelSize: Theme.fontDisplay
-                        font.weight: Font.Bold
-                        font.letterSpacing: -0.5
+                        font.pixelSize: 20
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: -0.2
+                        Accessible.role: Accessible.Heading
                     }
                     IconButton {
                         iconName: "user-plus"
-                        tip: "Friends and requests"
+                        tip: qsTr("Friends and requests")
                         badge: root.people.incoming.length
                         onClicked: friendsDialog.open()
                     }
                     IconButton {
                         iconName: "link"
-                        tip: "Join a group with a link"
+                        tip: qsTr("Join a group with a link")
                         onClicked: if (App.groupInvites) App.groupInvites.startPaste()
                     }
                     IconButton {
                         iconName: "plus"
-                        tip: "New group"
+                        tip: qsTr("New group")
                         onClicked: newGroupDialog.open()
                     }
                 }
 
                 StoryTray {
                     Layout.fillWidth: true
-                    visible: App.stories !== null
+                    visible: App.stories !== null && App.stories.enabled
                     stories: App.stories
                     account: root.account
                 }
@@ -103,11 +175,17 @@ Item {
                     Layout.fillWidth: true
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
-                    placeholderText: "Search chats"
+                    placeholderText: qsTr("Search chats (Ctrl+K)")
+                    Keys.onDownPressed: {
+                        chatList.forceActiveFocus()
+                        if (chatList.currentIndex < 0) chatList.currentIndex = 0
+                    }
                 }
 
-                Row {
+                Flow {
+                    Layout.fillWidth: true
                     Layout.leftMargin: 16
+                    Layout.rightMargin: 16
                     Layout.topMargin: 12
                     Layout.bottomMargin: 8
                     spacing: 6
@@ -153,7 +231,7 @@ Item {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "Message requests"
+                            text: qsTr("Message requests")
                             color: Theme.text
                             font.weight: Font.DemiBold
                         }
@@ -161,7 +239,7 @@ Item {
                             implicitWidth: Math.max(20, requestCount.implicitWidth + 10)
                             implicitHeight: 20
                             radius: 10
-                            color: Theme.accent
+                            color: Theme.accentFill
                             Text {
                                 id: requestCount
                                 anchors.centerIn: parent
@@ -182,6 +260,12 @@ Item {
                     clip: true
                     model: root.session.chatList
                     boundsBehavior: Flickable.StopAtBounds
+                    activeFocusOnTab: true
+                    keyNavigationEnabled: true
+                    currentIndex: -1
+                    highlightFollowsCurrentItem: false
+                    Accessible.role: Accessible.List
+                    Accessible.name: qsTr("Chats")
                     ScrollBar.vertical: ScrollBar {}
                     // Rows that match the search and filter; the others take no space.
                     property int shown: 0
@@ -216,18 +300,45 @@ Item {
                             return true
                         }
 
+                        required property int index
+                        readonly property bool keyFocused: chatList.activeFocus && chatList.currentIndex === index
+
                         width: ListView.view.width
-                        height: matches ? 72 : 0
+                        height: matches ? 68 : 0
                         visible: matches
                         leftInset: 8
                         rightInset: 8
-                        leftPadding: 18
-                        rightPadding: 18
-                        onClicked: root.session.openChat(chatId)
+                        leftPadding: 16
+                        rightPadding: 14
+                        Accessible.role: Accessible.ListItem
+                        Accessible.name: title + (unread > 0 ? qsTr(", %1 unread").arg(unread) : "") + (selected ? qsTr(", open") : "")
+                        onClicked: {
+                            chatList.currentIndex = index
+                            root.session.openChat(chatId)
+                        }
+                        Keys.onReturnPressed: root.session.openChat(chatId)
+                        Keys.onEnterPressed: root.session.openChat(chatId)
+
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: rowMenu.show(row.chatId, row.isGroup ? "" : row.userId, row.title, row.favorite, row.muted)
+                        }
 
                         background: Rectangle {
                             radius: Theme.radiusControl
-                            color: row.selected ? Theme.selected : (row.hovered ? Qt.alpha(Theme.selected, 0.5) : "transparent")
+                            color: row.selected ? Theme.selected : (row.hovered ? Theme.hover : "transparent")
+                            border.width: row.keyFocused ? 2 : 0
+                            border.color: Theme.focusRing
+                            // The open chat: a burgundy bar as well as the lighter row.
+                            Rectangle {
+                                visible: row.selected
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 3
+                                height: parent.height - 24
+                                radius: 2
+                                color: Theme.accentFill
+                            }
                         }
 
                         contentItem: RowLayout {
@@ -256,7 +367,7 @@ Item {
                                         textFormat: Text.PlainText
                                         elide: Text.ElideRight
                                         color: Theme.text
-                                        font.pixelSize: 15
+                                        font.pixelSize: 14
                                         font.weight: row.unread > 0 ? Font.DemiBold : Font.Medium
                                     }
                                     Icon {
@@ -269,7 +380,8 @@ Item {
                                         text: row.timeText
                                         textFormat: Text.PlainText
                                         color: row.unread > 0 ? Theme.accent : Theme.text3
-                                        font.pixelSize: Theme.fontSmall
+                                        font.pixelSize: 11
+                                        font.weight: row.unread > 0 ? Font.DemiBold : Font.Normal
                                     }
                                 }
 
@@ -277,14 +389,14 @@ Item {
                                     Layout.fillWidth: true
                                     Text {
                                         visible: row.showDraft && !row.typing
-                                        text: "Draft:"
+                                        text: qsTr("Draft:")
                                         color: Theme.warn
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: row.typing ? "typing…" : row.showDraft ? row.draft : row.preview
+                                        text: row.typing ? qsTr("typing…") : row.showDraft ? row.draft : row.preview
                                         textFormat: Text.PlainText
                                         maximumLineCount: 1
                                         elide: Text.ElideRight
@@ -306,14 +418,14 @@ Item {
                                             Icon { name: "shield-check"; size: 12; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                                             Text { textFormat: Text.PlainText; text: parent.parent.count; color: Theme.accent; font.pixelSize: 11; font.weight: Font.Bold }
                                         }
-                                        Accessible.name: count + " new device-key messages"
+                                        Accessible.name: count + qsTr(" new device-key messages")
                                     }
                                     Rectangle {
                                         visible: row.unread > 0
                                         implicitWidth: Math.max(20, unreadText.implicitWidth + 10)
                                         implicitHeight: 20
                                         radius: 10
-                                        color: row.muted ? Theme.surface3 : Theme.accent
+                                        color: row.muted ? Theme.surface3 : Theme.accentFill
                                         Text {
                                             id: unreadText
                                             anchors.centerIn: parent
@@ -345,8 +457,8 @@ Item {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
-                            text: root.session.loaded ? "No chats yet. Add a friend to start one."
-                                                      : "Decrypting your chats…"
+                            text: root.session.loaded ? qsTr("No chats yet. Add a friend to start one.")
+                                                      : qsTr("Decrypting your chats…")
                             textFormat: Text.PlainText
                             color: Theme.text2
                         }
@@ -354,7 +466,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             visible: root.session.loaded
                             iconName: "user-plus"
-                            text: "Add a friend"
+                            text: qsTr("Add a friend")
                             onClicked: friendsDialog.open()
                         }
                     }
@@ -388,6 +500,7 @@ Item {
             ThreadView {
                 id: thread
                 anchors.fill: parent
+                onOpenNetworkSettings: root.openNetworkSettings()
                 visible: root.session.currentChatId.length > 0
                 session: root.session
                 people: root.people
@@ -417,26 +530,54 @@ Item {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Select a chat"
+                    text: qsTr("Select a chat")
                     color: Theme.text
-                    font.family: Theme.displayFamily
-                    font.pixelSize: 22
-                    font.weight: Font.Bold
+                    font.pixelSize: 20
+                    font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Messages are end-to-end encrypted and decrypted only on this computer."
+                    text: qsTr("Messages are end-to-end encrypted and decrypted only on this computer.")
                     color: Theme.text3
                     font.pixelSize: 13
                 }
             }
         }
 
-        // --- Details ---
-        ChatDetails {
+        // --- Details, docked when there's room ---
+        Loader {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.detailsWidth
-            visible: root.detailsOpen && root.session.currentChatId.length > 0 && root.width > 1100
+            visible: root.detailsDocked && root.detailsOpen && root.session.currentChatId.length > 0
+            active: visible
+            sourceComponent: detailsComponent
+        }
+    }
+
+    // --- Details over the conversation, in narrower windows ---
+    Rectangle {
+        anchors.fill: parent
+        visible: !root.detailsDocked && root.detailsOpen && root.session.currentChatId.length > 0
+        color: "#66000000"
+        MouseArea { anchors.fill: parent; onClicked: root.detailsOpen = false }
+        Item {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: Math.min(Theme.detailsWidth, parent.width - 80)
+            // Clicks inside the panel stay in it.
+            MouseArea { anchors.fill: parent }
+            Loader {
+                anchors.fill: parent
+                active: parent.parent.visible
+                sourceComponent: detailsComponent
+            }
+        }
+    }
+
+    Component {
+        id: detailsComponent
+        ChatDetails {
             session: root.session
             people: root.people
             onFileRequested: (messageId, name) => thread.showFileMenu(messageId, name)

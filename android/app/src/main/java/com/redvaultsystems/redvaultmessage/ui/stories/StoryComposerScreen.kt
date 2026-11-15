@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
@@ -20,6 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,6 +77,9 @@ import com.redvaultsystems.redvaultmessage.ui.chats.EmojiPickerDialog
 import com.redvaultsystems.redvaultmessage.ui.components.Callout
 import com.redvaultsystems.redvaultmessage.ui.components.CalloutTone
 import com.redvaultsystems.redvaultmessage.ui.components.ChipRow
+import com.redvaultsystems.redvaultmessage.studio.StoryMotion
+import com.redvaultsystems.redvaultmessage.studio.TextTemplate
+import com.redvaultsystems.redvaultmessage.studio.TextTemplates
 import com.redvaultsystems.redvaultmessage.ui.components.PillButton
 import com.redvaultsystems.redvaultmessage.ui.components.PillStyle
 import com.redvaultsystems.redvaultmessage.ui.components.SectionCaps
@@ -93,6 +98,9 @@ import java.util.Date
  * What the composer holds while a story is being made: its slides and the choices that apply to all of them. It lives in the session, so
  * turning the phone or leaving the screen for a moment doesn't lose the work (a draft is what keeps it across restarts).
  */
+/** A share that stopped part-way: [posted] of [total] stories went, and [cause] is what went wrong with the next. */
+internal class ShareFailure(val posted: Int, val total: Int, cause: Throwable) : Exception(cause.message, cause)
+
 internal class ComposerModel(defaultReplies: Boolean) {
     var slides by mutableStateOf(listOf(SlideUi(key = 0)))
     var current by mutableIntStateOf(0)
@@ -111,6 +119,19 @@ internal class ComposerModel(defaultReplies: Boolean) {
         val at = current.coerceIn(0, slides.lastIndex)
         slides = slides.mapIndexed { i, s -> if (i == at) edit(s) else s }
         dirty = true
+    }
+
+    /** Starts the slide from a template: its words, look, stickers and emoji replace the slide's (a photo already on it is kept, as on the web). */
+    fun useTemplate(t: TextTemplate, newId: () -> String, nowMs: Long) {
+        val applied = TextTemplates.apply(t, newId, nowMs)
+        change { it.copy(mode = SlideMode.Text, text = applied.text, background = applied.background, font = applied.font, overlays = applied.overlays, stickers = applied.stickers) }
+        selected = null
+    }
+
+    /** Gives the word or emoji at [index] its next motion (none, pulse, bounce, fade, none...). */
+    fun cycleMotion(index: Int) {
+        val o = slide.overlays.getOrNull(index) ?: return
+        change { s -> s.copy(overlays = s.overlays.mapIndexed { i, x -> if (i == index) o.copy(anim = StoryMotion.next(o.anim)) else x }) }
     }
 
     fun addSlide(): Boolean {
@@ -152,6 +173,36 @@ internal class ComposerModel(defaultReplies: Boolean) {
         dirty = false
     }
 
+    /**
+     * Shares the slides one after another, each its own story. Each one posted is taken off the list as it goes (so a failure further on, and a
+     * retry, never post it twice); the last one stays for the caller to close the composer on. A failure stops it there and says how many went.
+     */
+    suspend fun shareAll(
+        post: suspend (slide: SlideUi, last: Boolean) -> Unit,
+        afterEach: suspend () -> Unit = {},
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ) {
+        val total = slides.size
+        var posted = 0
+        try {
+            while (slides.isNotEmpty()) {
+                onProgress(posted, total)
+                val last = slides.size == 1
+                post(slides.first(), last)
+                posted++
+                if (last) break
+                slides = slides.drop(1)
+                current = 0
+                selected = null
+                afterEach()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw ShareFailure(posted, total, e)
+        }
+    }
+
     fun toDraftContent() = DraftContent(slides.map { it.toDraft() }, audience, customIds.toList(), replies, ttl ?: 86_400)
 }
 
@@ -161,11 +212,28 @@ private sealed interface ComposerDialog {
     data object Emoji : ComposerDialog
     data object Sticker : ComposerDialog
     data object People : ComposerDialog
+    data object Captions : ComposerDialog
     data object Leave : ComposerDialog
     data class Drafts(val drafts: List<DraftSummary>) : ComposerDialog
 }
 
 private enum class Capture { Photo, Video }
+
+/** A full-screen editor over the composer: the photo's, or the voice studio. */
+private sealed interface FullEditor {
+    class Photo(val source: PreparedStoryMedia) : FullEditor
+    class Voice(val start: VoiceStart) : FullEditor
+    data object Collage : FullEditor
+}
+
+/** Whether what a slide holds fits the kind of slide it is switched to (a photo can't be a voice, nor a voice a photo). */
+private fun fits(mode: SlideMode, media: PreparedStoryMedia): Boolean = when (mode) {
+    SlideMode.Text -> true
+    SlideMode.Media -> media.kind != StoryKind.Audio
+    SlideMode.Audio -> media.kind == StoryKind.Audio
+}
+
+private fun clockOf(ms: Long) = "%d:%02d".format(ms / 60_000, (ms % 60_000) / 1000)
 
 private class CaptureStoryVideo : ActivityResultContract<Uri, Boolean>() {
     override fun createIntent(context: Context, input: Uri): Intent =
@@ -198,6 +266,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
     var error by remember { mutableStateOf<String?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<ComposerDialog?>(null) }
+    var fullEditor by remember { mutableStateOf<FullEditor?>(null) }
     var draftCount by remember { mutableIntStateOf(0) }
     var pendingPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingCapture by rememberSaveable { mutableStateOf<String?>(null) }
@@ -298,7 +367,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
 
     fun slideReady(s: SlideUi) = when (s.mode) {
         SlideMode.Text -> s.text.isNotBlank() && s.text.length <= StoryLimits.MAX_STORY_TEXT
-        SlideMode.Media -> s.media != null
+        SlideMode.Media, SlideMode.Audio -> s.media != null
     }
 
     val audienceOk = when (model.audience) {
@@ -328,6 +397,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
     fun leave() {
         // What was taken with the camera for this story has been posted or copied into a draft by now; the originals go.
         File(context.cacheDir, "stories/capture").deleteRecursively()
+        voiceDir(context).deleteRecursively()
         session.discardComposer()
         onClose()
     }
@@ -346,48 +416,45 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
         scope.launch {
             var posted = 0
             try {
-                while (model.slides.isNotEmpty()) {
-                    progress = posted to total
-                    val s = model.slides.first()
-                    val story = StoryDraft(
-                        text = if (s.mode == SlideMode.Text) s.text else null,
-                        background = s.background,
-                        font = s.font,
-                        media = if (s.mode == SlideMode.Media) s.media else null,
-                        audience = model.audience,
-                        allowReplies = model.replies,
-                        ttlSeconds = model.ttl?.takeIf { it != 86_400 && it in state.ttlSeconds },
-                        overlays = s.overlays,
-                        stickers = s.stickers,
-                        customIds = model.customIds,
-                        captions = if (s.mode == SlideMode.Media) s.captions else emptyList(),
-                    )
-                    session.publish(story, refreshAfter = model.slides.size == 1) { stage = it }
-                    posted++
-                    if (model.slides.size == 1) break
-                    // What is posted is gone from the list, so a failure further on never posts it twice.
-                    model.slides = model.slides.drop(1)
-                    model.current = 0
-                    model.selected = null
-                    model.draftId?.let { id -> runCatching { session.saveDraft(model.toDraftContent(), id) } }
-                }
+                model.shareAll(
+                    post = { s, last ->
+                        val story = StoryDraft(
+                            // A voice story's text is its title.
+                            text = if (s.mode == SlideMode.Media) null else s.text,
+                            background = s.background,
+                            font = s.font,
+                            media = if (s.mode == SlideMode.Text) null else s.media,
+                            audience = model.audience,
+                            allowReplies = model.replies,
+                            ttlSeconds = model.ttl?.takeIf { it != 86_400 && it in state.ttlSeconds },
+                            overlays = s.overlays,
+                            stickers = s.stickers,
+                            customIds = model.customIds,
+                            captions = if (s.mode == SlideMode.Text) emptyList() else s.captions,
+                        )
+                        session.publish(story, refreshAfter = last) { stage = it }
+                    },
+                    // What is posted is gone from the list (and from the draft this came from), so a failure further on never posts it twice.
+                    afterEach = { model.draftId?.let { id -> runCatching { session.saveDraft(model.toDraftContent(), id) } } },
+                    onProgress = { done, _ -> progress = done to total },
+                )
                 model.draftId?.let { id -> runCatching { session.deleteDraft(id) } }
                 leave()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: StoryInputException) {
-                error = e.message
-            } catch (e: ApiException) {
-                error = if (e.status == 0) "Can't reach the server. Check your connection." else e.message
-            } catch (e: Exception) {
-                error = (e as? com.redvaultsystems.redvaultmessage.data.UserFacingException)?.message ?: "Couldn't post that. Try again."
+            } catch (failure: ShareFailure) {
+                posted = failure.posted
+                error = when (val e = failure.cause) {
+                    is StoryInputException -> e.message
+                    is ApiException -> if (e.status == 0) "Can't reach the server. Check your connection." else e.message
+                    is com.redvaultsystems.redvaultmessage.data.UserFacingException -> e.message
+                    else -> "Couldn't post that. Try again."
+                }
             } finally {
                 stage = null
                 progress = null
             }
-            if (posted > 0 && model.slides.isNotEmpty() && error != null) {
-                error = "Posted $posted of $total. ${error.orEmpty()}"
-            }
+            if (posted > 0 && error != null) error = "Posted $posted of $total. ${error.orEmpty()}"
         }
     }
 
@@ -419,205 +486,290 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
         model.selected = null
     }
 
-    Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().navigationBarsPadding()) {
-        SheetBar("New story", onCancel = ::attemptClose, cancelText = "Close")
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            if (draftCount > 0) {
-                Text(
-                    "Drafts ($draftCount)",
-                    color = colors.accent,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .clickable(enabled = !busy) { scope.launch { dialog = ComposerDialog.Drafts(runCatching { session.listDrafts() }.getOrDefault(emptyList())) } }
-                        .padding(vertical = 4.dp),
-                )
-            }
-            val slideChoices = model.slides.indices.toList() + (if (model.slides.size < StoryDraftStore.MAX_SLIDES) listOf(-1) else emptyList())
-            ChipRow(
-                options = slideChoices,
-                selected = model.current,
-                label = { if (it < 0) "+ Add slide" else "Slide ${it + 1}" },
-                onSelect = { if (!busy) { if (it < 0) model.addSlide() else model.select(it) } },
-            )
-            if (model.slides.size > 1) {
-                Text(
-                    "Remove this slide",
-                    color = colors.danger,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(horizontal = 20.dp).clickable(enabled = !busy) { model.removeCurrent() }.padding(vertical = 2.dp),
-                )
-            }
-
-            if (state.media) {
-                ChipRow(
-                    options = listOf(SlideMode.Text, SlideMode.Media),
-                    selected = slide.mode,
-                    label = { if (it == SlideMode.Text) "Words" else "Photo or video" },
-                    onSelect = { if (!busy) model.change { s -> s.copy(mode = it) } },
-                )
-            }
-
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                SlideEditor(
-                    slide = slide,
-                    selected = model.selected,
-                    friends = state.friends.associateBy { it.userId },
-                    onSelect = { model.selected = it },
-                    onOverlay = ::updateOverlay,
-                    onSticker = ::updateSticker,
-                    modifier = Modifier.fillMaxWidth(0.62f),
-                )
-            }
-
-            if (slide.mode == SlideMode.Text) {
-                StyledTextField(
-                    slide.text,
-                    { if (it.length <= StoryLimits.MAX_STORY_TEXT && !busy) model.change { s -> s.copy(text = it) } },
-                    "Type something",
-                    Modifier.padding(horizontal = 20.dp),
-                    singleLine = false,
-                )
-                Text("${slide.text.length}/${StoryLimits.MAX_STORY_TEXT}", color = colors.text3, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 20.dp))
-                SectionCaps("Background")
-                ChipRow(options = StoryBackground.entries.toList(), selected = slide.background, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(background = it) } })
-                SectionCaps("Style")
-                ChipRow(options = StoryFont.entries.toList(), selected = slide.font, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(font = it) } })
-            } else {
-                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (preparing) Text("Getting it ready…", color = colors.text2)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton("Choose photo", { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                        PillButton("Take photo", { openCamera(Capture.Photo) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton("Choose video", { pickVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                        PillButton("Record video", { openCamera(Capture.Video) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                    }
-                    val media = slide.media
-                    if (media != null && media.kind == StoryKind.Video) {
-                        Text("Video · ${((media.durationMs ?: 0) / 1000)} s · ${"%.1f".format(media.sizeBytes / 1024.0 / 1024.0)} MB", color = colors.text, fontWeight = FontWeight.SemiBold)
-                    }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().navigationBarsPadding()) {
+            SheetBar("New story", onCancel = ::attemptClose, cancelText = "Close")
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (draftCount > 0) {
                     Text(
-                        "A photo is saved fresh before it's posted: its location, camera and time stay behind. A video is posted as it is (up to 60 seconds and 60 MB), so details inside the file, such as a location tag, stay in it. Only the people who can see the story can read them.",
-                        color = colors.text3,
-                        fontSize = 12.sp,
+                        "Drafts ($draftCount)",
+                        color = colors.accent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .clickable(enabled = !busy) { scope.launch { dialog = ComposerDialog.Drafts(runCatching { session.listDrafts() }.getOrDefault(emptyList())) } }
+                            .padding(vertical = 4.dp),
                     )
                 }
-            }
-
-            SectionCaps("Add to this slide")
-            ChipRow(
-                options = listOf("Words", "Emoji", "Sticker"),
-                selected = "",
-                label = { it },
-                onSelect = {
-                    if (!busy) when (it) {
-                        "Words" -> if (slide.overlays.size < StoryLimits.MAX_OVERLAYS) dialog = ComposerDialog.AddWords else error = "That's as many words and emoji as fit."
-                        "Emoji" -> if (slide.overlays.size < StoryLimits.MAX_OVERLAYS) dialog = ComposerDialog.Emoji else error = "That's as many words and emoji as fit."
-                        else -> if (slide.stickers.size < StickerLimits.MAX_STICKERS) dialog = ComposerDialog.Sticker else error = "That's as many stickers as fit."
-                    }
-                },
-            )
-            val sel = model.selected
-            if (sel != null) {
-                val editable = sel is Selected.Overlay && slide.overlays.getOrNull(sel.index)?.isEmoji == false
+                val slideChoices = model.slides.indices.toList() + (if (model.slides.size < StoryDraftStore.MAX_SLIDES) listOf(-1) else emptyList())
                 ChipRow(
-                    options = buildList { add("Smaller"); add("Larger"); add("Turn"); if (editable) add("Edit"); add("Remove") },
+                    options = slideChoices,
+                    selected = model.current,
+                    label = { if (it < 0) "+ Add slide" else "Slide ${it + 1}" },
+                    onSelect = { if (!busy) { if (it < 0) model.addSlide() else model.select(it) } },
+                )
+                if (model.slides.size > 1) {
+                    Text(
+                        stringResource(R.string.ui_remove_this_slide),
+                        color = colors.danger,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp).clickable(enabled = !busy) { model.removeCurrent() }.padding(vertical = 2.dp),
+                    )
+                }
+
+                if (state.media) {
+                    ChipRow(
+                        options = buildList { add(SlideMode.Text); add(SlideMode.Media); if (state.audio) add(SlideMode.Audio) },
+                        selected = slide.mode,
+                        label = { when (it) { SlideMode.Text -> "Words"; SlideMode.Media -> "Photo or video"; SlideMode.Audio -> "Voice" } },
+                        onSelect = {
+                            if (!busy) model.change { s ->
+                                val keep = s.media?.let { m -> fits(it, m) } ?: true
+                                s.copy(mode = it, media = if (keep) s.media else null, thumbnail = if (keep) s.thumbnail else null, captions = if (keep) s.captions else emptyList())
+                            }
+                        },
+                    )
+                }
+
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SlideEditor(
+                        slide = slide,
+                        selected = model.selected,
+                        friends = state.friends.associateBy { it.userId },
+                        onSelect = { model.selected = it },
+                        onOverlay = ::updateOverlay,
+                        onSticker = ::updateSticker,
+                        modifier = Modifier.fillMaxWidth(0.62f),
+                    )
+                }
+
+                if (slide.mode == SlideMode.Text) {
+                    StyledTextField(
+                        slide.text,
+                        { if (it.length <= StoryLimits.MAX_STORY_TEXT && !busy) model.change { s -> s.copy(text = it) } },
+                        "Type something",
+                        Modifier.padding(horizontal = 20.dp),
+                        singleLine = false,
+                    )
+                    Text("${slide.text.length}/${StoryLimits.MAX_STORY_TEXT}", color = colors.text3, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 20.dp))
+                    SectionCaps("Templates")
+                    ChipRow(
+                        options = TextTemplates.OFFERED,
+                        selected = TextTemplates.ALL.first(),
+                        label = { it.label },
+                        onSelect = { if (!busy) model.useTemplate(it, ::newStickerId, System.currentTimeMillis()) },
+                    )
+                    SectionCaps(stringResource(R.string.ui_background))
+                    ChipRow(options = StoryBackground.entries.toList(), selected = slide.background, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(background = it) } })
+                    SectionCaps(stringResource(R.string.ui_style))
+                    ChipRow(options = StoryFont.entries.toList(), selected = slide.font, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(font = it) } })
+                } else if (slide.mode == SlideMode.Audio) {
+                    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        val voice = slide.media
+                        if (voice == null) {
+                            PillButton("Record your voice", { fullEditor = FullEditor.Voice(VoiceStart.Record) }, style = PillStyle.Secondary, enabled = !busy, modifier = Modifier.fillMaxWidth(), height = 44.dp)
+                            PillButton("Choose an audio file", { fullEditor = FullEditor.Voice(VoiceStart.Pick) }, style = PillStyle.Secondary, enabled = !busy, modifier = Modifier.fillMaxWidth(), height = 44.dp)
+                        } else {
+                            Text("Voice · ${clockOf(voice.durationMs ?: 0)}", color = colors.text, fontWeight = FontWeight.SemiBold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PillButton("Edit voice", { fullEditor = FullEditor.Voice(VoiceStart.Edit(voice, slide.text, slide.background, slide.captions)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy, height = 44.dp)
+                                PillButton(
+                                    if (slide.captions.isEmpty()) "Subtitles" else "Subtitles (${slide.captions.size})",
+                                    { dialog = ComposerDialog.Captions },
+                                    Modifier.weight(1f), PillStyle.Secondary, enabled = !busy, height = 44.dp,
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PillButton("Record again", { fullEditor = FullEditor.Voice(VoiceStart.Record) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy, height = 44.dp)
+                                PillButton("Choose another", { fullEditor = FullEditor.Voice(VoiceStart.Pick) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy, height = 44.dp)
+                            }
+                        }
+                        StyledTextField(slide.text, { if (it.length <= 120 && !busy) model.change { s -> s.copy(text = it) } }, "Add a title (optional)")
+                        Text("Edited here on your phone. Only the encrypted result is ever uploaded. Use audio you have the right to share.", color = colors.text3, fontSize = 12.sp)
+                    }
+                    SectionCaps(stringResource(R.string.ui_background))
+                    ChipRow(options = StoryBackground.entries.toList(), selected = slide.background, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(background = it) } })
+                    SectionCaps(stringResource(R.string.ui_style))
+                    ChipRow(options = StoryFont.entries.toList(), selected = slide.font, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(font = it) } })
+                } else {
+                    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (preparing) Text(stringResource(R.string.ui_getting_it_ready), color = colors.text2)
+                        val media = slide.media
+                        if (media != null && media.kind == StoryKind.Video) {
+                            Text("Video · ${((media.durationMs ?: 0) / 1000)} s · ${"%.1f".format(media.sizeBytes / 1024.0 / 1024.0)} MB", color = colors.text, fontWeight = FontWeight.SemiBold)
+                            PillButton(
+                                if (slide.captions.isEmpty()) "Subtitles" else "Subtitles (${slide.captions.size})",
+                                { dialog = ComposerDialog.Captions },
+                                style = PillStyle.Secondary, enabled = !busy, modifier = Modifier.fillMaxWidth(), height = 44.dp,
+                            )
+                        }
+                        if (media != null && media.kind == StoryKind.Image) {
+                            PillButton("Edit photo", { fullEditor = FullEditor.Photo(media) }, style = PillStyle.Secondary, enabled = !busy, modifier = Modifier.fillMaxWidth(), height = 44.dp)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton(stringResource(R.string.ui_choose_photo), { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                            PillButton(stringResource(R.string.ui_take_photo), { openCamera(Capture.Photo) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        }
+                        PillButton("Make a collage", { fullEditor = FullEditor.Collage }, style = PillStyle.Secondary, enabled = !busy && !preparing, modifier = Modifier.fillMaxWidth(), height = 44.dp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton(stringResource(R.string.ui_choose_video), { pickVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                            PillButton(stringResource(R.string.ui_record_video), { openCamera(Capture.Video) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        }
+                        Text(
+                            stringResource(R.string.ui_a_photo_is_saved_fresh_before),
+                            color = colors.text3,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+
+                SectionCaps(stringResource(R.string.ui_add_to_this_slide))
+                ChipRow(
+                    options = listOf("Words", "Emoji", "Sticker"),
                     selected = "",
                     label = { it },
                     onSelect = {
-                        when (it) {
-                            "Smaller" -> adjustSelected(0.85, 0.0)
-                            "Larger" -> adjustSelected(1.18, 0.0)
-                            "Turn" -> adjustSelected(1.0, 15.0)
-                            "Edit" -> (sel as? Selected.Overlay)?.let { o -> dialog = ComposerDialog.EditWords(o.index) }
-                            else -> removeSelected()
+                        if (!busy) when (it) {
+                            "Words" -> if (slide.overlays.size < StoryLimits.MAX_OVERLAYS) dialog = ComposerDialog.AddWords else error = "That's as many words and emoji as fit."
+                            "Emoji" -> if (slide.overlays.size < StoryLimits.MAX_OVERLAYS) dialog = ComposerDialog.Emoji else error = "That's as many words and emoji as fit."
+                            else -> if (slide.stickers.size < StickerLimits.MAX_STICKERS) dialog = ComposerDialog.Sticker else error = "That's as many stickers as fit."
                         }
                     },
                 )
-            }
-            Text(
-                "Drag to move, pinch to size and turn. Tap the picture to let go.",
-                color = colors.text3,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
+                val sel = model.selected
+                if (sel != null) {
+                    val editable = sel is Selected.Overlay && slide.overlays.getOrNull(sel.index)?.isEmoji == false
+                    val motion = (sel as? Selected.Overlay)?.let { o -> "Motion: " + StoryMotion.label(slide.overlays.getOrNull(o.index)?.anim) }
+                    ChipRow(
+                        options = buildList { add("Smaller"); add("Larger"); add("Turn"); if (motion != null) add(motion); if (editable) add("Edit"); add("Remove") },
+                        selected = "",
+                        label = { it },
+                        onSelect = {
+                            when {
+                                it == "Smaller" -> adjustSelected(0.85, 0.0)
+                                it == "Larger" -> adjustSelected(1.18, 0.0)
+                                it == "Turn" -> adjustSelected(1.0, 15.0)
+                                it.startsWith("Motion") -> (sel as? Selected.Overlay)?.let { o -> model.cycleMotion(o.index) }
+                                it == "Edit" -> (sel as? Selected.Overlay)?.let { o -> dialog = ComposerDialog.EditWords(o.index) }
+                                else -> removeSelected()
+                            }
+                        },
+                    )
+                }
+                Text(
+                    stringResource(R.string.ui_drag_to_move_pinch_to_size),
+                    color = colors.text3,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
 
-            SectionCaps("Who sees it")
-            ChipRow(
-                options = StoryAudience.entries.toList(),
-                selected = model.audience,
-                label = {
-                    when (it) {
-                        StoryAudience.Friends -> "Friends"
-                        StoryAudience.CloseFriends -> "Close friends"
-                        StoryAudience.Custom -> "Choose people"
-                    }
-                },
-                onSelect = {
-                    if (!busy) {
-                        model.audience = it
-                        model.dirty = true
-                        if (it == StoryAudience.Custom) dialog = ComposerDialog.People
-                    }
-                },
-            )
-            Text(
-                when {
-                    model.audience == StoryAudience.CloseFriends && closeCount == 0 -> "You have no close friends yet. Add some in your story settings."
-                    model.audience == StoryAudience.Custom && customCount == 0 -> "Choose at least one friend."
-                    else -> (if (audienceCount == 1) "1 friend" else "$audienceCount friends") + " can see it" +
-                        (if (hiddenCount > 0 && model.audience == StoryAudience.Friends) ", not the $hiddenCount you hide stories from" else "") + "."
-                },
-                color = colors.text2,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-
-            if (state.ttlSeconds.size > 1) {
-                SectionCaps("Disappears after")
+                SectionCaps(stringResource(R.string.ui_who_sees_it))
                 ChipRow(
-                    options = state.ttlSeconds,
-                    selected = model.ttl ?: 86_400,
-                    label = { lifetimeLabel(it) },
-                    onSelect = { if (!busy) { model.ttl = it; model.dirty = true } },
+                    options = StoryAudience.entries.toList(),
+                    selected = model.audience,
+                    label = {
+                        when (it) {
+                            StoryAudience.Friends -> "Friends"
+                            StoryAudience.CloseFriends -> "Close friends"
+                            StoryAudience.Custom -> "Choose people"
+                        }
+                    },
+                    onSelect = {
+                        if (!busy) {
+                            model.audience = it
+                            model.dirty = true
+                            if (it == StoryAudience.Custom) dialog = ComposerDialog.People
+                        }
+                    },
+                )
+                Text(
+                    when {
+                        model.audience == StoryAudience.CloseFriends && closeCount == 0 -> "You have no close friends yet. Add some in your story settings."
+                        model.audience == StoryAudience.Custom && customCount == 0 -> "Choose at least one friend."
+                        else -> (if (audienceCount == 1) "1 friend" else "$audienceCount friends") + " can see it" +
+                            (if (hiddenCount > 0 && model.audience == StoryAudience.Friends) ", not the $hiddenCount you hide stories from" else "") + "."
+                    },
+                    color = colors.text2,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+
+                if (state.ttlSeconds.size > 1) {
+                    SectionCaps(stringResource(R.string.ui_disappears_after))
+                    ChipRow(
+                        options = state.ttlSeconds,
+                        selected = model.ttl ?: 86_400,
+                        label = { lifetimeLabel(it) },
+                        onSelect = { if (!busy) { model.ttl = it; model.dirty = true } },
+                    )
+                }
+                SwitchCard(
+                    "Allow replies",
+                    "Friends can answer your story in a chat with you.",
+                    model.replies,
+                    { if (!busy) { model.replies = it; model.dirty = true } },
+                    Modifier.padding(horizontal = 20.dp),
+                )
+
+                Callout(
+                    stringResource(R.string.ui_end_to_end_encrypted_on_this),
+                    CalloutTone.Neutral,
+                    R.drawable.ui_lock,
+                    Modifier.padding(horizontal = 20.dp),
                 )
             }
-            SwitchCard(
-                "Allow replies",
-                "Friends can answer your story in a chat with you.",
-                model.replies,
-                { if (!busy) { model.replies = it; model.dirty = true } },
-                Modifier.padding(horizontal = 20.dp),
-            )
-
-            Callout(
-                "End-to-end encrypted on this phone before it's sent. Anyone who can see a story can still screenshot or copy it.",
-                CalloutTone.Neutral,
-                R.drawable.ui_lock,
-                Modifier.padding(horizontal = 20.dp),
-            )
-        }
-        // Said where it can always be seen, not somewhere down the page.
-        if (error != null || note != null) {
-            Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
-                note?.let { Callout(it, CalloutTone.Ok, R.drawable.ui_lock) }
+            // Said where it can always be seen, not somewhere down the page.
+            if (error != null || note != null) {
+                Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
+                    note?.let { Callout(it, CalloutTone.Ok, R.drawable.ui_lock) }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton(stringResource(R.string.ui_save_draft), { saveDraft() }, Modifier.weight(0.8f), PillStyle.Secondary, enabled = !busy && !preparing && model.hasWork())
+                PillButton(
+                    when (stage) {
+                        PostStage.Encrypting -> progress?.let { (done, total) -> if (total > 1) "Encrypting ${done + 1} of $total…" else null } ?: "Encrypting…"
+                        PostStage.Uploading -> progress?.let { (done, total) -> if (total > 1) "Posting ${done + 1} of $total…" else null } ?: "Posting…"
+                        null -> if (model.slides.size > 1) "Share ${model.slides.size} slides" else "Share story"
+                    },
+                    onClick = ::share,
+                    enabled = canShare || busy,
+                    busy = busy,
+                    modifier = Modifier.weight(1.2f),
+                )
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Save draft", { saveDraft() }, Modifier.weight(0.8f), PillStyle.Secondary, enabled = !busy && !preparing && model.hasWork())
-            PillButton(
-                when (stage) {
-                    PostStage.Encrypting -> progress?.let { (done, total) -> if (total > 1) "Encrypting ${done + 1} of $total…" else null } ?: "Encrypting…"
-                    PostStage.Uploading -> progress?.let { (done, total) -> if (total > 1) "Posting ${done + 1} of $total…" else null } ?: "Posting…"
-                    null -> if (model.slides.size > 1) "Share ${model.slides.size} slides" else "Share story"
+        when (val editor = fullEditor) {
+            null -> {}
+            is FullEditor.Photo -> PhotoEditorScreen(
+                source = editor.source,
+                onDone = { edited ->
+                    scope.launch {
+                        val thumbnail = thumbnailOf(edited)
+                        model.change { it.copy(media = edited, thumbnail = thumbnail) }
+                        fullEditor = null
+                    }
                 },
-                onClick = ::share,
-                enabled = canShare || busy,
-                busy = busy,
-                modifier = Modifier.weight(1.2f),
+                onCancel = { fullEditor = null },
+            )
+            FullEditor.Collage -> CollageScreen(
+                onDone = { made ->
+                    scope.launch {
+                        val thumbnail = thumbnailOf(made)
+                        model.change { it.copy(mode = SlideMode.Media, media = made, thumbnail = thumbnail, captions = emptyList()) }
+                        fullEditor = null
+                    }
+                },
+                onCancel = { fullEditor = null },
+            )
+            is FullEditor.Voice -> VoiceStudio(
+                start = editor.start,
+                onDone = { result ->
+                    model.change { it.copy(mode = SlideMode.Audio, media = result.media, thumbnail = null, text = result.title, background = result.background, captions = result.captions) }
+                    fullEditor = null
+                },
+                onCancel = { fullEditor = null },
             )
         }
     }
@@ -656,6 +808,12 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
             },
             onDismiss = { dialog = null },
         )
+        ComposerDialog.Captions -> CaptionEditorDialog(
+            captions = slide.captions,
+            durationMs = maxOf(1000L, slide.media?.durationMs ?: 1000L),
+            onChange = { lines -> model.change { it.copy(captions = lines) } },
+            onClose = { dialog = null },
+        )
         ComposerDialog.People -> PeopleDialog(
             friends = state.friends,
             hidden = state.prefs.hideFrom,
@@ -666,10 +824,10 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
         ComposerDialog.Leave -> AlertDialog(
             onDismissRequest = { dialog = null },
             containerColor = colors.surface,
-            title = { Text("Keep this story?", color = colors.text) },
-            text = { Text("You haven't shared it. Save it as a draft to finish later; a draft stays on this phone, encrypted.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { dialog = null; saveDraft(then = ::leave) }) { Text("Save draft", color = colors.accent) } },
-            dismissButton = { TextButton(onClick = { dialog = null; leave() }) { Text("Discard", color = colors.danger) } },
+            title = { Text(stringResource(R.string.ui_keep_this_story), color = colors.text) },
+            text = { Text(stringResource(R.string.ui_you_haven_t_shared_it_save), color = colors.text2) },
+            confirmButton = { TextButton(onClick = { dialog = null; saveDraft(then = ::leave) }) { Text(stringResource(R.string.ui_save_draft), color = colors.accent) } },
+            dismissButton = { TextButton(onClick = { dialog = null; leave() }) { Text(stringResource(R.string.ui_discard), color = colors.danger) } },
         )
         is ComposerDialog.Drafts -> DraftsDialog(
             drafts = d.drafts,
@@ -706,7 +864,7 @@ private fun DraftsDialog(drafts: List<DraftSummary>, onOpen: (String) -> Unit, o
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
-        title = { Text("Drafts", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_drafts), color = colors.text) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (d in drafts) {
@@ -720,13 +878,13 @@ private fun DraftsDialog(drafts: List<DraftSummary>, onOpen: (String) -> Unit, o
                                 fontSize = 12.sp,
                             )
                         }
-                        TextButton(onClick = { onDelete(d.id) }) { Text("Delete", color = colors.danger) }
+                        TextButton(onClick = { onDelete(d.id) }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
                     }
                 }
-                Text("Drafts stay on this phone, encrypted. They are kept for 30 days.", color = colors.text3, fontSize = 12.sp)
+                Text(stringResource(R.string.ui_drafts_stay_on_this_phone_encrypted), color = colors.text3, fontSize = 12.sp)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = colors.accent) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_close), color = colors.accent) } },
     )
 }
 

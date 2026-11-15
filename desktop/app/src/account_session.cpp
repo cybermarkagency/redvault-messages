@@ -106,7 +106,11 @@ void AccountSession::reload() {
         pool_, this, [account]() { return account->me(); },
         [this](api::MeResult me) {
             const bool sharedBefore = showOnlineStatus();
+            // Sign-in ignores upper and lower case, so the handle typed there can differ from the
+            // registered one ("marcell" vs "Marcell"). Show the server's spelling.
+            const QString serverHandle = QString::fromStdString(me.username);
             me_ = std::move(me);
+            if (!serverHandle.isEmpty()) emit handleChanged(serverHandle);
             loaded_ = true;
             emit accountChanged();
             if (sharedBefore != showOnlineStatus() || !planLoadedOnce_) emit onlineStatusChanged(showOnlineStatus());

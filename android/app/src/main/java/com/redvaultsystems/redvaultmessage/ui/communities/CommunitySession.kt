@@ -22,7 +22,7 @@ import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Communities while signed in: the screens' calls (discover, a community's page, joining free ones,
- * leaving, the member's own subscriptions, reports) and the key upkeep loop. Nothing here can buy a
+ * leaving, the member's own subscriptions, reports) and the owner and staff membership upkeep (Part C2). Nothing here can buy a
  * membership: see data/api/CommunityApi.kt. Each call throws [UserFacingException] with a message that's
  * safe to show, and a 401 ends the session.
  */
@@ -30,18 +30,23 @@ class CommunitySession(
     private val api: CommunityApi,
     private val keys: CommunityKeys,
     private val onSessionExpired: () -> Unit,
+    /**
+     * Part C2 (docs/signal-integration/11-part-c2-communities.md): one round of the membership tasks on device keys
+     * (admit waiting members, issue rosters, rotate a channel's sender key). True when something changed; null when
+     * device keys aren't available on this phone. Only owner and staff have tasks; for anyone else it's one request.
+     */
+    private val membershipTasks: (suspend () -> Boolean?)? = null,
 ) {
     /**
-     * Port of the web's 20-second upkeep (ui/src/state/AppStateContext.tsx): delivers the current key to
-     * members who are waiting and rotates after someone left. Runs while the app is on screen; [onChanged]
-     * reloads the chat list after a rotation or an enrollment.
+     * The owner and staff upkeep: shortly after start, then every 20 s while the app runs. [onChanged] reloads the
+     * chat list after someone was admitted or a roster changed.
      */
-    suspend fun maintainKeys(onChanged: suspend () -> Unit) {
+    suspend fun maintainMembership(onChanged: suspend () -> Unit) {
+        val tasks = membershipTasks ?: return
         delay(FIRST_UPKEEP_MS)
         while (true) {
             try {
-                val result = keys.runMaintenance()
-                if (result.rotated + result.enrolled > 0) onChanged()
+                if (tasks() == true) onChanged()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {

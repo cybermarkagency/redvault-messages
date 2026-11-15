@@ -180,7 +180,7 @@ struct Fixture {
         return {{alice.userId, alice.keys.publicKey}, {bob.userId, bob.keys.publicKey}, {carol.userId, carol.keys.publicKey}};
     }
 
-    model::group_calls::RoomKeyExchange exchange(const Party& who, bool knowEveryone = true) {
+    model::group_calls::RoomKeyExchange exchange(const Party& who, bool knowEveryone = true, bool deviceKeys = false) {
         auto dir = directory();
         if (!knowEveryone) dir.erase("carol");
         model::group_calls::RoomKeyExchange::Config config;
@@ -194,6 +194,7 @@ struct Fixture {
             return it->second;
         };
         config.now = [this] { return now; };
+        config.deviceKeys = deviceKeys;
         return model::group_calls::RoomKeyExchange(std::move(config));
     }
 };
@@ -439,6 +440,73 @@ TEST_CASE("group call events on the live channel keep their roster and key", "[c
     CHECK(events.events[2].sealed->ciphertext == "Y3Q=");
     CHECK(events.events[3].type == "group-ring-stop");
     CHECK(events.events[4].conversationId == "g1");
+}
+
+TEST_CASE("part B: on device keys the keyholder's key goes to each participant, never sealed for /keys", "[calls][group][partb]") {
+    Fixture f;
+    auto alice = f.exchange(f.alice, true, true);
+    auto bob = f.exchange(f.bob, true, true);
+    const auto members = roster({"alice", "bob", "carol"});
+    const auto out = alice.onRoster(1, "alice", members);
+    REQUIRE(out.install);
+    CHECK(out.toSend.empty());
+    CHECK(out.deviceKeyRecipients == std::vector<std::string>{"bob", "carol"});
+    REQUIRE(out.deviceKey);
+    CHECK(Bytes(out.deviceKey->data(), out.deviceKey->data() + out.deviceKey->size()) == bytesOf(out.install->key));
+    CHECK(out.sendEpoch == 1);
+
+    // Bob takes it only from the keyholder, for the current epoch; a sealed key is never used in this call.
+    CHECK_FALSE(bob.onRoster(1, "alice", members).install);
+    CHECK_FALSE(bob.onDeviceKey(1, "carol", out.deviceKey).install);
+    auto sealedAlice = f.exchange(f.alice);
+    const auto sealed = sealedAlice.onRoster(1, "alice", members);
+    CHECK_FALSE(bob.onKey(1, "alice", Sealed{sealed.toSend.at(0).key.ciphertext, sealed.toSend.at(0).key.nonce}).install);
+    const auto got = bob.onDeviceKey(1, "alice", out.deviceKey);
+    REQUIRE(got.install);
+    CHECK(bytesOf(got.install->key) == bytesOf(out.install->key));
+    CHECK(bob.keyReady());
+
+    // A key for a later epoch waits for its roster; one older than the key held is refused.
+    const auto two = alice.onRoster(2, "alice", members);
+    CHECK_FALSE(bob.onDeviceKey(2, "alice", two.deviceKey).install);
+    REQUIRE(bob.onRoster(2, "alice", members).install);
+    CHECK(bob.keyEpoch() == 2);
+    CHECK_FALSE(bob.onDeviceKey(1, "alice", out.deviceKey).install);
+    CHECK(bob.keyEpoch() == 2);
+
+    // A group not on device keys never takes a device-key message.
+    auto plain = f.exchange(f.bob);
+    plain.onRoster(1, "alice", members);
+    CHECK_FALSE(plain.onDeviceKey(1, "alice", out.deviceKey).install);
+}
+
+TEST_CASE("part B: the device-keys marker on the live channel, and posting it", "[calls][api][partb]") {
+    auto transport = std::make_shared<FakeTransport>();
+    api::ApiClient client{"https://example.com/api", transport, std::make_shared<net::SessionCookieJar>()};
+    transport->enqueue(200, R"({"cursor":3,"callsEnabled":true,"events":[
+        {"type":"incoming","callId":"c1","conversationId":"g1","callerId":"u1","kind":"voice","offer":{"carrier":"device-keys"},"iceServers":[]},
+        {"type":"answered","callId":"c1","answer":{"carrier":"device-keys"}},
+        {"type":"answered","callId":"c2","answer":{"ciphertext":"Y3Q=","nonce":"bm9uY2U="}},
+        {"type":"answered","callId":"c3","answer":{"carrier":"plain"}}]})");
+    const auto events = api::live::events(client, 2);
+    REQUIRE(events.events.size() == 4);
+    CHECK(events.events[0].deviceKeys);
+    CHECK_FALSE(events.events[0].sealed);
+    CHECK(events.events[1].deviceKeys);
+    CHECK_FALSE(events.events[2].deviceKeys);
+    REQUIRE(events.events[2].sealed);
+    CHECK_FALSE(events.events[3].deviceKeys);  // an unknown carrier carries nothing usable
+    CHECK_FALSE(events.events[3].sealed);
+
+    for (int i = 0; i < 3; ++i) transport->enqueue(200, "{}");
+    api::live::sendOfferOverDeviceKeys(client, "c1");
+    CHECK(transport->last().url == "https://example.com/api/calls/c1/offer");
+    CHECK(nlohmann::json::parse(transport->last().body) == nlohmann::json{{"carrier", "device-keys"}});
+    api::live::sendAnswerOverDeviceKeys(client, "c1");
+    CHECK(transport->last().url == "https://example.com/api/calls/c1/answer");
+    api::live::sendSignalOverDeviceKeys(client, "c1");
+    CHECK(transport->last().url == "https://example.com/api/calls/c1/signal");
+    CHECK(nlohmann::json::parse(transport->last().body) == nlohmann::json{{"carrier", "device-keys"}});
 }
 
 TEST_CASE("the signaling address: LiveKit's path on the site becomes a websocket URL", "[calls][group]") {

@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.ChipRow
+import com.redvaultsystems.redvaultmessage.ui.files.DsTextField
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -87,6 +90,8 @@ private const val MIN_PASSWORD_LENGTH = 8
 @Composable
 fun SettingsScreen(
     account: AccountSession,
+    /** In-app updates: the Updates section above "Open source" (update/AppUpdates.kt). */
+    updates: com.redvaultsystems.redvaultmessage.update.AppUpdates? = null,
     profile: Profile,
     incomingRequests: Int,
     readReceipts: Boolean,
@@ -138,6 +143,14 @@ fun SettingsScreen(
     onEchoCancellationChange: (Boolean) -> Unit = {},
     /** Story settings; null while the server has Stories off (then there is nothing to show). */
     onOpenStorySettings: (() -> Unit)? = null,
+    /** Settings › Plans: compare plans, buy, switch or cancel. */
+    onOpenPlans: () -> Unit = {},
+    /** Files (the encrypted drive) in use and its limit, in bytes; null until it has loaded. Every plan has some. */
+    filesUsed: Long? = null,
+    filesLimit: Long? = null,
+    /** Settings › Appearance: "system", "dark" or "light" (AppearanceStore). */
+    appearance: String = "dark",
+    onAppearanceChange: (String) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var avatarBusy by remember { mutableStateOf(false) }
@@ -170,7 +183,7 @@ fun SettingsScreen(
     }
 
     val colors = RedvaultTheme.colors
-    SubScreen(title = "Settings", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_settings), onBack = onBack) {
         // You: photo, handle and plan.
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(16.dp),
@@ -199,7 +212,7 @@ fun SettingsScreen(
                     )
                     if (profile.avatarUrl != null) {
                         Text(
-                            "Remove",
+                            stringResource(R.string.ui_remove),
                             color = colors.text3,
                             fontSize = 14.sp,
                             modifier = Modifier.clickable(enabled = !avatarBusy, role = Role.Button) {
@@ -217,18 +230,18 @@ fun SettingsScreen(
                 }
             }
         }
-        Text("Your photo is visible to every user. It isn't encrypted or private.", color = colors.text3, fontSize = 12.5.sp)
+        Text(stringResource(R.string.ui_your_photo_is_visible_to_every), color = colors.text3, fontSize = 12.5.sp)
         error?.let { Notice(it) }
 
-        SectionLabel("Privacy")
+        SectionLabel(stringResource(R.string.ui_privacy))
         SettingsRow(
-            title = "Maximum privacy",
-            description = "See and turn on every privacy protection at once",
+            title = stringResource(R.string.ui_maximum_privacy),
+            description = stringResource(R.string.ui_see_and_turn_on_every_privacy),
             onClick = onOpenPrivacyMode,
             icon = R.drawable.ui_shield_check,
         )
         SettingsRow(
-            title = "Network routing",
+            title = stringResource(R.string.ui_network_routing),
             description = if (torRouting) "Messages, files and account: through Tor. Calls: encrypted relay (not Tor)"
             else "How messages, files and calls leave this phone",
             onClick = onOpenNetworkRouting,
@@ -236,47 +249,63 @@ fun SettingsScreen(
         )
         AppLockRow(appLockEnabled, appLockTimeout, onOpenAppLock)
         SettingsRow(
-            title = "Read receipts",
-            description = "Let contacts see when you've read a message",
+            title = stringResource(R.string.ui_read_receipts),
+            description = stringResource(R.string.ui_let_contacts_see_when_you_ve),
             icon = R.drawable.ui_check,
-            trailing = { RvSwitch(checked = readReceipts, onCheckedChange = onReadReceiptsChange, description = "Read receipts") },
+            trailing = { RvSwitch(checked = readReceipts, onCheckedChange = onReadReceiptsChange, description = stringResource(R.string.ui_read_receipts)) },
         )
         SettingsRow(
-            title = "Show when I'm online",
-            description = "Contacts who share theirs see when you're using the app, and you see theirs. Off: neither",
+            title = stringResource(R.string.ui_show_when_i_m_online),
+            description = stringResource(R.string.ui_contacts_who_share_theirs_see_when),
             icon = R.drawable.ui_signal,
             trailing = {
                 RvSwitch(
                     checked = profile.showOnlineStatus == true,
                     enabled = profile.showOnlineStatus != null,
                     onCheckedChange = { on -> run("Couldn't change that. Try again.") { account.setShowOnlineStatus(on) } },
-                    description = "Show when I'm online",
+                    description = stringResource(R.string.ui_show_when_i_m_online),
                 )
             },
         )
         SettingsRow(
-            title = "Typing indicators",
-            description = "Show when you're typing, and see when others are. Off: neither",
+            title = stringResource(R.string.ui_typing_indicators),
+            description = stringResource(R.string.ui_show_when_you_re_typing_and),
             icon = R.drawable.ui_dots,
-            trailing = { RvSwitch(checked = typingIndicators, onCheckedChange = onTypingIndicatorsChange, description = "Typing indicators") },
+            trailing = { RvSwitch(checked = typingIndicators, onCheckedChange = onTypingIndicatorsChange, description = stringResource(R.string.ui_typing_indicators)) },
         )
         SettingsRow(
-            title = "Hide app content",
-            description = "Block screenshots and hide chats in the Recents screen",
+            title = stringResource(R.string.ui_hide_app_content),
+            description = stringResource(R.string.ui_block_screenshots_and_hide_chats_in),
             icon = R.drawable.ui_eye_off,
-            trailing = { RvSwitch(checked = hideContent, onCheckedChange = onHideContentChange, description = "Hide app content") },
+            trailing = { RvSwitch(checked = hideContent, onCheckedChange = onHideContentChange, description = stringResource(R.string.ui_hide_app_content)) },
         )
 
-        SectionLabel("Notifications and calls")
+        SectionLabel(stringResource(R.string.ui_appearance))
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(stringResource(R.string.ui_theme), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp))
+            ChipRow(
+                listOf("system", "dark", "light"),
+                appearance,
+                { when (it) { "system" -> "Match phone"; "light" -> "Light"; else -> "Dark" } },
+                onAppearanceChange,
+                edge = 14.dp,
+            )
+            Text(stringResource(R.string.ui_calls_stay_dark_in_every_theme), color = colors.text3, fontSize = 12.5.sp, modifier = Modifier.padding(horizontal = 14.dp))
+        }
+
+        SectionLabel(stringResource(R.string.ui_notifications_and_calls))
         SettingsRow(
-            title = "Notifications",
-            description = "Tell me when something new arrives. Never shows who it's from or what it says",
+            title = stringResource(R.string.ui_notifications),
+            description = stringResource(R.string.ui_tell_me_when_something_new_arrives),
             icon = R.drawable.ui_bell,
-            trailing = { RvSwitch(checked = notificationsOn, onCheckedChange = onNotificationsChange, description = "Notifications") },
+            trailing = { RvSwitch(checked = notificationsOn, onCheckedChange = onNotificationsChange, description = stringResource(R.string.ui_notifications)) },
         )
         if (notificationsOn) {
             SettingsRow(
-                title = "How they arrive",
+                title = stringResource(R.string.ui_how_they_arrive),
                 description = when (pushMode) {
                     is PushMode.UnifiedPush -> if (pushMode.distributor.isEmpty()) "Push through your push app" else "Push through ${distributorName(pushMode.distributor)}"
                     PushMode.BackgroundConnection -> if (torRouting) "Background connection, through Tor" else "Background connection"
@@ -302,12 +331,12 @@ fun SettingsScreen(
                 // No UnifiedPush app is used through Tor: nothing to install or choose.
             } else if (distributorCount == 0) {
                 Text(
-                    "Installing a UnifiedPush app such as ntfy saves battery: RedVault then doesn't need its own connection, and still never uses Google's push service.",
+                    stringResource(R.string.ui_installing_a_unifiedpush_app_such_as),
                     color = colors.text3, fontSize = 12.5.sp,
                 )
             } else if (distributorCount > 1) {
                 SettingsRow(
-                    title = "Choose push app",
+                    title = stringResource(R.string.ui_choose_push_app),
                     description = "$distributorCount UnifiedPush apps are installed",
                     onClick = onPickDistributor,
                     icon = R.drawable.ui_bell,
@@ -315,63 +344,64 @@ fun SettingsScreen(
             }
         }
         SettingsRow(
-            title = "Ringtone",
-            description = "Ring for incoming calls. Muted contacts never ring",
+            title = stringResource(R.string.ui_ringtone),
+            description = stringResource(R.string.ui_ring_for_incoming_calls_muted_contacts),
             icon = R.drawable.ui_phone,
-            trailing = { RvSwitch(checked = ringtone, onCheckedChange = onRingtoneChange, description = "Ringtone") },
+            trailing = { RvSwitch(checked = ringtone, onCheckedChange = onRingtoneChange, description = stringResource(R.string.ui_ringtone)) },
         )
         SettingsRow(
-            title = "Echo cancellation",
-            description = "Stops the other person hearing themselves through your speaker. Leave on unless you use a headset and the line sounds muffled",
+            title = stringResource(R.string.ui_echo_cancellation),
+            description = stringResource(R.string.ui_stops_the_other_person_hearing_themselves),
             icon = R.drawable.ui_headphones,
-            trailing = { RvSwitch(checked = echoCancellation, onCheckedChange = onEchoCancellationChange, description = "Echo cancellation") },
+            trailing = { RvSwitch(checked = echoCancellation, onCheckedChange = onEchoCancellationChange, description = stringResource(R.string.ui_echo_cancellation)) },
         )
 
-        SectionLabel("Friends")
+        SectionLabel(stringResource(R.string.ui_friends))
         SettingsRow(
-            title = "Accept messages from anyone",
-            description = "Off rejects new friend requests from people you haven't talked to before",
+            title = stringResource(R.string.ui_accept_messages_from_anyone),
+            description = stringResource(R.string.ui_off_rejects_new_friend_requests_from),
             icon = R.drawable.ui_user_plus,
             trailing = {
                 RvSwitch(
                     checked = profile.acceptMessageRequests ?: true,
                     enabled = profile.acceptMessageRequests != null,
                     onCheckedChange = { run("Couldn't update that setting. Try again.") { account.setAcceptMessageRequests(it) } },
-                    description = "Accept messages from anyone",
+                    description = stringResource(R.string.ui_accept_messages_from_anyone),
                 )
             },
         )
         SettingsRow(
-            title = "Friend requests",
+            title = stringResource(R.string.ui_friend_requests),
             description = if (incomingRequests > 0) "$incomingRequests waiting for you" else "Review, accept or deny requests",
             onClick = onOpenFriendRequests,
             icon = R.drawable.ui_users,
         )
         SettingsRow(
-            title = "Blocked users",
+            title = stringResource(R.string.ui_blocked_users),
             description = if (blockedCount == 0) "Nobody blocked" else "$blockedCount blocked",
             onClick = onOpenBlocked,
             icon = R.drawable.ui_ban,
         )
         SettingsRow(
-            title = "Inbox",
-            description = if (inboxUnread > 0) "$inboxUnread unread from the Redvault team" else "Messages and polls from the Redvault team",
+            title = stringResource(R.string.ui_inbox),
+            description = if (inboxUnread > 0) "$inboxUnread unread from the RedVault team" else "Messages and polls from the RedVault team",
             onClick = onOpenInbox,
             icon = R.drawable.ui_bell,
         )
 
         if (onOpenStorySettings != null) {
-            SettingsRow(title = "Stories", description = "Who sees your stories, archive and highlights", onClick = onOpenStorySettings, icon = R.drawable.ui_image)
+            SettingsRow(title = stringResource(R.string.ui_stories), description = stringResource(R.string.ui_who_sees_your_stories_archive_and), onClick = onOpenStorySettings, icon = R.drawable.ui_image)
         }
 
-        SectionLabel("Account")
-        SettingsRow(title = "Handle", description = profile.handle, onClick = onOpenChangeUsername, icon = R.drawable.ui_user)
-        PlanRow(account, profile.subscriptionTier)
+        SectionLabel(stringResource(R.string.ui_account))
+        SettingsRow(title = stringResource(R.string.ui_handle), description = profile.handle, onClick = onOpenChangeUsername, icon = R.drawable.ui_user)
+        PlanRow(account, profile.subscriptionTier, onOpenPlans)
+        if (filesUsed != null && filesLimit != null && filesLimit > 0) FilesStorageRow(filesUsed, filesLimit, profile.subscriptionTier, onOpenPlans)
         if (isPaidTier(profile.subscriptionTier)) StorageRow(account)
 
-        SectionLabel("Security")
+        SectionLabel(stringResource(R.string.ui_security))
         SettingsRow(
-            title = "Recovery key",
+            title = stringResource(R.string.ui_recovery_key),
             description = when (profile.hasRecoveryKey) {
                 false -> "Not set up: a forgotten password can't be recovered"
                 else -> "The only way back in if you forget your password"
@@ -379,46 +409,48 @@ fun SettingsScreen(
             onClick = onOpenRecoveryKey,
             icon = R.drawable.ui_key,
         )
-        SettingsRow(title = "Change password", description = "Re-encrypts your private key with the new password", onClick = onOpenChangePassword, icon = R.drawable.ui_lock)
+        SettingsRow(title = stringResource(R.string.ui_change_password), description = stringResource(R.string.ui_re_encrypts_your_private_key_with), onClick = onOpenChangePassword, icon = R.drawable.ui_lock)
         SettingsRow(
-            title = "Two-factor authentication",
+            title = stringResource(R.string.ui_two_factor_authentication),
             description = if (profile.mfaEnabled) "On. Tap to turn off" else "Off. Set up an authenticator app",
             onClick = onOpenMfa,
             icon = R.drawable.ui_shield,
         )
-        SettingsRow(title = "Linked devices", description = "Everywhere you're signed in; sign any of them out", onClick = onOpenLinkedDevices, icon = R.drawable.ui_monitor)
+        SettingsRow(title = stringResource(R.string.ui_linked_devices), description = stringResource(R.string.ui_everywhere_you_re_signed_in_sign), onClick = onOpenLinkedDevices, icon = R.drawable.ui_monitor)
         if (onOpenDeviceKeys != null) {
-            SettingsRow(title = "Devices & encryption", description = "The Signal protocol, your devices and your recovery key", onClick = onOpenDeviceKeys, icon = R.drawable.ui_shield)
+            SettingsRow(title = stringResource(R.string.ui_devices_encryption), description = stringResource(R.string.ui_the_signal_protocol_your_devices_and), onClick = onOpenDeviceKeys, icon = R.drawable.ui_shield)
         }
 
-        SectionLabel("Network")
-        SettingsRow(title = "Relay servers", description = "The message and call relays, and a connection check", onClick = onOpenRelayServers, icon = R.drawable.ui_globe)
+        SectionLabel(stringResource(R.string.ui_network))
+        SettingsRow(title = stringResource(R.string.ui_relay_servers), description = stringResource(R.string.ui_the_message_and_call_relays_and), onClick = onOpenRelayServers, icon = R.drawable.ui_globe)
         SettingsRow(
-            title = "Transparency log",
-            description = "Check on this phone that the log is signed, append-only, and holds your own messages",
+            title = stringResource(R.string.ui_transparency_log),
+            description = stringResource(R.string.ui_check_on_this_phone_that_the),
             onClick = onOpenTransparencyLog,
             icon = R.drawable.ui_log,
         )
-        SettingsRow(title = "Live transparency feed", description = "The public record of relayed messages", onClick = onOpenTransparency, icon = R.drawable.ui_signal)
+        SettingsRow(title = stringResource(R.string.ui_live_transparency_feed), description = stringResource(R.string.ui_the_public_record_of_relayed_messages), onClick = onOpenTransparency, icon = R.drawable.ui_signal)
         SettingsRow(
-            title = "Transparency mode",
-            description = "When on, your outgoing messages' ciphertext (never the readable content) appears in the public transparency feed",
+            title = stringResource(R.string.ui_transparency_mode),
+            description = stringResource(R.string.ui_when_on_your_outgoing_messages_ciphertext),
             icon = R.drawable.ui_eye,
             trailing = {
                 RvSwitch(
                     checked = profile.transparencyMode ?: false,
                     enabled = profile.transparencyMode != null,
                     onCheckedChange = { run("Couldn't update that setting. Try again.") { account.setTransparencyMode(it) } },
-                    description = "Transparency mode",
+                    description = stringResource(R.string.ui_transparency_mode),
                 )
             },
         )
 
+        UpdateSection(updates)
+
         OpenSourceSection()
 
         Spacer(Modifier.height(8.dp))
-        PillButton("Log out", onLogout, Modifier.fillMaxWidth(), style = PillStyle.Secondary, icon = R.drawable.ui_log_out)
-        PillButton("Delete account", onOpenDeleteAccount, Modifier.fillMaxWidth(), style = PillStyle.Quiet)
+        PillButton(stringResource(R.string.ui_log_out), onLogout, Modifier.fillMaxWidth(), style = PillStyle.Secondary, icon = R.drawable.ui_log_out)
+        PillButton(stringResource(R.string.ui_delete_account), onOpenDeleteAccount, Modifier.fillMaxWidth(), style = PillStyle.Quiet)
     }
 }
 
@@ -431,7 +463,7 @@ fun DeleteAccountScreen(account: AccountSession, onBack: () -> Unit, onDeleted: 
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    SubScreen(title = "Delete account", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_delete_account), onBack = onBack) {
         Text(
             "This permanently deletes your account and signs you out on every device. Your private key, recovery key, " +
                 "two-factor setup, profile photo and notification tokens are removed. You can't undo this, and your " +
@@ -440,14 +472,14 @@ fun DeleteAccountScreen(account: AccountSession, onBack: () -> Unit, onDeleted: 
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            "Messages you already sent stay in the other people's chats, still end-to-end encrypted. They'll see your account as deleted.",
+            stringResource(R.string.ui_messages_you_already_sent_stay_in),
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
         PasswordInput(password, { password = it }, "Password")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = confirmed, onCheckedChange = { confirmed = it })
-            Text("I understand this can't be undone", color = RedvaultTheme.colors.text, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.ui_i_understand_this_can_t_be), color = RedvaultTheme.colors.text, style = MaterialTheme.typography.bodyMedium)
         }
         error?.let { Notice(it) }
         PrimaryButton(
@@ -478,79 +510,60 @@ private fun formatDay(day: String): String =
     runCatching { LocalDate.parse(day).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)) }.getOrDefault(day)
 
 /**
- * The plan, where it's headed, and for a card subscriber "Switch to Free"
- * (it stops renewing; Pro lasts until the paid period ends) or, once
- * that's chosen, "Keep Pro" to undo it.
+ * The plan and where it's headed; tapping opens Plans, where you buy,
+ * switch, cancel or keep a plan (PlansScreen).
  */
 @Composable
-private fun PlanRow(account: AccountSession, tier: String) {
-    val scope = rememberCoroutineScope()
-    val colors = RedvaultTheme.colors
+private fun PlanRow(account: AccountSession, tier: String, onOpenPlans: () -> Unit) {
     var status by remember { mutableStateOf<PlanStatusDto?>(null) }
-    var confirming by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
     // An older server has no /billing/status; the row then shows the tier alone.
     LaunchedEffect(tier) { status = runCatching { account.planStatus() }.getOrNull() }
-
-    fun change(action: suspend () -> PlanStatusDto) {
-        busy = true
-        error = null
-        scope.launch {
-            try {
-                status = action()
-                confirming = false
-            } catch (e: Exception) {
-                error = describeError(e, "Couldn't change your plan. Try again.")
-            } finally {
-                busy = false
-            }
-        }
-    }
-
     val current = status
     val plan = if (tier == "premium") "Premium" else "Pro"
     val description = when {
-        !isPaidTier(tier) -> "Free: unlimited messages, open files others send. Sending files needs Pro"
+        !isPaidTier(tier) -> "Free. See what Pro and Premium add"
         current?.endsOn != null ->
             "$plan until ${formatDay(current.endsOn)}, then Free" + if (current.source == "crypto") " (prepaid, nothing renews)" else ""
         current?.renews == true -> "$plan · renews monthly"
         else -> plan
     }
-    SettingsRow(title = "Plan", description = description, icon = R.drawable.ui_star)
-    if (!isPaidTier(tier) || current == null) return
-
-    if (confirming) {
-        AlertDialog(
-            onDismissRequest = { if (!busy) confirming = false },
-            title = { Text("Switch to Free?") },
-            text = {
-                Text(
-                    "Your subscription stops renewing and you won't be charged again. You keep Pro until the end of the " +
-                        "period you've paid for, then move to Free: messages only, no sending files. Files you've already " +
-                        "sent stay available until they expire.",
-                )
-            },
-            confirmButton = {
-                TextButton(enabled = !busy, onClick = { change(account::cancelPlan) }) {
-                    Text(if (busy) "Switching…" else "Switch to Free", color = colors.danger)
-                }
-            },
-            dismissButton = { TextButton(enabled = !busy, onClick = { confirming = false }) { Text("Keep Pro") } },
-        )
-    }
-    if (current.canResume) {
-        Text("Your subscription won't renew. You won't be charged again.", color = colors.text2, style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = { change(account::resumePlan) }, enabled = !busy, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
-            Text("Keep Pro")
-        }
-    } else if (current.canCancel) {
-        TextButton(onClick = { error = null; confirming = true }) { Text("Switch to Free…", color = colors.danger) }
-    }
-    error?.let { Notice(it) }
+    SettingsRow(title = stringResource(R.string.ui_plan), description = description, onClick = onOpenPlans, icon = R.drawable.ui_star)
 }
 
-/** Pro only: your file storage in use. Hidden if file sharing isn't set up on the server. */
+/** Files (the encrypted drive): every plan has some storage, so this shows on Free too. */
+@Composable
+private fun FilesStorageRow(used: Long, limit: Long, tier: String, onOpenPlans: () -> Unit) {
+    val colors = RedvaultTheme.colors
+    val fraction = (used.toFloat() / limit).coerceIn(0f, 1f)
+    Column(
+        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(stringResource(R.string.ui_files_storage), color = colors.text, fontWeight = FontWeight.Medium)
+        Text(
+            "${FileMessage.formatBytes(used)} of ${FileMessage.formatBytes(limit)} used (${PlanChoices.nameOf(tier)})",
+            color = colors.text2,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        LinearProgressIndicator(
+            progress = { fraction },
+            color = if (fraction >= 1f) colors.danger else if (fraction >= 0.9f) colors.warn else colors.accent,
+            trackColor = colors.surface2,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (fraction >= 0.9f && tier != "premium") {
+            Text(
+                if (tier == "pro") "Get 100 GB with Premium" else "Get more space",
+                color = colors.accent,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onOpenPlans).padding(vertical = 4.dp),
+            )
+        }
+    }
+}
+
+/** Pro and Premium: storage used by files you've sent in chats. Hidden if file sharing isn't set up on the server. */
 @Composable
 private fun StorageRow(account: AccountSession) {
     var usage by remember { mutableStateOf<FileStorageUsageDto?>(null) }
@@ -562,7 +575,7 @@ private fun StorageRow(account: AccountSession) {
         Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("File storage", color = colors.text, fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.ui_files_sent_in_chats), color = colors.text, fontWeight = FontWeight.Medium)
         Text(
             "${FileMessage.formatBytes(current.used)} of ${FileMessage.formatBytes(current.limit)} used · " +
                 "${FileMessage.formatBytes(maxOf(0, current.limit - current.used))} left",
@@ -588,24 +601,22 @@ fun ChangeUsernameScreen(account: AccountSession, current: String, onBack: () ->
     val trimmed = username.trim()
     val valid = trimmed.length in MIN_USERNAME_LENGTH..MAX_USERNAME_LENGTH && trimmed != current
 
-    SubScreen(title = "Change handle", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_change_handle), onBack = onBack) {
         Text(
-            "Your friends see the new handle. Anyone adding you from now on has to use it.",
+            stringResource(R.string.ui_your_friends_see_the_new_handle),
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
-        OutlinedTextField(
-            value = username,
-            onValueChange = { if (it.length <= MAX_USERNAME_LENGTH) username = it },
-            label = { Text("Handle") },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+        DsTextField(
+            username,
+            { if (it.length <= MAX_USERNAME_LENGTH) username = it },
+            "Handle",
+            mono = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
-            modifier = Modifier.fillMaxWidth(),
         )
         error?.let { Notice(it) }
         if (done) Notice("Your handle is now $current.", NoticeTone.Success)
-        PrimaryButton(text = "Save", enabled = valid, busy = busy) {
+        PrimaryButton(text = stringResource(R.string.ui_save), enabled = valid, busy = busy) {
             busy = true
             error = null
             done = false
@@ -636,7 +647,7 @@ fun ChangePasswordScreen(account: AccountSession, onBack: () -> Unit) {
     var done by remember { mutableStateOf(false) }
     val valid = current.isNotEmpty() && next.length >= MIN_PASSWORD_LENGTH && next == confirm
 
-    SubScreen(title = "Change password", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_change_password), onBack = onBack) {
         Text(
             "Your private key is re-encrypted with the new password on this phone before anything is sent. " +
                 "Other devices are signed out. There's still no way to recover a forgotten password.",
@@ -646,9 +657,9 @@ fun ChangePasswordScreen(account: AccountSession, onBack: () -> Unit) {
         PasswordInput(current, { current = it }, "Current password")
         PasswordInput(next, { next = it }, "New password (min. $MIN_PASSWORD_LENGTH characters)")
         PasswordInput(confirm, { confirm = it }, "Confirm new password")
-        if (confirm.isNotEmpty() && confirm != next) Notice("New passwords don't match.")
+        if (confirm.isNotEmpty() && confirm != next) Notice(stringResource(R.string.ui_new_passwords_don_t_match))
         error?.let { Notice(it) }
-        if (done) Notice("Password changed.", NoticeTone.Success)
+        if (done) Notice(stringResource(R.string.ui_password_changed), NoticeTone.Success)
         PrimaryButton(text = if (busy) "Changing…" else "Change password", enabled = valid, busy = busy) {
             busy = true
             error = null
@@ -698,30 +709,30 @@ private fun MfaSetup(account: AccountSession, onBack: () -> Unit) {
         }
     }
 
-    SubScreen(title = "Two-factor authentication", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_two_factor_authentication), onBack = onBack) {
         if (done) {
-            Notice("Two-factor authentication is on. You'll need a code from your authenticator app each time you log in.", NoticeTone.Success)
+            Notice(stringResource(R.string.ui_two_factor_authentication_is_on_you), NoticeTone.Success)
             return@SubScreen
         }
         Text(
-            "Add this account to an authenticator app (like Google Authenticator or Authy), then enter the 6-digit code it shows.",
+            stringResource(R.string.ui_add_this_account_to_an_authenticator),
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
         error?.let { Notice(it) }
         val current = setup
-        if (current == null && error == null) Text("Loading…", color = RedvaultTheme.colors.text3)
+        if (current == null && error == null) Text(stringResource(R.string.ui_loading), color = RedvaultTheme.colors.text3)
         if (current != null) {
             // On the phone itself there's no QR to scan: hand the otpauth://
             // link straight to an installed authenticator app instead.
-            PrimaryButton(text = "Open in authenticator app", enabled = true) {
+            PrimaryButton(text = stringResource(R.string.ui_open_in_authenticator_app), enabled = true) {
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(current.otpauthUri)))
                 } catch (_: ActivityNotFoundException) {
                     error = "No authenticator app found. Install one, or enter the key below by hand."
                 }
             }
-            Text("Or enter this key by hand:", color = RedvaultTheme.colors.text2, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.ui_or_enter_this_key_by_hand), color = RedvaultTheme.colors.text2, style = MaterialTheme.typography.bodyMedium)
             Text(
                 current.secretBase32.chunked(4).joinToString(" "),
                 fontFamily = FontFamily.Monospace,
@@ -735,14 +746,12 @@ private fun MfaSetup(account: AccountSession, onBack: () -> Unit) {
                 copied = true
             }) { Text(if (copied) "Copied. Clears in 30 seconds" else "Copy key") }
 
-            OutlinedTextField(
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit).take(6) },
-                label = { Text("6-digit code") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace),
+            DsTextField(
+                code,
+                { code = it.filter(Char::isDigit).take(6) },
+                "6-digit code",
+                mono = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(),
             )
             PrimaryButton(text = if (busy) "Confirming…" else "Confirm and turn on", enabled = code.length == 6, busy = busy) {
                 busy = true
@@ -770,13 +779,13 @@ private fun MfaDisable(account: AccountSession, onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf(false) }
 
-    SubScreen(title = "Two-factor authentication", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_two_factor_authentication), onBack = onBack) {
         if (done) {
-            Notice("Two-factor authentication is off.", NoticeTone.Success)
+            Notice(stringResource(R.string.ui_two_factor_authentication_is_off), NoticeTone.Success)
             return@SubScreen
         }
         Text(
-            "Turning this off means only your password protects this account. Enter your password to confirm.",
+            stringResource(R.string.ui_turning_this_off_means_only_your),
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )

@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.inbox
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +36,7 @@ import com.redvaultsystems.redvaultmessage.ui.theme.RedvaultTheme
 import java.time.Instant
 
 /**
- * Messages and polls from the Redvault team. They are not end-to-end encrypted (the server counts the votes),
+ * Messages and polls from the RedVault team. They are not end-to-end encrypted (the server counts the votes),
  * and the screen says so. Opening it marks everything read.
  */
 @Composable
@@ -48,14 +50,14 @@ fun InboxScreen(session: InboxSession, onBack: () -> Unit) {
         state.items.filter { it.allowReplies }.forEach { session.loadReplies(it.id) }
     }
 
-    SubScreen(title = "Inbox", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_inbox), onBack = onBack) {
         Text(
-            "Messages and polls from the Redvault team. These are not end-to-end encrypted: the server reads them to count votes and replies. Your replies go to the team only.",
+            stringResource(R.string.ui_messages_and_polls_from_the_redvault),
             color = colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
         state.error?.let { Notice(it) }
-        if (state.loaded && state.items.isEmpty()) Text("Nothing from the team yet.", color = colors.text3)
+        if (state.loaded && state.items.isEmpty()) Text(stringResource(R.string.ui_nothing_from_the_team_yet), color = colors.text3)
         state.items.forEach { item ->
             AnnouncementCard(
                 item = item,
@@ -112,13 +114,13 @@ private fun AnnouncementCard(
         if (item.allowReplies) {
             replies.forEach { reply ->
                 Column(Modifier.fillMaxWidth().background(colors.bg, RoundedCornerShape(10.dp)).padding(10.dp)) {
-                    Text("You", color = colors.text3, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.ui_you), color = colors.text3, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
                     Text(reply.body, color = colors.text)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 DsTextField(draft, { draft = it.take(2000) }, "Reply to the team", modifier = Modifier.weight(1f), singleLine = false)
-                PillButton("Send", onClick = { onReply(draft) { draft = "" } }, enabled = draft.isNotBlank() && !busy, height = 50.dp)
+                PillButton(stringResource(R.string.ui_send), onClick = { onReply(draft) { draft = "" } }, enabled = draft.isNotBlank() && !busy, height = 50.dp)
             }
         }
     }

@@ -11,7 +11,7 @@ import Redvault
 RvDialog {
     id: dialog
     required property ChatSession chats
-    title: "Verify " + chats.currentTitle
+    title: qsTr("Verify ") + chats.currentTitle
     width: 520
 
     // Device keys: a second number over both accounts' device keys (Olm and Signal sessions), when
@@ -26,11 +26,37 @@ RvDialog {
         dialog.deviceBusy = true
         call()
     }
+    // What the last scan said: "", "match", "mismatch" or "invalid"; scanning: "account" or "device".
+    property string scanResult: ""
+    property string scanning: ""
     onAboutToShow: {
         device = ({})
         deviceBusy = false
+        scanResult = ""
         if (App.deviceKeys && App.deviceKeys.trusted && chats.currentUserId.length > 0)
             App.deviceKeys.loadSafetyNumber(chats.currentUserId, chats.currentChatId)
+    }
+
+    QrScanDialog {
+        id: scanDialog
+        onScanned: (text) => {
+            if (dialog.scanning === "device") {
+                // Their phone shows the same device-key code this computer does when the keys agree.
+                if (text === (dialog.device.qrText || "")) {
+                    dialog.scanResult = "match"
+                    if (dialog.deviceKeyChanged)
+                        dialog.deviceAction(() => App.deviceKeys.acceptNewDeviceKeys(dialog.chats.currentUserId, dialog.chats.currentChatId,
+                                                                                     dialog.device.accountKey, true))
+                    else if (!dialog.deviceVerified)
+                        dialog.deviceAction(() => App.deviceKeys.setDeviceKeysVerified(dialog.chats.currentUserId, dialog.chats.currentChatId,
+                                                                                       dialog.device.accountKey, true))
+                } else {
+                    dialog.scanResult = dialog.chats.checkSafetyQr(text) === "invalid" ? "invalid" : "mismatch"
+                }
+            } else {
+                dialog.scanResult = dialog.chats.checkSafetyQr(text)
+            }
+        }
     }
 
     // Tall with device keys: it scrolls inside the window instead of running off it.
@@ -83,7 +109,7 @@ RvDialog {
                         id: topDeviceText
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: dialog.chats.currentTitle + "'s device keys changed. Scroll down to Device keys and compare the new number before you trust them."
+                        text: dialog.chats.currentTitle + qsTr("'s device keys changed. Scroll down to Device keys and compare the new number before you trust them.")
                         textFormat: Text.PlainText
                         color: Theme.warn
                         font.pixelSize: 13
@@ -112,8 +138,8 @@ RvDialog {
                         id: changedText
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "Safety number changed. " + dialog.chats.currentTitle
-                              + " has a new key: a new device, a reinstall, or someone in the middle. Compare the new number before you trust this chat."
+                        text: qsTr("Safety number changed. ") + dialog.chats.currentTitle
+                              + qsTr(" has a new key: a new device, a reinstall, or someone in the middle. Compare the new number before you trust this chat.")
                         textFormat: Text.PlainText
                         color: Theme.warn
                         font.pixelSize: 13
@@ -124,8 +150,8 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Compare these numbers with " + dialog.chats.currentTitle
-                      + ", in person or on a call you trust. If they match on both screens, nobody is intercepting this chat."
+                text: qsTr("Compare these numbers with ") + dialog.chats.currentTitle
+                      + qsTr(", in person or on a call you trust. If they match on both screens, nobody is intercepting this chat.")
                 textFormat: Text.PlainText
                 color: Theme.text2
                 font.pixelSize: Theme.fontSmall + 1
@@ -153,7 +179,7 @@ RvDialog {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: "Scan this with the app on their phone (Verify screen), or compare the numbers below."
+                text: qsTr("Scan this with the app on their phone (Verify screen), scan theirs with your camera, or compare the numbers below.")
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
             }
@@ -163,7 +189,7 @@ RvDialog {
                 implicitHeight: digits.implicitHeight + 28
                 radius: Theme.radiusCard
                 color: Theme.bg
-                border.color: dialog.chats.currentVerified ? Theme.accent : Theme.borderStrong
+                border.color: dialog.chats.currentVerified ? Theme.ok : Theme.borderStrong
                 border.width: dialog.chats.currentVerified ? 2 : 1
 
                 Text {
@@ -191,7 +217,7 @@ RvDialog {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "You've verified " + dialog.chats.currentTitle + " on this computer."
+                    text: qsTr("You've verified ") + dialog.chats.currentTitle + qsTr(" on this computer.")
                     textFormat: Text.PlainText
                     color: Theme.accent
                     font.weight: Font.DemiBold
@@ -201,29 +227,48 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "If they don't match, someone may be intercepting this chat, or one of you has a new key. Don't mark it as verified."
+                text: qsTr("If they don't match, someone may be intercepting this chat, or one of you has a new key. Don't mark it as verified.")
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
             }
 
             RvButton {
                 Layout.fillWidth: true
+                secondary: true
+                iconName: "qr-code"
+                text: qsTr("Scan their code")
+                onClicked: {
+                    dialog.scanning = "account"
+                    dialog.scanResult = ""
+                    scanDialog.open()
+                }
+            }
+            // What the scan found.
+            Banner {
+                Layout.fillWidth: true
+                error: dialog.scanResult !== "match"
+                text: dialog.scanResult === "match" ? qsTr("The codes match. ") + dialog.chats.currentTitle + qsTr(" is verified on this computer.")
+                    : dialog.scanResult === "mismatch" ? qsTr("The codes don't match. Don't mark this chat as verified: someone may be in the middle, or one of you has new keys.")
+                    : dialog.scanResult === "invalid" ? qsTr("That isn't a RedVault safety-number code.") : ""
+            }
+            RvButton {
+                Layout.fillWidth: true
                 primary: false
                 iconName: "copy"
-                text: "Copy number"
+                text: qsTr("Copy number")
                 onClicked: App.copySecret(dialog.chats.currentSafetyNumber.split("\n").join(" "))
             }
             RvButton {
                 Layout.fillWidth: true
                 visible: !dialog.chats.currentVerified
-                text: "The numbers match, mark as verified"
+                text: qsTr("The numbers match, mark as verified")
                 onClicked: dialog.chats.setCurrentVerified(true)
             }
             RvButton {
                 Layout.fillWidth: true
                 visible: dialog.chats.currentVerified
                 primary: false
-                text: "Mark as not verified"
+                text: qsTr("Mark as not verified")
                 onClicked: dialog.chats.setCurrentVerified(false)
             }
 
@@ -250,7 +295,7 @@ RvDialog {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "Device keys"
+                    text: qsTr("Device keys")
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.weight: Font.DemiBold
@@ -278,8 +323,8 @@ RvDialog {
                             id: deviceChangedText
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: dialog.chats.currentTitle + "'s device keys changed: they started over on a new device, or someone is in the middle. "
-                                  + "Until you accept the new keys, messages with them stay on hold. Compare this new number first."
+                            text: dialog.chats.currentTitle + qsTr("'s device keys changed: they started over on a new device, or someone is in the middle. ")
+                                  + qsTr("Until you accept the new keys, messages with them stay on hold. Compare this new number first.")
                             textFormat: Text.PlainText
                             color: Theme.warn
                             font.pixelSize: 13
@@ -290,7 +335,7 @@ RvDialog {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "This number covers the keys on every device you both use. Their phone can scan this code, or compare the digits."
+                    text: qsTr("This number covers the keys on every device you both use. Their phone can scan this code, or compare the digits.")
                     textFormat: Text.PlainText
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall + 1
@@ -320,7 +365,7 @@ RvDialog {
                     implicitHeight: deviceDigits.implicitHeight + 24
                     radius: Theme.radiusCard
                     color: Theme.bg
-                    border.color: dialog.deviceVerified ? Theme.accent : (dialog.deviceKeyChanged ? Theme.warn : Theme.borderStrong)
+                    border.color: dialog.deviceVerified ? Theme.ok : (dialog.deviceKeyChanged ? Theme.warn : Theme.borderStrong)
                     border.width: dialog.deviceVerified || dialog.deviceKeyChanged ? 2 : 1
                     Text {
                         id: deviceDigits
@@ -351,7 +396,7 @@ RvDialog {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "You've verified " + dialog.chats.currentTitle + "'s device keys on this computer."
+                        text: qsTr("You've verified ") + dialog.chats.currentTitle + qsTr("'s device keys on this computer.")
                         textFormat: Text.PlainText
                         color: Theme.accent
                         font.weight: Font.DemiBold
@@ -360,9 +405,22 @@ RvDialog {
 
                 RvButton {
                     Layout.fillWidth: true
+                    secondary: true
+                    visible: (dialog.device.qrText || "").length > 0
+                    enabled: !dialog.deviceBusy
+                    iconName: "qr-code"
+                    text: qsTr("Scan their device-key code")
+                    onClicked: {
+                        dialog.scanning = "device"
+                        dialog.scanResult = ""
+                        scanDialog.open()
+                    }
+                }
+                RvButton {
+                    Layout.fillWidth: true
                     primary: false
                     iconName: "copy"
-                    text: "Copy device-key number"
+                    text: qsTr("Copy device-key number")
                     onClicked: App.copySecret(dialog.deviceGroups.join(" "))
                 }
                 // Same keys as before.
@@ -370,7 +428,7 @@ RvDialog {
                     Layout.fillWidth: true
                     visible: !dialog.deviceKeyChanged && !dialog.deviceVerified
                     enabled: !dialog.deviceBusy
-                    text: "The numbers match, mark device keys as verified"
+                    text: qsTr("The numbers match, mark device keys as verified")
                     onClicked: dialog.deviceAction(() => App.deviceKeys.setDeviceKeysVerified(dialog.chats.currentUserId, dialog.chats.currentChatId,
                                                                                               dialog.device.accountKey, true))
                 }
@@ -379,7 +437,7 @@ RvDialog {
                     visible: !dialog.deviceKeyChanged && dialog.deviceVerified
                     enabled: !dialog.deviceBusy
                     primary: false
-                    text: "Mark device keys as not verified"
+                    text: qsTr("Mark device keys as not verified")
                     onClicked: dialog.deviceAction(() => App.deviceKeys.setDeviceKeysVerified(dialog.chats.currentUserId, dialog.chats.currentChatId,
                                                                                               dialog.device.accountKey, false))
                 }
@@ -388,7 +446,7 @@ RvDialog {
                     Layout.fillWidth: true
                     visible: dialog.deviceKeyChanged
                     enabled: !dialog.deviceBusy
-                    text: "The new numbers match, trust the new keys"
+                    text: qsTr("The new numbers match, trust the new keys")
                     onClicked: dialog.deviceAction(() => App.deviceKeys.acceptNewDeviceKeys(dialog.chats.currentUserId, dialog.chats.currentChatId,
                                                                                             dialog.device.accountKey, true))
                 }
@@ -397,7 +455,7 @@ RvDialog {
                     visible: dialog.deviceKeyChanged
                     enabled: !dialog.deviceBusy
                     primary: false
-                    text: "Trust the new keys without comparing"
+                    text: qsTr("Trust the new keys without comparing")
                     onClicked: dialog.deviceAction(() => App.deviceKeys.acceptNewDeviceKeys(dialog.chats.currentUserId, dialog.chats.currentChatId,
                                                                                             dialog.device.accountKey, false))
                 }

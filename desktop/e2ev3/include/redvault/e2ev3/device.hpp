@@ -34,10 +34,14 @@ private:
     std::string code_;
 };
 
+class Communities;
+
 /// The pieces every operation needs: where the device lives and the server it talks to.
 struct Backend {
     std::shared_ptr<DeviceStore> store;
     std::shared_ptr<V3Server> server;
+    /// Part C2: the community conversations and their routes (community.hpp). Null: no community is sent in.
+    std::shared_ptr<Communities> communities;
 };
 
 /// This computer's device for one account. Every engine call saves the new state before returning.
@@ -62,6 +66,11 @@ public:
     Json op(const std::string& op, const Json& fields = Json::object());
     /// Like op(), but an error answer throws EngineError.
     Json must(const std::string& op, const Json& fields = Json::object());
+    /**
+     * Like must(), but the engine's new state is NOT kept: for an op whose result the server has to accept first
+     * (a signed roster, Part C2). Only for ops that use no one-time secret; the state is adopted later, from the server.
+     */
+    Json peek(const std::string& op, const Json& fields = Json::object());
 
     Json identity();
     /// A 32-byte key for `context`, derived from the device's storage key (BLAKE2b, keyed): for data stored beside the engine state, such as chat history.
@@ -207,6 +216,25 @@ std::string maintainSignal(V3Device& device, const Json& config, int low = 10);
  */
 int sendText(V3Device& device, const std::string& conversationId, const std::string& contactUserId, const std::string& text,
              int* unreachable = nullptr);
+
+/**
+ * The same fan-out to exactly `recipients` (identities from verified lists), for a message that goes to some
+ * devices only, such as a call's answer (docs/signal-integration/09-part-b-calls.md). Returns how many device
+ * copies were delivered to the server.
+ */
+int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,
+                  int* unreachable = nullptr);
+
+/// What a fan-out may need beyond its conversation (Part D: a story id is no conversation).
+struct FanOut {
+    /// The conversation a key claim names for an account (claims are allowed only within one both share); empty: the message's own.
+    std::function<std::string(const std::string& userId)> claimVia;
+    /// Filled with "userId/deviceId" for every device that got a copy (or whose copy waits, encrypted, for Tor).
+    std::vector<std::string>* delivered = nullptr;
+};
+/// sendToDevices with those options.
+int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,
+                  int* unreachable, const FanOut& fanOut);
 
 /**
  * Which protocol a one-to-one chat's messages use (M5), worked out by the engine from the

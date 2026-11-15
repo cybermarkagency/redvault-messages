@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,14 +54,14 @@ fun MessageRequestsScreen(
     var busyId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    SubScreen(title = "Message requests", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_message_requests), onBack = onBack) {
         Text(
-            "These people aren't your friends. Reading a request sends nothing back: they don't learn you've seen it unless you accept. Ignoring hides it without telling them.",
+            stringResource(R.string.ui_these_people_aren_t_your_friends),
             color = colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
         error?.let { Notice(it) }
-        if (requests.isEmpty()) Text("No message requests.", color = colors.text3)
+        if (requests.isEmpty()) Text(stringResource(R.string.ui_no_message_requests), color = colors.text3)
         requests.forEach { request ->
             val theirs = request.messages.filter { !it.fromMe && it.notice == null }
             Column(
@@ -72,7 +74,7 @@ fun MessageRequestsScreen(
                 }
                 // Their messages so far as plain text: never opened as files, never given a preview of links.
                 if (theirs.isEmpty()) {
-                    Text("No messages yet.", color = colors.text3)
+                    Text(stringResource(R.string.ui_no_messages_yet), color = colors.text3)
                 } else {
                     theirs.takeLast(5).forEach { message ->
                         val text = if (message.kind == MessageKind.File) "📎 ${message.text}" else TextFormat.toPlain(message.text)
@@ -83,7 +85,7 @@ fun MessageRequestsScreen(
                 val busy = busyId == request.id
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     PillButton(
-                        "Accept",
+                        stringResource(R.string.ui_accept),
                         onClick = {
                             busyId = request.id
                             error = null
@@ -98,7 +100,7 @@ fun MessageRequestsScreen(
                         height = 44.dp,
                     )
                     PillButton(
-                        "Ignore",
+                        stringResource(R.string.ui_ignore),
                         onClick = {
                             busyId = request.id
                             error = null
@@ -149,10 +151,10 @@ private fun BlockButton(enabled: Boolean, onConfirmed: suspend () -> Unit) {
     }
     if (confirming) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            PillButton("Block them", onClick = { confirming = false; pending = true }, modifier = Modifier.weight(1f), style = PillStyle.Danger, enabled = enabled, height = 44.dp)
-            PillButton("Cancel", onClick = { confirming = false }, modifier = Modifier.weight(1f), style = PillStyle.Quiet, height = 44.dp)
+            PillButton(stringResource(R.string.ui_block_them), onClick = { confirming = false; pending = true }, modifier = Modifier.weight(1f), style = PillStyle.Danger, enabled = enabled, height = 44.dp)
+            PillButton(stringResource(R.string.ui_cancel), onClick = { confirming = false }, modifier = Modifier.weight(1f), style = PillStyle.Quiet, height = 44.dp)
         }
     } else {
-        PillButton("Block", onClick = { confirming = true }, modifier = Modifier.fillMaxWidth(), style = PillStyle.Quiet, enabled = enabled, height = 44.dp)
+        PillButton(stringResource(R.string.ui_block), onClick = { confirming = true }, modifier = Modifier.fillMaxWidth(), style = PillStyle.Quiet, enabled = enabled, height = 44.dp)
     }
 }

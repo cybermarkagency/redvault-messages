@@ -32,7 +32,7 @@ use crate::engine::{bad_request, str_field, Error, Result, State};
 const ROSTER_CONTEXT: &str = "rv-group-roster-v1";
 /// Member lists per epoch kept for checking late messages. Older epochs are forgotten.
 const EPOCHS_KEPT: usize = 20;
-const MAX_MEMBERS: usize = 500;
+const MAX_MEMBERS: usize = 1100;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

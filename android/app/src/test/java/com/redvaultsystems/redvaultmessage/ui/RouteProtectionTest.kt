@@ -35,7 +35,7 @@ class RouteProtectionTest {
 
     @Test
     fun confirmationsThatCantBeUndoneIgnoreObscuredTouches() {
-        for (route in listOf(Route.DeleteAccount, Route.ChangePassword, Route.AppLockSettings, Route.LinkedDevices, Route.Verify("c1"))) {
+        for (route in listOf(Route.DeleteAccount, Route.ChangePassword, Route.AppLockSettings, Route.LinkedDevices, Route.Verify("c1"), Route.Plans)) {
             assertTrue("$route is guarded", route.guardsTouches())
         }
         for (route in secret) assertTrue("$route is guarded", route.guardsTouches())

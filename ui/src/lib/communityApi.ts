@@ -125,62 +125,10 @@ export interface CommunitiesConfigDto {
   subscriberTermsVersion: string;
 }
 
-export interface CreatorDto extends CreatorPublicDto {
-  status: "active" | "suspended" | "closed";
-  paidMembershipsEnabled: boolean;
-  termsVersion: string;
-  createdAt: string;
-  payments: { configured: boolean; status: string; transfersStatus: string | null; requirementsDue: boolean; ready: boolean };
-}
-
-export interface CreatorDashboardDto {
-  communities: (CommunityListingDto & CommunityStaffDto & { payingMembers: number; activeMembers: number })[];
-  totals: {
-    currency: string;
-    payingMembers: number;
-    monthlyRecurringEstimateMinor: number;
-    grossPaidMinor: number;
-    platformCommissionMinor: number;
-    refundsMinor: number;
-    disputesMinor: number;
-    creatorEarningsMinor: number;
-  };
-  months: { month: string; grossMinor: number; creatorNetMinor: number; newMembers: number; renewals: number; refunds: number; cancellations: number }[];
-  retention: { everPaid: number; stillActive: number };
-  failedRenewals: number;
-  payouts: {
-    ready: boolean;
-    balance: { available: { currency: string; amountMinor: number }[]; pending: { currency: string; amountMinor: number }[] } | null;
-    recent: { id: string; amountMinor: number; currency: string; status: string; arrivalDate: string | null; createdAt: string }[];
-  };
-}
-
 export interface MembershipViewDto extends SubscriptionDto {
   community: { id: string; name: string; kind: CommunityKind; status: string; code: string; hasAvatar: boolean };
   creatorHandle: string | null;
   price: PriceDto | null;
-}
-
-export interface MyCommunityDto extends Omit<CommunityListingDto, "creator" | "price" | "memberCount"> {
-  membership: MembershipDto;
-  conversationId: string | null;
-}
-
-export interface MemberDto extends MembershipDto {
-  userId: string;
-  username: string;
-  statusReason: string | null;
-  entitlement: EntitlementStatus | null;
-}
-
-export interface InvitationDto {
-  id: string;
-  maxUses: number | null;
-  useCount: number;
-  expiresAt: string | null;
-  revokedAt: string | null;
-  createdAt: string;
-  token?: string;
 }
 
 export interface ReportDto {
@@ -202,137 +150,22 @@ export interface ReportDto {
   resolvedAt: string | null;
 }
 
-export interface KeyTaskDto {
-  communityId: string;
-  conversationId: string;
-  keyEpoch: number;
-  rekeyRequired: boolean;
-  pendingEnrollments: number;
-  canPost: boolean;
-}
-
-export interface CommunityKeysDto {
-  conversationId: string;
-  keyEpoch: number;
-  rekeyRequired: boolean;
-  keys: { epoch: number; wrappedKey: string }[];
-}
-
-export interface CreateCommunityInput {
-  id: string;
-  kind: CommunityKind;
-  name: string;
-  description: string;
-  category: string;
-  rules: string;
-  previewText: string;
-  visibility: "unlisted" | "discoverable";
-  accessType: "free" | "paid";
-  priceMinor: number | null;
-  memberLimit: number | null;
-  joinApproval: boolean;
-  showMemberCount: boolean;
-  slowModeSeconds: number;
-  wrappedKey: string;
-}
-
 export type ClientPlatform = "web" | "desktop";
 
 // Config, creator profile, payouts
 
 export const getCommunitiesConfig = () => request<CommunitiesConfigDto>("/communities/config");
-export const getMyCreator = () => request<{ creator: CreatorDto | null }>("/communities/creator/me");
-export const becomeCreator = (input: { handle: string; displayName: string; bio: string; profileLink: string | null; acceptTerms: true }) =>
-  post<{ creator: CreatorDto }>("/communities/creator", input);
-export const updateCreator = (input: { displayName?: string; bio?: string; profileLink?: string | null; avatar?: string | null; paidMembershipsEnabled?: boolean }) =>
-  patch<{ creator: CreatorDto }>("/communities/creator/me", input);
-export const startCreatorOnboarding = (country: string) => post<{ url: string }>("/communities/creator/me/onboarding", { country });
-export const refreshCreatorOnboarding = () => post<{ creator: CreatorDto }>("/communities/creator/me/onboarding/refresh");
-export const creatorDashboardLink = () => post<{ url: string }>("/communities/creator/me/dashboard-link");
-export const getCreatorDashboard = () => request<CreatorDashboardDto>("/communities/creator/me/dashboard");
-export const getCreatorProfile = (handle: string) => request<{ creator: CreatorPublicDto; communities: CommunityListingDto[] }>(`/communities/creators/${id(handle)}`);
 
 // Discovery and communities
 
-export function discoverCommunities(options: { q?: string; category?: string; offset?: number } = {}): Promise<CommunityListingDto[]> {
-  const params = new URLSearchParams();
-  if (options.q) params.set("q", options.q);
-  if (options.category) params.set("category", options.category);
-  if (options.offset) params.set("offset", String(options.offset));
-  const qs = params.toString();
-  return request(`/communities/discover${qs ? `?${qs}` : ""}`);
-}
-export const myCommunities = () => request<MyCommunityDto[]>("/communities/mine");
-export const createCommunity = (input: CreateCommunityInput) => post<CommunityPageDto>("/communities", input);
 export const getCommunity = (communityId: string, invite?: string) =>
   request<CommunityPageDto>(`/communities/${id(communityId)}${invite ? `?invite=${id(invite)}` : ""}`);
-export const updateCommunity = (communityId: string, input: Record<string, unknown>) => patch<CommunityPageDto>(`/communities/${id(communityId)}`, input);
-export const setCommunityPrice = (communityId: string, amountMinor: number) =>
-  request<PriceDto>(`/communities/${id(communityId)}/price`, { method: "PUT", body: JSON.stringify({ amountMinor, currency: "usd" }) });
-export const publishCommunity = (communityId: string) => post<CommunityPageDto>(`/communities/${id(communityId)}/publish`);
-export const unpublishCommunity = (communityId: string) => post<CommunityPageDto>(`/communities/${id(communityId)}/unpublish`);
-export const closeCommunity = (communityId: string, mode: "end_of_period" | "immediately" = "end_of_period") =>
-  post<{ status: string }>(`/communities/${id(communityId)}/close`, { mode });
-export const joinCommunity = (communityId: string, inviteToken?: string) =>
-  post<{ membership: MembershipDto }>(`/communities/${id(communityId)}/join`, inviteToken ? { inviteToken } : {});
-export const leaveCommunity = (communityId: string) => post<void>(`/communities/${id(communityId)}/leave`);
 export const startCommunityCheckout = (communityId: string, input: { platform: ClientPlatform; termsAccepted: boolean; ageConfirmed: boolean; inviteToken?: string }) =>
   post<{ subscriptionId: string; checkoutUrl: string; reused: boolean }>(`/communities/${id(communityId)}/checkout`, input);
 
-/** Same-origin image path (served only to someone who can see the community). */
-export function communityImageUrl(communityId: string, kind: "avatar" | "banner", invite?: string): string {
-  return `${API_BASE}/communities/${id(communityId)}/${kind}${invite ? `?invite=${id(invite)}` : ""}`;
-}
-export function creatorAvatarUrl(creatorId: string): string {
-  return `${API_BASE}/communities/creators/${id(creatorId)}/avatar`;
-}
-
 // Members and moderation
 
-export function listCommunityMembers(communityId: string, status?: MembershipStatus, offset = 0): Promise<MemberDto[]> {
-  const params = new URLSearchParams({ offset: String(offset), limit: "100" });
-  if (status) params.set("status", status);
-  return request(`/communities/${id(communityId)}/members?${params}`);
-}
-export const setCommunityMemberRole = (communityId: string, userId: string, change: { role?: "admin" | "moderator" | "member"; canPost?: boolean }) =>
-  patch<MembershipDto>(`/communities/${id(communityId)}/members/${id(userId)}`, change);
-export const removeCommunityMember = (communityId: string, userId: string, ban: boolean, reason: string | null) =>
-  post<void>(`/communities/${id(communityId)}/members/${id(userId)}/remove`, { ban, reason });
-export const unbanCommunityMember = (communityId: string, userId: string) => post<void>(`/communities/${id(communityId)}/members/${id(userId)}/unban`);
-export const decideJoinRequest = (communityId: string, userId: string, approve: boolean) =>
-  post<void>(`/communities/${id(communityId)}/requests/${id(userId)}`, { approve });
-export const listCommunityInvitations = (communityId: string) => request<InvitationDto[]>(`/communities/${id(communityId)}/invitations`);
-export const createCommunityInvitation = (communityId: string, input: { maxUses: number | null; expiresInDays: number | null }) =>
-  post<InvitationDto & { token: string }>(`/communities/${id(communityId)}/invitations`, input);
-export const revokeCommunityInvitation = (communityId: string, invitationId: string) =>
-  request<void>(`/communities/${id(communityId)}/invitations/${id(invitationId)}`, { method: "DELETE" });
-export const reportToCommunity = (
-  communityId: string,
-  input: {
-    targetType: "community" | "creator" | "user" | "content";
-    targetUserId?: string | null;
-    category: string;
-    details: string;
-    evidenceMessageId?: string | null;
-    evidencePlaintext?: string | null;
-    disclosureAcknowledged?: boolean;
-  }
-) => post<{ id: string; platformReview: boolean }>(`/communities/${id(communityId)}/reports`, input);
-export const listCommunityReports = (communityId: string) => request<ReportDto[]>(`/communities/${id(communityId)}/reports`);
-export const resolveCommunityReport = (communityId: string, reportId: string, status: "actioned" | "dismissed", note: string | null) =>
-  post<void>(`/communities/${id(communityId)}/reports/${id(reportId)}/resolve`, { status, note });
-
 // Key epochs
-
-export const communityKeyTasks = () => request<KeyTaskDto[]>("/communities/key-tasks");
-export const getCommunityKeys = (communityId: string) => request<CommunityKeysDto>(`/communities/${id(communityId)}/keys`);
-export const listCommunityEnrollments = (communityId: string) => request<{ userId: string; publicKey: string }[]>(`/communities/${id(communityId)}/enrollments`);
-export const enrollCommunityMember = (communityId: string, input: { userId: string; epoch: number; wrappedKey: string }) =>
-  post<void>(`/communities/${id(communityId)}/enrollments`, input);
-export const getCommunityRoster = (communityId: string) =>
-  request<{ keyEpoch: number; rekeyRequired: boolean; members: { userId: string; publicKey: string }[] }>(`/communities/${id(communityId)}/roster`);
-export const rotateCommunityKey = (communityId: string, input: { fromEpoch: number; keys: { userId: string; wrappedKey: string }[] }) =>
-  post<{ keyEpoch: number }>(`/communities/${id(communityId)}/rotate`, input);
 
 // The member's own subscriptions
 

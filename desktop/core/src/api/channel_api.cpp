@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <fstream>
 #include <regex>
+#include <sstream>
 #include <stdexcept>
 
 #include <nlohmann/json.hpp>
@@ -56,7 +57,91 @@ Channel channelFrom(const Json& j) {
     c.avatarUrl = optionalText(j, "avatarUrl");
     c.secretSealed = optionalText(j, "secretSealed");
     c.acceptSuggestions = flag(j, "acceptSuggestions");
+    c.keyEpoch = optionalNumber<int>(j, "keyEpoch");
+    c.formerSecretSealed = optionalText(j, "formerSecretSealed");
     return c;
+}
+
+SealedBody sealedFrom(const Json& j) {
+    return SealedBody{j.at("keyEpoch").get<int>(), j.at("nonce").get<std::string>(), j.at("ciphertext").get<std::string>()};
+}
+
+SealedPoll sealedPollFrom(const Json& j) {
+    SealedPoll p;
+    p.optionCount = j.at("optionCount").get<int>();
+    p.multiple = flag(j, "multiple");
+    p.quiz = flag(j, "quiz");
+    p.closed = flag(j, "closed");
+    if (const auto it = j.find("counts"); it != j.end() && it->is_array()) p.counts = it->get<std::vector<int>>();
+    p.counts.resize(static_cast<std::size_t>(std::max(0, p.optionCount)), 0);
+    p.voters = j.value("voters", 0);
+    return p;
+}
+
+SealedChecklist sealedChecklistFrom(const Json& j) {
+    SealedChecklist c;
+    c.itemCount = j.at("itemCount").get<int>();
+    c.collaborative = flag(j, "collaborative");
+    if (const auto it = j.find("done"); it != j.end() && it->is_array()) {
+        for (const auto& d : *it) c.done.push_back(d.is_boolean() && d.get<bool>());
+    }
+    c.done.resize(static_cast<std::size_t>(std::max(0, c.itemCount)), false);
+    return c;
+}
+
+EncryptedPost encryptedFrom(const Json& j) {
+    EncryptedPost e;
+    e.sealed = sealedFrom(j);
+    e.kind = j.value("kind", std::string("text"));
+    if (const auto it = j.find("poll"); it != j.end() && it->is_object()) e.poll = sealedPollFrom(*it);
+    if (const auto it = j.find("checklist"); it != j.end() && it->is_object()) e.checklist = sealedChecklistFrom(*it);
+    return e;
+}
+
+/// An encrypted poll's counts as a Poll with blank texts (the opened post has the texts).
+Poll pollOfSealed(const SealedPoll& sealed) {
+    Poll p;
+    p.options.assign(static_cast<std::size_t>(std::max(0, sealed.optionCount)), std::string());
+    p.multiple = sealed.multiple;
+    p.quiz = sealed.quiz;
+    p.closed = sealed.closed;
+    p.counts = sealed.counts;
+    p.voters = sealed.voters;
+    return p;
+}
+
+Checklist checklistOfSealed(const SealedChecklist& sealed) {
+    Checklist c;
+    c.collaborative = sealed.collaborative;
+    for (const bool done : sealed.done) c.items.push_back(ChecklistItem{std::string(), done});
+    return c;
+}
+
+Json sealedJson(const SealedBody& sealed) {
+    return Json{{"keyEpoch", sealed.keyEpoch}, {"nonce", sealed.nonce}, {"ciphertext", sealed.ciphertext}};
+}
+
+Json encryptedPostJson(const NewEncryptedPost& post, bool withPublishAt) {
+    Json body = sealedJson(post.sealed);
+    if (post.poll) {
+        Json poll{{"optionCount", post.poll->optionCount}};
+        if (post.poll->multiple) poll["multiple"] = true;
+        if (post.poll->quiz) poll["quiz"] = true;
+        body["poll"] = poll;
+    } else if (post.checklist) {
+        body["checklist"] = Json{{"itemCount", post.checklist->itemCount}, {"collaborative", post.checklist->collaborative}};
+    }
+    body["media"] = post.media;
+    if (withPublishAt && post.publishAt) body["publishAt"] = *post.publishAt;
+    return body;
+}
+
+KeySet keySetFrom(const Json& j) {
+    KeySet k;
+    k.keyEpoch = optionalNumber<int>(j, "keyEpoch");
+    for (const auto& key : j.at("keys")) k.keys.push_back(WrappedKey{key.at("epoch").get<int>(), key.at("wrapped").get<std::string>()});
+    std::sort(k.keys.begin(), k.keys.end(), [](const WrappedKey& a, const WrappedKey& b) { return a.epoch < b.epoch; });
+    return k;
 }
 
 Media mediaFrom(const Json& j) {
@@ -114,12 +199,35 @@ Post postFrom(const Json& j) {
     if (const auto it = j.find("poll"); it != j.end() && it->is_object()) p.poll = pollFrom(*it);
     if (const auto it = j.find("checklist"); it != j.end() && it->is_object()) p.checklist = checklistFrom(*it);
     p.media = mediaList(j);
+    if (const auto it = j.find("encrypted"); it != j.end() && it->is_object()) {
+        p.encrypted = encryptedFrom(*it);
+        p.body.clear();
+        p.poll.reset();
+        p.checklist.reset();
+    }
     return p;
 }
 
 Suggestion suggestionFrom(const Json& j) {
-    return Suggestion{j.at("id").get<std::string>(), j.value("body", std::string()), j.value("status", std::string("pending")),
-                      j.value("createdAt", std::string()), mediaList(j)};
+    Suggestion s;
+    s.id = j.at("id").get<std::string>();
+    s.body = j.value("body", std::string());
+    if (const auto it = j.find("encrypted"); it != j.end() && it->is_object()) s.encrypted = sealedFrom(*it);
+    s.status = j.value("status", std::string("pending"));
+    s.createdAt = j.value("createdAt", std::string());
+    s.media = mediaList(j);
+    return s;
+}
+
+/// A vote's poll: the plain shape, or an encrypted poll's counts only.
+Poll votedPollFrom(const Json& j) {
+    if (j.contains("optionCount")) return pollOfSealed(sealedPollFrom(j));
+    return pollFrom(j);
+}
+
+Checklist tickedChecklistFrom(const Json& j) {
+    if (j.contains("itemCount")) return checklistOfSealed(sealedChecklistFrom(j));
+    return checklistFrom(j);
 }
 
 StartedUpload uploadFrom(const Json& j) {
@@ -281,9 +389,32 @@ Channel setPublic(ApiClient& api, const std::string& id) {
     return parse(api.call("PUT", ownPath(id, "/visibility"), Json{{"isPrivate", false}}), channelFrom);
 }
 
-Channel setPrivate(ApiClient& api, const std::string& id, const std::string& access, const std::string& secretSealed) {
-    return parse(api.call("PUT", ownPath(id, "/visibility"), Json{{"isPrivate", true}, {"access", access}, {"secretSealed", secretSealed}}),
+Channel setPrivate(ApiClient& api, const std::string& id, const std::string& access, const std::string& secretSealed,
+                   const std::vector<WrappedKey>& keys) {
+    Json list = Json::array();
+    for (const auto& k : keys) list.push_back(Json{{"epoch", k.epoch}, {"wrapped", k.wrapped}});
+    return parse(api.call("PUT", ownPath(id, "/visibility"),
+                          Json{{"isPrivate", true}, {"access", access}, {"secretSealed", secretSealed}, {"keys", list}}),
                  channelFrom);
+}
+
+KeySet keys(ApiClient& api, const std::string& id, const std::string& access) {
+    return parse(api.publicCall("GET", publicPath(id, "/keys"), std::nullopt, accessHeaders(access)), keySetFrom);
+}
+
+KeySet ownKeys(ApiClient& api, const std::string& id, const std::optional<std::string>& access) {
+    return parse(api.call("GET", ownPath(id, "/keys"), std::nullopt, accessHeaders(access)), keySetFrom);
+}
+
+Conversion conversion(ApiClient& api, const std::string& id, int limit) {
+    const Json body = api.call("GET", ownPath(id, "/conversion?limit=" + std::to_string(std::clamp(limit, 1, 50))));
+    return parse(body, [](const Json& j) {
+        Conversion c;
+        c.isPrivate = flag(j, "isPrivate");
+        c.keyEpoch = optionalNumber<int>(j, "keyEpoch");
+        for (const auto& p : j.at("posts")) c.posts.push_back(postFrom(p));
+        return c;
+    });
 }
 
 Channel setAcceptSuggestions(ApiClient& api, const std::string& id, bool accept) {
@@ -302,7 +433,9 @@ void remove(ApiClient& api, const std::string& id) {
     api.call("DELETE", ownPath(id));
 }
 
-Post post(ApiClient& api, const std::string& id, const NewPost& post) {
+namespace {
+
+Json plainPostJson(const NewPost& post, bool withPublishAt) {
     Json body{{"body", post.body}};
     if (post.poll) {
         Json quiz = nullptr;
@@ -313,8 +446,53 @@ Post post(ApiClient& api, const std::string& id, const NewPost& post) {
     } else if (!post.media.empty()) {
         body["media"] = post.media;
     }
-    if (post.publishAt) body["publishAt"] = *post.publishAt;
-    return parse(api.call("POST", ownPath(id, "/posts"), body), postFrom);
+    if (withPublishAt && post.publishAt) body["publishAt"] = *post.publishAt;
+    return body;
+}
+
+}  // namespace
+
+Post post(ApiClient& api, const std::string& id, const NewPost& post) {
+    return parse(api.call("POST", ownPath(id, "/posts"), plainPostJson(post, true)), postFrom);
+}
+
+Post post(ApiClient& api, const std::string& id, const NewEncryptedPost& post) {
+    return parse(api.call("POST", ownPath(id, "/posts"), encryptedPostJson(post, true)), postFrom);
+}
+
+Post replacePost(ApiClient& api, const std::string& id, const std::string& postId, const NewEncryptedPost& post) {
+    if (post.publishAt) throw std::invalid_argument("An edit can't be scheduled");
+    return parse(api.call("PUT", postPath(id, postId), encryptedPostJson(post, false)), postFrom);
+}
+
+Post replacePost(ApiClient& api, const std::string& id, const std::string& postId, const NewPost& post) {
+    if (post.publishAt) throw std::invalid_argument("An edit can't be scheduled");
+    Json body = plainPostJson(post, false);
+    // The post's whole new list: an empty one drops the media it had.
+    if (!body.contains("media") && !post.poll && !post.checklist) body["media"] = Json::array();
+    return parse(api.call("PUT", postPath(id, postId), body), postFrom);
+}
+
+StartedUpload startEncryptedMedia(ApiClient& api, const std::string& id, std::int64_t size) {
+    if (size <= 0) throw std::invalid_argument("Nothing to upload");
+    return parse(api.call("POST", ownPath(id, "/media"), Json{{"encrypted", true}, {"size", size}}), uploadFrom);
+}
+
+StartedUpload startEncryptedSuggestionMedia(ApiClient& api, const std::string& id, std::int64_t size, const std::optional<std::string>& access) {
+    if (size <= 0) throw std::invalid_argument("Nothing to upload");
+    return parse(api.call("POST", ownPath(id, "/suggestions/media"), Json{{"encrypted", true}, {"size", size}}, accessHeaders(access)),
+                 uploadFrom);
+}
+
+void uploadMediaBytes(ApiClient& api, const std::string& uploadUrl, const std::string& bytes, const std::function<void(std::int64_t)>& onProgress) {
+    static const std::regex kUploadUrl(std::string("^/api/channel-uploads/") + kUuid + "$");
+    if (!std::regex_match(uploadUrl, kUploadUrl)) throw ApiError(0, "malformed_response", "Unexpected upload URL");
+    if (bytes.empty()) throw std::invalid_argument("Nothing to upload");
+    std::stringbuf source(bytes, std::ios::in);
+    CountingInBuf counting(&source, onProgress);
+    std::istream body(&counting);
+    api.callUpload("PUT", std::string_view(uploadUrl).substr(std::string_view("/api/").size()), body, static_cast<std::uint64_t>(bytes.size()),
+                   "application/octet-stream");
 }
 
 Post post(ApiClient& api, const std::string& id, const std::string& body) {
@@ -358,7 +536,7 @@ void removePost(ApiClient& api, const std::string& id, const std::string& postId
 VoteResult vote(ApiClient& api, const std::string& id, const std::string& postId, const std::vector<int>& options,
                 const std::optional<std::string>& access) {
     return parse(api.call("POST", postPath(id, postId, "/vote"), Json{{"options", options}}, accessHeaders(access)),
-                 [](const Json& j) { return VoteResult{pollFrom(j.at("poll")), j.at("mine").get<std::vector<int>>()}; });
+                 [](const Json& j) { return VoteResult{votedPollFrom(j.at("poll")), j.at("mine").get<std::vector<int>>()}; });
 }
 
 Post closePoll(ApiClient& api, const std::string& id, const std::string& postId) {
@@ -369,12 +547,19 @@ Checklist setChecklistItem(ApiClient& api, const std::string& id, const std::str
                            const std::optional<std::string>& access) {
     if (index < 0) throw std::invalid_argument("No such item");
     return parse(api.call("PUT", postPath(id, postId, "/checklist/" + std::to_string(index)), Json{{"done", done}}, accessHeaders(access)),
-                 checklistFrom);
+                 tickedChecklistFrom);
 }
 
 Suggestion suggest(ApiClient& api, const std::string& id, const std::string& body, const std::vector<std::string>& media,
                    const std::optional<std::string>& access) {
     return parse(api.call("POST", ownPath(id, "/suggestions"), Json{{"body", body}, {"media", media}}, accessHeaders(access)), suggestionFrom);
+}
+
+Suggestion suggest(ApiClient& api, const std::string& id, const SealedBody& sealed, const std::vector<std::string>& media,
+                   const std::optional<std::string>& access) {
+    Json body = sealedJson(sealed);
+    body["media"] = media;
+    return parse(api.call("POST", ownPath(id, "/suggestions"), body, accessHeaders(access)), suggestionFrom);
 }
 
 std::vector<Suggestion> mySuggestions(ApiClient& api, const std::string& id) {
@@ -391,6 +576,13 @@ Post approveSuggestion(ApiClient& api, const std::string& id, const std::string&
     if (body) edit["body"] = *body;
     edit["publishAt"] = publishAt ? Json(*publishAt) : Json(nullptr);
     return parse(api.call("POST", ownPath(id, "/suggestions/" + percentEncode(suggestionId) + "/approve"), edit), postFrom);
+}
+
+Post approveSuggestionSealed(ApiClient& api, const std::string& id, const std::string& suggestionId, const std::optional<SealedBody>& sealed,
+                       const std::optional<std::string>& publishAt) {
+    Json body = sealed ? sealedJson(*sealed) : Json::object();
+    if (publishAt) body["publishAt"] = *publishAt;
+    return parse(api.call("POST", ownPath(id, "/suggestions/" + percentEncode(suggestionId) + "/approve"), body), postFrom);
 }
 
 void rejectSuggestion(ApiClient& api, const std::string& id, const std::string& suggestionId) {

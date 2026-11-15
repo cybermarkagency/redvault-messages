@@ -2,7 +2,7 @@
 
 Effective Date: 6 October 2026
 
-Last Updated: 6 October 2026
+Last Updated: 14 November 2026
 
 This Privacy Policy applies specifically to the RedVault Messages encrypted messaging service (“RedVault Messages”, the “Service”).
 
@@ -143,6 +143,16 @@ Network information may be processed where reasonably necessary to:
 - prevent abuse;
 - troubleshoot failures; and
 - comply with legal obligations.
+
+### Tor and the backup route
+
+The RedVault Messages apps for Android, Windows and Linux connect to our servers only through the Tor network, using our onion service. When you use the apps, our servers do not see your IP address.
+
+Voice and video calls are the exception. They do not use Tor: they travel through our encrypted relay servers, which can see your IP address. The person you are calling does not see it.
+
+If our onion service cannot be reached while Tor itself is working, the apps use a backup route. They still connect through Tor, but to our website, and each request is sealed (encrypted with Oblivious HTTP) so that only our server can read it. Our website is served through Cloudflare, Inc. On the backup route, Cloudflare can see that a connection from the Tor network reached that address, when, and roughly how much data was sent. It cannot see your IP address, your account, or what the requests contain.
+
+You can turn the backup route off in Settings › Privacy & Security › Network routing, with "Only use the onion address". The apps then wait for the onion service instead.
 
 ## 6. Device and Technical Information
 

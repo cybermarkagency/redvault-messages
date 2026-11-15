@@ -265,6 +265,7 @@ class DeviceKeysSession(
         val step = ensureStep(engine != null, enabled, list != null, linked, trusted)
         when (step) {
             EnsureStep.SetUpFirstDevice -> {
+                stopPairingAttempts()
                 dropDevice()
                 val key = legacyPrivateKey()
                 val made = try {
@@ -423,6 +424,7 @@ class DeviceKeysSession(
     /** This phone becomes the first trusted device; the current key vouches for it. */
     fun setUp() = run {
         ensureLock.withLock {
+            stopPairingAttempts()
             dropDevice()
             val key = legacyPrivateKey()
             try {
@@ -433,6 +435,21 @@ class DeviceKeysSession(
             dropDevice()
             device()?.let { keepSignal(it) }
         }
+    }
+
+    /**
+     * Before this phone becomes a different device (the first device of the account): stop any pairing still running
+     * with the old one. Left running, it fails against the replaced device, and its clean-up used to wipe the new
+     * device's keys (an account then had a trusted device whose keys no phone held).
+     */
+    private fun stopPairingAttempts() {
+        joinJob?.cancel()
+        joinJob = null
+        answerJob?.cancel()
+        answerJob = null
+        newPairing = null
+        trustedPairing = null
+        _state.update { it.copy(joining = false, joiningCodes = null, qrOffer = null, answeringDeviceId = null, answeringCodes = null) }
     }
 
     // --- This phone is the new device ---
@@ -534,7 +551,8 @@ class DeviceKeysSession(
         dropDevice()
         scope.launch {
             _state.update { it.copy(joining = false, qrOffer = null, busy = true) }
-            blocking { runCatching { device()?.let { d -> d.op("cancelLink"); d.forget() } } }
+            // Only a device still waiting to be linked: never one that is (or has just become) a trusted device.
+            blocking { runCatching { device()?.let { d -> if (!d.op("deviceList").ok) { d.op("cancelLink"); d.forget() } } } }
             dropDevice()
             _state.update { it.copy(busy = false) }
             load()

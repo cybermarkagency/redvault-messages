@@ -23,6 +23,7 @@ add_executable(redvault_core_tests
     group_invite_test.cpp
     channels_test.cpp
     channel_crypto_test.cpp
+    channel_e2ee_test.cpp
     community_crypto_test.cpp
     community_test.cpp
     community_api_test.cpp
@@ -30,6 +31,8 @@ add_executable(redvault_core_tests
     story_interactive_test.cpp
     story_interactive_api_test.cpp
     story_drafts_test.cpp
+    story_voice_test.cpp
+    studio_test.cpp
     earnings_test.cpp
     conversation_repository_test.cpp
     file_repository_test.cpp
@@ -56,6 +59,7 @@ target_link_libraries(redvault_core_tests PRIVATE redvault_core Catch2::Catch2Wi
 # The web-produced file vector is shared with the Android tests rather than
 # copied, so all clients stay pinned to one source of truth.
 target_compile_definitions(redvault_core_tests PRIVATE
+    REDVAULT_ANDROID_UPDATE_VECTOR="${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/test/resources/android_update_vector.json"
     REDVAULT_TEST_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/androidTest/assets"
     # privacy_test scans the shipped sources.
     REDVAULT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -69,6 +73,8 @@ target_compile_definitions(redvault_core_tests PRIVATE
     REDVAULT_GROUP_INVITE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/group_invite_vectors.json"
     # Private channel link and forwarded-post vectors produced by the web app's own code (vectors/make_channel_vectors.ts).
     REDVAULT_CHANNEL_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/channel_vectors.json"
+    # Private channel E2EE vectors (Part C1), shared with the Android tests (vectors/make_channel_e2ee_vectors.mjs).
+    REDVAULT_CHANNEL_E2EE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/channel_e2ee_vectors.json"
     # Message signature vectors produced by the web app's own code (vectors/make_message_signature_vectors.ts).
     REDVAULT_SIGNATURE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/message_signature_vectors.json"
     # Community epoch-key vectors produced by the web app's own code (vectors/make_community_vectors.ts).
@@ -79,6 +85,12 @@ target_compile_definitions(redvault_core_tests PRIVATE
     REDVAULT_STORY_INTERACTIVE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/story_interactive_vectors.json"
     # Draft vectors produced by the web app's own code (vectors/make_story_draft_vectors.ts).
     REDVAULT_STORY_DRAFT_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/story_draft_vectors.json"
+    # A feed with a voice story, subtitles, loudness bars and moving words, made by the web app's own code and shared with the
+    # Android tests (android/app/src/test/resources/vectors/make_android_story_vectors.ts).
+    REDVAULT_STORY_WIRE_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/story_wire_vectors.json"
+    # The creation studio's maths (subtitles, voice, photo editing, collages, templates), made by the web app's own studio code
+    # (android/app/src/test/resources/vectors/make_android_studio_vectors.ts on branch paid-communities) and shared with Android.
+    REDVAULT_STUDIO_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/studio_vectors.json"
     # Exclusive-post vectors produced by the web app's own code (vectors/make_post_vectors.ts).
     REDVAULT_POST_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/post_vectors.json"
     # Public share link vectors produced by the web app's own code (vectors/make_share_vectors.ts).
@@ -128,6 +140,7 @@ if(TARGET Qt6::Quick)
         app_logic_test.cpp
         chat_guard_test.cpp
         open_source_test.cpp
+        qr_scanner_test.cpp
         vault_session_test.cpp
         ../app/src/app_lock.cpp
         ../app/src/app_lock.hpp
@@ -143,16 +156,27 @@ if(TARGET Qt6::Quick)
         ../app/src/vault_session.hpp
         ../app/src/windows_hello.cpp
         ../app/src/windows_hello.hpp
+        ../app/src/qr_scanner.cpp
+        ../app/src/qr_scanner.hpp
+        studio_app_test.cpp
+        ../app/src/studio_tools.cpp
+        ../app/src/studio_tools.hpp
     )
     set_target_properties(redvault_app_tests PROPERTIES AUTOMOC ON)
     target_include_directories(redvault_app_tests PRIVATE ../app/src)
     target_link_libraries(redvault_app_tests PRIVATE redvault_core Qt6::Quick Qt6::Qml Catch2::Catch2WithMain)
+    # The QR reader (zxing-cpp, set up in app/CMakeLists.txt) and libqrencode to draw codes for it to read.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(QRENCODE_TESTS REQUIRED IMPORTED_TARGET libqrencode)
+    target_link_libraries(redvault_app_tests PRIVATE ZXing::ZXing Qt6::Multimedia PkgConfig::QRENCODE_TESTS)
     if(WIN32)
         target_link_libraries(redvault_app_tests PRIVATE runtimeobject)  # windows_hello.cpp
     endif()
     target_compile_definitions(redvault_app_tests PRIVATE
         REDVAULT_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/qml"
-        REDVAULT_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_stubs")
+        REDVAULT_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_stubs"
+        # Where studio_app_test.cpp writes the stories the desktop made, for vectors/verify_desktop_posted.ts.
+        REDVAULT_STUDIO_OUT="${CMAKE_CURRENT_BINARY_DIR}/story-desktop-out")
     # The licence and third-party notices, built in the same way as in the app (app/CMakeLists.txt).
     qt_add_resources(redvault_app_tests "open_source_documents"
         PREFIX "/legal"
@@ -176,11 +200,19 @@ endif()
 
 # Device keys (protocol 3): key storage, the device logic and pairing against the real engine and a fake server.
 if(TARGET redvault_e2ev3)
-    add_executable(redvault_e2ev3_tests e2ev3_test.cpp e2ev3_content_test.cpp e2ev3_rollback_test.cpp)
+    add_executable(redvault_e2ev3_tests e2ev3_test.cpp e2ev3_content_test.cpp e2ev3_rollback_test.cpp e2ev3_part_a_test.cpp
+        e2ev3_part_b_test.cpp e2ev3_part_c2_test.cpp e2ev3_part_d_test.cpp
+        sealed_route_test.cpp)
     target_link_libraries(redvault_e2ev3_tests PRIVATE redvault_e2ev3 redvault_core Catch2::Catch2WithMain)
     # Reactions, edits, deletes and files: the cases every client must pass (the web loads the same file).
     target_compile_definitions(redvault_e2ev3_tests PRIVATE
-        REDVAULT_V3_CONTENT_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/v3_chat_content_vectors.json")
+        REDVAULT_V3_CONTENT_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/v3_chat_content_vectors.json"
+        # Part A (replies, forwards, polls, pins, receipts, disappearing): shared with Android.
+        REDVAULT_V3_PART_A_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/v3_chat_content_part_a_vectors.json"
+        # Part B (call and callkey envelopes): shared with Android, which reads the same file.
+        REDVAULT_V3_CALL_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/v3_call_vectors.json"
+        # Part D (storykey, storyanswer, RVSD): made with the server, shared with Android; neither app edits it.
+        REDVAULT_V3_STORY_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/vectors/v3_story_vectors.json")
     catch_discover_tests(redvault_e2ev3_tests)
 endif()
 

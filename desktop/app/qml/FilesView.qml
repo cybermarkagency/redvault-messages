@@ -24,7 +24,7 @@ Item {
 
     FileDialog {
         id: uploadDialog
-        title: "Upload files"
+        title: qsTr("Upload files")
         fileMode: FileDialog.OpenFiles
         onAccepted: uploadLock.openForUpload(selectedFiles)
     }
@@ -44,21 +44,21 @@ Item {
     FileDialog {
         id: versionDialog
         property string targetId
-        title: "Upload a new version"
+        title: qsTr("Upload a new version")
         fileMode: FileDialog.OpenFile
         onAccepted: root.files.uploadNewVersion(targetId, selectedFile)
     }
     FileDialog {
         id: saveDialog
         property string targetId
-        title: "Save a decrypted copy"
+        title: qsTr("Save a decrypted copy")
         fileMode: FileDialog.SaveFile
         currentFolder: StandardPaths.writableLocation(StandardPaths.DownloadLocation)
         onAccepted: root.files.download(targetId, selectedFile)
     }
     FolderDialog {
         id: pcBackupDialog
-        title: "Choose a folder on this PC to keep backed up"
+        title: qsTr("Choose a folder on this PC to keep backed up")
         onAccepted: root.files.setPcBackupFolder(selectedFolder)
     }
 
@@ -67,22 +67,22 @@ Item {
         id: nameDialog
         property string mode: "folder"   // "folder" or "rename"
         property string targetId
-        title: mode === "folder" ? "New folder" : "Rename"
+        title: mode === "folder" ? qsTr("New folder") : qsTr("Rename")
         width: 420
         contentItem: ColumnLayout {
             spacing: 14
             RvTextField {
                 id: nameField
                 Layout.fillWidth: true
-                placeholderText: nameDialog.mode === "folder" ? "Folder name" : "Name"
+                placeholderText: nameDialog.mode === "folder" ? qsTr("Folder name") : qsTr("Name")
                 onAccepted: nameOk.clicked()
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                RvButton { primary: false; text: "Cancel"; onClicked: nameDialog.close() }
+                RvButton { primary: false; text: qsTr("Cancel"); onClicked: nameDialog.close() }
                 RvButton {
                     id: nameOk
-                    text: nameDialog.mode === "folder" ? "Create" : "Rename"
+                    text: nameDialog.mode === "folder" ? qsTr("Create") : qsTr("Rename")
                     enabled: nameField.text.trim().length > 0
                     onClicked: {
                         if (nameDialog.mode === "folder") root.files.newFolder(nameField.text)
@@ -104,7 +104,7 @@ Item {
     ContactPickerDialog {
         id: sharePicker
         property string targetId
-        title: "Share with"
+        title: qsTr("Share with")
         chats: root.chats
         onPicked: (userId) => root.files.shareWith(targetId, userId)
     }
@@ -127,7 +127,7 @@ Item {
         property var row: ({})
         readonly property bool needsUnlock: (rowMenu.row.lock || "").length > 0 && !rowMenu.row.unlocked
         MenuItem {
-            text: rowMenu.row.unlocked ? "Lock now" : "Unlock…"
+            text: rowMenu.row.unlocked ? qsTr("Lock now") : qsTr("Unlock…")
             visible: (rowMenu.row.lock || "").length > 0
             height: visible ? implicitHeight : 0
             onTriggered: {
@@ -137,12 +137,12 @@ Item {
             }
         }
         MenuItem {
-            text: "Open"
+            text: qsTr("Open")
             enabled: rowMenu.row.kind === "file" && !rowMenu.needsUnlock
             onTriggered: root.files.openFile(rowMenu.row.id)
         }
         MenuItem {
-            text: "Download…"
+            text: qsTr("Download…")
             enabled: rowMenu.row.kind === "file" && !rowMenu.needsUnlock
             onTriggered: {
                 saveDialog.targetId = rowMenu.row.id
@@ -152,12 +152,12 @@ Item {
             }
         }
         MenuItem {
-            text: "Share link…"
+            text: qsTr("Share link…")
             enabled: root.shares !== null && !rowMenu.row.incoming && !rowMenu.row.trashed && (rowMenu.row.lock || "").length === 0
             onTriggered: shareLinkDialog.openFor(rowMenu.row.id, rowMenu.row.name, rowMenu.row.kind === "folder")
         }
         MenuItem {
-            text: "Rename…"
+            text: qsTr("Rename…")
             enabled: !rowMenu.row.incoming && !rowMenu.row.trashed
             onTriggered: {
                 nameDialog.mode = "rename"
@@ -167,7 +167,7 @@ Item {
             }
         }
         MenuItem {
-            text: "Move to…"
+            text: qsTr("Move to…")
             enabled: !rowMenu.row.incoming && !rowMenu.row.trashed
             onTriggered: {
                 moveMenu.targetId = rowMenu.row.id
@@ -175,7 +175,7 @@ Item {
             }
         }
         MenuItem {
-            text: "Upload a new version…"
+            text: qsTr("Upload a new version…")
             enabled: rowMenu.row.kind === "file" && !rowMenu.row.incoming && !rowMenu.row.trashed
             onTriggered: {
                 versionDialog.targetId = rowMenu.row.id
@@ -185,12 +185,12 @@ Item {
         }
         MenuSeparator {}
         MenuItem {
-            text: rowMenu.row.trashed ? "Restore" : "Move to Trash"
+            text: rowMenu.row.trashed ? qsTr("Restore") : qsTr("Move to Trash")
             enabled: !rowMenu.row.incoming
             onTriggered: rowMenu.row.trashed ? root.files.restore(rowMenu.row.id) : root.files.trash(rowMenu.row.id)
         }
         MenuItem {
-            text: "Delete forever"
+            text: qsTr("Delete forever")
             visible: rowMenu.row.trashed === true
             height: visible ? implicitHeight : 0
             onTriggered: root.files.deleteForever(rowMenu.row.id)
@@ -267,7 +267,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: pill.unlocked ? "Unlocked now" : pill.lock === "key" ? "Key ·" : "Password"
+                    text: pill.unlocked ? qsTr("Unlocked now") : pill.lock === "key" ? qsTr("Key ·") : qsTr("Password")
                     textFormat: Text.PlainText
                     color: pill.unlocked ? Theme.accent : Theme.lockText
                     font.pixelSize: 12
@@ -336,25 +336,25 @@ Item {
                     Layout.leftMargin: 8
                     Layout.preferredHeight: Theme.headerHeight - 12
                     verticalAlignment: Text.AlignVCenter
-                    text: "Files"
+                    text: qsTr("Files")
                     color: Theme.text
                     font.family: Theme.displayFamily
                     font.pixelSize: 28
                     font.weight: Font.Bold
                 }
-                SideItem { key: "all"; iconName: "folder"; text: "All files"; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "recent"; iconName: "clock"; text: "Recent"; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "locked"; iconName: "lock"; text: "Locked files"; count: root.files.lockedCount; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "photos"; iconName: "image"; text: "Photos"; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "shared"; iconName: "users"; text: "Shared with me"; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "links"; iconName: "link"; text: "Shared links"; count: root.shares ? root.shares.activeLinks : -1; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "incoming"; iconName: "inbox"; text: "Incoming"; count: root.shares && root.shares.incomingCount > 0 ? root.shares.incomingCount : -1; current: root.files.section; onPicked: (k) => root.files.section = k }
-                SideItem { key: "trash"; iconName: "trash"; text: "Trash"; current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "all"; iconName: "folder"; text: qsTr("All files"); current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "recent"; iconName: "clock"; text: qsTr("Recent"); current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "locked"; iconName: "lock"; text: qsTr("Locked files"); count: root.files.lockedCount; current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "photos"; iconName: "image"; text: qsTr("Photos"); current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "shared"; iconName: "users"; text: qsTr("Shared with me"); current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "links"; iconName: "link"; text: qsTr("Shared links"); count: root.shares ? root.shares.activeLinks : -1; current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "incoming"; iconName: "inbox"; text: qsTr("Incoming"); count: root.shares && root.shares.incomingCount > 0 ? root.shares.incomingCount : -1; current: root.files.section; onPicked: (k) => root.files.section = k }
+                SideItem { key: "trash"; iconName: "trash"; text: qsTr("Trash"); current: root.files.section; onPicked: (k) => root.files.section = k }
                 Text {
                     Layout.leftMargin: 14
                     Layout.topMargin: 18
                     Layout.bottomMargin: 4
-                    text: "SECURITY"
+                    text: qsTr("SECURITY")
                     color: Theme.text3
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
@@ -363,7 +363,7 @@ Item {
                 SideItem {
                     key: "keys"
                     iconName: "key"
-                    text: "Encryption keys"
+                    text: qsTr("Encryption keys")
                     count: root.files.keys.length
                     current: root.files.section
                     onPicked: (k) => { root.files.hideKeyExport(); root.files.section = k }
@@ -393,7 +393,7 @@ Item {
                             }
                         }
                         Text {
-                            text: (root.files.usage.usedText || "0 bytes") + " used"
+                            text: (root.files.usage.usedText || qsTr("0 bytes")) + qsTr(" used")
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.family: Theme.monoFamily
@@ -414,11 +414,20 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: root.files.usage.full ? "Your storage is full. Delete files or empty the Trash to upload more."
-                                  : (root.files.usage.remainingText || "") + " left. Everything is encrypted before it leaves this PC."
+                            text: root.files.usage.full ? qsTr("Your storage is full. Delete files or empty the Trash to upload more.")
+                                  : (root.files.usage.remainingText || "") + qsTr(" left. Everything is encrypted before it leaves this PC.")
                             textFormat: Text.PlainText
                             color: Theme.text2
                             font.pixelSize: 12
+                        }
+                        // More space: Pro 50 GB, Premium 100 GB. Shown once storage is getting full.
+                        RvButton {
+                            visible: root.files.usage.nearlyFull === true && root.files.usage.tier !== "premium"
+                            primary: false
+                            implicitHeight: 30
+                            iconName: "cloud"
+                            text: root.files.usage.tier === "pro" ? qsTr("Get 100 GB with Premium") : qsTr("Get more space")
+                            onClicked: PlanGate.openPlans()
                         }
                     }
                 }
@@ -475,7 +484,7 @@ Item {
                         Row {
                             spacing: 4
                             Text {
-                                text: "Files"
+                                text: qsTr("Files")
                                 color: Theme.text3
                                 font.pixelSize: 13
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.files.openFolder("") }
@@ -483,7 +492,7 @@ Item {
                             Text { text: "/"; color: Theme.text3; font.pixelSize: 13 }
                             Text {
                                 visible: root.files.breadcrumb.length === 0
-                                text: ({ all: "All files", recent: "Recent", photos: "Photos", locked: "Locked files", shared: "Shared with me", links: "Shared links", trash: "Trash" })[root.files.section] || ""
+                                text: ({ all: qsTr("All files"), recent: qsTr("Recent"), photos: qsTr("Photos"), locked: qsTr("Locked files"), shared: qsTr("Shared with me"), links: qsTr("Shared links"), trash: qsTr("Trash") })[root.files.section] || ""
                                 textFormat: Text.PlainText
                                 color: Theme.text
                                 font.pixelSize: 13
@@ -510,7 +519,7 @@ Item {
                             spacing: 6
                             Icon { name: "lock"; size: 12; color: Theme.accent }
                             Text {
-                                text: "End-to-end encrypted · hash checked on download"
+                                text: qsTr("End-to-end encrypted · hash checked on download")
                                 color: Theme.accent
                                 font.family: Theme.monoFamily
                                 font.pixelSize: 12
@@ -523,14 +532,14 @@ Item {
                         primary: false
                         danger: true
                         iconName: "trash"
-                        text: "Empty Trash"
+                        text: qsTr("Empty Trash")
                         onClicked: root.files.emptyTrash()
                     }
                     RvButton {
                         visible: root.files.section === "all"
                         secondary: true
                         iconName: "folder-plus"
-                        text: "New folder"
+                        text: qsTr("New folder")
                         onClicked: {
                             nameDialog.mode = "folder"
                             nameField.text = ""
@@ -540,7 +549,7 @@ Item {
                     RvButton {
                         visible: root.files.section !== "trash"
                         iconName: "upload"
-                        text: "Upload"
+                        text: qsTr("Upload")
                         onClicked: {
                             App.lock.expectExternalReturn()
                             uploadDialog.open()
@@ -551,7 +560,7 @@ Item {
                 SearchField {
                     Layout.fillWidth: true
                     implicitHeight: 42
-                    placeholderText: "Search your files (searched on this device)"
+                    placeholderText: qsTr("Search your files (searched on this device)")
                     text: root.files.search
                     onTextChanged: root.files.search = text
                 }
@@ -654,8 +663,8 @@ Item {
                             spacing: 4
                             Icon { Layout.leftMargin: 14; Layout.topMargin: 14; name: "monitor"; size: 18; color: Theme.text3 }
                             Item { Layout.fillHeight: true }
-                            Text { Layout.leftMargin: 14; text: "PC backup"; color: Theme.text; font.weight: Font.DemiBold }
-                            Text { Layout.leftMargin: 14; Layout.bottomMargin: 12; text: "Keep a folder backed up"; color: Theme.text3; font.pixelSize: 12 }
+                            Text { Layout.leftMargin: 14; text: qsTr("PC backup"); color: Theme.text; font.weight: Font.DemiBold }
+                            Text { Layout.leftMargin: 14; Layout.bottomMargin: 12; text: qsTr("Keep a folder backed up"); color: Theme.text3; font.pixelSize: 12 }
                         }
                     }
                 }
@@ -678,11 +687,11 @@ Item {
                             Layout.leftMargin: 16
                             Layout.rightMargin: 16
                             spacing: 12
-                            Text { Layout.fillWidth: true; Layout.preferredWidth: 1; text: "NAME"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                            Text { Layout.preferredWidth: 140; text: "EXTRA LOCK"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                            Text { Layout.preferredWidth: 96; text: "MODIFIED"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                            Text { Layout.preferredWidth: 72; text: "SIZE"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                            Text { Layout.preferredWidth: 112; text: "STATUS"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                            Text { Layout.fillWidth: true; Layout.preferredWidth: 1; text: qsTr("NAME"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                            Text { Layout.preferredWidth: 140; text: qsTr("EXTRA LOCK"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                            Text { Layout.preferredWidth: 96; text: qsTr("MODIFIED"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                            Text { Layout.preferredWidth: 72; text: qsTr("SIZE"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                            Text { Layout.preferredWidth: 112; text: qsTr("STATUS"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
                         }
                         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
 
@@ -779,12 +788,12 @@ Item {
                                             Text {
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
-                                                text: fileRow.modelData.status === "synced" ? (fileRow.modelData.trashed ? "In Trash" : "Synced")
-                                                    : fileRow.modelData.status === "encrypting" ? "Encrypting · " + Math.round(fileRow.modelData.progress * 100) + "%"
-                                                    : fileRow.modelData.status === "uploading" ? "Uploading · " + Math.round(fileRow.modelData.progress * 100) + "%"
-                                                    : fileRow.modelData.status === "queued" ? "Waiting…"
-                                                    : fileRow.modelData.status === "paused" ? "Paused"
-                                                    : "Didn't upload"
+                                                text: fileRow.modelData.status === "synced" ? (fileRow.modelData.trashed ? qsTr("In Trash") : qsTr("Synced"))
+                                                    : fileRow.modelData.status === "encrypting" ? qsTr("Encrypting · ") + Math.round(fileRow.modelData.progress * 100) + "%"
+                                                    : fileRow.modelData.status === "uploading" ? qsTr("Uploading · ") + Math.round(fileRow.modelData.progress * 100) + "%"
+                                                    : fileRow.modelData.status === "queued" ? qsTr("Waiting…")
+                                                    : fileRow.modelData.status === "paused" ? qsTr("Paused")
+                                                    : qsTr("Didn't upload")
                                                 textFormat: Text.PlainText
                                                 color: fileRow.modelData.status === "synced" ? (fileRow.modelData.trashed ? Theme.text3 : Theme.accent)
                                                      : fileRow.modelData.status === "failed" ? Theme.danger : Theme.warn
@@ -823,14 +832,14 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     wrapMode: Text.Wrap
                                     visible: root.files.loaded
-                                    text: root.files.search.length > 0 ? "Nothing matches that name."
-                                        : root.files.section === "trash" ? "The Trash is empty."
-                                        : root.files.section === "shared" ? "Files people share with you show up here."
-                                        : root.files.section === "links" ? "Files you've made a share link for show up here."
-                                        : root.files.section === "photos" ? "Your photos show up here."
-                                        : root.files.section === "locked" ? "Files with an extra lock (a key or a password) show up here."
-                                        : root.files.folders.length > 0 ? "No files here yet. Drop some in, or choose Upload."
-                                        : "Drop files here or choose Upload. They're encrypted on this computer before they leave it."
+                                    text: root.files.search.length > 0 ? qsTr("Nothing matches that name.")
+                                        : root.files.section === "trash" ? qsTr("The Trash is empty.")
+                                        : root.files.section === "shared" ? qsTr("Files people share with you show up here.")
+                                        : root.files.section === "links" ? qsTr("Files you've made a share link for show up here.")
+                                        : root.files.section === "photos" ? qsTr("Your photos show up here.")
+                                        : root.files.section === "locked" ? qsTr("Files with an extra lock (a key or a password) show up here.")
+                                        : root.files.folders.length > 0 ? qsTr("No files here yet. Drop some in, or choose Upload.")
+                                        : qsTr("Drop files here or choose Upload. They're encrypted on this computer before they leave it.")
                                     textFormat: Text.PlainText
                                     color: Theme.text3
                                 }
@@ -859,7 +868,7 @@ Item {
                 visible: details.s.id === undefined
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: "Select a file to see its details, who it's shared with and its share links."
+                text: qsTr("Select a file to see its details, who it's shared with and its share links.")
                 color: Theme.text3
             }
 
@@ -901,7 +910,7 @@ Item {
                             anchors.centerIn: parent
                             spacing: 8
                             Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "lock"; size: 26; color: Theme.lockText }
-                            Text { text: "Locked · no preview until unlocked"; color: Theme.lockText; font.pixelSize: 13 }
+                            Text { text: qsTr("Locked · no preview until unlocked"); color: Theme.lockText; font.pixelSize: 13 }
                         }
                     }
                     Image {
@@ -926,7 +935,7 @@ Item {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: details.s.isImage ? "[decrypting a preview…]" : "[no preview for this type]"
+                            text: details.s.isImage ? qsTr("[decrypting a preview…]") : qsTr("[no preview for this type]")
                             textFormat: Text.PlainText
                             color: Theme.text3
                             font.family: Theme.monoFamily
@@ -950,9 +959,9 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: details.s.kind === "folder" ? "Folder" : (details.s.sizeText || "") + " · modified " + (details.s.modifiedText || "")
-                              + " · " + (details.s.sharedText || "only you")
-                              + (details.s.versions > 1 ? " · " + details.s.versions + " versions" : "")
+                        text: details.s.kind === "folder" ? qsTr("Folder") : (details.s.sizeText || "") + qsTr(" · modified ") + (details.s.modifiedText || "")
+                              + " · " + (details.s.sharedText || qsTr("only you"))
+                              + (details.s.versions > 1 ? " · " + details.s.versions + qsTr(" versions") : "")
                         textFormat: Text.PlainText
                         color: Theme.text2
                         font.pixelSize: 13
@@ -961,7 +970,7 @@ Item {
                         visible: details.s.kind === "file" && !details.s.uploading
                         spacing: 6
                         Icon { name: "shield-check"; size: 14; color: Theme.accent }
-                        Text { text: "Encrypted on this PC · hash checked on download"; color: Theme.accent; font.pixelSize: 12 }
+                        Text { text: qsTr("Encrypted on this PC · hash checked on download"); color: Theme.ok; font.pixelSize: 12 }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -977,7 +986,7 @@ Item {
                         visible: details.s.kind === "upload" && details.s.uploading === true
                         secondary: true
                         iconName: "close"
-                        text: "Cancel upload"
+                        text: qsTr("Cancel upload")
                         onClicked: root.files.cancelUpload(details.s.id)
                     }
                 }
@@ -999,8 +1008,8 @@ Item {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: details.s.incoming
-                                  ? "Shared with you by " + details.s.owner + ". Encrypted end to end: only the people it's shared with hold the key."
-                                  : "Encrypted on this PC before upload. Only you and the people you share with hold the key. We can't open it."
+                                  ? qsTr("Shared with you by ") + details.s.owner + qsTr(". Encrypted end to end: only the people it's shared with hold the key.")
+                                  : qsTr("Encrypted on this PC before upload. Only you and the people you share with hold the key. We can't open it.")
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.pixelSize: 13
@@ -1022,9 +1031,9 @@ Item {
                         anchors.margins: 15
                         spacing: 10
                         Text {
-                            text: details.s.unlocked ? "Unlocked for this session"
-                                  : details.s.lockKind === "key" ? "Locked with a key"
-                                  : details.s.lockKind === "password" ? "Locked with a password" : "No extra lock"
+                            text: details.s.unlocked ? qsTr("Unlocked for this session")
+                                  : details.s.lockKind === "key" ? qsTr("Locked with a key")
+                                  : details.s.lockKind === "password" ? qsTr("Locked with a password") : qsTr("No extra lock")
                             textFormat: Text.PlainText
                             color: details.s.unlocked ? Theme.accent : details.s.locked ? Theme.lockText : Theme.text
                             font.pixelSize: 14
@@ -1062,13 +1071,13 @@ Item {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: details.s.unlocked
-                                  ? "The file's key is never saved back to the server unlocked, even if you rename or move it. It locks again when you quit the app."
+                                  ? qsTr("The file's key is never saved back to the server unlocked, even if you rename or move it. It locks again when you quit the app.")
                                   : details.s.lockKind === "key"
                                     ? (details.s.lockKeyAvailable
-                                       ? (details.s.lockKeyHasPassword ? "Opening it needs your account plus this key and its password." : "Opening it needs your account plus this key.")
-                                       : "This key isn't among your encryption keys. Import it to open the file.")
-                                  : details.s.lockKind === "password" ? "Opening it needs your account plus this file's own password."
-                                  : "Your account protects this file. Add a key or a password if it needs more."
+                                       ? (details.s.lockKeyHasPassword ? qsTr("Opening it needs your account plus this key and its password.") : qsTr("Opening it needs your account plus this key."))
+                                       : qsTr("This key isn't among your encryption keys. Import it to open the file."))
+                                  : details.s.lockKind === "password" ? qsTr("Opening it needs your account plus this file's own password.")
+                                  : qsTr("Your account protects this file. Add a key or a password if it needs more.")
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.pixelSize: 13
@@ -1078,7 +1087,7 @@ Item {
                             Layout.fillWidth: true
                             visible: details.lockedNow
                             implicitHeight: 42
-                            text: "Unlock for this session"
+                            text: qsTr("Unlock for this session")
                             onClicked: unlockDialog.openFor(root.files.selected)
                         }
                         RowLayout {
@@ -1090,7 +1099,7 @@ Item {
                                 visible: details.s.unlocked === true
                                 secondary: true
                                 implicitHeight: 38
-                                text: "Lock now"
+                                text: qsTr("Lock now")
                                 onClicked: root.files.lockNow(root.files.selected.id)
                             }
                             RvButton {
@@ -1098,7 +1107,7 @@ Item {
                                 visible: !details.s.unlocked
                                 secondary: true
                                 implicitHeight: 38
-                                text: "Change lock"
+                                text: qsTr("Change lock")
                                 onClicked: unlockDialog.openFor(root.files.selected, "changeLock")
                             }
                             RvButton {
@@ -1106,7 +1115,7 @@ Item {
                                 visible: !details.s.unlocked
                                 secondary: true
                                 implicitHeight: 38
-                                text: "Remove lock"
+                                text: qsTr("Remove lock")
                                 onClicked: unlockDialog.openFor(root.files.selected, "removeLock")
                             }
                         }
@@ -1118,7 +1127,7 @@ Item {
                                 Layout.fillWidth: true
                                 primary: false
                                 implicitHeight: 34
-                                text: "Change or remove the lock"
+                                text: qsTr("Change or remove the lock")
                                 onClicked: uploadLock.openForChange(root.files.selected.id, root.files.selected.name, root.files.selected.lockKind, root.files.selected.lockKeyId)
                             }
                         }
@@ -1128,7 +1137,7 @@ Item {
                             secondary: true
                             implicitHeight: 40
                             iconName: "lock"
-                            text: "Add a lock"
+                            text: qsTr("Add a lock")
                             onClicked: uploadLock.openForChange(root.files.selected.id, root.files.selected.name, "", "")
                         }
                     }
@@ -1136,13 +1145,13 @@ Item {
                 InfoCard {
                     Layout.fillWidth: true
                     visible: details.ownFile && details.lockedNow
-                    text: "Unlock this file to download it, share it or create a link."
+                    text: qsTr("Unlock this file to download it, share it or create a link.")
                 }
                 InfoCard {
                     Layout.fillWidth: true
                     visible: details.ownFile && details.s.unlocked === true
                     tone: "warn"
-                    text: "Sharing this file gives the other person a copy they can open without your " + (details.s.lockKind === "password" ? "password." : "key.")
+                    text: qsTr("Sharing this file gives the other person a copy they can open without your ") + (details.s.lockKind === "password" ? qsTr("password.") : qsTr("key."))
                 }
 
                 // Shared with
@@ -1154,7 +1163,7 @@ Item {
                         Layout.fillWidth: true
                         Text {
                             Layout.fillWidth: true
-                            text: "SHARED WITH"
+                            text: qsTr("SHARED WITH")
                             color: Theme.text3
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
@@ -1163,7 +1172,7 @@ Item {
                         RvButton {
                             primary: false
                             implicitHeight: 28
-                            text: "Add"
+                            text: qsTr("Add")
                             iconName: "user-plus"
                             onClicked: {
                                 sharePicker.targetId = root.files.selected.id
@@ -1173,7 +1182,7 @@ Item {
                     }
                     Text {
                         visible: (root.files.selected.sharedWith || []).length === 0
-                        text: "Only you"
+                        text: qsTr("Only you")
                         color: Theme.text2
                     }
                     Repeater {
@@ -1191,7 +1200,7 @@ Item {
                                 implicitHeight: 28
                                 iconSize: 14
                                 iconName: "close"
-                                tip: "Stop sharing with " + person.modelData.handle
+                                tip: qsTr("Stop sharing with ") + person.modelData.handle
                                 onClicked: root.files.unshare(root.files.selected.id, person.modelData.userId)
                             }
                         }
@@ -1210,12 +1219,12 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 12
                         spacing: 4
-                        Text { text: "Older file links"; color: Theme.text; font.weight: Font.DemiBold }
+                        Text { text: qsTr("Older file links"); color: Theme.text; font.weight: Font.DemiBold }
                         Text {
                             textFormat: Text.PlainText
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "Made before Shared links. They still work until you remove them; new links are under Share."
+                            text: qsTr("Made before Shared links. They still work until you remove them; new links are under Share.")
                             color: Theme.text3
                             font.pixelSize: 12
                         }
@@ -1231,7 +1240,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
-                                    text: link.modelData.expires + (link.modelData.hasPassword ? " · password" : "") + (link.modelData.allowDownload ? " · download" : " · view only")
+                                    text: link.modelData.expires + (link.modelData.hasPassword ? qsTr(" · password") : "") + (link.modelData.allowDownload ? qsTr(" · download") : qsTr(" · view only"))
                                     textFormat: Text.PlainText
                                     color: Theme.text2
                                     font.pixelSize: 12
@@ -1240,13 +1249,13 @@ Item {
                                     visible: link.modelData.canCopy
                                     implicitWidth: 28; implicitHeight: 28; iconSize: 14
                                     iconName: "copy"
-                                    tip: "Copy link"
+                                    tip: qsTr("Copy link")
                                     onClicked: root.files.copyLink(root.files.selected.id, link.modelData.id)
                                 }
                                 IconButton {
                                     implicitWidth: 28; implicitHeight: 28; iconSize: 14
                                     iconName: "trash"
-                                    tip: "Remove link (it stops working)"
+                                    tip: qsTr("Remove link (it stops working)")
                                     onClicked: root.files.deleteLink(root.files.selected.id, link.modelData.id)
                                 }
                             }
@@ -1259,10 +1268,10 @@ Item {
                     Layout.fillWidth: true
                     visible: details.s.kind === "folder" && root.files.pcBackupPath.length > 0 && details.s.name === "PC backup"
                     spacing: 6
-                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: "Backing up " + root.files.pcBackupPath; color: Theme.text2; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; text: qsTr("Backing up ") + root.files.pcBackupPath; color: Theme.text2; font.pixelSize: 12 }
                     RowLayout {
-                        RvButton { secondary: true; text: "Sync now"; iconName: "refresh"; onClicked: root.files.syncPcBackupNow() }
-                        RvButton { primary: false; danger: true; text: "Stop"; onClicked: root.files.stopPcBackup() }
+                        RvButton { secondary: true; text: qsTr("Sync now"); iconName: "refresh"; onClicked: root.files.syncPcBackupNow() }
+                        RvButton { primary: false; danger: true; text: qsTr("Stop"); onClicked: root.files.stopPcBackup() }
                     }
                 }
 
@@ -1278,9 +1287,9 @@ Item {
                         iconName: "download"
                         enabled: !details.lockedNow
                         ToolTip.visible: hovered && details.lockedNow
-                        ToolTip.text: "Unlock this file to download it."
-                        Accessible.description: details.lockedNow ? "Unavailable: unlock this file to download it." : ""
-                        text: "Download"
+                        ToolTip.text: qsTr("Unlock this file to download it.")
+                        Accessible.description: details.lockedNow ? qsTr("Unavailable: unlock this file to download it.") : ""
+                        text: qsTr("Download")
                         onClicked: {
                             saveDialog.targetId = root.files.selected.id
                             saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(root.files.selected.name)
@@ -1293,10 +1302,10 @@ Item {
                         visible: !root.files.selected.incoming && !root.files.selected.trashed
                         enabled: !details.lockedNow
                         ToolTip.visible: hovered && details.lockedNow
-                        ToolTip.text: "Unlock this file to share it."
-                        Accessible.description: details.lockedNow ? "Unavailable: unlock this file to share it." : ""
+                        ToolTip.text: qsTr("Unlock this file to share it.")
+                        Accessible.description: details.lockedNow ? qsTr("Unavailable: unlock this file to share it.") : ""
                         iconName: "share"
-                        text: "Share"
+                        text: qsTr("Share")
                         onClicked: shareLinkDialog.openFor(root.files.selected.id, root.files.selected.name, false)
                     }
                 }
@@ -1304,12 +1313,12 @@ Item {
                     Layout.fillWidth: true
                     spacing: 10
                     visible: details.s.kind === "folder"
-                    RvButton { Layout.fillWidth: true; secondary: true; text: "Open"; onClicked: root.files.openFolder(root.files.selected.id) }
+                    RvButton { Layout.fillWidth: true; secondary: true; text: qsTr("Open"); onClicked: root.files.openFolder(root.files.selected.id) }
                     RvButton {
                         Layout.fillWidth: true
                         visible: root.shares !== null && !root.files.selected.trashed
                         iconName: "share"
-                        text: "Share"
+                        text: qsTr("Share")
                         onClicked: shareLinkDialog.openFor(root.files.selected.id, root.files.selected.name, true)
                     }
                 }

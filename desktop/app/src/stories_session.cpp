@@ -10,10 +10,14 @@
 #include <QImage>
 #include <QImageReader>
 #include <QStandardPaths>
+#include <QTimer>
 
 #include <algorithm>
+#include <set>
 #include <sstream>
 #include <utility>
+
+#include <nlohmann/json.hpp>
 
 #include "chat_images.hpp"
 #include "chat_session.hpp"
@@ -22,6 +26,7 @@
 #include "redvault/crypto/file_crypto.hpp"
 #include "redvault/crypto/story_crypto.hpp"
 #include "redvault/model/rich_message.hpp"
+#include "redvault/studio/text_templates.hpp"
 #include "redvault/util/text.hpp"
 
 namespace redvault::app {
@@ -36,6 +41,8 @@ struct Decoded {
     sapi::Story dto;
     st::Meta meta;
     std::shared_ptr<const crypto::SecretBytes> key;
+    /// Part D: a device-keys story whose key hasn't reached this device yet (shown as loading; no meta, no key).
+    bool loading = false;
     std::int64_t createdMs = 0;
     bool seen = false;
     int viewCount = 0;
@@ -74,6 +81,8 @@ struct FeedResult {
     std::optional<sapi::Config> config;
     std::optional<PrefsResult> prefs;
     int generation = 0;
+    /// Part D: friends added after a device-keys "friends" story went up (access, then the key, from the device keys).
+    std::vector<std::pair<std::string, std::vector<std::string>>> deviceGaps;
 };
 
 }  // namespace stories_detail
@@ -86,6 +95,8 @@ using DecodedPtr = std::shared_ptr<Decoded>;
 
 constexpr const char* kSeenKey = "storiesSeen";
 constexpr std::int64_t kGapFillEveryMs = 5 * 60 * 1000;
+/// How often the server's Stories switch is read again (while off, it's the only Stories request).
+constexpr std::int64_t kConfigEveryMs = 5 * 60 * 1000;
 constexpr int kMaxPrefsAttempts = 3;
 
 QString qs(const std::string& s) {
@@ -103,6 +114,18 @@ QString worded(const Failure& failure, const QString& fallback) {
 
 QString mediaDir() {
     return QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/story-media");
+}
+
+/// The file name ending the player needs for a decrypted video or voice story.
+QString mediaExtension(const std::string& mime) {
+    if (mime == "video/webm" || mime == "audio/webm") return QStringLiteral("webm");
+    if (mime == "video/quicktime") return QStringLiteral("mov");
+    if (mime == "audio/wav") return QStringLiteral("wav");
+    if (mime == "audio/ogg") return QStringLiteral("ogg");
+    if (mime == "audio/mpeg") return QStringLiteral("mp3");
+    if (mime == "audio/aac") return QStringLiteral("aac");
+    if (mime == "audio/mp4") return QStringLiteral("m4a");
+    return QStringLiteral("mp4");
 }
 
 /// Where this computer keeps unfinished stories: sealed, one folder per account.
@@ -125,6 +148,8 @@ st::Overlay overlayFrom(const QVariantMap& m) {
     o.color = m.value("color", QStringLiteral("white")).toString().toStdString();
     o.boxed = m.value("boxed").toBool();
     o.font = m.value("font", QStringLiteral("classic")).toString().toStdString();
+    const std::string anim = m.value("anim").toString().toStdString();
+    if (std::find(st::kAnimations.begin(), st::kAnimations.end(), anim) != st::kAnimations.end()) o.anim = anim;
     return o;
 }
 
@@ -138,8 +163,43 @@ std::map<std::string, std::string> chatKeysOf(ChatSession* chats) {
     return out;
 }
 
-/// Opens one story; null if it can't be (not made by its author for you, or malformed).
-DecodedPtr decodeStory(const sapi::Story& dto, crypto::ByteView authorKey, crypto::ByteView viewerKey) {
+/**
+ * Opens one story; null if it can't be (not made by its author for you, or malformed). Part D: a device-keys story
+ * opens with K from this device's story-key store, sent by the author the server names; while K hasn't arrived it is
+ * a loading placeholder when `allowLoading`, else null. A key that doesn't open the story is refused and forgotten.
+ */
+DecodedPtr decodeStory(const sapi::Story& dto, crypto::ByteView authorKey, crypto::ByteView viewerKey, StoryDeviceKeys* keys = nullptr,
+                       bool allowLoading = false) {
+    const auto placeholder = [&]() -> DecodedPtr {
+        if (!allowLoading) return nullptr;
+        auto d = std::make_shared<Decoded>();
+        d->dto = dto;
+        d->loading = true;
+        d->meta.kind = "text";
+        d->createdMs = util::parseIsoMillis(dto.createdAt).value_or(0);
+        d->seen = dto.seen;
+        d->viewCount = dto.viewCount;
+        return d;
+    };
+    if (dto.deviceKeys()) {
+        auto key = keys ? keys->storyKey(dto.id, dto.authorId) : nullptr;
+        if (!key) return placeholder();
+        try {
+            const std::string json = sc::openMeta(dto.id, *key, crypto::base64Decode(dto.metaCiphertext), crypto::base64Decode(dto.metaNonce));
+            auto d = std::make_shared<Decoded>();
+            d->meta = st::parseMeta(json, dto.kind);
+            d->dto = dto;
+            d->key = std::move(key);
+            d->createdMs = util::parseIsoMillis(dto.createdAt).value_or(0);
+            d->seen = dto.seen;
+            d->viewCount = dto.viewCount;
+            return d;
+        } catch (const std::exception&) {
+            keys->forgetStory(dto.id);  // refused: dropped silently
+            return placeholder();
+        }
+    }
+    if (dto.delivery != "account-keys") return nullptr;
     try {
         auto key = std::make_shared<const crypto::SecretBytes>(sc::unwrapStoryKey(dto.id, crypto::base64Decode(dto.wrappedKey), authorKey, viewerKey));
         const std::string json = sc::openMeta(dto.id, *key, crypto::base64Decode(dto.metaCiphertext), crypto::base64Decode(dto.metaNonce));
@@ -192,17 +252,33 @@ std::string wrapFor(const std::string& storyId, const crypto::SecretBytes& key, 
  * key yet: seal them one, except anyone you hide stories from or whose key
  * the server reports differently from the one this app knows.
  */
-void fillKeyGaps(api::ApiClient& api, const data::SelfIdentity& me, const std::vector<DecodedPtr>& own, const std::map<std::string, Friend>& friends,
-                 const st::Prefs& prefs) {
-    const auto gaps = sapi::keyGaps(api);
-    if (gaps.empty()) return;
+std::vector<std::pair<std::string, std::vector<std::string>>> fillKeyGaps(api::ApiClient& api, const data::SelfIdentity& me,
+                                                                         const std::vector<DecodedPtr>& own, const std::map<std::string, Friend>& friends,
+                                                                         const st::Prefs& prefs) {
+    std::vector<std::pair<std::string, std::vector<std::string>>> deviceGaps;
+    auto gaps = sapi::keyGaps(api);
+    // Part D: a device-keys story's late friends get access, then K, from this computer's device keys (the caller).
+    for (const auto& gap : gaps) {
+        if (gap.delivery != "device-keys") continue;
+        std::vector<std::string> users;
+        for (const auto& [userId, publicKey] : gap.users) {
+            if (!has(prefs.hideFrom, userId) && friends.count(userId)) users.push_back(userId);
+        }
+        if (!users.empty()) deviceGaps.emplace_back(gap.storyId, std::move(users));
+    }
+    std::erase_if(gaps, [](const sapi::KeyGap& g) { return g.delivery != "account-keys"; });
+    if (gaps.empty()) return deviceGaps;
     std::map<std::string, std::shared_ptr<const crypto::SecretBytes>> keys;
-    for (const auto& d : own) keys[d->dto.id] = d->key;
+    for (const auto& d : own) {
+        if (d->key) keys[d->dto.id] = d->key;
+    }
     const bool missing = std::any_of(gaps.begin(), gaps.end(), [&](const sapi::KeyGap& g) { return !keys.count(g.storyId); });
     if (missing) {
         // Highlighted stories past their 24 hours are in the archive.
         for (const auto& dto : sapi::archive(api)) {
-            if (auto d = decodeStory(dto, me.publicKey, me.privateKey)) keys[d->dto.id] = d->key;
+            if (auto d = decodeStory(dto, me.publicKey, me.privateKey)) {
+                if (d->key) keys[d->dto.id] = d->key;
+            }
         }
     }
     for (const auto& gap : gaps) {
@@ -216,6 +292,50 @@ void fillKeyGaps(api::ApiClient& api, const data::SelfIdentity& me, const std::v
             wrapped.push_back({userId, wrapFor(gap.storyId, *key->second, f->second.publicKey, me)});
         }
         if (!wrapped.empty()) sapi::addKeys(api, gap.storyId, wrapped);
+    }
+    return deviceGaps;
+}
+
+/**
+ * Part D: forgets the keys of stories the server no longer lists anywhere this account could open them: the feed,
+ * then (for what the feed doesn't list) your archive and highlights, or the author's highlights. A key that came in
+ * the last hour is kept (it can arrive before the story is published). A 404 counts as gone; anything else throws.
+ */
+void forgetGoneStories(api::ApiClient& api, const data::SelfIdentity& me, StoryDeviceKeys& keys, const sapi::Feed& feed) {
+    constexpr std::int64_t kGraceMs = 60 * 60 * 1000;
+    std::set<std::string> listed;
+    for (const auto& dto : feed.own) listed.insert(dto.id);
+    for (const auto& group : feed.authors) {
+        for (const auto& dto : group.stories) listed.insert(dto.id);
+    }
+    const std::int64_t now = util::nowMillis();
+    std::map<std::string, std::set<std::string>> highlighted;  // author -> story ids in their highlights
+    std::optional<std::set<std::string>> archived;
+    const auto highlightsOf = [&](const std::string& userId) -> const std::set<std::string>& {
+        auto it = highlighted.find(userId);
+        if (it != highlighted.end()) return it->second;
+        std::set<std::string> ids;
+        try {
+            for (const auto& h : sapi::highlights(api, userId)) {
+                for (const auto& s : h.stories) ids.insert(s.id);
+            }
+        } catch (const api::ApiError& e) {
+            if (e.status() != 404) throw;
+        }
+        return highlighted.emplace(userId, std::move(ids)).first->second;
+    };
+    for (const auto& held : keys.heldStoryKeys()) {
+        if (listed.count(held.storyId) || now - held.arrivedAt < kGraceMs) continue;
+        if (held.own) {
+            if (!archived) {
+                archived.emplace();
+                for (const auto& dto : sapi::archive(api)) archived->insert(dto.id);
+            }
+            if (archived->count(held.storyId) || highlightsOf(me.userId).count(held.storyId)) continue;
+        } else if (highlightsOf(held.authorId).count(held.storyId)) {
+            continue;
+        }
+        keys.forgetStory(held.storyId);
     }
 }
 
@@ -293,6 +413,20 @@ PreparedMedia prepareMedia(const QString& path, bool video, int durationMs) {
     return out;
 }
 
+/// Subtitles from the composer, read as every reader will, and cut to the length of the sound.
+std::vector<st::Caption> captionsFrom(const QVariantList& list, std::int64_t durationMs) {
+    nlohmann::json raw = nlohmann::json::array();
+    for (const auto& v : list) {
+        const QVariantMap m = v.toMap();
+        const double start = m.value("startMs").toDouble();
+        if (durationMs > 0 && start >= static_cast<double>(durationMs)) continue;
+        double end = m.value("endMs").toDouble();
+        if (durationMs > 0) end = std::min(end, static_cast<double>(durationMs));
+        raw.push_back({{"startMs", start}, {"endMs", end}, {"text", m.value("text").toString().toStdString()}});
+    }
+    return st::parseCaptions(raw.dump());
+}
+
 /// A fresh sticker id (a-z0-9, 12 characters): the server only ever sees this.
 std::string newStickerId() {
     static const char kAlphabet[] = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -346,7 +480,8 @@ QString evidenceOf(const st::Meta& m) {
 
 QVariantMap overlayMap(const st::Overlay& o) {
     return {{"type", qs(o.type)},   {"text", qs(o.text)},   {"x", o.x},         {"y", o.y},          {"scale", o.scale},
-            {"rotation", o.rotation}, {"color", qs(o.color)}, {"boxed", o.boxed}, {"font", qs(o.font)}};
+            {"rotation", o.rotation}, {"color", qs(o.color)}, {"boxed", o.boxed}, {"font", qs(o.font)},
+            {"anim", qs(o.anim)}};
 }
 
 QStringList qList(const std::vector<std::string>& list) {
@@ -380,6 +515,26 @@ StoriesSession::StoriesSession(std::shared_ptr<api::ApiClient> api, std::shared_
     draftStore_ = std::make_unique<data::StoryDraftStore>(std::filesystem::path(draftsDir().toStdU16String()));
     refresh();
     refreshDrafts();
+    // While the server has Stories off, its settings are read again now and then: once it's switched on, they appear.
+    auto* recheck = new QTimer(this);
+    recheck->setInterval(static_cast<int>(kConfigEveryMs));
+    connect(recheck, &QTimer::timeout, this, [this] {
+        if (!enabled_) refresh();
+    });
+    recheck->start();
+}
+
+void StoriesSession::switchOff() {
+    const bool was = enabled_;
+    enabled_ = false;
+    configKnown_ = true;
+    own_.clear();
+    authors_.clear();
+    known_.clear();
+    if (was) {
+        emit feedChanged();
+        emit prefsChanged();
+    }
 }
 
 StoriesSession::~StoriesSession() {
@@ -446,7 +601,17 @@ QVariantMap StoriesSession::storyMap(const Decoded& d) const {
         stickers.append(stickerMap(s));
         answerable = answerable || st::isAnswerable(s);
     }
+    QVariantList captions;
+    for (const auto& c : d.meta.captions) {
+        captions.append(QVariantMap{{"startMs", static_cast<double>(c.startMs)}, {"endMs", static_cast<double>(c.endMs)}, {"text", qs(c.text)}});
+    }
+    QVariantList waveform;
+    if (d.meta.waveform) {
+        for (const int bar : *d.meta.waveform) waveform.append(bar);
+    }
     return {{"stickers", stickers},
+            {"captions", captions},
+            {"waveform", waveform},
             {"answerable", answerable},
             {"expiresAt", static_cast<double>(util::parseIsoMillis(d.dto.expiresAt).value_or(0))},
             {"id", qs(d.dto.id)},
@@ -464,6 +629,7 @@ QVariantMap StoriesSession::storyMap(const Decoded& d) const {
             {"durationMs", d.meta.media && d.meta.media->durationMs ? static_cast<double>(*d.meta.media->durationMs) : 0.0},
             {"preview", qs(st::preview(d.meta))},
             {"seen", d.seen},
+            {"loading", d.loading},
             {"createdAt", static_cast<double>(d.createdMs)}};
 }
 
@@ -554,6 +720,11 @@ void StoriesSession::fail(const Failure& failure, const QString& fallback) {
         emit sessionExpired();
         return;
     }
+    // Stories were switched off on the server: they're hidden, not shown with an error that would outlast the switch.
+    if (failure.code == QStringLiteral("stories_disabled")) {
+        switchOff();
+        return;
+    }
     setMessages(worded(failure, fallback), {});
 }
 
@@ -564,24 +735,31 @@ void StoriesSession::refresh() {
     auto me = identity_;
     const auto chatKeys = chatKeysOf(chats_);
     const bool firstLoad = feedGeneration_ == 0;
+    const bool readConfig = firstLoad || !enabled_ || util::nowMillis() - lastConfigMs_ > kConfigEveryMs;
+    if (readConfig) lastConfigMs_ = util::nowMillis();
+    // The settings are read once Stories are on (not at all while the server has them off).
+    const bool needPrefs = !prefsLoaded_;
     const int generation = ++feedGeneration_;
     const bool fillGaps = util::nowMillis() - lastGapFillMs_ > kGapFillEveryMs;
     if (fillGaps) lastGapFillMs_ = util::nowMillis();
     const auto prefs = prefs_;
     const auto seenHere = st::parseSeen(prefs::text(me->userId, kSeenKey).toStdString(), util::nowMillis());
+    StoryDeviceKeys* keys = deviceKeys_;
     runInBackground(
         pool_, this,
-        [api, me, chatKeys, firstLoad, generation, fillGaps, prefs, seenHere]() {
+        [api, me, chatKeys, needPrefs, readConfig, generation, fillGaps, prefs, seenHere, keys]() {
             FeedResult out;
             out.generation = generation;
-            if (firstLoad) {
+            if (readConfig) {
+                // Alone and first: with Stories off on the server, nothing else is asked.
                 out.config = sapi::config(*api);
-                out.prefs = loadPrefs(*api, *me);
+                if (!out.config->enabled) return out;
             }
+            if (needPrefs) out.prefs = loadPrefs(*api, *me);
             out.friends = loadFriends(*api, chatKeys);
             const auto feed = sapi::feed(*api);
             for (const auto& dto : feed.own) {
-                if (auto d = decodeStory(dto, me->publicKey, me->privateKey)) {
+                if (auto d = decodeStory(dto, me->publicKey, me->privateKey, keys, true)) {
                     d->seen = true;
                     out.own.push_back(std::move(d));
                 }
@@ -592,7 +770,7 @@ void StoriesSession::refresh() {
                 if (author == out.friends.end()) continue;  // not a friend (any more)
                 std::vector<DecodedPtr> stories;
                 for (const auto& dto : group.stories) {
-                    auto d = decodeStory(dto, author->second.publicKey, me->privateKey);
+                    auto d = decodeStory(dto, author->second.publicKey, me->privateKey, keys, true);
                     if (!d || d->dto.authorId != group.authorId) continue;
                     d->seen = d->seen || std::any_of(seenHere.begin(), seenHere.end(), [&](const st::SeenEntry& s) { return s.storyId == d->dto.id; });
                     stories.push_back(std::move(d));
@@ -607,9 +785,18 @@ void StoriesSession::refresh() {
             });
             if (fillGaps) {
                 try {
-                    fillKeyGaps(*api, *me, out.own, out.friends, out.prefs ? out.prefs->prefs : prefs);
+                    out.deviceGaps = fillKeyGaps(*api, *me, out.own, out.friends, out.prefs ? out.prefs->prefs : prefs);
                 } catch (const std::exception&) {
                     // Tried again on a later refresh.
+                }
+            }
+            // Part D: K is kept while the story can still be shown (feed, archive, highlights) and forgotten once the
+            // server lists it nowhere (deleted, revoked, expired without a highlight). Checked with the gap fill.
+            if (keys && fillGaps) {
+                try {
+                    forgetGoneStories(*api, *me, *keys, feed);
+                } catch (const std::exception&) {
+                    // Offline: nothing is forgotten on a guess; checked again later.
                 }
             }
             return out;
@@ -618,6 +805,8 @@ void StoriesSession::refresh() {
         [this](const Failure& failure) {
             lastGapFillMs_ = 0;
             if (failure.status == 401) emit sessionExpired();
+            // The operator switched Stories off since the settings were read.
+            if (failure.code == QStringLiteral("stories_disabled")) switchOff();
             // Offline: the tray keeps what it had.
         });
 }
@@ -625,11 +814,19 @@ void StoriesSession::refresh() {
 void StoriesSession::applyFeed(FeedResult& result) {
     if (result.generation != feedGeneration_) return;
     if (result.config) {
+        configKnown_ = true;
+        if (!result.config->enabled) {
+            switchOff();
+            return;
+        }
+        if (!enabled_ && !error_.isEmpty()) clearMessages();  // anything said while Stories were off no longer applies
+        enabled_ = true;
         mediaEnabled_ = result.config->media;
         interactiveEnabled_ = result.config->interactive;
         ttlChoices_ = result.config->ttlSeconds;
     }
     if (result.prefs) {
+        prefsLoaded_ = true;
         prefs_ = result.prefs->prefs;
         archiveEnabled_ = result.prefs->archive;
         prefsRevision_ = result.prefs->revision;
@@ -637,9 +834,36 @@ void StoriesSession::applyFeed(FeedResult& result) {
     friends_ = std::move(result.friends);
     own_ = std::move(result.own);
     authors_ = std::move(result.authors);
-    for (const auto& d : own_) known_[d->dto.id] = d;
+    std::vector<std::string> arrived;
+    const auto keep = [&](const DecodedPtr& d) {
+        const auto before = known_.find(d->dto.id);
+        if (before != known_.end() && before->second->loading && !d->loading) arrived.push_back(d->dto.id);
+        known_[d->dto.id] = d;
+    };
+    for (const auto& d : own_) keep(d);
     for (const auto& [id, stories] : authors_) {
-        for (const auto& d : stories) known_[d->dto.id] = d;
+        for (const auto& d : stories) keep(d);
+    }
+    // Part D: a story on screen that waited for its key opens where it is.
+    if (viewerOpen_ && !arrived.empty()) {
+        for (QVariant& group : viewerGroups_) {
+            QVariantMap g = group.toMap();
+            QVariantList list = g.value("stories").toList();
+            for (QVariant& story : list) {
+                const std::string id = story.toMap().value("id").toString().toStdString();
+                if (has(arrived, id)) story = storyMap(*known_[id]);
+            }
+            g["stories"] = list;
+            group = g;
+        }
+        emit viewerGroupsChanged();
+        for (const auto& id : arrived) emit storyArrived(qs(id));
+    }
+    if (deviceKeys_ && !result.deviceGaps.empty()) {
+        auto api = api_;
+        deviceKeys_->fillStoryGaps(std::move(result.deviceGaps), [api](const std::string& storyId, const std::vector<std::string>& users) {
+            sapi::addAccess(*api, storyId, users);
+        });
     }
     emit feedChanged();
     emit prefsChanged();
@@ -679,6 +903,7 @@ void StoriesSession::openAuthor(const QString& authorIdText) {
     composerOpen_ = false;
     viewerOpen_ = true;
     emit composerChanged();
+    emit viewerGroupsChanged();
     emit viewerChanged();
 }
 
@@ -698,6 +923,7 @@ void StoriesSession::openList(const std::string& ownerId, const std::vector<Deco
     composerOpen_ = false;
     viewerOpen_ = true;
     emit composerChanged();
+    emit viewerGroupsChanged();
     emit viewerChanged();
 }
 
@@ -716,6 +942,7 @@ void StoriesSession::closeViewer() {
     if (!viewerOpen_) return;
     viewerOpen_ = false;
     viewerGroups_.clear();
+    emit viewerGroupsChanged();
     emit viewerChanged();
     dropTempFiles();
 }
@@ -758,12 +985,12 @@ void StoriesSession::loadMedia(const QString& storyIdText) {
             // The player needs a file: a private one, deleted when the viewer closes.
             const QString dir = mediaDir();
             QDir().mkpath(dir);
-            const QString ext = media.mime == "video/webm" ? "webm" : media.mime == "video/quicktime" ? "mov" : "mp4";
+            const QString ext = mediaExtension(media.mime);
             const QString path = dir + u'/' + QString::fromStdString(util::randomUuid()) + u'.' + ext;
             QFile file(path);
             if (!file.open(QIODevice::WriteOnly) || file.write(plain.data(), static_cast<qint64>(plain.size())) != static_cast<qint64>(plain.size())) {
                 QFile::remove(path);
-                throw std::runtime_error("Couldn't write the video");
+                throw std::runtime_error("Couldn't write the file");
             }
             file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
             return path;
@@ -780,6 +1007,12 @@ void StoriesSession::loadMedia(const QString& storyIdText) {
             if (failure.status == 401) emit sessionExpired();
             emit mediaFailed(storyIdText);
         });
+}
+
+void StoriesSession::storyKeysArrived(const QStringList& storyIds) {
+    // Only when something is waiting for its key, or might be (a key often comes before the feed lists its story).
+    const bool waiting = std::any_of(known_.begin(), known_.end(), [](const auto& entry) { return entry.second->loading; });
+    if (waiting || !storyIds.isEmpty()) refresh();
 }
 
 void StoriesSession::markSeen(const QString& storyIdText) {
@@ -811,13 +1044,26 @@ void StoriesSession::reply(const QString& storyId, const QString& text, bool rea
         setMessages(QStringLiteral("You can reply once your chat with them has loaded."), {});
         return;
     }
-    if (const QString why = chats_->sendRefusal(meta->id, device_key_refusal::kStoryReply); !why.isEmpty()) {
-        setMessages(why, {});
+    // A voice story is quoted as text (its title, or "Voice"), as the web and Android quote it.
+    const model::StoryReplyRef ref{d->dto.authorId, d->dto.id, st::replyKind(d->meta), st::preview(d->meta), reaction};
+    const std::string body = text.trimmed().toStdString();
+    // Part D: a chat on device keys carries it as a device-key message with the same story reference.
+    static constexpr const char* kOnDeviceKeys = "[stories:device-keys]";
+    if (const QString why = chats_->sendRefusal(meta->id, kOnDeviceKeys); !why.isEmpty()) {
+        if (why != QString::fromUtf8(kOnDeviceKeys) || !deviceKeys_) {
+            setMessages(why == QString::fromUtf8(kOnDeviceKeys) ? QStringLiteral("This chat uses device keys, which this build can't send with.") : why, {});
+            return;
+        }
+        deviceKeys_->sendStoryReply(meta->id, d->dto.authorId, body, ref, [this, reaction, text](const QString& error) {
+            if (!error.isEmpty()) {
+                setMessages(error, {});
+                return;
+            }
+            setMessages({}, reaction ? QStringLiteral("Sent ") + text : QStringLiteral("Reply sent"));
+        });
         return;
     }
     auto repository = chats_->repository();
-    const model::StoryReplyRef ref{d->dto.authorId, d->dto.id, d->meta.kind, st::preview(d->meta), reaction};
-    const std::string body = text.trimmed().toStdString();
     runInBackground(
         pool_, this, [repository, meta, body, ref] { repository->sendStoryReply(*meta, body, ref); },
         [this, reaction, text] {
@@ -835,6 +1081,7 @@ void StoriesSession::deleteStory(const QString& storyIdText) {
         [this, storyId] {
             own_.erase(std::remove_if(own_.begin(), own_.end(), [&](const DecodedPtr& d) { return d->dto.id == storyId; }), own_.end());
             known_.erase(storyId);
+            if (deviceKeys_) deviceKeys_->forgetStory(storyId);  // Part D: K goes with it
             emit feedChanged();
             setMessages({}, QStringLiteral("Story deleted"));
             refresh();
@@ -922,12 +1169,33 @@ void StoriesSession::savePrefs(std::function<st::Prefs(st::Prefs)> change, std::
                 if (!has(before.closeFriends, u) && !has(prefs_.hideFrom, u)) joinedClose.push_back(u);
             }
             std::vector<DecodedPtr> closeStories;
+            std::vector<std::string> deviceCloseIds;
             for (const auto& d : own_) {
-                if (d->meta.closeFriends) closeStories.push_back(d);
+                if (!d->meta.closeFriends || !d->key) continue;
+                if (d->dto.deviceKeys()) deviceCloseIds.push_back(d->dto.id);
+                else closeStories.push_back(d);
             }
             std::map<std::string, crypto::Bytes> joinedKeys;
             for (const auto& u : joinedClose) {
                 if (const auto f = friends_.find(u); f != friends_.end()) joinedKeys[u] = f->second.publicKey;
+            }
+            // Part D: a device-keys close-friends story takes new close friends too: access, then K to their devices
+            // (the same path as late friends of a "friends" story). Leaving close friends revokes below, as for any story.
+            if (deviceKeys_ && !joinedKeys.empty() && !deviceCloseIds.empty()) {
+                std::vector<std::string> joinedFriends;
+                for (const auto& [u, publicKey] : joinedKeys) joinedFriends.push_back(u);
+                std::vector<std::pair<std::string, std::vector<std::string>>> gaps;
+                for (const auto& id : deviceCloseIds) gaps.emplace_back(id, joinedFriends);
+                auto api = api_;
+                deviceKeys_->fillStoryGaps(std::move(gaps), [api](const std::string& storyId, const std::vector<std::string>& users) {
+                    sapi::addAccess(*api, storyId, users);
+                });
+            }
+            if (!deviceCloseIds.empty() && !leftClose.empty()) {
+                // Revocation is the same for both kinds of story.
+                for (const auto& d : own_) {
+                    if (d->meta.closeFriends && d->key && d->dto.deviceKeys()) closeStories.push_back(d);
+                }
             }
             if (std::any_of(before.hideFrom.begin(), before.hideFrom.end(), [&](const std::string& u) { return !has(prefs_.hideFrom, u); })) {
                 lastGapFillMs_ = 0;  // un-hidden friends get keys for "friends" stories on the next top-up
@@ -947,7 +1215,10 @@ void StoriesSession::savePrefs(std::function<st::Prefs(st::Prefs)> change, std::
                     if (!closeIds.empty()) {
                         for (const auto& u : leftClose) sapi::revoke(*api, u, closeIds);
                         for (const auto& [u, publicKey] : joinedKeys) {
-                            for (const auto& d : closeStories) sapi::addKeys(*api, d->dto.id, {{u, wrapFor(d->dto.id, *d->key, publicKey, *me)}});
+                            for (const auto& d : closeStories) {
+                                if (d->dto.deviceKeys()) continue;  // given access and K by fillStoryGaps above
+                                sapi::addKeys(*api, d->dto.id, {{u, wrapFor(d->dto.id, *d->key, publicKey, *me)}});
+                            }
                         }
                     }
                 },
@@ -1056,7 +1327,7 @@ void StoriesSession::postText(const QString& text, const QString& background, co
 }
 
 void StoriesSession::postMedia(const QUrl& file, const QVariantList& overlays, const QVariantList& stickers, const QString& audienceText,
-                               const QStringList& customIds, bool allowReplies, int ttlSeconds, int durationMs) {
+                               const QStringList& customIds, bool allowReplies, int ttlSeconds, int durationMs, const QVariantList& captions) {
     if (!postStage_.isEmpty()) return;
     const auto parsedStickers = stickersFrom(stickers);
     if (!parsedStickers) return;
@@ -1082,15 +1353,17 @@ void StoriesSession::postMedia(const QUrl& file, const QVariantList& overlays, c
                     {});
         return;
     }
+    const auto parsedCaptions = video ? captionsFrom(captions, durationMs) : std::vector<st::Caption>();
     clearMessages();
     setStage(QStringLiteral("preparing"));
     runInBackground(
         pool_, this,
-        [path, video, durationMs, parsedOverlays, stickerList = *parsedStickers, closeFriends]() {
+        [path, video, durationMs, parsedOverlays, stickerList = *parsedStickers, closeFriends, parsedCaptions]() {
             st::Meta meta;
             meta.overlays = parsedOverlays;
             meta.stickers = stickerList;
             meta.closeFriends = closeFriends;
+            meta.captions = parsedCaptions;
             PreparedMedia prepared = prepareMedia(path, video, durationMs);
             meta.kind = prepared.kind;
             meta.media = prepared.media;
@@ -1106,6 +1379,86 @@ void StoriesSession::postMedia(const QUrl& file, const QVariantList& overlays, c
         });
 }
 
+void StoriesSession::postVoice(const QUrl& file, int durationMs, const QVariantList& waveform, const QString& title, const QString& background,
+                               const QString& font, const QVariantList& overlays, const QVariantList& stickers, const QVariantList& captions,
+                               const QString& audienceText, const QStringList& customIds, bool allowReplies, int ttlSeconds) {
+    if (!postStage_.isEmpty()) return;
+    if (!mediaEnabled_) {
+        setMessages(QStringLiteral("Voice stories aren't available on this server yet."), {});
+        return;
+    }
+    const auto parsedStickers = stickersFrom(stickers);
+    if (!parsedStickers) return;
+    if (durationMs <= 0 || durationMs > st::kMaxAudioMs) {
+        setMessages(QStringLiteral("A voice story can be up to 5 minutes long."), {});
+        return;
+    }
+    QFile in(file.toLocalFile());
+    if (!file.isLocalFile() || !in.open(QIODevice::ReadOnly)) {
+        setMessages(QStringLiteral("That recording couldn't be opened."), {});
+        return;
+    }
+    if (static_cast<std::uint64_t>(in.size()) > st::kMaxAudioBytes) {
+        setMessages(QStringLiteral("That sound is too large for a story (at most 24 MB)."), {});
+        return;
+    }
+    const QByteArray bytes = in.readAll();
+    const std::string audience = audienceOf(audienceText);
+    st::Meta meta;
+    meta.kind = "audio";
+    meta.text = title.trimmed().left(static_cast<int>(st::kMaxStoryText)).toStdString();
+    meta.background = background.toStdString();
+    meta.font = font.toStdString();
+    for (const auto& o : overlays) meta.overlays.push_back(overlayFrom(o.toMap()));
+    meta.stickers = *parsedStickers;
+    meta.captions = captionsFrom(captions, durationMs);
+    std::vector<int> bars;
+    for (const auto& b : waveform) bars.push_back(b.toInt());
+    meta.waveform = bars;
+    meta.closeFriends = audience == "close_friends";
+    st::MediaRef media;
+    // Placeholders until it is encrypted (publish fills in the key, header, hash and sizes).
+    media.key = "AA";
+    media.header = "AA";
+    media.sha256 = std::string(64, '0');
+    media.encryptedSize = 1;
+    media.chunkSize = 1;
+    media.mime = "audio/wav";
+    media.width = 1;
+    media.height = 1;
+    media.durationMs = durationMs;
+    meta.media = media;
+    try {
+        meta = st::parseMeta(st::toJson(meta), "audio");  // the same checks every reader makes (bars that don't fit are left out)
+    } catch (const st::StoryFormatError&) {
+        setMessages(QStringLiteral("That voice story couldn't be prepared."), {});
+        return;
+    }
+    clearMessages();
+    publish(std::move(meta), std::string(bytes.constData(), static_cast<std::size_t>(bytes.size())), audience, stdList(customIds), allowReplies, ttlSeconds);
+}
+
+QVariantList StoriesSession::templates() const {
+    QVariantList out;
+    for (const auto* t : studio::templates::offered()) out.append(QVariantMap{{"id", qs(t->id)}, {"label", qs(t->label)}});
+    return out;
+}
+
+QVariantMap StoriesSession::applyTemplate(const QString& id) const {
+    const auto* t = studio::templates::byId(id.toStdString());
+    if (!t) return {};
+    const auto applied = studio::templates::apply(*t, [] { return newStickerId(); }, util::nowMillis());
+    QVariantList overlays;
+    for (const auto& o : applied.overlays) overlays.append(overlayMap(o));
+    QVariantList stickers;
+    // A sticker to answer only where the server takes answers.
+    for (const auto& s : applied.stickers) {
+        if (!interactiveEnabled_ && st::isAnswerable(s)) continue;
+        stickers.append(stickerMap(s));
+    }
+    return {{"text", qs(applied.text)}, {"background", qs(applied.background)}, {"font", qs(applied.font)}, {"overlays", overlays}, {"stickers", stickers}};
+}
+
 void StoriesSession::publish(st::Meta meta, std::string media, const std::string& audience, const std::vector<std::string>& customIds,
                              bool allowReplies, int ttlSeconds) {
     auto api = api_;
@@ -1114,10 +1467,18 @@ void StoriesSession::publish(st::Meta meta, std::string media, const std::string
     const auto prefs = prefs_;
     // Only a lifetime the server offers is sent (an older server knows only 24 hours).
     const bool sendTtl = ttlSeconds > 0 && std::find(ttlChoices_.begin(), ttlChoices_.end(), ttlSeconds) != ttlChoices_.end();
+    // Part D: with a trusted device, K goes to the viewers' devices instead of being wrapped to their account keys.
+    const bool viaDevice = deviceKeys_ && deviceKeys_->storiesOnDeviceKeys();
+    struct Posted {
+        std::string id;
+        std::shared_ptr<const crypto::SecretBytes> key;
+        std::int64_t expiresAt = 0;
+        std::vector<std::string> viewers;
+    };
     setStage(QStringLiteral("encrypting"));
     runInBackground(
         pool_, this,
-        [api, me, chatKeys, prefs, meta, media = std::move(media), audience, customIds, allowReplies, ttlSeconds, sendTtl]() mutable {
+        [api, me, chatKeys, prefs, meta, media = std::move(media), audience, customIds, allowReplies, ttlSeconds, sendTtl, viaDevice]() mutable {
             const auto friends = loadFriends(*api, chatKeys);
             std::vector<std::string> friendIds;
             for (const auto& [id, f] : friends) friendIds.push_back(id);
@@ -1127,7 +1488,8 @@ void StoriesSession::publish(st::Meta meta, std::string media, const std::string
             }
 
             const std::string id = util::randomUuid();
-            const crypto::SecretBytes key = sc::newStoryKey();
+            const auto sharedKey = std::make_shared<const crypto::SecretBytes>(sc::newStoryKey());
+            const crypto::SecretBytes& key = *sharedKey;
             std::string ciphertext;
             if (meta.media) {
                 std::istringstream in(media);
@@ -1153,9 +1515,14 @@ void StoriesSession::publish(st::Meta meta, std::string media, const std::string
             story.audience = audience;
             story.allowReplies = allowReplies;
             if (sendTtl) story.ttlSeconds = ttlSeconds;
-            story.keys.push_back({me->userId, wrapFor(id, key, me->publicKey, *me)});
-            for (const auto& r : recipients) story.keys.push_back({r, wrapFor(id, key, friends.at(r).publicKey, *me)});
-            sapi::create(*api, story);
+            if (viaDevice) {
+                story.deviceKeys = true;
+                story.viewers = recipients;
+            } else {
+                story.keys.push_back({me->userId, wrapFor(id, key, me->publicKey, *me)});
+                for (const auto& r : recipients) story.keys.push_back({r, wrapFor(id, key, friends.at(r).publicKey, *me)});
+            }
+            const auto created = sapi::createStory(*api, story);
             if (meta.media) {
                 try {
                     sapi::uploadMedia(*api, id, std::move(ciphertext));
@@ -1167,8 +1534,15 @@ void StoriesSession::publish(st::Meta meta, std::string media, const std::string
                     throw;
                 }
             }
+            const std::int64_t fallback = util::nowMillis() + 1000LL * (sendTtl ? ttlSeconds : st::kDefaultStorySeconds);
+            return Posted{id, sharedKey, util::parseIsoMillis(created.expiresAt).value_or(fallback), recipients};
         },
-        [this] {
+        [this, viaDevice](Posted made) {
+            if (viaDevice && deviceKeys_) {
+                deviceKeys_->sendStoryKey(made.id, made.key, made.expiresAt, made.viewers, [this](const QString& error) {
+                    if (!error.isEmpty()) setMessages(error, {});
+                });
+            }
             setStage({});
             composerOpen_ = false;
             emit composerChanged();
@@ -1197,7 +1571,7 @@ constexpr std::int64_t kTotalsEveryMs = 3 * 60 * 1000;
 stories_detail::InteractionsResult openInteractions(api::ApiClient& api, const data::SelfIdentity& me, const std::string& storyId,
                                                     const crypto::SecretBytes& storyKey, const std::vector<st::Sticker>& stickers, bool own,
                                                     const crypto::Bytes& authorKey, const std::map<std::string, crypto::Bytes>& friendKeys,
-                                                    std::map<std::string, std::string> published) {
+                                                    std::map<std::string, std::string> published, StoryDeviceKeys* deviceKeys) {
     using stories_detail::MyAnswer;
     stories_detail::InteractionsResult out;
     out.storyId = storyId;
@@ -1209,10 +1583,26 @@ stories_detail::InteractionsResult openInteractions(api::ApiClient& api, const d
         return nullptr;
     };
 
+    // Part D: a device-keys story's named answers are device-key messages this device holds (never on the server).
+    std::vector<StoryDeviceKeys::NamedAnswer> named;
+    if (deviceKeys) named = deviceKeys->storyAnswers(storyId);
+
     if (!own) {
+        for (const auto& a : named) {
+            const st::Sticker* sticker = stickerById(a.stickerId);
+            if (!sticker || a.userId != me.userId) continue;
+            MyAnswer mine;
+            mine.answer.kind = sticker->type;
+            try {
+                mine.answer = st::parseAnswer(a.payload, *sticker);
+                mine.readable = true;
+            } catch (const std::exception&) {
+            }
+            out.mine[a.stickerId] = mine;
+        }
         for (const auto& row : sapi::myAnswers(api, storyId)) {
             const st::Sticker* sticker = stickerById(row.stickerId);
-            if (!sticker) continue;
+            if (!sticker || out.mine.count(row.stickerId)) continue;
             MyAnswer mine;
             mine.anonymous = row.anonymous;
             mine.answer.kind = sticker->type;
@@ -1239,6 +1629,22 @@ stories_detail::InteractionsResult openInteractions(api::ApiClient& api, const d
         return out;
     }
 
+    for (const auto& a : named) {
+        if (a.userId == me.userId) continue;
+        const st::Sticker* sticker = stickerById(a.stickerId);
+        try {
+            if (!sticker) throw std::runtime_error("no such sticker");
+            st::InboxEntry entry;
+            entry.stickerId = a.stickerId;
+            entry.responderId = a.userId;
+            entry.answer = st::parseAnswer(a.payload, *sticker);
+            entry.atMs = a.at;
+            entry.revision = static_cast<int>(a.rev);
+            out.entries.push_back(std::move(entry));
+        } catch (const std::exception&) {
+            ++out.unreadable;
+        }
+    }
     for (const auto& row : sapi::answers(api, storyId)) {
         const st::Sticker* sticker = stickerById(row.stickerId);
         if (!sticker) {
@@ -1248,7 +1654,12 @@ stories_detail::InteractionsResult openInteractions(api::ApiClient& api, const d
         try {
             const crypto::Bytes envelope = crypto::base64Decode(row.envelope);
             st::Answer answer;
-            if (row.anonymous || row.responderId.empty()) {
+            if (deviceKeys) {
+                // RVSD: this device opens its own copy; nobody is named.
+                const auto opened = deviceKeys->openStoryAnswer(storyId, *sticker, envelope);
+                if (!opened) throw std::runtime_error("no copy this device can open");
+                answer = *opened;
+            } else if (row.anonymous || row.responderId.empty()) {
                 answer = sc::openAnonymousAnswer(storyId, *sticker, envelope, me.publicKey, me.privateKey);
             } else {
                 const auto responder = friendKeys.find(row.responderId);
@@ -1257,7 +1668,7 @@ stories_detail::InteractionsResult openInteractions(api::ApiClient& api, const d
             }
             st::InboxEntry entry;
             entry.stickerId = row.stickerId;
-            entry.responderId = row.anonymous ? std::string() : row.responderId;
+            entry.responderId = row.anonymous || deviceKeys ? std::string() : row.responderId;
             entry.answer = std::move(answer);
             entry.atMs = util::parseIsoMillis(row.respondedAt).value_or(0);
             entry.revision = row.revision;
@@ -1329,6 +1740,7 @@ void StoriesSession::startInteractions(const std::shared_ptr<Decoded>& d) {
     if (!interactiveEnabled_) return;
     const bool answerable = std::any_of(d->meta.stickers.begin(), d->meta.stickers.end(), [](const st::Sticker& s) { return st::isAnswerable(s); });
     if (!answerable) return;
+    if (!d->key) return;  // Part D: its key hasn't arrived yet
     const bool own = d->dto.authorId == identity_->userId;
     crypto::Bytes authorKey = identity_->publicKey;
     if (!own) {
@@ -1336,6 +1748,8 @@ void StoriesSession::startInteractions(const std::shared_ptr<Decoded>& d) {
         if (author == friends_.end()) return;  // not a friend (any more): nothing to open it with
         authorKey = author->second.publicKey;
     }
+    StoryDeviceKeys* deviceKeys = d->dto.deviceKeys() ? deviceKeys_ : nullptr;
+    if (d->dto.deviceKeys() && !deviceKeys) return;
     std::map<std::string, crypto::Bytes> friendKeys;
     for (const auto& [id, f] : friends_) friendKeys[id] = f.publicKey;
     auto api = api_;
@@ -1346,8 +1760,8 @@ void StoriesSession::startInteractions(const std::shared_ptr<Decoded>& d) {
     const auto published = publishedTotals_;
     runInBackground(
         pool_, this,
-        [api, me, storyId, key, stickers, own, authorKey, friendKeys, published]() {
-            return openInteractions(*api, *me, storyId, *key, stickers, own, authorKey, friendKeys, published);
+        [api, me, storyId, key, stickers, own, authorKey, friendKeys, published, deviceKeys]() {
+            return openInteractions(*api, *me, storyId, *key, stickers, own, authorKey, friendKeys, published, deviceKeys);
         },
         [this](InteractionsResult r) {
             for (const auto& [cacheKey, fingerprint] : r.published) publishedTotals_[cacheKey] = fingerprint;
@@ -1368,6 +1782,7 @@ void StoriesSession::startInteractions(const std::shared_ptr<Decoded>& d) {
                                            {"text", qs(e.answer.text)},
                                            {"atMs", static_cast<double>(e.atMs)},
                                            {"anonymous", e.responderId.empty()},
+                                           {"responderId", qs(e.responderId)},
                                            {"envelope", qs(e.envelope)}});
             }
             emit interactionsLoaded(qs(r.storyId), QVariantMap{{"own", r.own},
@@ -1402,7 +1817,7 @@ void StoriesSession::answer(const QString& storyIdText, const QString& stickerId
     const std::string storyId = storyIdText.toStdString();
     const std::string stickerId = stickerIdText.toStdString();
     const auto d = find(storyId);
-    if (!d || !interactiveEnabled_ || d->dto.authorId == identity_->userId) return;
+    if (!d || !d->key || !interactiveEnabled_ || d->dto.authorId == identity_->userId) return;
     const auto found = std::find_if(d->meta.stickers.begin(), d->meta.stickers.end(),
                                     [&](const st::Sticker& s) { return s.id == stickerId && st::isAnswerable(s); });
     if (found == d->meta.stickers.end()) return;
@@ -1427,25 +1842,43 @@ void StoriesSession::answer(const QString& storyIdText, const QString& stickerId
     }
     const bool anonymous = st::isAnonymousSticker(sticker);
     const bool final = st::isFinalSticker(sticker);
+    const auto shown = [this, storyIdText, stickerIdText, sticker, checked, anonymous] {
+        stories_detail::MyAnswer mine;
+        mine.anonymous = anonymous;
+        mine.readable = !anonymous;
+        mine.answer.kind = sticker.type;
+        if (!anonymous) mine.answer = checked;
+        setMessages({}, sticker.type == "question" ? QStringLiteral("Sent") : QStringLiteral("Answer sent"));
+        emit answered(storyIdText, stickerIdText, mineMap(mine));
+        loadInteractions(storyIdText);  // the totals, now that you may see them
+    };
+    // Part D: a named answer goes to the author's devices (never stored on the server); an anonymous one is RVSD.
+    if (d->dto.deviceKeys() && !anonymous) {
+        if (!deviceKeys_) return;
+        const std::int64_t expiresAt = util::parseIsoMillis(d->dto.expiresAt).value_or(util::nowMillis() + 24LL * 3600 * 1000);
+        deviceKeys_->sendStoryAnswer(storyId, d->dto.authorId, stickerId, final, st::toJson(checked), expiresAt, [this, shown](const QString& error) {
+            if (!error.isEmpty()) {
+                setMessages(error, {});
+                return;
+            }
+            shown();
+        });
+        return;
+    }
     auto api = api_;
     auto me = identity_;
+    StoryDeviceKeys* keys = d->dto.deviceKeys() ? deviceKeys_ : nullptr;
+    if (d->dto.deviceKeys() && !keys) return;
+    const std::string authorId = d->dto.authorId;
     runInBackground(
         pool_, this,
-        [api, me, storyId, stickerId, sticker, checked, authorKey, anonymous, final]() {
-            const crypto::Bytes envelope = anonymous ? sc::sealAnonymousAnswer(storyId, sticker, checked, authorKey)
-                                                     : sc::sealAnswer(storyId, sticker, checked, authorKey, me->privateKey);
+        [api, me, storyId, stickerId, sticker, checked, authorKey, anonymous, final, keys, authorId]() {
+            const crypto::Bytes envelope = keys        ? keys->sealStoryAnswer(storyId, authorId, sticker, checked)
+                                           : anonymous ? sc::sealAnonymousAnswer(storyId, sticker, checked, authorKey)
+                                                       : sc::sealAnswer(storyId, sticker, checked, authorKey, me->privateKey);
             sapi::putAnswer(*api, storyId, stickerId, crypto::base64Encode(envelope), anonymous, final);
         },
-        [this, storyIdText, stickerIdText, sticker, checked, anonymous] {
-            stories_detail::MyAnswer mine;
-            mine.anonymous = anonymous;
-            mine.readable = !anonymous;
-            mine.answer.kind = sticker.type;
-            if (!anonymous) mine.answer = checked;
-            setMessages({}, sticker.type == "question" ? QStringLiteral("Sent") : QStringLiteral("Answer sent"));
-            emit answered(storyIdText, stickerIdText, mineMap(mine));
-            loadInteractions(storyIdText);  // the totals, now that you may see them
-        },
+        [shown] { shown(); },
         [this, storyIdText](const Failure& failure) {
             if (failure.status == 401) {
                 emit sessionExpired();
@@ -1493,8 +1926,9 @@ void StoriesSession::reportStory(const QString& storyIdText, const QString& reas
 }
 
 void StoriesSession::reportAnswer(const QString& storyIdText, const QString& stickerIdText, const QString& envelope, const QString& reason,
-                                  const QString& answerText, bool includeText) {
+                                  const QString& answerText, bool includeText, const QString& responderIdText) {
     const std::string storyId = storyIdText.toStdString();
+    const std::string responderId = responderIdText.toStdString();
     const std::string stickerId = stickerIdText.toStdString();
     const std::string envelopeText = envelope.toStdString();
     const std::string why = (reason.trimmed().isEmpty() ? QStringLiteral("Abusive answer") : reason.trimmed().left(300)).toStdString();
@@ -1502,7 +1936,10 @@ void StoriesSession::reportAnswer(const QString& storyIdText, const QString& sti
     if (includeText && !answerText.isEmpty()) evidence = answerText.left(600).toStdString();
     auto api = api_;
     runInBackground(
-        pool_, this, [api, storyId, stickerId, envelopeText, why, evidence] { sapi::reportAnswer(*api, storyId, stickerId, envelopeText, why, evidence); },
+        pool_, this,
+        [api, storyId, stickerId, envelopeText, why, evidence, responderId] {
+            sapi::reportAnswer(*api, storyId, stickerId, envelopeText, why, evidence, responderId);
+        },
         [this] {
             setMessages({}, QStringLiteral("Reported. RedVault's admins can see who sent it."));
             emit reportDone(true, QStringLiteral("Reported. RedVault's admins can see who sent it."));
@@ -1693,12 +2130,13 @@ void StoriesSession::deleteDraft(const QString& draftIdText) {
 void StoriesSession::loadLibrary() {
     auto api = api_;
     auto me = identity_;
+    StoryDeviceKeys* keys = deviceKeys_;
     runInBackground(
         pool_, this,
-        [api, me] {
+        [api, me, keys] {
             std::vector<DecodedPtr> out;
             for (const auto& dto : sapi::archive(*api)) {
-                if (auto d = decodeStory(dto, me->publicKey, me->privateKey)) {
+                if (auto d = decodeStory(dto, me->publicKey, me->privateKey, keys)) {
                     d->seen = true;
                     out.push_back(std::move(d));
                 }
@@ -1742,14 +2180,15 @@ void StoriesSession::loadHighlights(const QString& userIdText) {
     }
     auto api = api_;
     auto me = identity_;
+    StoryDeviceKeys* keys = deviceKeys_;
     runInBackground(
         pool_, this,
-        [api, me, userId, ownerKey] {
+        [api, me, userId, ownerKey, keys] {
             std::vector<stories_detail::Highlight> out;
             for (const auto& h : sapi::highlights(*api, userId)) {
                 stories_detail::Highlight view{h.id, h.ownerId, {}, h.coverStoryId, {}};
                 for (const auto& dto : h.stories) {
-                    auto d = decodeStory(dto, ownerKey, me->privateKey);
+                    auto d = decodeStory(dto, ownerKey, me->privateKey, keys);
                     if (!d || d->dto.authorId != h.ownerId) continue;
                     d->seen = true;
                     view.stories.push_back(std::move(d));

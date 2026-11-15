@@ -118,9 +118,10 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: -8
                 horizontalAlignment: Text.AlignHCenter
-                text: root.isCommunity ? (root.session.currentCommunityKind === "channel" ? "Channel" : "Community") + (root.readOnly ? " · read only" : "")
-                    : root.isGroup ? root.session.currentMembers.length + " members"
-                    : root.online ? "Online" : "@" + root.session.currentTitle
+                text: root.isCommunity && App.communitiesEnabled ? (root.session.currentCommunityKind === "channel" ? qsTr("Channel") : qsTr("Community")) + (root.readOnly ? qsTr(" · read only") : "")
+                    : root.readOnly ? qsTr("Read only")
+                    : root.isGroup ? root.session.currentMembers.length + qsTr(" members")
+                    : root.online ? qsTr("Online") : "@" + root.session.currentTitle
                 textFormat: Text.PlainText
                 color: root.online ? Theme.accent : Theme.text3
                 font.family: root.isGroup || root.online ? Theme.fontFamily : Theme.monoFamily
@@ -134,25 +135,25 @@ Rectangle {
                 spacing: 4
                 Action {
                     iconName: "phone"
-                    label: "Voice"
+                    label: qsTr("Voice")
                     enabledAction: App.calls !== null && App.calls.callsAvailable
                     onActivated: root.callRequested("voice")
                 }
                 Action {
                     iconName: "video"
-                    label: "Video"
+                    label: qsTr("Video")
                     enabledAction: App.calls !== null && App.calls.callsAvailable
                     onActivated: root.callRequested("video")
                 }
                 Action {
                     iconName: "star"
-                    label: root.favorite ? "Favorite" : "Favorite"
+                    label: root.favorite ? qsTr("Favorite") : qsTr("Favorite")
                     on: root.favorite
                     onActivated: root.session.toggleFavorite(root.userId)
                 }
                 Action {
                     iconName: root.muted ? "bell-off" : "bell"
-                    label: root.muted ? "Muted" : "Mute"
+                    label: root.muted ? qsTr("Muted") : qsTr("Mute")
                     on: root.muted
                     onActivated: root.session.toggleMuted(root.userId)
                 }
@@ -162,7 +163,8 @@ Rectangle {
             HighlightsRow {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                stories: App.stories
+                visible: App.stories !== null && App.stories.enabled
+                stories: App.stories && App.stories.enabled ? App.stories : null
                 userId: root.isGroup ? "" : root.userId
             }
 
@@ -170,19 +172,22 @@ Rectangle {
             CreatorOfferSection {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                earnings: App.earnings
+                earnings: App.earningsEnabled ? App.earnings : null
                 userId: root.isGroup ? "" : root.userId
                 name: root.session.currentTitle
             }
 
             // Encryption and verification.
             Rectangle {
+                id: encCard
                 Layout.fillWidth: true
                 Layout.topMargin: 6
                 implicitHeight: encColumn.implicitHeight + 28
                 radius: Theme.radiusCard
-                color: root.session.currentKeyChanged ? Theme.warnSoft : Theme.accentSoft
-                border.color: root.session.currentKeyChanged ? Qt.alpha(Theme.warn, 0.35) : Theme.accentBorder
+                // Changed: warning. Verified (one-to-one): the confirmed green. Otherwise neutral.
+                readonly property bool confirmed: !root.isGroup && root.session.currentVerified && !root.session.currentKeyChanged
+                color: root.session.currentKeyChanged ? Theme.warnSoft : confirmed ? Theme.okSoft : Theme.surface2
+                border.color: root.session.currentKeyChanged ? Theme.warnBorder : confirmed ? Theme.okBorder : Theme.border
 
                 ColumnLayout {
                     id: encColumn
@@ -192,17 +197,17 @@ Rectangle {
                     RowLayout {
                         spacing: 8
                         Icon {
-                            name: root.session.currentKeyChanged ? "triangle-alert" : "shield-check"
+                            name: root.session.currentKeyChanged ? "triangle-alert" : (encCard.confirmed || root.isGroup) ? "shield-check" : "shield"
                             size: 18
-                            color: root.session.currentKeyChanged ? Theme.warn : Theme.accent
+                            color: root.session.currentKeyChanged ? Theme.warn : encCard.confirmed ? Theme.ok : Theme.text2
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: root.session.currentKeyChanged ? "Safety number changed"
-                                : root.isGroup ? "End-to-end encrypted"
-                                : root.session.currentVerified ? "Verified" : "Encrypted, not verified yet"
+                            text: root.session.currentKeyChanged ? qsTr("Safety number changed")
+                                : root.isGroup ? qsTr("End-to-end encrypted")
+                                : root.session.currentVerified ? qsTr("Verified") : qsTr("Encrypted, not verified yet")
                             textFormat: Text.PlainText
-                            color: root.session.currentKeyChanged ? Theme.warn : Theme.accent
+                            color: root.session.currentKeyChanged ? Theme.warn : encCard.confirmed ? Theme.ok : Theme.text
                             font.weight: Font.DemiBold
                             font.pixelSize: 14
                         }
@@ -210,11 +215,11 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: root.isCommunity ? "Posts and files are encrypted on members' devices. When someone leaves, the members' apps switch to a new key they never get."
-                            : root.isGroup ? "Messages and files are encrypted on each member's device. The server only relays ciphertext."
-                            : root.session.currentKeyChanged ? "Their key changed since you last talked. Compare the new safety number before you trust this chat."
-                            : root.session.currentVerified ? "You compared safety numbers. Calls and messages go only to their verified key."
-                            : "Compare safety numbers to be sure nobody is in the middle."
+                        text: root.isCommunity ? qsTr("Posts and files are encrypted on members' devices. When someone leaves, the members' apps switch to a new key they never get.")
+                            : root.isGroup ? qsTr("Messages and files are encrypted on each member's device. The server only relays ciphertext.")
+                            : root.session.currentKeyChanged ? qsTr("Their key changed since you last talked. Compare the new safety number before you trust this chat.")
+                            : root.session.currentVerified ? qsTr("You compared safety numbers. Calls and messages go only to their verified key.")
+                            : qsTr("Compare safety numbers to be sure nobody is in the middle.")
                         textFormat: Text.PlainText
                         color: Theme.text2
                         font.pixelSize: 13
@@ -223,7 +228,7 @@ Rectangle {
                         visible: !root.isGroup
                         primary: !root.session.currentVerified
                         iconName: "shield-check"
-                        text: root.session.currentVerified ? "View safety number" : "Verify safety number"
+                        text: root.session.currentVerified ? qsTr("View safety number") : qsTr("Verify safety number")
                         implicitHeight: 36
                         onClicked: root.verifyRequested()
                     }
@@ -231,15 +236,15 @@ Rectangle {
                         visible: root.isGroup && !root.isCommunity
                         primary: false
                         iconName: "info"
-                        text: "Group info"
+                        text: qsTr("Group info")
                         implicitHeight: 36
                         onClicked: root.groupInfoRequested()
                     }
                     RvButton {
-                        visible: root.isCommunity && App.communities !== null
+                        visible: App.communitiesEnabled && root.isCommunity && App.communities !== null
                         primary: false
                         iconName: "info"
-                        text: "Community page"
+                        text: qsTr("Community page")
                         implicitHeight: 36
                         onClicked: {
                             App.communities.open("community", root.session.currentCommunityId)
@@ -252,16 +257,16 @@ Rectangle {
             // Your disappearing-messages timer here (the server deletes what you send when it runs out).
             Caption {
                 visible: !root.readOnly
-                text: "Disappearing messages"
+                text: qsTr("Disappearing messages")
             }
             Text {
                 visible: !root.readOnly
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: (root.session.currentDisappearing === 0 ? "Off: what you send stays until you delete it."
-                      : root.session.currentDisappearing === 1 ? "What you send is deleted right after sending."
-                      : "What you send is deleted " + root.session.currentDisappearingLabel.toLowerCase() + " after sending.")
-                      + (root.isGroup ? " Each member has their own setting." : " " + root.session.currentTitle + " has their own setting.")
+                text: (root.session.currentDisappearing === 0 ? qsTr("Off: what you send stays until you delete it.")
+                      : root.session.currentDisappearing === 1 ? qsTr("What you send is deleted right after sending.")
+                      : qsTr("What you send is deleted ") + root.session.currentDisappearingLabel.toLowerCase() + qsTr(" after sending."))
+                      + (root.isGroup ? qsTr(" Each member has their own setting.") : " " + root.session.currentTitle + qsTr(" has their own setting."))
                 textFormat: Text.PlainText
                 color: Theme.text3
                 font.pixelSize: 13
@@ -284,7 +289,7 @@ Rectangle {
             // Members of a group. A community lists only who wrote what's loaded: its page has the rest, for staff.
             Caption {
                 visible: root.isGroup
-                text: root.isCommunity ? "Posting here" : "Members"
+                text: root.isCommunity ? qsTr("Posting here") : qsTr("Members")
             }
             Repeater {
                 model: root.isGroup ? root.session.currentMembers : []
@@ -301,7 +306,7 @@ Rectangle {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: member.modelData.isSelf ? member.modelData.handle + " (you)" : member.modelData.handle
+                        text: member.modelData.isSelf ? member.modelData.handle + qsTr(" (you)") : member.modelData.handle
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text
@@ -321,7 +326,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Caption {
                     Layout.fillWidth: true
-                    text: "Shared media and files"
+                    text: qsTr("Shared media and files")
                 }
                 Text {
                     Layout.topMargin: 6
@@ -335,7 +340,7 @@ Rectangle {
                 visible: root.session.currentFiles.length === 0
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Photos, videos and files you share here show up in this list."
+                text: qsTr("Photos, videos and files you share here show up in this list.")
                 color: Theme.text3
                 font.pixelSize: 13
             }
@@ -394,7 +399,7 @@ Rectangle {
                                 font.pixelSize: 13
                             }
                             Text {
-                                text: fileRow.modelData.size + " · " + fileRow.modelData.day + (fileRow.modelData.fromMe ? " · you" : "")
+                                text: fileRow.modelData.size + " · " + fileRow.modelData.day + (fileRow.modelData.fromMe ? qsTr(" · you") : "")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.pixelSize: 12

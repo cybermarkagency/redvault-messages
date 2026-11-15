@@ -13,6 +13,7 @@
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -26,13 +27,17 @@
 #include "redvault/api/api_client.hpp"
 #include "redvault/api/channel_api.hpp"
 #include "redvault/data/auth_repository.hpp"
+#include "redvault/data/private_channels.hpp"
 #include "redvault/model/channels.hpp"
 
 namespace redvault::app {
 
 /**
  * Channels, the desktop counterpart of the web app's screens/Channels.tsx and
- * ChannelView.tsx: one-way and plain text by design (and labelled so).
+ * ChannelView.tsx: one-way. Public channels are plain text by design (and
+ * labelled so); a private channel's posts, polls, checklists, media and
+ * suggestions are end-to-end encrypted with its link (Part C1,
+ * data/private_channels.hpp), opened and sealed on this computer.
  * Premium members create (up to 5) and post: formatted text, photos, videos,
  * files, podcasts, voice clips and round videos, polls, quizzes and
  * checklists, now or scheduled. A public channel is in the directory for
@@ -77,7 +82,9 @@ class ChannelsSession : public QObject {
     Q_PROPERTY(QString channelId READ channelId NOTIFY channelChanged)
     /**
      * {id, name, description, isPrivate, hasPhoto, photo, link,
-     * acceptSuggestions}; empty until it has loaded. `photo` is what
+     * acceptSuggestions, e2ee, cantOpen}; empty until it has loaded. `e2ee`:
+     * a private channel with keys (its posts are encrypted with the link);
+     * `cantOpen`: this computer has no key that opens its newest posts. `photo` is what
      * ChannelAvatar fetches (the photo's URL and, for a private channel, the
      * access token); `link` is empty for a private channel whose secret this
      * computer doesn't have.
@@ -116,6 +123,9 @@ class ChannelsSession : public QObject {
     Q_PROPERTY(int maxDescriptionLength READ maxDescriptionLength CONSTANT)
     Q_PROPERTY(int maxPollOptions READ maxPollOptions CONSTANT)
     Q_PROPERTY(int maxChecklistItems READ maxChecklistItems CONSTANT)
+    /// The owner: older posts being converted after a visibility switch (or the reason it stopped); empty otherwise.
+    Q_PROPERTY(QString conversionStatus READ conversionStatus NOTIFY conversionChanged)
+    Q_PROPERTY(bool converting READ converting NOTIFY conversionChanged)
 
 public:
     ChannelsSession(std::shared_ptr<api::ApiClient> api, std::shared_ptr<const data::SelfIdentity> identity, QString webAppBase,
@@ -164,6 +174,8 @@ public:
     int maxDescriptionLength() const { return api::channels::kMaxDescriptionLength; }
     int maxPollOptions() const { return api::channels::kMaxPollOptions; }
     int maxChecklistItems() const { return api::channels::kMaxChecklistItems; }
+    QString conversionStatus() const { return conversionStatus_; }
+    bool converting() const { return converting_; }
 
     // --- The list ---
     /// Fetches every followed channel (for names, descriptions, photos and the unread dot).
@@ -200,6 +212,8 @@ public:
      */
     Q_INVOKABLE void submitPost(const QString& body, const QVariantMap& extra, const QString& publishAt);
     Q_INVOKABLE void deletePost(const QString& postId);
+    /// The owner, private channel: a post's (or a scheduled post's) text changed, re-encrypted under the newest key; the rest stays.
+    Q_INVOKABLE void editPost(const QString& postId, const QString& body);
     Q_INVOKABLE void saveDetails(const QString& name, const QString& description);
     Q_INVOKABLE void deleteChannel();
     Q_INVOKABLE void report(const QString& reason);
@@ -208,8 +222,11 @@ public:
     /// Shows a line under the channel's header ("Forwarded.").
     Q_INVOKABLE void setNotice(const QString& notice);
     /**
-     * The owner: private (a fresh private link; the old one stops working)
-     * or public. Making it private again is how the link is reset.
+     * The owner: private (a fresh private link and a new key epoch, every
+     * older key re-wrapped under it; the old link stops working) or public
+     * (older posts are decrypted and published as plain text: the page warns
+     * first). Making it private again is how the link is reset. Older posts
+     * in the other format are then converted on this computer.
      */
     Q_INVOKABLE void setPrivate(bool makePrivate);
     /// The owner: whether followers may suggest posts.
@@ -282,6 +299,9 @@ signals:
     /// A followed channel has a new post: notify (the channel's name, and the post's text or what it carries).
     void newPostNotification(const QString& channelId, const QString& channelName, const QString& preview);
     void sessionExpired();
+    void conversionChanged();
+    /// An edit went out: its form can close.
+    void edited();
 
 private:
     struct OwnChannel {
@@ -309,6 +329,16 @@ private:
     std::optional<std::string> link() const;
     QVariantMap rowOf(const api::channels::Channel& c, const std::optional<std::string>& access) const;
     std::optional<model::channel_posts::RememberedVote> rememberedVote(const std::string& postId) const;
+    /// An encrypted post opened with this channel's keys (plain ones as they are), its media keys remembered for showing.
+    api::channels::Post opened(api::channels::Post post) const;
+    api::channels::Suggestion opened(api::channels::Suggestion suggestion) const;
+    /// Fetches this channel's keys again (the link was reset meanwhile).
+    data::private_channels::Refetch refetcher() const;
+    /// Where the composer's and a suggestion's uploads go, plain or encrypted, for the channel as it is now.
+    void setUploadStarters();
+    /// The owner: converts posts left in the other format after a switch, in the background (resumable).
+    void startConversion();
+    void stopConversion();
 
     std::shared_ptr<api::ApiClient> api_;
     std::shared_ptr<const data::SelfIdentity> identity_;
@@ -360,6 +390,11 @@ private:
     QString error_;
     QString notice_;
     QString composerError_;
+    /// The open private channel's keys (also the owner's of a public one with encrypted leftovers); null otherwise.
+    data::private_channels::KeyringPtr keys_;
+    std::shared_ptr<std::atomic_bool> conversionCancel_;
+    bool converting_ = false;
+    QString conversionStatus_;
 };
 
 }  // namespace redvault::app

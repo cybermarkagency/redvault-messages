@@ -30,8 +30,17 @@ data class ChatRecord(
     val status: String,
     /** A file message: [text] is then empty. */
     val file: FileDescriptor? = null,
-    /** A reaction, edit or delete: hidden from the chat, and worked into the message it targets by [foldChat]. */
+    /** A reaction, edit, delete, vote, end, pin or receipt: hidden from the chat, and worked into the message it targets by [foldChat]. */
     val op: ChatOp? = null,
+    /** Part A (docs/signal-integration/08-part-a-chat-features.md): what this message answers. */
+    val reply: ChatReply? = null,
+    val forwarded: Boolean = false,
+    /** Disappearing time in seconds from [ts]. */
+    val exp: Long? = null,
+    /** A poll: [text] is its question. */
+    val poll: ChatPoll? = null,
+    /** Part D: the story this text answers or reacts to. */
+    val storyReply: ChatStoryReply? = null,
 )
 
 /** This device's decrypted history and the per-conversation `v3` pins (9.1 rule 5). */
@@ -39,6 +48,9 @@ interface ChatHistory {
     /** Adds the record, or replaces the one with the same (conversation, id) when [replace] (a retry); false when it was a duplicate. */
     fun put(record: ChatRecord, replace: Boolean = false): Boolean
     fun has(conversationId: String, id: String): Boolean
+
+    /** Every chat with records here. */
+    fun conversations(): Set<String>
     fun messages(conversationId: String): List<ChatRecord>
     fun pinned(conversationId: String): Boolean
     fun pin(conversationId: String)
@@ -49,9 +61,10 @@ interface ChatHistory {
 
     /**
      * Wipes the text and file key of messages their sender deleted, and the edits and reactions that referred to them,
-     * so "delete for everyone" doesn't leave the words on this phone (9.3). Run it after every new delete or message.
+     * so "delete for everyone" doesn't leave the words on this phone (9.3); the same for messages whose disappearing
+     * time is up at [now] (part A). Run it after every new delete or message, and when a message's time comes.
      */
-    fun eraseDeleted(conversationId: String)
+    fun eraseDeleted(conversationId: String, now: Long = System.currentTimeMillis())
 
     /** Sends that failed after they were encrypted: kept so they can be retried with the same id. */
     fun failed(): List<ChatRecord>
@@ -132,6 +145,9 @@ class EncryptedChatHistory(private val file: File, private val key: ByteArray) :
     override fun has(conversationId: String, id: String) = records.any { it.conversationId == conversationId && it.id == id }
 
     @Synchronized
+    override fun conversations(): Set<String> = records.mapTo(HashSet()) { it.conversationId }
+
+    @Synchronized
     override fun messages(conversationId: String) =
         records.filter { it.conversationId == conversationId }.sortedWith(compareBy({ it.ts }, { it.arrivedAt }))
 
@@ -154,11 +170,11 @@ class EncryptedChatHistory(private val file: File, private val key: ByteArray) :
     }
 
     @Synchronized
-    override fun eraseDeleted(conversationId: String) {
-        val plan = planErase(records.filter { it.conversationId == conversationId })
+    override fun eraseDeleted(conversationId: String, now: Long) {
+        val plan = planErase(records.filter { it.conversationId == conversationId }, now)
         if (plan.isEmpty) return
         records.removeAll { it.conversationId == conversationId && it.id in plan.remove }
-        records.replaceAll { if (it.conversationId == conversationId && it.id in plan.blank) it.copy(text = "", file = null) else it }
+        records.replaceAll { if (it.conversationId == conversationId) plan.applyTo(it) else it }
         save()
     }
 
@@ -168,7 +184,13 @@ class EncryptedChatHistory(private val file: File, private val key: ByteArray) :
     @Synchronized
     override fun unread(conversationId: String): Int {
         val seen = read[conversationId] ?: 0L
-        return records.count { it.conversationId == conversationId && it.op == null && it.direction == "in" && it.arrivedAt > seen }
+        val now = System.currentTimeMillis()
+        // Read on another of this account's devices: its "read" receipt came here too, so the count follows.
+        val readElsewhere = records.filter { it.conversationId == conversationId && it.direction == "out" && it.op?.t == ChatOp.RECEIPT && it.op.status == ChatOp.READ }
+            .flatMapTo(HashSet()) { it.op!!.about }
+        return records.count {
+            it.conversationId == conversationId && it.op == null && it.direction == "in" && it.arrivedAt > seen && !it.expired(now) && it.id !in readElsewhere
+        }
     }
 
     @Synchronized

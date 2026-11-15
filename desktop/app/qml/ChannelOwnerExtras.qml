@@ -33,9 +33,9 @@ Rectangle {
     ConfirmDialog {
         id: deleteScheduledDialog
         property string postId: ""
-        title: "Delete this scheduled post?"
-        message: "It won't be published."
-        confirmText: "Delete"
+        title: qsTr("Delete this scheduled post?")
+        message: qsTr("It won't be published.")
+        confirmText: qsTr("Delete")
         danger: true
         onConfirmed: extras.channels.deleteScheduled(postId)
     }
@@ -61,14 +61,14 @@ Rectangle {
             Chip {
                 objectName: "channelScheduledChip"
                 visible: extras.scheduledCount > 0
-                text: "Scheduled (" + extras.scheduledCount + ")"
+                text: qsTr("Scheduled (") + extras.scheduledCount + ")"
                 checked: extras.panelOpen && extras.section === "scheduled"
                 onClicked: extras.section = extras.section === "scheduled" ? "" : "scheduled"
             }
             Chip {
                 objectName: "channelSuggestionsChip"
                 visible: extras.suggestionCount > 0
-                text: "Suggestions (" + extras.suggestionCount + ")"
+                text: qsTr("Suggestions (") + extras.suggestionCount + ")"
                 checked: extras.panelOpen && extras.section === "suggestions"
                 onClicked: extras.section = extras.section === "suggestions" ? "" : "suggestions"
             }
@@ -129,7 +129,7 @@ Rectangle {
                                 RvButton {
                                     secondary: true
                                     implicitHeight: 32
-                                    text: "Publish now"
+                                    text: qsTr("Publish now")
                                     enabled: !extras.channels.busy
                                     onClicked: extras.channels.publishScheduled(scheduledPost.modelData.id)
                                 }
@@ -137,7 +137,7 @@ Rectangle {
                                     primary: false
                                     danger: true
                                     implicitHeight: 32
-                                    text: "Delete"
+                                    text: qsTr("Delete")
                                     enabled: !extras.channels.busy
                                     onClicked: {
                                         deleteScheduledDialog.postId = scheduledPost.modelData.id

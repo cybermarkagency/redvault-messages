@@ -7,7 +7,7 @@ qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
 # Must be set before qt_add_qml_module reads the file list.
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Theme.qml qml/PlanGate.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_executable(redvault_desktop WIN32
     src/main.cpp
@@ -80,6 +80,9 @@ qt_add_qml_module(redvault_desktop
         src/earnings_session.hpp src/earnings_session.cpp
         src/chat_images.hpp src/chat_images.cpp
         src/windows_hello.hpp src/windows_hello.cpp
+        src/voice_recorder.hpp src/voice_recorder.cpp
+        src/studio_tools.hpp src/studio_tools.cpp
+        src/qr_scanner.hpp src/qr_scanner.cpp
         src/tor_controller.hpp src/tor_controller.cpp
         src/source_info.hpp
     RESOURCES
@@ -197,6 +200,10 @@ qt_add_qml_module(redvault_desktop
         fonts/ibm-plex-sans-latin-400-normal.ttf
         fonts/ibm-plex-sans-latin-500-normal.ttf
         fonts/ibm-plex-sans-latin-600-normal.ttf
+        fonts/inter-latin-400-normal.ttf
+        fonts/inter-latin-500-normal.ttf
+        fonts/inter-latin-600-normal.ttf
+        fonts/inter-latin-700-normal.ttf
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -279,6 +286,10 @@ qt_add_qml_module(redvault_desktop
         qml/FilesView.qml
         qml/PasswordsView.qml
         qml/VaultItemDialog.qml
+        qml/PlanGate.qml
+        qml/UpgradeDialog.qml
+        qml/VoicePlayer.qml
+        qml/QrScanDialog.qml
         qml/ContactPickerDialog.qml
         qml/LockDialog.qml
         qml/InfoCard.qml
@@ -301,6 +312,12 @@ qt_add_qml_module(redvault_desktop
         qml/StoryComposer.qml
         qml/StorySticker.qml
         qml/StickerEditor.qml
+        qml/StudioSlider.qml
+        qml/PhotoEditorPanel.qml
+        qml/CollagePanel.qml
+        qml/VoiceStudioPanel.qml
+        qml/CaptionEditor.qml
+        qml/CameraPanel.qml
         qml/StorySheet.qml
         qml/StoryAnswersSheet.qml
         qml/StoryReportSheet.qml
@@ -370,7 +387,34 @@ if(WIN32)
     target_link_libraries(redvault_desktop PRIVATE runtimeobject)
 endif()
 
+# Reading QR codes from the camera or a picture (safety numbers): zxing-cpp
+# (Apache-2.0), not packaged everywhere this builds, so built from source at a
+# pinned release, readers only, static.
+include(FetchContent)
+set(ZXING_READERS ON CACHE BOOL "" FORCE)
+set(ZXING_WRITERS OFF CACHE STRING "" FORCE)
+set(ZXING_C_API OFF CACHE BOOL "" FORCE)
+set(ZXING_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ZXING_BLACKBOX_TESTS OFF CACHE BOOL "" FORCE)
+set(ZXING_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(ZXING_PYTHON_MODULE OFF CACHE BOOL "" FORCE)
+# zxing-cpp compiles some files with -Os when the compiler accepts it. With GCC 16
+# that leaves calls to a std::string constructor this toolchain's runtime doesn't
+# export (link error); answering its compiler check "no" keeps the normal -O3.
+set(COMPILER_KNOWS_Os OFF CACHE INTERNAL "")
+FetchContent_Declare(zxing_cpp
+    GIT_REPOSITORY https://github.com/zxing-cpp/zxing-cpp.git
+    GIT_TAG v2.3.0
+    GIT_SHALLOW TRUE
+    EXCLUDE_FROM_ALL
+)
+set(_redvault_saved_shared_zx ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+FetchContent_MakeAvailable(zxing_cpp)
+set(BUILD_SHARED_LIBS ${_redvault_saved_shared_zx})
+
 target_link_libraries(redvault_desktop PRIVATE
+    ZXing::ZXing
     redvault_core
     redvault_rtc
     redvault_groupcall
@@ -384,13 +428,59 @@ target_link_libraries(redvault_desktop PRIVATE
 
 set_target_properties(redvault_desktop PROPERTIES OUTPUT_NAME "redvaultmessages")
 
+# Translations (i18n/README.md): every visible QML string is wrapped in qsTr().
+# `cmake --build . --target redvault_desktop_lupdate` writes the strings to
+# i18n/redvaultmessages_<lang>.ts for each language listed in REDVAULT_LANGUAGES
+# (none yet: the app is English only); translated .ts files are compiled in.
+set(REDVAULT_LANGUAGES "" CACHE STRING "Translations to build in, e.g. \"de;es;fr\" (i18n/redvaultmessages_<lang>.ts)")
+find_package(Qt6 QUIET COMPONENTS LinguistTools)
+if(Qt6LinguistTools_FOUND AND REDVAULT_LANGUAGES)
+    set(_redvault_ts "")
+    foreach(lang IN LISTS REDVAULT_LANGUAGES)
+        list(APPEND _redvault_ts "${CMAKE_CURRENT_SOURCE_DIR}/i18n/redvaultmessages_${lang}.ts")
+    endforeach()
+    qt_add_translations(redvault_desktop TS_FILES ${_redvault_ts} RESOURCE_PREFIX "/i18n")
+endif()
+
 # LiveKit's media library for group calls, loaded at run time from next to the program.
 redvault_copy_livekit_ffi(redvault_desktop)
+
+# Communities and creator earnings, shown only when switched on (see ../CMakeLists.txt).
+if(REDVAULT_COMMUNITIES)
+    target_compile_definitions(redvault_desktop PRIVATE REDVAULT_SHOW_COMMUNITIES=1)
+endif()
+if(REDVAULT_EARNINGS)
+    target_compile_definitions(redvault_desktop PRIVATE REDVAULT_SHOW_EARNINGS=1)
+endif()
 
 # Per-device encryption keys (protocol 3 preview), when built in: see ../e2ev3/CMakeLists.txt.
 if(REDVAULT_E2E_V3)
     target_link_libraries(redvault_desktop PRIVATE redvault_e2ev3)
     target_compile_definitions(redvault_desktop PRIVATE REDVAULT_HAS_E2E_V3=1)
+endif()
+
+# The sealed backup route (docs/tor-sealed-fallback.md): needs the engine above and the gateway's public key
+# configuration, pinned at build time (the hex `redvault-ohttp-gateway public` prints for the current key).
+# Without a key the app has no backup route and stays onion-only.
+set(REDVAULT_SEALED_KEY_CONFIG "" CACHE STRING "The sealed-route gateway's current public KeyConfig, hex (empty: no backup route)")
+set(REDVAULT_SEALED_GATEWAY_URL "https://www.redvaultsystems.com/redvaultmessages/ohttp" CACHE STRING "Where sealed requests go")
+if(REDVAULT_SEALED_KEY_CONFIG)
+    if(NOT REDVAULT_E2E_V3)
+        message(FATAL_ERROR "The sealed backup route is built into the device-key engine: it needs REDVAULT_E2E_V3=ON")
+    endif()
+    # One RFC 9458 KeyConfig: key id, KEM 0x0020 (X25519), 32-byte key, then the suites (HKDF-SHA256, ChaCha20-Poly1305).
+    if(NOT REDVAULT_SEALED_KEY_CONFIG MATCHES "^[0-9a-f][0-9a-f]0020[0-9a-f]+000400010003$")
+        message(FATAL_ERROR "REDVAULT_SEALED_KEY_CONFIG isn't an X25519/HKDF-SHA256/ChaCha20-Poly1305 KeyConfig in lowercase hex")
+    endif()
+    if(NOT REDVAULT_SEALED_GATEWAY_URL MATCHES "^https://[a-z0-9.-]+/")
+        message(FATAL_ERROR "REDVAULT_SEALED_GATEWAY_URL must be an https address")
+    endif()
+    target_compile_definitions(redvault_desktop PRIVATE REDVAULT_HAS_SEALED_ROUTE=1
+        REDVAULT_SEALED_KEY_CONFIG="${REDVAULT_SEALED_KEY_CONFIG}"
+        REDVAULT_SEALED_GATEWAY_URL="${REDVAULT_SEALED_GATEWAY_URL}")
+    message(STATUS "Sealed backup route: on, gateway ${REDVAULT_SEALED_GATEWAY_URL}")
+else()
+    message(STATUS "Sealed backup route: off (no REDVAULT_SEALED_KEY_CONFIG)")
 endif()
 
 # The Tor gateway (tor-core), when built in: see ../tor/CMakeLists.txt.
@@ -459,7 +549,7 @@ install(FILES ${REDVAULT_OPEN_SOURCE_FILES} DESTINATION licenses)
 # Lucide's ISC license asks that its notice ship with the icons.
 install(FILES icons/lucide/LICENSE DESTINATION licenses RENAME lucide-LICENSE.txt)
 # The fonts are under the SIL Open Font License, which asks the same.
-install(FILES fonts/IBMPlex-OFL.txt fonts/BricolageGrotesque-OFL.txt DESTINATION licenses)
+install(FILES fonts/IBMPlex-OFL.txt fonts/BricolageGrotesque-OFL.txt fonts/Inter-OFL.txt DESTINATION licenses)
 
 if(WIN32)
     get_filename_component(REDVAULT_TOOLCHAIN_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)

@@ -75,8 +75,8 @@ class StoryDeviceTest {
         }
         val feed = StoryFeedParser.parse(v.obj("feedForBob"))
         val shown = StoryDecoder(crypto).decodeFeed(feed, bob.b64("publicKey"), bob.b64("privateKey"), friends, emptySet()).authors.flatMap { it.stories }
-        val audio = v.getValue("skippedByAndroid").jsonArray.single().jsonObject.str("id")
-        assertEquals(v.getValue("webVisible").jsonArray.map { it.jsonObject.str("id") }.filter { it != audio }, shown.map { it.id })
+        // Every story the web shows, voice stories included.
+        assertEquals(v.getValue("webVisible").jsonArray.map { it.jsonObject.str("id") }, shown.map { it.id })
         assertEquals(setOf(ids.str("alice"), ids.str("carol")), shown.map { it.authorId }.toSet())
 
         val file = FileCrypto(sodium)

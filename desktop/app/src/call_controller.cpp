@@ -28,6 +28,7 @@
 
 #include "async.hpp"
 #include "chat_session.hpp"
+#include "device_keys_session.hpp"
 #include "group_call_controller.hpp"
 #include "live_session.hpp"
 #include "media_io.hpp"
@@ -50,6 +51,8 @@ namespace {
 constexpr int kReconnectGraceMs = 15000;
 constexpr int kEndedBannerMs = 4000;
 constexpr int kMaxHistory = 500;
+/// Part B: how long the offer (callee) or the answer (caller) may take to come through the mailbox.
+constexpr int kDeviceKeysSetupMs = 20000;
 
 int tierRank(const std::string& tier) {
     if (tier == "premium") return 2;
@@ -167,6 +170,14 @@ struct CallController::Session {
     std::string offerSdp;
     std::shared_ptr<rtc::CallMedia> media;
     bool closed = false;
+    /// Part B: set up with device-key messages (the chat is on device keys); never mixed with sealed boxes.
+    bool deviceKeys = false;
+    /// Callee: the marker came, the offer hasn't yet (nothing rings until it has, checked).
+    bool awaitingOffer = false;
+    /// Caller: the answer was taken (from one device; any other is ignored).
+    bool answerApplied = false;
+    /// The other party's device the call is bound to: where the answer goes.
+    std::string peerDeviceId;
     qint64 startedAt = QDateTime::currentMSecsSinceEpoch();
     qint64 connectedAt = 0;
 
@@ -184,6 +195,9 @@ CallController::CallController(std::shared_ptr<api::ApiClient> api, std::shared_
     disconnectTimer_.setSingleShot(true);
     disconnectTimer_.setInterval(kReconnectGraceMs);
     connect(&disconnectTimer_, &QTimer::timeout, this, [this] { fail(QStringLiteral("Call dropped")); });
+    setupTimer_.setSingleShot(true);
+    setupTimer_.setInterval(kDeviceKeysSetupMs);
+    connect(&setupTimer_, &QTimer::timeout, this, &CallController::onSetupTimeout);
     endedTimer_.setSingleShot(true);
     connect(&endedTimer_, &QTimer::timeout, this, [this] {
         if (!session_) resetView();
@@ -299,8 +313,16 @@ QString CallController::startCall(const QString& chatId, const QString& kindIn) 
     if (!meta || meta->isGroup || meta->otherUserId.empty() || meta->otherPublicKey.empty()) {
         return QStringLiteral("Calls are one-to-one, with a contact.");
     }
+    // The chat's own rule (step 1): on device keys, its calls are too; the two ways never mix within a call.
+    bool overDeviceKeys = false;
+    if (deviceKeys_) {
+        QString refusal;
+        overDeviceKeys = deviceKeys_->callsOverDeviceKeys(QString::fromStdString(meta->id), &refusal);
+        if (!refusal.isEmpty()) return refusal;
+    }
     endedTimer_.stop();
     auto session = std::make_shared<Session>();
+    session->deviceKeys = overDeviceKeys;
     session->conversationId = meta->id;
     session->peerUserId = meta->otherUserId;
     session->peerHandle = meta->handle;
@@ -443,6 +465,34 @@ void CallController::runOutgoing(std::shared_ptr<Session> session, std::function
             kind_ = QString::fromStdString(session->kind);
             startMedia(session->kind == "video");
 
+            if (session->deviceKeys) {
+                // Part B: the offer goes to every device of the callee as a device-key message, then the server is told.
+                const std::string callId = session->callId;
+                if (!deviceKeys_) {
+                    fail(QStringLiteral("Couldn't start the call. Try again."));
+                    return;
+                }
+                deviceKeys_->expectCall(callId, session->conversationId, session->peerUserId, true);
+                deviceKeys_->sendCallSignal(
+                    session->conversationId, session->peerUserId, callId, "offer", session->kind, ready.sdp, "*",
+                    [this, session, api, callId](const QString& error) {
+                        if (session_ != session) return;
+                        if (!error.isEmpty()) {
+                            fail(error);
+                            return;
+                        }
+                        runInBackground(
+                            pool_, this, [api, callId] { live::sendOfferOverDeviceKeys(*api, callId); },
+                            [this, session] {
+                                if (session_ == session && phase_ == QStringLiteral("outgoing")) playTone(false);
+                            },
+                            [this, session](const Failure& failure) {
+                                if (session_ == session) fail(describeError(failure, QStringLiteral("Couldn't start the call. Try again.")));
+                            });
+                    });
+                return;
+            }
+
             calls::CallSignal offer{"offer",        session->callId, session->sealedConversationId(), identity_->userId,
                                     session->peerUserId, session->kind, ready.sdp, calls::nowMs()};
             const calls::Sealed sealed = session->linkSecret ? calls::sealWithLink(offer, session->linkSecret->view())
@@ -579,12 +629,33 @@ void CallController::accept(bool audioOnly) {
             }
             session->media = ready.media;
             startMedia(session->kind == "video" && !audioOnly);
+            auto api = api_;
+            const std::string callId = session->callId;
+            if (session->deviceKeys) {
+                // Part B: the answer goes only to the device that sent the offer, then the server is told.
+                if (!deviceKeys_ || session->peerDeviceId.empty()) {
+                    fail(QStringLiteral("Couldn't answer the call."));
+                    return;
+                }
+                deviceKeys_->sendCallSignal(session->conversationId, session->peerUserId, callId, "answer", session->kind, ready.sdp,
+                                            session->peerDeviceId, [this, session, api, callId](const QString& error) {
+                                                if (session_ != session) return;
+                                                if (!error.isEmpty()) {
+                                                    fail(error);
+                                                    return;
+                                                }
+                                                runInBackground(
+                                                    pool_, this, [api, callId] { live::sendAnswerOverDeviceKeys(*api, callId); }, [] {},
+                                                    [this, session](const Failure& failure) {
+                                                        if (session_ == session) fail(describeError(failure, QStringLiteral("Couldn't answer the call.")));
+                                                    });
+                                            });
+                return;
+            }
             calls::CallSignal answer{"answer",           session->callId, session->sealedConversationId(), identity_->userId,
                                      session->peerUserId, session->kind,   ready.sdp,                        calls::nowMs()};
             const calls::Sealed sealed = session->linkSecret ? calls::sealWithLink(answer, session->linkSecret->view())
                                                              : calls::seal(answer, session->peerPublicKey, identity_->privateKey.view());
-            auto api = api_;
-            const std::string callId = session->callId;
             runInBackground(
                 pool_, this, [api, callId, sealed] { live::sendAnswer(*api, callId, {sealed.ciphertext, sealed.nonce}); }, [] {},
                 [this, session](const Failure& failure) {
@@ -632,6 +703,8 @@ void CallController::finish(const QString& message, const QString& outcomeIn) {
     session_.reset();
     stopTone();
     disconnectTimer_.stop();
+    setupTimer_.stop();
+    if (session && session->deviceKeys && deviceKeys_) deviceKeys_->forgetCall(session->callId);
     if (session) {
         session->closed = true;
         const QString outcome = !outcomeIn.isEmpty()           ? outcomeIn
@@ -840,10 +913,11 @@ void CallController::onLiveEvent(const live::LiveEvent& event) {
     if (event.type == "typing") return;
 
     if (event.type == "incoming") {
-        if (session_ || !event.sealed || !event.callerId || !event.kind) return;  // the server doesn't ring someone on a call
+        // The server doesn't ring someone on a call. Part B: the offer is either a sealed box or the device-keys marker.
+        if (session_ || (!event.sealed && !event.deviceKeys) || !event.callerId || !event.kind) return;
         const std::string kind = *event.kind == "video" ? "video" : "voice";
         const std::string callerId = *event.callerId;
-        const live::SealedSignal offer = *event.sealed;
+        const live::SealedSignal offer = event.sealed.value_or(live::SealedSignal{});  // empty with the device-keys marker
 
         auto showBlocked = [this](const std::string& handle, const QString& message) {
             if (session_) return;
@@ -860,6 +934,7 @@ void CallController::onLiveEvent(const live::LiveEvent& event) {
         };
 
         if (event.linkId) {
+            if (!event.sealed) return;  // call links are unchanged: always sealed with the link's secret
             // Someone opened one of your call links.
             struct Guest {
                 std::optional<live::CallLinkDto> link;
@@ -933,6 +1008,42 @@ void CallController::onLiveEvent(const live::LiveEvent& event) {
                 if (next && tries < 20) QTimer::singleShot(300, self, [next, tries] { (*next)(tries + 1); });
                 return;
             }
+            if (event.deviceKeys) {
+                // Part B: the offer comes as a device-key message. Read the mailbox now; ring only once it's there and checked.
+                if (!self->deviceKeys_ || !self->deviceKeys_->trusted()) {
+                    showBlocked(meta->handle, QStringLiteral("A call from %1 couldn't be set up: this computer isn't linked to your devices.")
+                                                  .arg(QString::fromStdString(meta->handle)));
+                    return;
+                }
+                auto pending = std::make_shared<Session>();
+                pending->callId = event.callId;
+                pending->conversationId = meta->id;
+                pending->peerUserId = callerId;
+                pending->peerHandle = meta->handle;
+                pending->peerAvatarUrl = meta->avatarUrl.value_or("");
+                pending->peerPublicKey = meta->otherPublicKey;
+                pending->kind = kind;
+                pending->direction = "incoming";
+                pending->iceServers = event.iceServers;
+                pending->deviceKeys = true;
+                pending->awaitingOffer = true;
+                self->session_ = pending;  // busy meanwhile; nothing is shown yet
+                self->setupTimer_.start();
+                self->deviceKeys_->expectCall(event.callId, meta->id, callerId, false);
+                self->deviceKeys_->receiveNow();
+                return;
+            }
+            if (!event.sealed) return;
+            if (self->deviceKeys_) {
+                // No way back (as in step 1): a chat on device keys never takes a call set up the older way.
+                QString refusal;
+                if (self->deviceKeys_->callsOverDeviceKeys(QString::fromStdString(meta->id), &refusal) || !refusal.isEmpty()) {
+                    declineQuietly(event.callId);
+                    showBlocked(meta->handle, QStringLiteral("A call from %1 came the older way and was refused.")
+                                                  .arg(QString::fromStdString(meta->handle)));
+                    return;
+                }
+            }
             auto session = std::make_shared<Session>();
             try {
                 session->offerSdp = calls::open({offer.ciphertext, offer.nonce}, meta->otherPublicKey, self->identity_->privateKey.view(),
@@ -965,7 +1076,25 @@ void CallController::onLiveEvent(const live::LiveEvent& event) {
     if (!session || session->callId != event.callId) return;
 
     if (event.type == "answered") {
-        if (session->direction != "outgoing" || !session->media || !event.sealed) return;
+        if (session->direction != "outgoing" || !session->media) return;
+        if (session->deviceKeys) {
+            // Part B: the answer comes through the mailbox (it may be there already). Never a sealed box in this call.
+            if (!event.deviceKeys) {
+                fail(QStringLiteral("Hung up: the answer didn't come the way the call was set up."));
+                return;
+            }
+            if (session->answerApplied) return;
+            stopTone();
+            phase_ = QStringLiteral("connecting");
+            emit callChanged();
+            setupTimer_.start();
+            if (deviceKeys_) deviceKeys_->receiveNow();
+            return;
+        }
+        if (!event.sealed) {
+            if (event.deviceKeys) fail(QStringLiteral("Hung up: the answer didn't come the way the call was set up."));
+            return;
+        }
         stopTone();
         phase_ = QStringLiteral("connecting");
         emit callChanged();
@@ -1002,6 +1131,82 @@ void CallController::onLiveEvent(const live::LiveEvent& event) {
         if (reason == "missed") outcome = session->direction == "incoming" ? QStringLiteral("missed") : QStringLiteral("unanswered");
         finish(endedText(reason, session->direction == "outgoing"), outcome);
     }
+}
+
+// --- Calls over device keys (part B) ---
+
+void CallController::onDeviceCallSignal(const std::string& callId, const std::string& fromDeviceId, const std::string& step,
+                                        const std::string& kind, const std::string& sdp) {
+    auto session = session_;
+    // DeviceKeysSession checked the sender, the conversation, the age and the device; this is the call's own state.
+    if (!session || !session->deviceKeys || session->closed || session->callId != callId) return;
+    if (session->direction == "incoming" && step == "offer") {
+        if (!session->awaitingOffer) return;
+        session->awaitingOffer = false;
+        setupTimer_.stop();
+        if (kind != session->kind) {
+            // Not the call the server announced: never ring for it.
+            session_.reset();
+            session->closed = true;
+            if (deviceKeys_) deviceKeys_->forgetCall(callId);
+            remember(*session, QStringLiteral("failed"));
+            peerHandle_ = QString::fromStdString(session->peerHandle);
+            direction_ = QStringLiteral("incoming");
+            phase_ = QStringLiteral("ended");
+            endedMessage_ = QStringLiteral("Blocked a call that didn't match what the server announced.");
+            emit callChanged();
+            endedTimer_.start(kEndedBannerMs * 2);
+            return;
+        }
+        session->offerSdp = sdp;
+        session->peerDeviceId = fromDeviceId;
+        ring(session);
+        return;
+    }
+    if (session->direction == "outgoing" && step == "answer") {
+        if (!session->media || session->answerApplied) return;
+        if (kind != session->kind) {
+            fail(QStringLiteral("Couldn't connect the call."));
+            return;
+        }
+        session->answerApplied = true;
+        session->peerDeviceId = fromDeviceId;
+        setupTimer_.stop();
+        stopTone();
+        phase_ = QStringLiteral("connecting");
+        emit callChanged();
+        auto media = session->media;
+        runInBackground(pool_, this, [media, sdp] { media->setAnswer(sdp); }, [] {},
+                        [this, session](const Failure&) {
+                            if (session_ == session) fail(QStringLiteral("Couldn't connect the call."));
+                        });
+        return;
+    }
+    // Restarts (restart-offer / restart-answer): this app doesn't restart ICE on a call, so there's nothing to apply.
+}
+
+void CallController::onSetupTimeout() {
+    auto session = session_;
+    if (!session || !session->deviceKeys) return;
+    if (session->direction == "incoming" && session->awaitingOffer) {
+        // The offer never came (or never checked out): show the call as failed. It never rang here, and the
+        // person's other devices may still answer it, so the server isn't told anything.
+        session_.reset();
+        session->closed = true;
+        if (deviceKeys_) deviceKeys_->forgetCall(session->callId);
+        remember(*session, QStringLiteral("failed"));
+        peerHandle_ = QString::fromStdString(session->peerHandle);
+        peerUserId_ = QString::fromStdString(session->peerUserId);
+        conversationId_ = QString::fromStdString(session->conversationId);
+        kind_ = QString::fromStdString(session->kind);
+        direction_ = QStringLiteral("incoming");
+        phase_ = QStringLiteral("ended");
+        endedMessage_ = QStringLiteral("A call from %1 couldn't be set up.").arg(peerHandle_);
+        emit callChanged();
+        endedTimer_.start(kEndedBannerMs * 2);
+        return;
+    }
+    if (session->direction == "outgoing" && !session->answerApplied) fail(QStringLiteral("Couldn't connect the call."));
 }
 
 // --- History (this computer only, encrypted) ---

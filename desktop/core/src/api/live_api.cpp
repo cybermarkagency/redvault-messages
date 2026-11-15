@@ -3,6 +3,8 @@
 
 #include "redvault/api/live_api.hpp"
 
+#include <string_view>
+
 #include <nlohmann/json.hpp>
 
 #include "redvault/api/api_error.hpp"
@@ -81,7 +83,14 @@ LiveEvent liveEvent(const Json& j) {
     e.reason = optField<std::string>(j, "reason");
     for (const char* key : {"offer", "answer", "signal", "key"}) {
         const auto it = j.find(key);
-        if (it != j.end() && it->is_object()) e.sealed = sealed(*it);
+        if (it == j.end() || !it->is_object()) continue;
+        if (std::string_view(key) != "key" && it->contains("carrier")) {
+            // Part B: the marker alone. Any other carrier isn't one this build knows: the step carries nothing usable.
+            const auto carrier = it->find("carrier");
+            if (carrier->is_string() && carrier->get<std::string>() == "device-keys" && it->size() == 1) e.deviceKeys = true;
+            continue;
+        }
+        e.sealed = sealed(*it);
     }
     e.iceServers = iceServers(j, "iceServers");
     e.on = optField<bool>(j, "on").value_or(false);
@@ -163,6 +172,18 @@ void sendAnswer(ApiClient& api, const std::string& callId, const SealedSignal& a
 
 void sendSignal(ApiClient& api, const std::string& callId, const SealedSignal& signal) {
     api.call("POST", callPath(callId, "signal"), toJson(signal));
+}
+
+void sendOfferOverDeviceKeys(ApiClient& api, const std::string& callId) {
+    api.call("POST", callPath(callId, "offer"), Json{{"carrier", "device-keys"}});
+}
+
+void sendAnswerOverDeviceKeys(ApiClient& api, const std::string& callId) {
+    api.call("POST", callPath(callId, "answer"), Json{{"carrier", "device-keys"}});
+}
+
+void sendSignalOverDeviceKeys(ApiClient& api, const std::string& callId) {
+    api.call("POST", callPath(callId, "signal"), Json{{"carrier", "device-keys"}});
 }
 
 void declineCall(ApiClient& api, const std::string& callId) {

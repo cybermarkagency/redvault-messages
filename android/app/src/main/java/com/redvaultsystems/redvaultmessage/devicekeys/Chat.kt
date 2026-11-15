@@ -19,13 +19,16 @@ import java.util.UUID
 
 /**
  * The v3 chat path (docs/multi-device-threat-model.md section 9): 1:1 and group (Megolm) text, files, reactions,
- * edits and deletes with copies for the sender's own devices, and the receive loop (the envelope and what the chat
+ * edits and deletes, and part A's replies, forwards, polls, pins, receipts and disappearing times, with copies for
+ * the sender's own devices, and the receive loop (the envelope and what the chat
  * shows are in ChatContent.kt). Implemented against 9.3-9.6;
  * ask the session that owns the server before changing the format.
  */
 object ChatLimits {
     const val MAX_TEXT_BYTES = 16 * 1024
     const val MAX_RECIPIENTS = 100
+    /** Ids in one receipt (part A). */
+    const val MAX_RECEIPT_TARGETS = 100
     const val ACK_BATCH = 500
     const val PAST_MS = 30L * 24 * 3600 * 1000
     const val FUTURE_MS = 5L * 60 * 1000
@@ -53,9 +56,10 @@ private fun JsonObject.identityKey(): Pair<String, String> =
  * The engine picks the protocol per device: rv-signal-v1 where both devices speak it (it then asks for a Signal bundle with
  * `no_signal_session`), Olm elsewhere. A device that speaks Signal but has no keys on the server fails the send: never an Olm copy.
  */
-private suspend fun encryptToDevices(
+internal suspend fun encryptToDevices(
     device: V3Device,
-    conversationId: String,
+    /** Only for claiming keys: the conversation the server checks both accounts are in (null for this account's own devices). */
+    conversationId: String?,
     plaintext: String,
     recipients: List<JsonObject>,
 ): List<Triple<String, String, String>> {
@@ -125,13 +129,21 @@ suspend fun sendText(
     id: String = UUID.randomUUID().toString(),
     now: Long = System.currentTimeMillis(),
     legacySigningKey: String? = null,
+    extras: MessageExtras = MessageExtras(),
 ): SendOutcome {
     require(text.toByteArray().size <= ChatLimits.MAX_TEXT_BYTES) { "A message is at most 16 KiB." }
     val conversation = conversationId.lowercase()
     val messageId = id.lowercase()
-    val record = ChatRecord(conversation, messageId, device.userId, device.deviceId, now, now, text, "out", "sent")
-    return deliverDirect(device, history, contactUserId, encodeText(conversation, text, messageId, now), record, legacySigningKey = legacySigningKey)
+    val record = outgoingRecord(device, conversation, messageId, now, text, extras)
+    return deliverDirect(device, history, contactUserId, encodeText(conversation, text, messageId, now, extras), record, legacySigningKey = legacySigningKey)
 }
+
+private fun outgoingRecord(device: V3Device, conversation: String, messageId: String, now: Long, text: String, extras: MessageExtras, file: FileDescriptor? = null) =
+    ChatRecord(
+        conversation, messageId, device.userId, device.deviceId, now, now, text, "out", "sent",
+        file = file, reply = extras.reply, forwarded = extras.forwarded, exp = extras.exp,
+        storyReply = extras.storyReply.takeIf { file == null },
+    )
 
 /**
  * Whether a one-to-one chat goes out on device keys, by the rule [sendText] follows: asked before a file is uploaded,
@@ -213,7 +225,9 @@ private fun memberWithoutDevices() =
  * Whether a group goes out on device keys, by the rule [sendGroupText] follows (07-step1 section 2): every member has
  * a signed device list. A pinned group where someone has none throws instead of going the usual way.
  */
-suspend fun groupOnDeviceKeys(device: V3Device, history: ChatHistory, groupId: String): Boolean {
+suspend fun groupOnDeviceKeys(device: V3Device, history: ChatHistory, groupId: String, community: CommunityRoute? = null): Boolean {
+    // Part C2: a community is on device keys only; there's no other way for it.
+    if (community != null) return true
     val group = groupId.lowercase()
     if (verifiedGroupDevices(device, group).everyMemberListed) return true
     if (history.pinned(group)) throw memberWithoutDevices()
@@ -228,16 +242,28 @@ suspend fun sendGroupText(
     text: String,
     id: String = UUID.randomUUID().toString(),
     now: Long = System.currentTimeMillis(),
+    extras: MessageExtras = MessageExtras(),
+    community: CommunityRoute? = null,
 ): SendOutcome {
     require(text.toByteArray().size <= ChatLimits.MAX_TEXT_BYTES) { "A message is at most 16 KiB." }
     val group = groupId.lowercase()
     val messageId = id.lowercase()
-    val record = ChatRecord(group, messageId, device.userId, device.deviceId, now, now, text, "out", "sent")
-    return deliverGroup(device, history, encodeText(group, text, messageId, now), record)
+    val record = outgoingRecord(device, group, messageId, now, text, extras)
+    return deliverGroup(device, history, encodeText(group, text, messageId, now, extras), record, community = community)
 }
 
 /** [deliverDirect] for a group; [record]'s conversation is the group. */
-private suspend fun deliverGroup(device: V3Device, history: ChatHistory, envelope: String, record: ChatRecord, keepFailed: Boolean = true): SendOutcome {
+private suspend fun deliverGroup(
+    device: V3Device,
+    history: ChatHistory,
+    envelope: String,
+    record: ChatRecord,
+    keepFailed: Boolean = true,
+    community: CommunityRoute? = null,
+    opOnly: Boolean = false,
+): SendOutcome {
+    // Part C2: a community has its own rules (roster from owner and staff, a channel's readers, batching).
+    if (community != null) return deliverCommunity(device, history, envelope, record, community, keepFailed, opOnly)
     val group = record.conversationId
     var attempt = 0
     while (true) {
@@ -334,12 +360,61 @@ suspend fun sendChatFile(
     file: FileDescriptor,
     id: String = UUID.randomUUID().toString(),
     now: Long = System.currentTimeMillis(),
+    extras: MessageExtras = MessageExtras(),
+    community: CommunityRoute? = null,
 ): SendOutcome {
     val conversation = conversationId.lowercase()
     val messageId = id.lowercase()
-    val record = ChatRecord(conversation, messageId, device.userId, device.deviceId, now, now, "", "out", "sent", file = file)
-    val envelope = encodeFile(conversation, file, messageId, now)
-    return if (isGroup) deliverGroup(device, history, envelope, record) else deliverDirect(device, history, contactUserId, envelope, record)
+    val record = outgoingRecord(device, conversation, messageId, now, "", extras, file)
+    val envelope = encodeFile(conversation, file, messageId, now, extras)
+    return if (isGroup) deliverGroup(device, history, envelope, record, community = community) else deliverDirect(device, history, contactUserId, envelope, record)
+}
+
+/**
+ * Sends a poll (part A): [question] and [options] by [validPoll]'s rules, [exp] as on a text. The poll's id is the
+ * message id. Same answers and failures as [sendChatFile].
+ */
+suspend fun sendChatPoll(
+    device: V3Device,
+    history: ChatHistory,
+    conversationId: String,
+    isGroup: Boolean,
+    contactUserId: String,
+    question: String,
+    poll: ChatPoll,
+    id: String = UUID.randomUUID().toString(),
+    now: Long = System.currentTimeMillis(),
+    exp: Long? = null,
+    community: CommunityRoute? = null,
+): SendOutcome {
+    if (!validPoll(question, poll.options)) throw EngineException("bad_poll", "A poll needs a question and 2 to 10 different options")
+    val conversation = conversationId.lowercase()
+    val messageId = id.lowercase()
+    val record = ChatRecord(conversation, messageId, device.userId, device.deviceId, now, now, question, "out", "sent", exp = exp, poll = poll)
+    val envelope = encodePoll(conversation, question, poll, messageId, now, exp)
+    return if (isGroup) deliverGroup(device, history, envelope, record, community = community) else deliverDirect(device, history, contactUserId, envelope, record)
+}
+
+/**
+ * Sends one receipt (part A) for messages [author] sent: to [author]'s devices and this account's other devices only,
+ * never to the rest of a group. Not kept when it fails: the next pass sends it again.
+ */
+suspend fun sendChatReceipt(
+    device: V3Device,
+    history: ChatHistory,
+    conversationId: String,
+    author: String,
+    targets: List<String>,
+    status: String,
+    id: String = UUID.randomUUID().toString(),
+    now: Long = System.currentTimeMillis(),
+) {
+    val conversation = conversationId.lowercase()
+    val messageId = id.lowercase()
+    val op = ChatOp.receipt(targets.map { it.lowercase() }, status)
+    val record = ChatRecord(conversation, messageId, device.userId, device.deviceId, now, now, "", "out", "sent", op = op)
+    val outcome = deliverDirect(device, history, author, encodeOp(conversation, op, messageId, now), record, keepFailed = false)
+    if (outcome !is SendOutcome.Sent) throw noDevices()
 }
 
 /**
@@ -355,15 +430,16 @@ suspend fun sendChatOp(
     op: ChatOp,
     id: String = UUID.randomUUID().toString(),
     now: Long = System.currentTimeMillis(),
+    community: CommunityRoute? = null,
 ) {
     if (op.body != null && op.body.toByteArray().size > ChatLimits.MAX_TEXT_BYTES) throw EngineException("too_long", "That message is too long")
     val conversation = conversationId.lowercase()
     val messageId = id.lowercase()
     val record = ChatRecord(conversation, messageId, device.userId, device.deviceId, now, now, "", "out", "sent", op = op)
     val envelope = encodeOp(conversation, op, messageId, now)
-    val outcome = if (isGroup) deliverGroup(device, history, envelope, record, keepFailed = false) else deliverDirect(device, history, contactUserId, envelope, record, keepFailed = false)
+    val outcome = if (isGroup) deliverGroup(device, history, envelope, record, keepFailed = false, community = community, opOnly = true) else deliverDirect(device, history, contactUserId, envelope, record, keepFailed = false)
     if (outcome !is SendOutcome.Sent) throw noDevices()
-    if (op.t == ChatOp.DELETE) history.eraseDeleted(conversation)
+    if (op.t == ChatOp.DELETE) history.eraseDeleted(conversation, now)
 }
 
 /** What one pass of the receive loop found. */
@@ -376,7 +452,20 @@ class ReceiveReport(
     val needUpdate: Int,
     /** Why items were acknowledged without being shown (codes only, never content): duplicates, unknown senders, undecryptable... */
     val dropped: List<String> = emptyList(),
+    /** Part B's call setup and room keys: acknowledged, never stored; the calls take them from here. */
+    val calls: List<IncomingCallEnvelope> = emptyList(),
+    /** Part D: story keys and named answers this pass stored (in the story-key store, never in a chat). */
+    val stories: Int = 0,
 )
+
+/**
+ * Where part D's pairwise story items go (docs/signal-integration/12-part-d-stories.md): the local, encrypted story-key
+ * store. Each call must have saved what it took before returning (the item is acknowledged next).
+ */
+interface StorySink {
+    fun storyKey(senderUserId: String, senderDeviceId: String, key: StoryKeyMessage, now: Long)
+    fun storyAnswer(senderUserId: String, answer: StoryAnswerMessage, ts: Long, now: Long)
+}
 
 private fun JsonObject.str(name: String) = this[name]?.jsonPrimitive?.contentOrNull
 
@@ -390,13 +479,24 @@ private fun incoming(conversationId: String, id: String, senderUserId: String, s
  * validated (9.3), written to [history], and only then acknowledged. Items that can never succeed are
  * acknowledged too; items held for the sender's identity change, a late room key, or a newer app are not.
  */
-suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = System.currentTimeMillis(), today: LocalDate = LocalDate.now(ZoneOffset.UTC)): ReceiveReport {
+suspend fun receiveMessages(
+    device: V3Device,
+    history: ChatHistory,
+    now: Long = System.currentTimeMillis(),
+    today: LocalDate = LocalDate.now(ZoneOffset.UTC),
+    /** Part C2: which conversations are communities. Their posts only ever come as group messages. */
+    communityOf: (String) -> CommunityContext? = { null },
+    /** Part D: the story-key store. Without one, story items are acknowledged and dropped. */
+    stories: StorySink? = null,
+): ReceiveReport {
     val items = device.api.inbox(device.deviceId)
     val acks = ArrayList<String>()
     val received = ArrayList<ChatRecord>()
     val held = ArrayList<String>()
     var needUpdate = 0
     val dropped = ArrayList<String>()
+    val calls = ArrayList<IncomingCallEnvelope>()
+    var storyItems = 0
     fun drop(id: String, why: String) {
         acks += id
         dropped += why
@@ -407,7 +507,15 @@ suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = 
 
     suspend fun sender(userId: String, conversationId: String?): Known = lists.getOrPut("$userId/${conversationId.orEmpty()}") {
         try {
-            Known(verifiedDevices(device, userId, conversationId).devices, null)
+            try {
+                Known(verifiedDevices(device, userId, conversationId).devices, null)
+            } catch (e: ApiException) {
+                // Part D: a story's items carry the story id. The server lists the author's devices to a viewer under it only
+                // while the story is published and live (a key can come earlier, for a story still uploading, or later, for
+                // a late friend on a highlight). Story authors and viewers are friends, whose lists read without one.
+                if (e.status != 404 || conversationId == null) throw e
+                Known(verifiedDevices(device, userId, null).devices, null)
+            }
         } catch (e: EngineException) {
             if (e.code == "not_linked" && userId == device.userId) {
                 Known(device.api.deviceList(device.userId).deviceList?.get("devices")?.let { (it as kotlinx.serialization.json.JsonArray).map { d -> d.jsonObject } }.orEmpty(), null)
@@ -449,6 +557,8 @@ suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = 
         }
 
         var plaintext: String? = null
+        // Part B's call messages are only ever sent pairwise: one that came through a group session is refused.
+        var pairwise = false
         if (body.str("protocol") == "rv-signal-group-v1") {
             // M6: a Signal group message. Its roster is verified first; a key or roster that hasn't arrived waits.
             val groupId = body.str("groupId").orEmpty().lowercase()
@@ -528,19 +638,68 @@ suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = 
                 continue
             }
             plaintext = r.string("plaintext")
+            pairwise = true
         }
 
         val decoded = decodeEnvelope(plaintext!!, conversationId, now)
+        // Part C2: a community's posts (text, files, polls) come only under the roster's sender keys; pairwise there is
+        // only for changes, receipts and calls. In a channel that's what keeps members from posting to each other.
+        if (pairwise && decoded is DecodedEnvelope.Shown && conversationId != null && communityOf(conversationId) != null) {
+            drop(id, "community_pairwise_post")
+            continue
+        }
         val record = when (decoded) {
             is DecodedEnvelope.Newer -> {
                 needUpdate++
+                continue
+            }
+            is DecodedEnvelope.Call, is DecodedEnvelope.CallKey -> {
+                // Ephemeral (part B): acknowledged and handed to the call, never stored, folded or answered with a receipt.
+                val call = (decoded as? DecodedEnvelope.Call)?.call
+                when {
+                    !pairwise -> drop(id, "call_not_pairwise")
+                    call != null && call.to != CallMessage.EVERY_DEVICE && call.to != device.deviceId -> drop(id, "call_not_for_this_device")
+                    else -> {
+                        acks += id
+                        calls += IncomingCallEnvelope(
+                            senderUserId, senderDeviceId, conversationId!!, device.deviceId,
+                            ts = (decoded as? DecodedEnvelope.Call)?.ts ?: (decoded as DecodedEnvelope.CallKey).ts,
+                            call = call, key = (decoded as? DecodedEnvelope.CallKey)?.key,
+                        )
+                    }
+                }
                 continue
             }
             is DecodedEnvelope.Ignore -> {
                 drop(id, decoded.reason)
                 continue
             }
-            is DecodedEnvelope.Shown -> incoming(conversationId!!, decoded.id, senderUserId, senderDeviceId, decoded.ts, now, device).copy(text = decoded.text, file = decoded.file)
+            is DecodedEnvelope.StoryKey, is DecodedEnvelope.StoryAnswer -> {
+                // Part D: pairwise only, kept in the story-key store (never in a chat), then acknowledged.
+                when {
+                    !pairwise -> drop(id, "story_not_pairwise")
+                    stories == null -> drop(id, "story_unsupported")
+                    else -> {
+                        try {
+                            if (decoded is DecodedEnvelope.StoryKey) stories.storyKey(senderUserId, senderDeviceId, decoded.key, now)
+                            else stories.storyAnswer(senderUserId, (decoded as DecodedEnvelope.StoryAnswer).answer, decoded.ts, now)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Couldn't be saved: kept on the server for the next pass.
+                            held += id
+                            continue
+                        }
+                        storyItems++
+                        acks += id
+                    }
+                }
+                continue
+            }
+            is DecodedEnvelope.Shown -> incoming(conversationId!!, decoded.id, senderUserId, senderDeviceId, decoded.ts, now, device).copy(
+                text = decoded.text, file = decoded.file, reply = decoded.reply, forwarded = decoded.forwarded, exp = decoded.exp, poll = decoded.poll,
+                storyReply = decoded.storyReply,
+            )
             is DecodedEnvelope.Op -> incoming(conversationId!!, decoded.id, senderUserId, senderDeviceId, decoded.ts, now, device).copy(op = decoded.op)
         }
         // Written to history before it is acknowledged: a crash here redelivers the item.
@@ -548,12 +707,80 @@ suspend fun receiveMessages(device: V3Device, history: ChatHistory, now: Long = 
             received += record
             history.pin(record.conversationId)
             // Covers a delete that arrived before the message it deletes, too.
-            history.eraseDeleted(record.conversationId)
+            history.eraseDeleted(record.conversationId, now)
         } else {
             dropped += "duplicate"
         }
         acks += id
     }
     acks.chunked(ChatLimits.ACK_BATCH).forEach { device.api.ack(device.deviceId, it) }
-    return ReceiveReport(received, held, needUpdate, dropped)
+    return ReceiveReport(received, held, needUpdate, dropped, calls, storyItems)
+}
+
+// --- Part B: call setup and group call room keys (docs/signal-integration/09-part-b-calls.md) ---
+
+/**
+ * Sends one step of a one-to-one call to [contactUserId]'s devices, pairwise, with [conversationId] (the chat) as its
+ * conversation: to every listed device when [onlyDevice] is null, otherwise to that device alone. Never to this
+ * account's other devices, never kept in the history, never queued for later (the caller bounds it in time).
+ */
+suspend fun sendCallMessage(
+    device: V3Device,
+    conversationId: String,
+    contactUserId: String,
+    call: CallMessage,
+    onlyDevice: String? = null,
+    id: String = UUID.randomUUID().toString(),
+    now: Long = System.currentTimeMillis(),
+) {
+    val conversation = conversationId.lowercase()
+    val envelope = encodeCall(conversation, call, id.lowercase(), now)
+    sendEphemeral(device, conversation, envelope) {
+        val theirs = verifiedDevices(device, contactUserId, conversation).devices
+            .filter { onlyDevice == null || it.str("deviceId") == onlyDevice }
+        if (theirs.isEmpty()) {
+            throw if (onlyDevice == null) noDevices() else EngineException("device_not_listed", "The other person's device isn't in their list any more.")
+        }
+        theirs
+    }
+}
+
+/**
+ * Sends a group call's room key to every listed device of each of [participants] (the server's list for the call,
+ * other than this account), pairwise, with [groupId] as the conversation: never as a group message, so only the people
+ * in the call get it. Never kept, never queued.
+ */
+suspend fun sendCallKeyMessage(
+    device: V3Device,
+    groupId: String,
+    participants: List<String>,
+    key: CallKeyMessage,
+    id: String = UUID.randomUUID().toString(),
+    now: Long = System.currentTimeMillis(),
+) {
+    val group = groupId.lowercase()
+    val others = participants.map { it.lowercase() }.distinct().filter { it != device.userId }
+    if (others.isEmpty()) return
+    val envelope = encodeCallKey(group, key, id.lowercase(), now)
+    sendEphemeral(device, group, envelope) {
+        others.flatMap { user ->
+            verifiedDevices(device, user, group).devices.also { if (it.isEmpty()) throw memberWithoutDevices() }
+        }
+    }
+}
+
+/** Encrypts [envelope] to the devices [recipients] lists and posts the copies, 100 at a time; a stale list is fetched again once. */
+private suspend fun sendEphemeral(device: V3Device, conversation: String, envelope: String, recipients: suspend () -> List<JsonObject>) {
+    var attempt = 0
+    while (true) {
+        attempt++
+        try {
+            val messages = encryptToDevices(device, conversation, envelope, recipients())
+            messages.chunked(ChatLimits.MAX_RECIPIENTS).forEach { device.api.sendMessages(device.deviceId, conversation, it) }
+            break
+        } catch (e: ApiException) {
+            if (staleOnce(e) && attempt == 1) continue
+            throw e
+        }
+    }
 }

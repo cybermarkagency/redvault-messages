@@ -77,7 +77,7 @@ Dialog {
             filled: true
             iconName: "x"
             iconSize: 16
-            tip: "Close"
+            tip: qsTr("Close")
             onClicked: dialog.close()
         }
     }

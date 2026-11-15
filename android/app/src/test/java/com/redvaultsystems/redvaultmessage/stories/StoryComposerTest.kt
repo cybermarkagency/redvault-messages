@@ -26,6 +26,7 @@ import com.redvaultsystems.redvaultmessage.data.model.StoryKind
 import com.redvaultsystems.redvaultmessage.data.model.StorySticker
 import com.redvaultsystems.redvaultmessage.ui.stories.ComposerModel
 import com.redvaultsystems.redvaultmessage.ui.stories.Selected
+import com.redvaultsystems.redvaultmessage.ui.stories.ShareFailure
 import com.redvaultsystems.redvaultmessage.ui.stories.SlideUi
 import com.redvaultsystems.redvaultmessage.ui.stories.StickerFields
 import com.redvaultsystems.redvaultmessage.ui.stories.StickerKind
@@ -214,6 +215,131 @@ class StoryComposerTest {
             // Everything else about it is as it was.
             assertEquals(withPlacement(s, 0.0, 0.0, 1.0, 0.0), withPlacement(moved, 0.0, 0.0, 1.0, 0.0))
         }
+    }
+
+    // --- Dragging, pinching and turning an item -------------------------------------------------------------------------
+
+    private val start = com.redvaultsystems.redvaultmessage.ui.stories.Place(0.5, 0.5, 1.0, 0.0)
+    private fun gesture(minScale: Double = 0.5, maxScale: Double = 4.0, from: com.redvaultsystems.redvaultmessage.ui.stories.Place = start) =
+        com.redvaultsystems.redvaultmessage.ui.stories.ItemGesture(from, 100f, 200f, minScale, maxScale)
+
+    @Test
+    fun aGestureIsWorkedOutFromWhereItStartedSoManySmallStepsEqualOneBigOne() {
+        val steps = gesture()
+        var last = start
+        repeat(10) { last = steps.add(5f, -10f, 1.1f, 3f) }
+        val whole = gesture().add(50f, -100f, Math.pow(1.1, 10.0).toFloat(), 30f)
+        assertEquals(whole.x, last.x, 1e-6)
+        assertEquals(whole.y, last.y, 1e-6)
+        assertEquals(whole.scale, last.scale, 1e-4)
+        assertEquals(whole.rotation, last.rotation, 1e-4)
+        assertEquals(0.5 + 50.0 / 100, last.x, 1e-6)
+        assertEquals(0.5 - 100.0 / 200, last.y, 1e-6)
+        assertEquals(30.0, last.rotation, 1e-4)
+    }
+
+    @Test
+    fun goingPastALimitAndComingBackNeedsNoUnwinding() {
+        val g = gesture()
+        assertEquals("held at the biggest size", 4.0, g.add(0f, 0f, 8f, 0f).scale, 1e-9)
+        assertEquals("half of that straight away, not half of 8", 2.0, g.add(0f, 0f, 0.5f, 0f).scale, 1e-6)
+        assertEquals("held at the smallest", 0.5, gesture().add(0f, 0f, 0.01f, 0f).scale, 1e-9)
+        val p = gesture()
+        assertEquals("held at the right edge", 1.0, p.add(900f, 0f, 1f, 0f).x, 1e-9)
+        assertEquals("and moving back at once, from the edge and not from where the finger went", 0.9, p.add(-10f, 0f, 1f, 0f).x, 1e-9)
+        assertEquals("held at the top", 0.0, gesture().add(0f, -9000f, 1f, 0f).y, 1e-9)
+    }
+
+    @Test
+    fun aTurnWrapsAroundAndNeverLeavesZeroToThreeSixty() {
+        assertEquals(10.0, gesture(from = com.redvaultsystems.redvaultmessage.ui.stories.Place(0.5, 0.5, 1.0, 350.0)).add(0f, 0f, 1f, 20f).rotation, 1e-9)
+        assertEquals(345.0, gesture(from = com.redvaultsystems.redvaultmessage.ui.stories.Place(0.5, 0.5, 1.0, 5.0)).add(0f, 0f, 1f, -20f).rotation, 1e-9)
+        assertEquals(0.0, gesture().add(0f, 0f, 1f, 720f).rotation, 1e-9)
+        assertEquals(1.5, gesture(0.6, 2.5, com.redvaultsystems.redvaultmessage.ui.stories.Place(0.5, 0.5, 1.5, 0.0)).add(0f, 0f, 1f, 0f).scale, 1e-9)
+        // A sticker's own limits: 0.6 to 2.5.
+        assertEquals(2.5, gesture(0.6, 2.5).add(0f, 0f, 9f, 0f).scale, 1e-9)
+        assertEquals(0.6, gesture(0.6, 2.5).add(0f, 0f, 0.1f, 0f).scale, 1e-9)
+    }
+
+    // --- Sharing several slides, and a share that stops part-way ---------------------------------------------------------
+
+    private fun modelOf(vararg texts: String): ComposerModel {
+        val m = ComposerModel(true)
+        texts.forEachIndexed { i, t ->
+            if (i > 0) m.addSlide()
+            m.change { it.copy(text = t) }
+        }
+        return m
+    }
+
+    @Test
+    fun everySlideIsSharedInOrderAndOnlyTheLastIsLastAndTheLastStaysForTheCallerToClose() {
+        val m = modelOf("one", "two", "three")
+        val seen = ArrayList<Pair<String, Boolean>>()
+        val progress = ArrayList<Pair<Int, Int>>()
+        var afterEach = 0
+        kotlinx.coroutines.runBlocking {
+            m.shareAll(post = { s, last -> seen.add(s.text to last) }, afterEach = { afterEach++ }, onProgress = { d, t -> progress.add(d to t) })
+        }
+        assertEquals(listOf("one" to false, "two" to false, "three" to true), seen)
+        assertEquals(listOf(0 to 3, 1 to 3, 2 to 3), progress)
+        assertEquals("kept after each one that isn't the last", 2, afterEach)
+        assertEquals(listOf("three"), m.slides.map { it.text })
+    }
+
+    @Test
+    fun aShareThatStopsPartWayLeavesOnlyWhatWasNotPostedAndARetryNeverPostsTheOthersTwice() {
+        val m = modelOf("one", "two", "three")
+        val posted = ArrayList<String>()
+        var afterEach = 0
+        val boom = IllegalStateException("the server said no")
+        val failure = kotlin.runCatching {
+            kotlinx.coroutines.runBlocking {
+                m.shareAll(post = { s, _ -> if (s.text == "two") throw boom else posted.add(s.text) }, afterEach = { afterEach++ })
+            }
+        }.exceptionOrNull() as ShareFailure
+        assertEquals(1, failure.posted)
+        assertEquals(3, failure.total)
+        assertEquals(boom, failure.cause)
+        assertEquals(listOf("one"), posted)
+        assertEquals(1, afterEach)
+        assertEquals(listOf("two", "three"), m.slides.map { it.text })
+        assertEquals(0, m.current)
+        // Trying again posts "two" and "three" and nothing else.
+        kotlinx.coroutines.runBlocking { m.shareAll(post = { s, _ -> posted.add(s.text) }) }
+        assertEquals(listOf("one", "two", "three"), posted)
+    }
+
+    @Test
+    fun aFailureOnTheFirstOrTheLastSlideIsReportedWithTheRightCount() {
+        val first = modelOf("one", "two")
+        val a = kotlin.runCatching { kotlinx.coroutines.runBlocking { first.shareAll(post = { _, _ -> error("no") }) } }.exceptionOrNull() as ShareFailure
+        assertEquals(0, a.posted)
+        assertEquals(listOf("one", "two"), first.slides.map { it.text })
+        val last = modelOf("one", "two", "three")
+        val b = kotlin.runCatching { kotlinx.coroutines.runBlocking { last.shareAll(post = { s, _ -> if (s.text == "three") error("no") }) } }.exceptionOrNull() as ShareFailure
+        assertEquals(2, b.posted)
+        assertEquals("the one that failed stays", listOf("three"), last.slides.map { it.text })
+    }
+
+    @Test
+    fun cancellingAShareIsNotAFailureAndWhatWasPostedIsStillOffTheList() {
+        val m = modelOf("one", "two", "three")
+        val result = kotlin.runCatching {
+            kotlinx.coroutines.runBlocking { m.shareAll(post = { s, _ -> if (s.text == "two") throw kotlinx.coroutines.CancellationException("stopped") }) }
+        }.exceptionOrNull()
+        assertTrue("a cancellation passes through as itself: $result", result is kotlinx.coroutines.CancellationException)
+        assertEquals(listOf("two", "three"), m.slides.map { it.text })
+    }
+
+    @Test
+    fun aSingleSlideIsSharedOnceAsTheLastWithNothingKeptInBetween() {
+        val m = modelOf("only")
+        var calls = 0
+        var afterEach = 0
+        kotlinx.coroutines.runBlocking { m.shareAll(post = { _, last -> calls++; assertTrue(last) }, afterEach = { afterEach++ }) }
+        assertEquals(1, calls)
+        assertEquals(0, afterEach)
     }
 
     // --- The slides the composer holds -----------------------------------------------------------------------------

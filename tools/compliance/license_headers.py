@@ -35,6 +35,7 @@ SKIP_PREFIXES = (
     "desktop/app/icons/lucide/",     # Lucide icons (ISC)
     "android/gradle/wrapper/",       # Gradle wrapper (Apache-2.0)
     "android/gradlew",               # Gradle wrapper scripts (Apache-2.0)
+    "tor-core/patches/",             # vendored, patched crates (rusqlite MIT, saturating-time MIT/Apache-2.0), see tor-core/AUDIT.md
 )
 
 

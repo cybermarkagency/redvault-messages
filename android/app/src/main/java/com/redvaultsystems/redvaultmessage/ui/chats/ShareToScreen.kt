@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,10 +44,10 @@ class SharedItems(val uris: List<Uri>, val text: String)
 fun ShareToScreen(items: SharedItems?, conversations: List<Conversation>, onPick: (conversationId: String) -> Unit, onBack: () -> Unit) {
     val colors = RedvaultTheme.colors
     var query by remember { mutableStateOf("") }
-    SubScreen(title = "Share to", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_share_to), onBack = onBack) {
         if (items == null) {
             // The app was restarted since: the files have to be shared again.
-            Text("Nothing to share any more. Share it again from the other app.", color = colors.text3, fontSize = 14.sp)
+            Text(stringResource(R.string.ui_nothing_to_share_any_more_share), color = colors.text3, fontSize = 14.sp)
             return@SubScreen
         }
         val what = listOfNotNull(

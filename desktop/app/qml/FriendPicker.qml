@@ -35,8 +35,8 @@ ColumnLayout {
         visible: picker.available.length === 0
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: picker.friends.length === 0 ? "You don't have any friends yet. Add one from Friends first."
-                                          : "Everyone you're friends with is already here."
+        text: picker.friends.length === 0 ? qsTr("You don't have any friends yet. Add one from Friends first.")
+                                          : qsTr("Everyone you're friends with is already here.")
         textFormat: Text.PlainText
         color: Theme.text3
     }

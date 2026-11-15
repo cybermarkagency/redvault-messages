@@ -55,6 +55,9 @@ class PrivacyManifestTest {
                 "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
                 // The background connection for notifications when no UnifiedPush app is installed.
                 "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+                // In-app updates of the website APK (update/AppUpdates.kt): Android asks the user to allow it, then to
+                // confirm each install, and only accepts an APK signed with this app's key.
+                "android.permission.REQUEST_INSTALL_PACKAGES",
             ),
             requested,
         )
@@ -84,6 +87,10 @@ class PrivacyManifestTest {
         assertTrue("ApiClient.publicClient(BuildConfig.API_BASE, tor)" in app)
         assertEquals(listOf("signalingClient = { host -> ApiClient.signalingClient(host) },"),
             app.lines().filter { "ApiClient.signalingClient(" in it }.map { it.trim() })
+        // The sealed backup route (docs/tor-sealed-fallback.md): its own client, through the same Tor gate, https to one host.
+        assertTrue("val website = ApiClient.sealedRouteClient(gateway, torController)" in app)
+        val apiClient = sources.single { it.first.name == "ApiClient.kt" }.second
+        assertTrue(Regex("""fun sealedRouteClient\([^)]*\): OkHttpClient \{[\s\S]*?TorRouting\.installForWebsite\(""").containsMatchIn(apiClient))
         // The device-key API is built on the same Tor-routed client.
         assertTrue("RetrofitV3Api(ApiClient.createV3(BuildConfig.API_BASE, httpClient))" in app)
         assertTrue(Regex("""createV3\((?!BuildConfig\.API_BASE, httpClient\))""").find(app) == null)

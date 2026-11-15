@@ -27,11 +27,17 @@ if [ -z "$onion" ]; then
     echo "No official onion service in cmake/tor_settings.cmake" >&2
     exit 1
 fi
+# The sealed backup route's pinned gateway key (docs/tor-sealed-fallback.md), from the same file.
+sealed_key=$(sed -n 's/^set(REDVAULT_OFFICIAL_SEALED_KEY_CONFIG "\([0-9a-f]*\)")$/\1/p' cmake/tor_settings.cmake)
+if [ -z "$sealed_key" ]; then
+    echo "No sealed backup route key in cmake/tor_settings.cmake" >&2
+    exit 1
+fi
 cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
     -DREDVAULT_BUILD_CLI=OFF -DREDVAULT_BUILD_TOOLS=OFF -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON \
-    -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON "-DREDVAULT_ONION_API_BASE=$onion" -DREDVAULT_RELEASE_BUILD=ON \
+    -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON "-DREDVAULT_ONION_API_BASE=$onion" -DREDVAULT_RELEASE_BUILD=ON "-DREDVAULT_SEALED_KEY_CONFIG=$sealed_key" \
     "-DREDVAULT_SOURCE_CODE_URL=${REDVAULT_SOURCE_CODE_URL:-}" "-DREDVAULT_SOURCE_CONTACT=${REDVAULT_SOURCE_CONTACT:-}"
-for setting in "REDVAULT_TOR:BOOL=ON" "REDVAULT_TOR_ONLY:BOOL=ON" "REDVAULT_ONION_API_BASE:STRING=$onion" "REDVAULT_RELEASE_BUILD:BOOL=ON"; do
+for setting in "REDVAULT_TOR:BOOL=ON" "REDVAULT_TOR_ONLY:BOOL=ON" "REDVAULT_ONION_API_BASE:STRING=$onion" "REDVAULT_RELEASE_BUILD:BOOL=ON" "REDVAULT_SEALED_KEY_CONFIG:STRING=$sealed_key"; do
     if ! grep -qxF "$setting" "$build/CMakeCache.txt"; then
         echo "This build isn't Tor-only at the official onion service ($setting missing). A published build never is anything else." >&2
         exit 1

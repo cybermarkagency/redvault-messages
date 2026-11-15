@@ -26,8 +26,12 @@ struct Story {
     bool allowReplies = true;
     std::string createdAt;
     std::string expiresAt;
-    /// This viewer's copy of the story key, sealed by the author.
+    /// This viewer's copy of the story key, sealed by the author. Empty on a device-keys story (its key comes as a
+    /// `storykey` device-key message, docs/signal-integration/12-part-d-stories.md).
     std::string wrappedKey;
+    /// "account-keys" (a wrapped key above) or "device-keys". Servers before Part D leave it out: account keys.
+    std::string delivery = "account-keys";
+    bool deviceKeys() const { return delivery == "device-keys"; }
     /// Feed: whether this viewer shared a view. Own: how many did. Archive: when it left the story.
     bool seen = false;
     int viewCount = 0;
@@ -61,6 +65,8 @@ struct WrappedKey {
 
 struct KeyGap {
     std::string storyId;
+    /// "account-keys" (wrap a key for each user, POST /:id/keys) or "device-keys" (POST /:id/access, then send `storykey`).
+    std::string delivery = "account-keys";
     /// Friends without a key yet, with the public key (base64) the server has for them.
     std::vector<std::pair<std::string, std::string>> users;
 };
@@ -74,6 +80,9 @@ struct NewStory {
     std::string audience;  // "friends" | "close_friends" | "custom"
     bool allowReplies = true;
     std::vector<WrappedKey> keys;
+    /// Part D: a device-keys story names its viewer accounts instead of `keys` (K goes to their devices as `storykey`).
+    bool deviceKeys = false;
+    std::vector<std::string> viewers;
     /// How long it stays up (1, 6, 12, 24, 48 hours or 7 days, in seconds); the server uses 24 hours when left out.
     std::optional<int> ttlSeconds;
 };
@@ -81,6 +90,8 @@ struct NewStory {
 /// What the server offers. `interactive` and `ttlSeconds` are missing from servers that predate interactive stories:
 /// no stickers to answer, and 24 hours only.
 struct Config {
+    /// The server's master switch (STORIES_ENABLED). Missing (a server that predates it): on. Anything but a boolean: off.
+    bool enabled = true;
     bool media = false;
     bool interactive = false;
     std::vector<int> ttlSeconds;
@@ -133,6 +144,12 @@ bool mediaEnabled(ApiClient& api);
 Feed feed(ApiClient& api);
 /// Returns whether it's published yet (a text story is at once; media once uploaded).
 bool create(ApiClient& api, const NewStory& story);
+struct Created {
+    bool published = false;
+    std::string expiresAt;  // ISO, as the server set it
+};
+/// The same, with when it ends (a device-keys story's key says so to every viewer device).
+Created createStory(ApiClient& api, const NewStory& story);
 /// The encrypted photo or video, exactly the announced size.
 void uploadMedia(ApiClient& api, const std::string& storyId, std::string ciphertext);
 std::string downloadMedia(ApiClient& api, const std::string& storyId);
@@ -142,6 +159,8 @@ void remove(ApiClient& api, const std::string& storyId);
 std::vector<Story> archive(ApiClient& api);
 std::vector<KeyGap> keyGaps(ApiClient& api);
 int addKeys(ApiClient& api, const std::string& storyId, const std::vector<WrappedKey>& keys);
+/// Part D: late friends get access to a device-keys "friends" story (before the key is sent to them). Returns how many were added.
+int addAccess(ApiClient& api, const std::string& storyId, const std::vector<std::string>& viewers);
 /// Hide stories from someone: all of yours, or just `storyIds`.
 int revoke(ApiClient& api, const std::string& userId, const std::optional<std::vector<std::string>>& storyIds = std::nullopt);
 
@@ -158,9 +177,11 @@ void putTotals(ApiClient& api, const std::string& storyId, const std::string& st
 std::vector<TotalsRow> totals(ApiClient& api, const std::string& storyId);
 /// ApiError 409 "already_reported" the second time. `evidence` (up to 600 characters) is sent only when the reporter chose to include it.
 void reportStory(ApiClient& api, const std::string& storyId, const std::string& reason, const std::optional<std::string>& evidence);
-/// The author reports an abusive answer by its exact envelope (admins see who sent it, the author does not need to).
+/// The author reports an abusive answer by its exact envelope (admins see who sent it, the author does not need to). A named
+/// answer to a device-keys story came over device keys and has no envelope on the server: `envelopeBase64` is empty and
+/// `responderId` names who sent it (Part D). Neither: std::invalid_argument.
 void reportAnswer(ApiClient& api, const std::string& storyId, const std::string& stickerId, const std::string& envelopeBase64, const std::string& reason,
-                  const std::optional<std::string>& evidence);
+                  const std::optional<std::string>& evidence, const std::string& responderId = {});
 
 std::vector<Highlight> highlights(ApiClient& api, const std::string& userId);
 std::string createHighlight(ApiClient& api, const std::string& titleCiphertext, const std::string& titleNonce, const std::string& coverStoryId,

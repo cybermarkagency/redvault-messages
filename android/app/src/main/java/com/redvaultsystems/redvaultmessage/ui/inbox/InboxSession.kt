@@ -36,7 +36,7 @@ data class InboxState(
 }
 
 /**
- * The Inbox: messages and polls the Redvault team sends from the web admin panel (/api/announcements), the
+ * The Inbox: messages and polls the RedVault team sends from the web admin panel (/api/announcements), the
  * counterpart of the web's screens/Announcements.tsx and the desktop's InboxView. They are NOT end-to-end
  * encrypted (the server counts votes) and the page says so. Checked every minute while the app is on screen,
  * for the badge in Settings; opening the page marks everything read.

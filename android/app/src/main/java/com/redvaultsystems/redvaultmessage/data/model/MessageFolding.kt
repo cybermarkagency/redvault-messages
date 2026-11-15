@@ -90,7 +90,10 @@ object MessageFolding {
             .map { (emoji, tally) -> ReactionView(emoji, tally.senders.size, tally.myReactionId != null, tally.myReactionId) }
     }
 
-    /** Pinned messages from the pin notices in a chat (oldest first); at most [MAX_PINS] stay pinned. */
+    /**
+     * Pinned messages from the pin notices in a chat (oldest first); at most [MAX_PINS] stay pinned. Device-key
+     * messages carry their pin themselves ([Message.pinned], part A) and come after the notices' pins.
+     */
     fun pinnedFrom(messages: List<Message>): List<PinnedView> {
         val pinned = ArrayList<PinnedView>()
         for (m in messages) {
@@ -100,6 +103,18 @@ object MessageFolding {
             pinned += PinnedView(notice.targetId, m.text, m.fromMe, m.senderId)
             if (pinned.size > MAX_PINS) pinned.removeAt(0)
         }
+        for (m in messages) {
+            if (!m.v3 || !m.pinned || m.deleted) continue
+            pinned += PinnedView(m.id.lowercase(), pinPreview(m), m.pinnedByMe, m.pinnedBy.orEmpty())
+            if (pinned.size > MAX_PINS) pinned.removeAt(0)
+        }
         return pinned
+    }
+
+    /** What a pin shows of [m]. */
+    fun pinPreview(m: Message): String = when {
+        m.kind == MessageKind.File -> "\uD83D\uDCCE ${m.text}"
+        m.poll != null -> "\uD83D\uDCCA ${m.text}"
+        else -> m.text
     }
 }

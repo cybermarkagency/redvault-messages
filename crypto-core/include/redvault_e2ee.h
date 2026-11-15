@@ -23,8 +23,30 @@ extern "C" {
  * Free with rv_e2ee_free. */
 uint8_t* rv_e2ee_call(const uint8_t* request, size_t len, size_t* out_len);
 
-/* Wipes and frees a response from rv_e2ee_call. */
+/* Wipes and frees a response from rv_e2ee_call (and the outputs of rv_sealed_*). */
 void rv_e2ee_free(uint8_t* response, size_t len);
+
+/*
+ * Sealed requests for the backup route (docs/tor-sealed-fallback.md), built with
+ * the sealed-transport feature: Oblivious HTTP (RFC 9458) to the gateway's pinned
+ * key. Each returns 0 on success, -1 for bad input, -2 if sealing/opening failed.
+ */
+
+/* Seals one request. head_json: {"method":"POST","path":"/api/...","headers":[["name","value"],...]}.
+ * On success *sealed/*sealed_len is the message/ohttp-req body to POST (free with rv_e2ee_free)
+ * and *pending opens the reply: pass it to rv_sealed_open or rv_sealed_discard exactly once. */
+int32_t rv_sealed_seal(const uint8_t* key_config, size_t key_config_len,
+                       const uint8_t* head_json, size_t head_len,
+                       const uint8_t* body, size_t body_len,
+                       uint8_t** sealed, size_t* sealed_len, void** pending);
+
+/* Opens a message/ohttp-res reply; always consumes `pending`. On success *head_json is
+ * {"status":200,"headers":[["name","value"],...]} and *body the body (free both with rv_e2ee_free). */
+int32_t rv_sealed_open(void* pending, const uint8_t* reply, size_t reply_len,
+                       uint8_t** head_json, size_t* head_len, uint8_t** body, size_t* body_len);
+
+/* Drops a pending handle whose reply never came. */
+void rv_sealed_discard(void* pending);
 
 #ifdef __cplusplus
 }

@@ -284,6 +284,19 @@ class DeviceStorage(private val dir: File, private val wrapper: KeyWrapper) {
         dropCounter(userId)
     }
 
+    /**
+     * Wipes this phone's device for [userId] only if it is still [deviceId]. An abandoned pairing attempt cleans up
+     * after itself with this: when the phone has meanwhile become a different device (set up as the first device),
+     * that device's keys must stay. Returns whether anything was wiped.
+     */
+    @Synchronized
+    fun wipeDevice(userId: String, deviceId: String): Boolean {
+        val stored = read(userId)
+        if (stored != null && stored.deviceId != deviceId) return false
+        wipe(userId)
+        return true
+    }
+
     /** What happened to this phone's device keys that only this phone knows, oldest first. */
     @Synchronized
     fun localEvents(userId: String): List<LocalDeviceEvent> = runCatching {

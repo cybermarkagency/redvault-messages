@@ -92,7 +92,7 @@ Item {
                     Layout.rightMargin: 12
                     Text {
                         Layout.fillWidth: true
-                        text: "Contacts"
+                        text: qsTr("Contacts")
                         color: Theme.text
                         font.family: Theme.displayFamily
                         font.pixelSize: Theme.fontDisplay
@@ -100,7 +100,7 @@ Item {
                     }
                     IconButton {
                         iconName: "user-plus"
-                        tip: "Add a friend"
+                        tip: qsTr("Add a friend")
                         badge: root.people.incoming.length
                         onClicked: root.openFriends()
                     }
@@ -112,7 +112,7 @@ Item {
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
                     Layout.bottomMargin: 8
-                    placeholderText: "Search contacts"
+                    placeholderText: qsTr("Search contacts")
                 }
 
                 ListView {
@@ -202,7 +202,7 @@ Item {
                         visible: list.count === 0
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: search.text.length > 0 ? "Nobody by that name." : "No contacts yet. Add a friend to start a chat."
+                        text: search.text.length > 0 ? qsTr("Nobody by that name.") : qsTr("No contacts yet. Add a friend to start a chat.")
                         textFormat: Text.PlainText
                         color: Theme.text3
                     }
@@ -219,7 +219,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: root.selected === null
-                text: "Select a contact"
+                text: qsTr("Select a contact")
                 color: Theme.text3
                 font.pixelSize: 15
             }
@@ -261,7 +261,7 @@ Item {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.topMargin: -10
-                        text: root.online ? "Online" : "@" + (root.selected ? root.selected.handle : "")
+                        text: root.online ? qsTr("Online") : "@" + (root.selected ? root.selected.handle : "")
                         textFormat: Text.PlainText
                         color: root.online ? Theme.accent : Theme.text3
                         font.family: root.online ? Theme.fontFamily : Theme.monoFamily
@@ -273,14 +273,14 @@ Item {
                         spacing: 10
                         RvButton {
                             iconName: "chat"
-                            text: "Message"
+                            text: qsTr("Message")
                             enabled: !root.blocked
                             onClicked: root.openChat(root.selected.chatId)
                         }
                         RvButton {
                             secondary: true
                             iconName: "phone"
-                            text: "Voice"
+                            text: qsTr("Voice")
                             visible: App.calls !== null && App.calls.callsAvailable
                             enabled: !root.blocked
                             onClicked: root.call("voice")
@@ -288,7 +288,7 @@ Item {
                         RvButton {
                             secondary: true
                             iconName: "video"
-                            text: "Video"
+                            text: qsTr("Video")
                             visible: App.calls !== null && App.calls.callsAvailable
                             enabled: !root.blocked
                             onClicked: root.call("video")
@@ -310,16 +310,16 @@ Item {
                         spacing: 0
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Favorite"
-                            description: "Shown first in Contacts and under Favorites in Chats."
+                            label: qsTr("Favorite")
+                            description: qsTr("Shown first in Contacts and under Favorites in Chats.")
                             checked: root.favorite
                             onToggled: root.chats.toggleFavorite(root.selectedUserId)
                         }
                         Rectangle { Layout.fillWidth: true; Layout.topMargin: 8; Layout.bottomMargin: 8; implicitHeight: 1; color: Theme.border }
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Notifications"
-                            description: root.muted ? "Muted: no notifications, and calls don't ring." : "On"
+                            label: qsTr("Notifications")
+                            description: root.muted ? qsTr("Muted: no notifications, and calls don't ring.") : qsTr("On")
                             checked: !root.muted
                             onToggled: root.chats.toggleMuted(root.selectedUserId)
                         }
@@ -333,18 +333,18 @@ Item {
                             Icon {
                                 name: "shield-check"
                                 size: 18
-                                color: root.selected && root.selected.verified ? Theme.accent : Theme.text2
+                                color: root.selected && root.selected.verified ? Theme.ok : Theme.text2
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: root.selected && root.selected.verified ? "Verified contact" : "Safety number"
+                                text: root.selected && root.selected.verified ? qsTr("Verified contact") : qsTr("Safety number")
                                 textFormat: Text.PlainText
-                                color: root.selected && root.selected.verified ? Theme.accent : Theme.text
+                                color: root.selected && root.selected.verified ? Theme.ok : Theme.text
                                 font.weight: Font.DemiBold
                             }
                             RvButton {
                                 primary: false
-                                text: root.selected && root.selected.verified ? "View" : "Verify"
+                                text: root.selected && root.selected.verified ? qsTr("View") : qsTr("Verify")
                                 implicitHeight: 34
                                 onClicked: root.verify(root.selected.chatId)
                             }
@@ -370,7 +370,7 @@ Item {
                                 primary: false
                                 danger: true
                                 iconName: "ban"
-                                text: root.blocked ? "Unblock" : "Block"
+                                text: root.blocked ? qsTr("Unblock") : qsTr("Block")
                                 enabled: !root.people.busy
                                 onClicked: root.blocked ? root.people.unblock(root.selectedUserId) : root.people.block(root.selectedUserId)
                             }
@@ -378,7 +378,7 @@ Item {
                                 primary: false
                                 danger: true
                                 iconName: "flag"
-                                text: "Report"
+                                text: qsTr("Report")
                                 visible: !root.reporting
                                 onClicked: {
                                     root.people.clearMessages()
@@ -394,26 +394,26 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "Moderators see your report and this account, never your messages: they're end-to-end encrypted."
+                                text: qsTr("Moderators see your report and this account, never your messages: they're end-to-end encrypted.")
                                 color: Theme.text3
                                 font.pixelSize: 13
                             }
                             RvTextField {
                                 id: reason
                                 Layout.fillWidth: true
-                                placeholderText: "What happened?"
+                                placeholderText: qsTr("What happened?")
                                 maximumLength: 1000
                             }
                             RowLayout {
                                 Item { Layout.fillWidth: true }
                                 RvButton {
                                     primary: false
-                                    text: "Cancel"
+                                    text: qsTr("Cancel")
                                     onClicked: root.reporting = false
                                 }
                                 RvButton {
                                     danger: true
-                                    text: "Send report"
+                                    text: qsTr("Send report")
                                     enabled: reason.text.trim().length > 0 && !root.people.busy
                                     onClicked: {
                                         root.people.report(root.selectedUserId, reason.text)

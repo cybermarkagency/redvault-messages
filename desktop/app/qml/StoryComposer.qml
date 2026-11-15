@@ -33,6 +33,18 @@ Rectangle {
     property bool allowReplies: true
     /// How long it stays up, in seconds (one of stories.lifetimes).
     property int ttlSeconds: 86400
+    /// The story studio's panel on screen: "", "photo", "collage", "voice", "captions" or "camera".
+    property string studio: ""
+    /// A voice story (mode "voice"): the WAV the voice studio finished, its length and its loudness bars.
+    property url voiceFile: ""
+    property real voiceDurationMs: 0
+    property var voiceWaveform: []
+    /// Subtitles of a video or voice story: [{startMs, endMs, text}].
+    property var captions: []
+    /// The preview plays its sound (off by default).
+    property bool previewSound: false
+    /// The clock of moving words and emoji in the preview.
+    property real motionMs: 0
     /// Polls, quizzes, questions, sliders, countdowns, links, mentions, dates and places (sticker maps from StoriesSession.checkSticker).
     property var stickers: []
     property int selectedSticker: -1
@@ -52,7 +64,7 @@ Rectangle {
     property string editFont: "classic"
     property bool editBoxed: false
     readonly property bool busy: composer.stories !== null && composer.stories.postStage.length > 0
-    readonly property bool dirty: composer.mode !== "pick" && (composer.mediaFile.toString().length > 0 || composer.storyText.trim().length > 0 || composer.overlays.length > 0 || composer.stickers.length > 0)
+    readonly property bool dirty: composer.mode !== "pick" && (composer.mediaFile.toString().length > 0 || composer.voiceFile.toString().length > 0 || composer.storyText.trim().length > 0 || composer.overlays.length > 0 || composer.stickers.length > 0)
     /// Friends you can pick one by one (not the ones you hide your stories from).
     readonly property var pickable: {
         const out = []
@@ -110,6 +122,48 @@ Rectangle {
         composer.draftId = ""
         composer.closeAfterSave = false
         composer.notice = ""
+        composer.studio = ""
+        composer.voiceFile = ""
+        composer.voiceDurationMs = 0
+        composer.voiceWaveform = []
+        composer.captions = []
+        composer.previewSound = false
+        voiceStudio.clear()
+    }
+    /// A finished voice from the voice studio becomes the story.
+    function useVoice(r) {
+        composer.voiceFile = r.url
+        composer.voiceDurationMs = r.durationMs
+        composer.voiceWaveform = r.waveform
+        composer.storyText = r.title
+        composer.background = r.background
+        composer.captions = r.captions
+        composer.mediaFile = ""
+        composer.mediaKind = ""
+        composer.mode = "voice"
+        composer.studio = ""
+    }
+    /// A photo or video from the camera, the photo editor or the collage maker.
+    function useMedia(file, kind) {
+        composer.mediaFile = file
+        composer.mediaKind = kind
+        if (kind !== "video") composer.captions = []
+        composer.mode = "media"
+        composer.studio = ""
+    }
+    /// A text template: its words, look, emoji and sticker, all still editable.
+    function useTemplate(id) {
+        const t = composer.stories.applyTemplate(id)
+        if (!t.background) return
+        composer.storyText = t.text
+        composer.background = t.background
+        composer.font = t.font
+        composer.overlays = t.overlays
+        composer.stickers = t.stickers
+        composer.selected = -1
+        composer.selectedSticker = -1
+        composer.mode = "text"
+        Qt.callLater(storyTextInput.forceActiveFocus)
     }
     /// Saves what is on screen as a draft (over the one it came from), on this computer only.
     function keepDraft(thenLeave) {
@@ -228,16 +282,24 @@ Rectangle {
         composer.editingText = false
     }
     function share() {
-        if (composer.mode === "text") {
+        if (composer.mode === "voice") {
+            composer.stories.postVoice(composer.voiceFile, composer.voiceDurationMs, composer.voiceWaveform, composer.storyText, composer.background,
+                                       composer.font, composer.overlays, composer.stickers, composer.captions, composer.audience, composer.customIds,
+                                       composer.allowReplies, composer.ttlSeconds)
+        } else if (composer.mode === "text") {
             composer.stories.postText(composer.storyText, composer.background, composer.font, composer.overlays, composer.stickers,
                                       composer.audience, composer.customIds, composer.allowReplies, composer.ttlSeconds)
         } else {
             composer.stories.postMedia(composer.mediaFile, composer.overlays, composer.stickers, composer.audience, composer.customIds,
-                                       composer.allowReplies, composer.ttlSeconds, preview.duration)
+                                       composer.allowReplies, composer.ttlSeconds, preview.duration, composer.mediaKind === "video" ? composer.captions : [])
         }
     }
 
-    onVisibleChanged: if (visible) composer.reset()
+    // What the studio made stays in its private folder only while the composer is open.
+    onVisibleChanged: {
+        if (visible) composer.reset()
+        else StudioTools.clearScratch()
+    }
 
     Connections {
         target: composer.stories
@@ -248,7 +310,7 @@ Rectangle {
         }
         function onDraftSaved(id) {
             composer.draftId = id
-            composer.notice = "Draft saved on this device"
+            composer.notice = qsTr("Draft saved on this device")
             noticeTimer.restart()
             if (composer.closeAfterSave) {
                 composer.closeAfterSave = false
@@ -262,11 +324,19 @@ Rectangle {
     }
     Timer { id: noticeTimer; interval: 2500; onTriggered: composer.notice = "" }
 
+    // The studio's voice: kept while the composer is open, so "Voice" can be opened again on the same recording.
+    VoiceStudio { id: voiceStudio; objectName: "composerVoiceStudio" }
+    // Moving words and emoji in the preview.
+    FrameAnimation {
+        running: composer.visible && !StudioTools.reducedMotion && composer.overlays.some(o => o.anim && o.anim.length > 0)
+        onTriggered: composer.motionMs += frameTime * 1000
+    }
+
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (wheel) => wheel.accepted = true }
 
     FileDialog {
         id: fileDialog
-        title: "Add a photo or video"
+        title: qsTr("Add a photo or video")
         fileMode: FileDialog.OpenFile
         nameFilters: ["Photos and videos (*.jpg *.jpeg *.png *.webp *.gif *.bmp *.mp4 *.webm *.mov)"]
         onAccepted: {
@@ -281,7 +351,7 @@ Rectangle {
 
     RvDialog {
         id: leaveDialog
-        title: "Leave this story?"
+        title: qsTr("Leave this story?")
         width: 440
         ColumnLayout {
             anchors.left: parent.left
@@ -290,25 +360,26 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "A draft stays on this computer, encrypted, and is never sent to RedVault."
+                text: qsTr("A draft stays on this computer, encrypted, and is never sent to RedVault.")
                 color: Theme.text2
                 font.pixelSize: Theme.fontSize
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: 8
-                RvButton { primary: false; text: "Keep editing"; onClicked: leaveDialog.close() }
+                RvButton { primary: false; text: qsTr("Keep editing"); onClicked: leaveDialog.close() }
                 RvButton {
                     primary: false
                     danger: true
-                    text: "Discard"
+                    text: qsTr("Discard")
                     onClicked: {
                         leaveDialog.close()
                         composer.stories.closeComposer()
                     }
                 }
                 RvButton {
-                    text: "Save draft"
+                    text: qsTr("Save draft")
+                    visible: composer.mode !== "voice"
                     onClicked: {
                         leaveDialog.close()
                         composer.keepDraft(true)
@@ -345,7 +416,7 @@ Rectangle {
                 width: parent.width - 48
                 spacing: 14
                 Text {
-                    text: "Add to your story"
+                    text: qsTr("Add to your story")
                     color: Theme.text
                     font.family: Theme.displayFamily
                     font.pixelSize: 24
@@ -353,7 +424,7 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "Seen by the friends you choose, for as long as you choose (24 hours unless you pick another). End-to-end encrypted: the server can't see it."
+                    text: qsTr("Seen by the friends you choose, for as long as you choose (24 hours unless you pick another). End-to-end encrypted: the server can't see it.")
                     wrapMode: Text.Wrap
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
@@ -362,25 +433,70 @@ Rectangle {
                     Layout.fillWidth: true
                     secondary: true
                     iconName: "image"
-                    text: "Photo or video"
+                    text: qsTr("Photo or video")
                     enabled: composer.stories !== null && composer.stories.mediaEnabled
                     onClicked: fileDialog.open()
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: composer.stories !== null && !composer.stories.mediaEnabled
-                    text: "Photo and video stories aren't available on this server yet."
+                    text: qsTr("Photo and video stories aren't available on this server yet.")
                     wrapMode: Text.Wrap
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    RvButton {
+                        Layout.fillWidth: true
+                        secondary: true
+                        iconName: "video"
+                        text: qsTr("Camera")
+                        enabled: composer.stories !== null && composer.stories.mediaEnabled
+                        onClicked: composer.studio = "camera"
+                    }
+                    RvButton {
+                        Layout.fillWidth: true
+                        secondary: true
+                        text: qsTr("Collage")
+                        enabled: composer.stories !== null && composer.stories.mediaEnabled
+                        onClicked: composer.studio = "collage"
+                    }
+                    RvButton {
+                        Layout.fillWidth: true
+                        secondary: true
+                        iconName: "mic"
+                        text: qsTr("Voice")
+                        enabled: composer.stories !== null && composer.stories.mediaEnabled
+                        onClicked: composer.studio = "voice"
+                    }
+                }
                 RvButton {
                     Layout.fillWidth: true
                     secondary: true
-                    text: "Aa   Text"
+                    text: qsTr("Aa   Text")
                     onClicked: {
                         composer.mode = "text"
                         Qt.callLater(storyTextInput.forceActiveFocus)
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Or start from a template")
+                    color: Theme.text2
+                    font.pixelSize: Theme.fontSmall
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: composer.stories ? composer.stories.templates() : []
+                        delegate: Chip {
+                            required property var modelData
+                            text: modelData.label
+                            onClicked: composer.useTemplate(modelData.id)
+                        }
                     }
                 }
                 Text {
@@ -396,7 +512,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.topMargin: 8
                     visible: composer.stories !== null && composer.stories.drafts.length > 0
-                    text: "Drafts"
+                    text: qsTr("Drafts")
                     color: Theme.text
                     font.pixelSize: Theme.fontTitle
                     font.weight: Font.DemiBold
@@ -404,7 +520,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     visible: composer.stories !== null && composer.stories.drafts.length > 0
-                    text: "Saved on this computer only, encrypted. They are never sent to RedVault."
+                    text: qsTr("Saved on this computer only, encrypted. They are never sent to RedVault.")
                     wrapMode: Text.Wrap
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
@@ -428,13 +544,13 @@ Rectangle {
                             elide: Text.ElideRight
                             color: Theme.text2
                             font.pixelSize: Theme.fontSmall
-                            text: (draftRow.modelData.preview.length > 0 ? draftRow.modelData.preview : draftRow.modelData.kind === "text" ? "Text story" : draftRow.modelData.kind)
-                                  + (draftRow.modelData.stickerCount > 0 ? " · " + draftRow.modelData.stickerCount + (draftRow.modelData.stickerCount === 1 ? " sticker" : " stickers") : "")
+                            text: (draftRow.modelData.preview.length > 0 ? draftRow.modelData.preview : draftRow.modelData.kind === "text" ? qsTr("Text story") : draftRow.modelData.kind)
+                                  + (draftRow.modelData.stickerCount > 0 ? " · " + draftRow.modelData.stickerCount + (draftRow.modelData.stickerCount === 1 ? qsTr(" sticker") : qsTr(" stickers")) : "")
                                   + " · " + new Date(draftRow.modelData.updatedAt).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
                         }
                         RvButton {
                             secondary: true
-                            text: "Continue"
+                            text: qsTr("Continue")
                             implicitHeight: 32
                             enabled: !composer.busy
                             Accessible.name: "Continue this draft"
@@ -442,7 +558,7 @@ Rectangle {
                         }
                         IconButton {
                             iconName: "trash"
-                            tip: "Delete draft"
+                            tip: qsTr("Delete draft")
                             onClicked: composer.stories.deleteDraft(draftRow.modelData.id)
                         }
                     }
@@ -457,10 +573,10 @@ Rectangle {
             visible: composer.mode !== "pick"
             radius: Theme.radiusCard
             editing: true
-            muted: true
-            story: ({ kind: composer.mode === "text" ? "text" : composer.mediaKind, background: composer.background, font: composer.font,
-                      text: composer.storyText, overlays: [] })
-            mediaUrl: composer.mode === "media" ? composer.mediaFile.toString() : ""
+            muted: !composer.previewSound
+            story: ({ kind: composer.mode === "text" ? "text" : composer.mode === "voice" ? "audio" : composer.mediaKind, background: composer.background,
+                      font: composer.font, text: composer.storyText, overlays: [], waveform: composer.voiceWaveform, captions: composer.captions })
+            mediaUrl: composer.mode === "media" ? composer.mediaFile.toString() : composer.mode === "voice" ? composer.voiceFile.toString() : ""
             onEnded: frameRestart.start()
             Timer { id: frameRestart; interval: 10; onTriggered: preview.restart() }
 
@@ -480,7 +596,7 @@ Rectangle {
                 height: parent.height * 0.6
                 text: composer.storyText
                 onTextChanged: composer.storyText = text.substring(0, 700)
-                placeholderText: "Type something"
+                placeholderText: qsTr("Type something")
                 placeholderTextColor: Theme.storyTrack
                 wrapMode: TextEdit.Wrap
                 horizontalAlignment: TextEdit.AlignHCenter
@@ -505,12 +621,16 @@ Rectangle {
                     // rebuilds every item, which dropped the drag after its first step).
                     property real dragX: -1
                     property real dragY: -1
+                    // Moving words and emoji move here too (not while dragged), as they will in the viewer.
+                    readonly property var move: overlayItem.modelData.anim && overlayItem.dragX < 0 && !StudioTools.reducedMotion
+                                                ? StudioTools.motionFrame(overlayItem.modelData.anim, composer.motionMs) : null
                     x: (overlayItem.dragX >= 0 ? overlayItem.dragX : overlayItem.modelData.x) * preview.width - width / 2
-                    y: (overlayItem.dragY >= 0 ? overlayItem.dragY : overlayItem.modelData.y) * preview.height - height / 2
+                    y: (overlayItem.dragY >= 0 ? overlayItem.dragY : overlayItem.modelData.y) * preview.height - height / 2 + (overlayItem.move ? overlayItem.move.lift * height : 0)
                     width: overlayLabel.implicitWidth + (overlayItem.modelData.type === "text" ? preview.width * 0.05 : 0)
                     height: overlayLabel.implicitHeight + (overlayItem.modelData.type === "text" ? preview.width * 0.025 : 0)
                     rotation: overlayItem.modelData.rotation
-                    scale: overlayItem.modelData.scale
+                    scale: overlayItem.modelData.scale * (overlayItem.move ? overlayItem.move.scale : 1)
+                    opacity: overlayItem.move ? overlayItem.move.alpha : 1
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: -4
@@ -546,7 +666,7 @@ Rectangle {
                         cursorShape: Qt.OpenHandCursor
                         property point grab
                         Accessible.role: Accessible.Button
-                        Accessible.name: overlayItem.modelData.type === "emoji" ? "Sticker " + overlayItem.modelData.text : "Text: " + overlayItem.modelData.text
+                        Accessible.name: overlayItem.modelData.type === "emoji" ? qsTr("Sticker ") + overlayItem.modelData.text : qsTr("Text: ") + overlayItem.modelData.text
                         onPressed: (mouse) => {
                             composer.selected = overlayItem.index
                             const p = mapToItem(preview, mouse.x, mouse.y)
@@ -616,7 +736,7 @@ Rectangle {
                         cursorShape: Qt.OpenHandCursor
                         property point grab
                         Accessible.role: Accessible.Button
-                        Accessible.name: stickerCard.label() + ". Drag to move; double-click to edit."
+                        Accessible.name: stickerCard.label() + qsTr(". Drag to move; double-click to edit.")
                         onPressed: (mouse) => {
                             composer.selectedSticker = stickerItem.index
                             const p = mapToItem(preview, mouse.x, mouse.y)
@@ -671,66 +791,103 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 4
                     IconButton {
+                        Layout.alignment: Qt.AlignTop
                         iconName: "close"
                         iconColor: Theme.storyChrome
-                        tip: "Close"
+                        tip: qsTr("Close")
                         onClicked: composer.close()
                     }
-                    Item { Layout.fillWidth: true }
+                    // The tools wrap onto a second line when there are many (a voice story has the most).
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 4
+                    ToolText {
+                        visible: composer.mode === "media" && composer.mediaKind === "image"
+                        text: qsTr("Edit")
+                        tip: qsTr("Crop, turn, adjust, looks and drawing")
+                        onClicked: composer.studio = "photo"
+                    }
+                    ToolText {
+                        visible: composer.mode === "voice"
+                        text: qsTr("Voice")
+                        tip: qsTr("Trim, change the voice, title and look")
+                        onClicked: composer.studio = "voice"
+                    }
+                    ToolText {
+                        visible: composer.mode === "voice" || (composer.mode === "media" && composer.mediaKind === "video")
+                        text: composer.captions.length > 0 ? qsTr("Subtitles ✓") : qsTr("Subtitles")
+                        tip: qsTr("Subtitles shown while it plays")
+                        onClicked: captionEditor.open(composer.captions, composer.mode === "voice" ? composer.voiceDurationMs : preview.duration)
+                    }
                     IconButton {
-                        visible: composer.mode === "text"
+                        visible: composer.mode === "voice" || (composer.mode === "media" && composer.mediaKind === "video")
+                        iconName: composer.previewSound ? "speaker" : "speaker-off"
+                        iconColor: Theme.storyChrome
+                        tip: composer.previewSound ? qsTr("Preview without sound") : qsTr("Preview with sound")
+                        onClicked: composer.previewSound = !composer.previewSound
+                    }
+                    IconButton {
+                        visible: composer.mode === "text" || composer.mode === "voice"
                         iconName: "refresh"
                         iconColor: Theme.storyChrome
-                        tip: "Change background"
+                        tip: qsTr("Change background")
                         onClicked: composer.background = composer.cycle(composer.stories.backgrounds, composer.background)
                     }
                     ToolText {
-                        visible: composer.mode === "text"
+                        visible: composer.mode === "text" || composer.mode === "voice"
                         text: composer.fontLabels[composer.font]
-                        tip: "Font"
+                        tip: qsTr("Font")
                         onClicked: composer.font = composer.cycle(composer.stories.fonts, composer.font)
                     }
                     ToolText {
-                        text: "Aa"
-                        tip: "Add text"
+                        text: qsTr("Aa")
+                        tip: qsTr("Add text")
                         onClicked: composer.startText(-1)
                     }
                     IconButton {
                         iconName: "smile"
                         iconColor: Theme.storyChrome
-                        tip: "Add an emoji"
+                        tip: qsTr("Add an emoji")
                         onClicked: stickerPicker.open()
                     }
                     ToolText {
-                        text: "Stickers"
-                        tip: "Add a poll, question, countdown and more"
+                        text: qsTr("Stickers")
+                        tip: qsTr("Add a poll, question, countdown and more")
                         onClicked: composer.stickerSheetOpen = true
                     }
                     ToolText {
-                        text: "Draft"
-                        tip: "Save as a draft on this computer"
+                        visible: composer.mode !== "voice"
+                        text: qsTr("Draft")
+                        tip: qsTr("Save as a draft on this computer")
                         enabled: !composer.busy
                         onClicked: composer.keepDraft(false)
+                    }
                     }
                 }
                 Row {
                     Layout.alignment: Qt.AlignHCenter
                     visible: composer.selected >= 0 && composer.selected < composer.overlays.length && !composer.editingText
                     spacing: 6
-                    ToolText { text: "A−"; tip: "Smaller"; onClicked: composer.updateOverlay(composer.selected, { scale: Math.max(0.5, composer.overlays[composer.selected].scale / 1.2) }) }
-                    ToolText { text: "A+"; tip: "Bigger"; onClicked: composer.updateOverlay(composer.selected, { scale: Math.min(4, composer.overlays[composer.selected].scale * 1.2) }) }
-                    ToolText { text: "⟲"; tip: "Rotate left"; onClicked: composer.updateOverlay(composer.selected, { rotation: (composer.overlays[composer.selected].rotation + 345) % 360 }) }
-                    ToolText { text: "⟳"; tip: "Rotate right"; onClicked: composer.updateOverlay(composer.selected, { rotation: (composer.overlays[composer.selected].rotation + 15) % 360 }) }
+                    ToolText { text: qsTr("A−"); tip: qsTr("Smaller"); onClicked: composer.updateOverlay(composer.selected, { scale: Math.max(0.5, composer.overlays[composer.selected].scale / 1.2) }) }
+                    ToolText { text: qsTr("A+"); tip: qsTr("Bigger"); onClicked: composer.updateOverlay(composer.selected, { scale: Math.min(4, composer.overlays[composer.selected].scale * 1.2) }) }
+                    ToolText { text: "⟲"; tip: qsTr("Rotate left"); onClicked: composer.updateOverlay(composer.selected, { rotation: (composer.overlays[composer.selected].rotation + 345) % 360 }) }
+                    ToolText { text: "⟳"; tip: qsTr("Rotate right"); onClicked: composer.updateOverlay(composer.selected, { rotation: (composer.overlays[composer.selected].rotation + 15) % 360 }) }
+                    ToolText {
+                        objectName: "motionTool"
+                        text: StudioTools.motionLabel(composer.selected >= 0 && composer.selected < composer.overlays.length ? (composer.overlays[composer.selected].anim || "") : "")
+                        tip: qsTr("Motion: still, pulse, bounce or fade")
+                        onClicked: composer.updateOverlay(composer.selected, { anim: StudioTools.nextMotion(composer.overlays[composer.selected].anim || "") })
+                    }
                     ToolText {
                         visible: composer.selected >= 0 && composer.selected < composer.overlays.length && composer.overlays[composer.selected].type === "text"
-                        text: "Edit"
-                        tip: "Edit text"
+                        text: qsTr("Edit")
+                        tip: qsTr("Edit text")
                         onClicked: composer.startText(composer.selected)
                     }
                     IconButton {
                         iconName: "trash"
                         iconColor: Theme.storyChrome
-                        tip: "Remove"
+                        tip: qsTr("Remove")
                         onClicked: composer.removeOverlay(composer.selected)
                     }
                 }
@@ -738,15 +895,15 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     visible: composer.selectedSticker >= 0 && composer.selectedSticker < composer.stickers.length && !composer.stickerEditing
                     spacing: 6
-                    ToolText { text: "A−"; tip: "Smaller sticker"; onClicked: composer.updateSticker(composer.selectedSticker, { scale: Math.max(0.6, composer.stickers[composer.selectedSticker].scale / 1.15) }) }
-                    ToolText { text: "A+"; tip: "Bigger sticker"; onClicked: composer.updateSticker(composer.selectedSticker, { scale: Math.min(2.5, composer.stickers[composer.selectedSticker].scale * 1.15) }) }
-                    ToolText { text: "⟲"; tip: "Rotate sticker left"; onClicked: composer.updateSticker(composer.selectedSticker, { rotation: (composer.stickers[composer.selectedSticker].rotation + 351) % 360 }) }
-                    ToolText { text: "⟳"; tip: "Rotate sticker right"; onClicked: composer.updateSticker(composer.selectedSticker, { rotation: (composer.stickers[composer.selectedSticker].rotation + 9) % 360 }) }
-                    ToolText { text: "Edit"; tip: "Edit sticker"; onClicked: composer.editSticker(composer.stickers[composer.selectedSticker].type, composer.selectedSticker) }
+                    ToolText { text: qsTr("A−"); tip: qsTr("Smaller sticker"); onClicked: composer.updateSticker(composer.selectedSticker, { scale: Math.max(0.6, composer.stickers[composer.selectedSticker].scale / 1.15) }) }
+                    ToolText { text: qsTr("A+"); tip: qsTr("Bigger sticker"); onClicked: composer.updateSticker(composer.selectedSticker, { scale: Math.min(2.5, composer.stickers[composer.selectedSticker].scale * 1.15) }) }
+                    ToolText { text: "⟲"; tip: qsTr("Rotate sticker left"); onClicked: composer.updateSticker(composer.selectedSticker, { rotation: (composer.stickers[composer.selectedSticker].rotation + 351) % 360 }) }
+                    ToolText { text: "⟳"; tip: qsTr("Rotate sticker right"); onClicked: composer.updateSticker(composer.selectedSticker, { rotation: (composer.stickers[composer.selectedSticker].rotation + 9) % 360 }) }
+                    ToolText { text: qsTr("Edit"); tip: qsTr("Edit sticker"); onClicked: composer.editSticker(composer.stickers[composer.selectedSticker].type, composer.selectedSticker) }
                     IconButton {
                         iconName: "trash"
                         iconColor: Theme.storyChrome
-                        tip: "Remove sticker"
+                        tip: qsTr("Remove sticker")
                         onClicked: composer.removeSticker(composer.selectedSticker)
                     }
                 }
@@ -820,12 +977,12 @@ Rectangle {
                     }
                     RvButton {
                         secondary: true
-                        text: composer.editBoxed ? "Box on" : "Box off"
+                        text: composer.editBoxed ? qsTr("Box on") : qsTr("Box off")
                         onClicked: composer.editBoxed = !composer.editBoxed
                     }
                     Item { Layout.fillWidth: true }
                     RvButton {
-                        text: "Done"
+                        text: qsTr("Done")
                         onClicked: composer.saveText()
                     }
                 }
@@ -851,13 +1008,13 @@ Rectangle {
                 spacing: 8
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: "Stickers"; color: Theme.text; font.pixelSize: Theme.fontTitle; font.weight: Font.DemiBold }
-                    IconButton { iconName: "close"; tip: "Close stickers"; onClicked: composer.stickerSheetOpen = false }
+                    Text { Layout.fillWidth: true; text: qsTr("Stickers"); color: Theme.text; font.pixelSize: Theme.fontTitle; font.weight: Font.DemiBold }
+                    IconButton { iconName: "close"; tip: qsTr("Close stickers"); onClicked: composer.stickerSheetOpen = false }
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: !composer.interactiveOk
-                    text: "Polls, quizzes, questions and sliders aren't available on this server."
+                    text: qsTr("Polls, quizzes, questions and sliders aren't available on this server.")
                     wrapMode: Text.Wrap
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
@@ -865,7 +1022,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     visible: composer.stickers.length >= 12
-                    text: "At most 12 stickers on one story."
+                    text: qsTr("At most 12 stickers on one story.")
                     color: Theme.danger
                     font.pixelSize: Theme.fontSmall
                 }
@@ -933,12 +1090,12 @@ Rectangle {
                 spacing: 8
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: "Choose people"; color: Theme.text; font.pixelSize: Theme.fontTitle; font.weight: Font.DemiBold }
-                    IconButton { iconName: "close"; tip: "Done choosing"; onClicked: composer.peopleOpen = false }
+                    Text { Layout.fillWidth: true; text: qsTr("Choose people"); color: Theme.text; font.pixelSize: Theme.fontTitle; font.weight: Font.DemiBold }
+                    IconButton { iconName: "close"; tip: qsTr("Done choosing"); onClicked: composer.peopleOpen = false }
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "Only these friends get this story's key. Friends you add later won't see it."
+                    text: qsTr("Only these friends get this story's key. Friends you add later won't see it.")
                     wrapMode: Text.Wrap
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
@@ -946,7 +1103,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     visible: composer.pickable.length === 0
-                    text: "You have no friends to choose yet."
+                    text: qsTr("You have no friends to choose yet.")
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall
                 }
@@ -977,10 +1134,10 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    RvButton { secondary: true; text: "Everyone"; onClicked: composer.customIds = composer.pickable.map(f => f.userId) }
-                    RvButton { secondary: true; text: "No one"; onClicked: composer.customIds = [] }
+                    RvButton { secondary: true; text: qsTr("Everyone"); onClicked: composer.customIds = composer.pickable.map(f => f.userId) }
+                    RvButton { secondary: true; text: qsTr("No one"); onClicked: composer.customIds = [] }
                     Item { Layout.fillWidth: true }
-                    RvButton { text: "Done"; onClicked: composer.peopleOpen = false }
+                    RvButton { text: qsTr("Done"); onClicked: composer.peopleOpen = false }
                 }
             }
         }
@@ -1025,19 +1182,19 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Pill {
-                        text: "Your story · " + (composer.stories ? composer.stories.audienceCount : 0)
+                        text: qsTr("Your story · ") + (composer.stories ? composer.stories.audienceCount : 0)
                         active: composer.audience === "friends"
                         onClicked: composer.audience = "friends"
                     }
                     Pill {
-                        text: "★ Close friends · " + (composer.stories ? composer.stories.closeFriendsCount : 0)
+                        text: qsTr("★ Close friends · ") + (composer.stories ? composer.stories.closeFriendsCount : 0)
                         active: composer.audience === "close_friends"
                         close: true
                         enabled: composer.stories !== null && composer.stories.closeFriendsCount > 0
                         onClicked: composer.audience = "close_friends"
                     }
                     Pill {
-                        text: "Choose people" + (composer.audience === "custom" ? " · " + composer.reach : "")
+                        text: qsTr("Choose people") + (composer.audience === "custom" ? " · " + composer.reach : "")
                         active: composer.audience === "custom"
                         enabled: composer.pickable.length > 0
                         onClicked: {
@@ -1051,26 +1208,27 @@ Rectangle {
                     spacing: 8
                     CheckBox {
                         id: repliesBox
-                        text: "Replies"
+                        text: qsTr("Replies")
                         checked: composer.allowReplies
                         onToggled: composer.allowReplies = checked
                         contentItem: Text {
                             leftPadding: repliesBox.indicator.width + 4
-                            text: "Replies"
+                            text: qsTr("Replies")
                             color: Theme.storyChrome
                             font.pixelSize: Theme.fontSmall
                             verticalAlignment: Text.AlignVCenter
                         }
                     }
                     Text {
-                        text: "Disappears after"
+                        text: qsTr("Disappears after")
                         color: Theme.storyChrome
                         font.pixelSize: Theme.fontSmall
                     }
                     StoryCombo {
                         id: lifetimeCombo
                         objectName: "lifetimeCombo"
-                        implicitWidth: 110
+                        // Wide enough for "24 hours" and "48 hours" (110 cut them to "24 ho...").
+                        implicitWidth: 132
                         implicitHeight: 32
                         model: composer.stories ? composer.stories.lifetimes : []
                         textRole: "label"
@@ -1084,8 +1242,8 @@ Rectangle {
                     }
                     Item { Layout.fillWidth: true }
                     RvButton {
-                        text: composer.stories && composer.stories.postStage === "preparing" ? "Preparing…"
-                            : composer.stories && composer.stories.postStage === "encrypting" ? "Sharing…" : "Share"
+                        text: composer.stories && composer.stories.postStage === "preparing" ? qsTr("Preparing…")
+                            : composer.stories && composer.stories.postStage === "encrypting" ? qsTr("Sharing…") : qsTr("Share")
                         enabled: !composer.busy && (composer.mode !== "text" || composer.storyText.trim().length > 0) && (composer.audience !== "custom" || composer.reach > 0)
                         onClicked: composer.share()
                     }
@@ -1093,9 +1251,9 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     objectName: "storySummary"
-                    text: (composer.audience === "custom" ? "Only the " + composer.reach + (composer.reach === 1 ? " friend" : " friends") + " you chose"
-                                                           : composer.reach + (composer.reach === 1 ? " friend" : " friends"))
-                          + " can see this · gone after " + composer.lifetimeText + " · end-to-end encrypted. Anyone who sees it can screenshot it."
+                    text: (composer.audience === "custom" ? qsTr("Only the ") + composer.reach + (composer.reach === 1 ? qsTr(" friend") : qsTr(" friends")) + qsTr(" you chose")
+                                                           : composer.reach + (composer.reach === 1 ? qsTr(" friend") : qsTr(" friends")))
+                          + qsTr(" can see this · gone after ") + composer.lifetimeText + qsTr(" · end-to-end encrypted. Anyone who sees it can screenshot it.")
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Theme.storyChrome
@@ -1105,7 +1263,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     visible: composer.stories !== null && composer.stories.closeFriendsCount === 0
-                    text: "<a href=\"#\">Choose close friends</a>"
+                    text: qsTr("<a href=\"#\">Choose close friends</a>")
                     textFormat: Text.StyledText
                     linkColor: Theme.storyChrome
                     color: Theme.storyChrome
@@ -1118,7 +1276,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     visible: composer.mediaKind === "video" && composer.mode === "media"
-                    text: "Videos are shared as they are, including any details your camera saved in the file."
+                    text: qsTr("Videos are shared as they are, including any details your camera saved in the file.")
                     wrapMode: Text.Wrap
                     color: Theme.storyChrome
                     opacity: 0.8
@@ -1133,9 +1291,67 @@ Rectangle {
             anchors.top: parent.top
             anchors.margins: 10
             iconName: "close"
-            tip: "Close"
+            tip: qsTr("Close")
             onClicked: composer.close()
         }
+    }
+
+    // --- The story studio ---
+    PhotoEditorPanel {
+        anchors.fill: parent
+        visible: composer.studio === "photo"
+        source: composer.studio === "photo" ? composer.mediaFile : ""
+        onDone: (file) => composer.useMedia(file, "image")
+        onCancelled: composer.studio = ""
+    }
+    CollagePanel {
+        anchors.fill: parent
+        visible: composer.studio === "collage"
+        onDone: (file) => composer.useMedia(file, "image")
+        onCancelled: composer.studio = ""
+    }
+    VoiceStudioPanel {
+        id: voicePanel
+        anchors.fill: parent
+        visible: composer.studio === "voice"
+        studio: voiceStudio
+        backgrounds: composer.stories ? composer.stories.backgrounds : []
+        onVisibleChanged: if (visible) {
+            voicePanel.title = composer.mode === "voice" ? composer.storyText : ""
+            voicePanel.background = composer.mode === "voice" ? composer.background : "night"
+            voicePanel.captions = composer.mode === "voice" ? composer.captions : []
+        }
+        onDone: (r) => composer.useVoice(r)
+        onCancelled: composer.studio = ""
+        onEditCaptions: (list, duration) => captionEditor.open(list, duration)
+    }
+    CameraPanel {
+        anchors.fill: parent
+        visible: composer.studio === "camera"
+        active: composer.studio === "camera"
+        onDone: (file, kind) => {
+            if (kind === "video") {
+                const check = composer.stories.checkFile(file)
+                composer.pickError = check.error
+                if (check.error.length > 0) {
+                    composer.studio = ""
+                    return
+                }
+            }
+            composer.useMedia(file, kind)
+        }
+        onCancelled: composer.studio = ""
+    }
+    CaptionEditor {
+        id: captionEditor
+        anchors.fill: parent
+        visible: false
+        onDone: (list) => {
+            captionEditor.visible = false
+            if (composer.studio === "voice") voicePanel.captions = list
+            else composer.captions = list
+        }
+        onCancelled: captionEditor.visible = false
     }
 
     component ToolText: AbstractButton {

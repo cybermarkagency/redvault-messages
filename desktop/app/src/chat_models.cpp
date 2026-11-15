@@ -88,6 +88,13 @@ bool isInlineImage(const data::Message& m) {
            mime == QStringLiteral("image/webp") || mime == QStringLiteral("image/bmp");
 }
 
+bool isAudioFile(const data::Message& m) {
+    if (m.kind != data::MessageKind::File || !m.file || m.fileStatus.value_or("available") != "available") return false;
+    const QString mime = qs(m.file->mimeType).toLower();
+    return mime == QStringLiteral("audio/mp4") || mime == QStringLiteral("audio/mpeg") || mime == QStringLiteral("audio/ogg") ||
+           mime == QStringLiteral("audio/wav") || mime == QStringLiteral("audio/aac") || mime == QStringLiteral("audio/webm");
+}
+
 QString formatListTime(std::int64_t ms) {
     if (ms <= 0) return {};
     const QDateTime when = local(ms);
@@ -285,6 +292,8 @@ QVariant MessageModel::data(const QModelIndex& index, int role) const {
         }
         case IsImageRole:
             return isInlineImage(m);
+        case IsAudioRole:
+            return isAudioFile(m);
         case PollRole: {
             if (!m.poll) return QVariantMap();
             QVariantList options;
@@ -350,7 +359,7 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
             {ReplyFromMeRole, "replyFromMe"},   {ReactionsRole, "reactions"},
             {VerificationRole, "verification"}, {EditedRole, "edited"},
             {ForwardedRole, "forwarded"},       {UnverifiedSenderRole, "unverifiedSender"},       {StoryReplyRole, "storyReply"},       {RichTextRole, "richText"},
-            {RichTextRevealedRole, "richTextRevealed"}, {IsImageRole, "isImage"},
+            {RichTextRevealedRole, "richTextRevealed"}, {IsImageRole, "isImage"}, {IsAudioRole, "isAudio"},
             {PollRole, "poll"},                 {NoticeTextRole, "noticeText"},
             {ChannelIdRole, "channelId"},       {ChannelNameRole, "channelName"},
             {ChannelPostIdRole, "channelPostId"}};

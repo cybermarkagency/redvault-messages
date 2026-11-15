@@ -3,6 +3,8 @@
 
 #include "app_lock.hpp"
 
+#include "windows_hello.hpp"
+
 #include <QGuiApplication>
 #include <QPointer>
 #include <QSettings>
@@ -36,6 +38,7 @@ const QString kHash = QStringLiteral("appLock/pinHash");
 const QString kSalt = QStringLiteral("appLock/pinSalt");
 const QString kLength = QStringLiteral("appLock/pinLength");
 const QString kTimeout = QStringLiteral("appLock/timeout");
+const QString kHello = QStringLiteral("appLock/windowsHello");
 // Older versions kept the count of wrong tries here. Only ever removed now.
 const QString kOldFailed = QStringLiteral("appLock/failedAttempts");
 
@@ -59,6 +62,13 @@ AppLock::AppLock(QObject* parent) : QObject(parent) {
     pool_.setMaxThreadCount(1);
     connect(qApp, &QGuiApplication::applicationStateChanged, this, &AppLock::onApplicationStateChanged);
     loadPin();
+    hello_ = new WindowsHello(this);
+    QPointer<AppLock> self(this);
+    hello_->checkAvailability([self](bool available) {
+        if (!self) return;
+        self->helloAvailable_ = available;
+        emit self->helloChanged();
+    });
 }
 
 AppLock::~AppLock() {
@@ -73,7 +83,40 @@ void AppLock::loadPin() {
     const int index = settings.value(kTimeout, kDefaultTimeout).toInt();
     timeoutIndex_ = index >= 0 && index < static_cast<int>(kTimeouts.size()) ? index : kDefaultTimeout;
     settings.remove(kOldFailed);
+    helloEnabled_ = settings.value(kHello, false).toBool();
     failed_ = 0;
+    emit helloChanged();
+}
+
+void AppLock::setHelloEnabled(bool on) {
+    if (locked_ || (on && !enabled())) return;
+    QSettings().setValue(kHello, on);
+    helloEnabled_ = on;
+    emit helloChanged();
+}
+
+void AppLock::unlockWithHello(QWindow* window) {
+    if (busy_ || !locked_ || !helloEnabled()) return;
+    // The same tamper check as the PIN: a lock whose stored PIN changed behind the app's back doesn't open.
+    QSettings settings;
+    if (pinHash_.isEmpty() || QByteArray::fromBase64(settings.value(kHash).toByteArray()) != pinHash_
+        || QByteArray::fromBase64(settings.value(kSalt).toByteArray()) != pinSalt_) {
+        forceSignOut(QStringLiteral("The app lock's PIN was changed or removed. Sign in with your password."));
+        return;
+    }
+    setError({});
+    setBusy(true);
+    QPointer<AppLock> self(this);
+    hello_->verify(window, QStringLiteral("Unlock RedVaultMessages"), [self](bool verified, const QString& error) {
+        if (!self) return;
+        self->setBusy(false);
+        if (verified) {
+            self->failed_ = 0;
+            self->setLocked(false);
+            return;
+        }
+        self->setError(error.isEmpty() ? QStringLiteral("Windows Hello didn't confirm it's you. Use your PIN.") : error);
+    });
 }
 
 bool AppLock::enabled() const {
@@ -229,6 +272,9 @@ void AppLock::clearPin() {
     settings.remove(kSalt);
     settings.remove(kLength);
     settings.remove(kOldFailed);
+    settings.remove(kHello);
+    helloEnabled_ = false;
+    emit helloChanged();
     pinHash_.clear();
     pinSalt_.clear();
     pinLength_ = kMinPinLength;

@@ -19,7 +19,7 @@ Rectangle {
 
     readonly property bool torOn: chip.tor !== null && chip.tor.enabled
     readonly property string torState: chip.torOn ? chip.tor.state : "off"
-    readonly property color dot: chip.torState === "connected" ? Theme.accent
+    readonly property color dot: chip.torState === "connected" ? Theme.ok
                                  : chip.torState === "connecting" ? Theme.warn
                                  : chip.torState === "unavailable" ? Theme.danger : Theme.text3
 
@@ -44,9 +44,10 @@ Rectangle {
         }
         Text {
             visible: chip.torOn
-            text: chip.torState === "connected" ? "Tor connected"
-                  : chip.torState === "connecting" ? "Connecting through Tor… " + chip.tor.progress + "%"
-                  : "Can't reach Tor"
+            text: chip.torState === "connected" && chip.tor.backupRoute ? qsTr("Tor connected (backup route)")
+                  : chip.torState === "connected" ? qsTr("Tor connected")
+                  : chip.torState === "connecting" ? qsTr("Connecting through Tor… ") + chip.tor.progress + "%"
+                  : qsTr("Can't reach Tor")
             textFormat: Text.PlainText
             color: chip.torState === "unavailable" ? Theme.danger : Theme.text
             font.pixelSize: 12
@@ -54,14 +55,14 @@ Rectangle {
         }
         Text {
             visible: chip.torOn && chip.tor.queued > 0
-            text: "· " + (chip.torOn ? chip.tor.queued : 0) + " queued"
+            text: "· " + (chip.torOn ? chip.tor.queued : 0) + qsTr(" queued")
             textFormat: Text.PlainText
             color: Theme.text2
             font.pixelSize: 12
         }
         Text {
             visible: chip.torOn && chip.tor.pausedUploads > 0
-            text: "· upload paused"
+            text: qsTr("· upload paused")
             color: Theme.text2
             font.pixelSize: 12
         }
@@ -73,7 +74,7 @@ Rectangle {
         }
         Text {
             visible: chip.callActive
-            text: "WebRTC call · TURN relay"
+            text: qsTr("WebRTC call · TURN relay")
             color: Theme.text2
             font.pixelSize: 12
         }

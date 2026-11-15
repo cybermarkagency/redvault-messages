@@ -59,7 +59,7 @@ Rectangle {
         }
         Text {
             Layout.fillWidth: true
-            text: (bar.calls.kind === "video" ? "Video call with " : "Call with ") + bar.calls.peerHandle + " · " + bar.elapsed()
+            text: (bar.calls.kind === "video" ? qsTr("Video call with ") : qsTr("Call with ")) + bar.calls.peerHandle + " · " + bar.elapsed()
             textFormat: Text.PlainText
             elide: Text.ElideRight
             color: Theme.accent
@@ -68,21 +68,21 @@ Rectangle {
         IconButton {
             iconName: bar.calls.muted ? "mic-off" : "mic"
             toggled: bar.calls.muted
-            tip: bar.calls.muted ? "Unmute" : "Mute"
+            tip: bar.calls.muted ? qsTr("Unmute") : qsTr("Mute")
             implicitHeight: 36
             implicitWidth: 36
             onClicked: bar.calls.toggleMute()
         }
         RvButton {
             implicitHeight: 34
-            text: "Return to call"
+            text: qsTr("Return to call")
             onClicked: bar.calls.setMinimized(false)
         }
         IconButton {
             danger: true
             round: true
             iconName: "phone-off"
-            tip: "End call"
+            tip: qsTr("End call")
             implicitHeight: 36
             implicitWidth: 36
             iconSize: 18

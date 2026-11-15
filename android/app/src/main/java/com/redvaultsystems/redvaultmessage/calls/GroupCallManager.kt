@@ -23,6 +23,10 @@ import com.redvaultsystems.redvaultmessage.data.api.SendGroupKeysRequest
 import com.redvaultsystems.redvaultmessage.data.api.StartGroupCallRequest
 import com.redvaultsystems.redvaultmessage.data.api.apiCall
 import com.redvaultsystems.redvaultmessage.data.model.Conversation
+import com.redvaultsystems.redvaultmessage.devicekeys.CallKeyMessage
+import com.redvaultsystems.redvaultmessage.devicekeys.EngineException
+import com.redvaultsystems.redvaultmessage.devicekeys.IncomingCallEnvelope
+import com.redvaultsystems.redvaultmessage.devicekeys.refuseCallKey
 import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
 import com.redvaultsystems.redvaultmessage.ui.live.LiveSession
 import io.livekit.android.ConnectOptions
@@ -167,6 +171,11 @@ class GroupCallManager(
     private val ringtone: () -> Boolean = { true },
     private val echoCancellation: () -> Boolean = { true },
     private val onSessionExpired: () -> Unit,
+    /**
+     * Part B: in a group on device keys the room keys go pairwise as device-key messages to each participant's
+     * devices instead of POST /keys (docs/signal-integration/09-part-b-calls.md). Null without device keys.
+     */
+    private val deviceKeys: DeviceKeyCallCarrier? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(GroupCallsState())
@@ -210,6 +219,12 @@ class GroupCallManager(
         /** A frame can beat its key here, so this waits to see if it passes. */
         val receiveFailures = TrackFailures(E2EE_GRACE_MS)
         var e2eeCheckJob: Job? = null
+        /** Part B: this call's room keys travel over device keys (decided once when joining; never mixed). */
+        var deviceKeys = false
+        /** Part B: device-key room keys for an epoch whose roster hasn't arrived yet. */
+        val earlyDeviceKeys = mutableMapOf<Long, IncomingCallEnvelope>()
+        /** Part B: takes this call's room keys from the mailbox as they arrive. */
+        var deviceKeysJob: Job? = null
     }
 
     private data class RosterMember(val userId: String, val identity: String)
@@ -239,7 +254,8 @@ class GroupCallManager(
      */
     fun start(conversation: Conversation, kind: String): String? {
         if (!conversation.isGroup) return "Group calls are for groups."
-        if (conversation.meta.community != null) return COMMUNITY_CALLS
+        // Part C2: a community's call keys go pairwise over device keys only (never POST /keys).
+        if (conversation.meta.community != null && deviceKeys == null) return COMMUNITY_CALLS
         if (!_state.value.available) return NOT_AVAILABLE
         if (session != null || oneToOneBusy()) return ALREADY_IN_CALL
         val ongoing = _state.value.active[conversation.id]
@@ -388,6 +404,20 @@ class GroupCallManager(
         s.callId = join.callId
         s.kind = join.kind
         if (join.callId in removedFrom) return finish(s, REMOVED_FROM_CALL)
+        // The group's own rule (step 1) decides how this call's room keys travel, before any key event is handled.
+        s.deviceKeys = try {
+            deviceKeys?.groupUsesDeviceKeys(s.conversationId) == true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            leaveQuietly(join.callId)
+            return finish(s, (e as? EngineException)?.message ?: "Couldn't check this group's encryption. Try again.")
+        }
+        if (s.closed) return
+        if (!s.deviceKeys && isCommunity(s.conversationId)) {
+            leaveQuietly(join.callId)
+            return finish(s, COMMUNITY_CALLS)
+        }
         patch { it.copy(callId = join.callId, kind = join.kind, cameraOff = join.kind != "video") }
         val echo = echoCancellation()
         audio.start(speaker = join.kind == "video")
@@ -473,7 +503,22 @@ class GroupCallManager(
         val buffered = s.buffer.filter { it.str("callId") == join.callId }
         s.buffer.clear()
         for (event in buffered) handleCallEvent(s, event)
+        if (s.deviceKeys) watchDeviceKeys(s, join.callId)
         refreshTiles()
+    }
+
+    /** Part B: takes this call's room keys from the mailbox, one at a time with the roster events, as they arrive. */
+    private fun watchDeviceKeys(s: Session, callId: String) {
+        val carrier = deviceKeys ?: return
+        val id = callId.lowercase()
+        s.deviceKeysJob?.cancel()
+        s.deviceKeysJob = scope.launch {
+            carrier.envelopes.arrivals.collect {
+                for (envelope in carrier.envelopes.takeAll { e -> e.key != null && e.callId == id }) {
+                    callMutex.withLock { if (!s.closed) handleDeviceKey(s, envelope) }
+                }
+            }
+        }
     }
 
     /**
@@ -663,13 +708,25 @@ class GroupCallManager(
                 key.fill(0)
                 return
             }
-            val sealed = s.members.filter { it.userId != identity.userId }.mapNotNull { m ->
+            val sealed = if (s.deviceKeys) emptyList() else s.members.filter { it.userId != identity.userId }.mapNotNull { m ->
                 val publicKey = publicKeyOf(s, m.userId) ?: return@mapNotNull null
                 val message = ExpectedRoomKey(callId, s.conversationId, epoch, identity.userId, m.userId)
                 val box = crypto.sealRoomKey(message, key, publicKey, identity.privateKey)
                 GroupKeyEntry(m.userId, SealedSignalDto(Base64Codec.encode(box.ciphertext), Base64Codec.encode(box.nonce)))
             }
-            if (sealed.isNotEmpty()) {
+            if (s.deviceKeys) {
+                // Pairwise to every device of each participant in the server's list who is in the group, not POST /keys.
+                val members = groupMemberIds(s)
+                val participants = s.members.map { it.userId }.filter { it != identity.userId && it in members }
+                try {
+                    deviceKeys!!.sendCallKey(s.conversationId, participants, CallKeyMessage(callId.lowercase(), epoch, key))
+                } catch (e: CancellationException) {
+                    key.fill(0)
+                    throw e
+                } catch (e: Exception) {
+                    patch { it.copy(notice = "Couldn't hand out the call key. Others may not hear you.") }
+                }
+            } else if (sealed.isNotEmpty()) {
                 try {
                     apiCall(ApiClient.json) { api.sendGroupCallKeys(callId, SendGroupKeysRequest(epoch, sealed)) }
                 } catch (e: CancellationException) {
@@ -680,13 +737,55 @@ class GroupCallManager(
                 }
             }
             key.fill(0)
+        } else if (s.deviceKeys) {
+            val early = s.earlyDeviceKeys.remove(epoch)
+            if (early != null) handleDeviceKey(s, early)
+            // The key is probably in the mailbox already: read it now rather than at the next wake.
+            if (s.keyEpoch < epoch) deviceKeys?.let { carrier -> scope.launch { carrier.readMailbox() } }
         } else {
             val early = s.earlyKeys.remove(epoch)
             if (early != null) handleKey(s, early)
         }
     }
 
+    /**
+     * Part B: a room key from the mailbox. Taken only from a current member of the group (whose device was in their
+     * signed list, or the mailbox wouldn't have delivered it), for an epoch at least the newest held, and, as with
+     * protocol 1, only from that epoch's keyholder. A key for an epoch whose roster hasn't come yet waits for it.
+     */
+    private suspend fun handleDeviceKey(s: Session, envelope: IncomingCallEnvelope) {
+        val message = envelope.key ?: return
+        var kept = false
+        try {
+            val callId = s.callId ?: return
+            if (refuseCallKey(envelope, callId.lowercase(), s.conversationId, groupMemberIds(s), s.keyEpoch) != null) return
+            if (message.epoch > s.epoch) {
+                s.earlyDeviceKeys.put(message.epoch, envelope)?.key?.key?.fill(0)
+                kept = true
+                // Never more than a few waiting: the oldest go first.
+                while (s.earlyDeviceKeys.size > MAX_EARLY_KEYS) s.earlyDeviceKeys.remove(s.earlyDeviceKeys.keys.min())?.key?.key?.fill(0)
+                return
+            }
+            if (message.epoch < s.epoch || envelope.senderUserId != s.keyholder) return
+            applyKey(s, message.key, message.epoch)
+        } finally {
+            if (!kept) message.key.fill(0)
+        }
+    }
+
+    /** The group's current members (from its member list), for checking who a room key came from. */
+    private fun groupMemberIds(s: Session): Set<String> =
+        // Part C2: a community's member list isn't on this phone (a channel's members never see it). The server's
+        // list for the call is who may be in it: joining needs a live entitlement, and device-key messages go only
+        // between entitled members.
+        if (isCommunity(s.conversationId)) s.members.mapTo(HashSet()) { it.userId.lowercase() }
+        else groupOf(s.conversationId)?.meta?.members.orEmpty().mapTo(HashSet()) { it.userId.lowercase() }
+
+    private fun isCommunity(conversationId: String): Boolean = conversations().any { it.id == conversationId && it.meta.community != null }
+
     private suspend fun handleKey(s: Session, event: JsonObject) {
+        // Never mixed: a call whose keys travel over device keys takes none from the server.
+        if (s.deviceKeys) return
         val epoch = event.long("epoch")
         if (epoch > s.epoch) {
             s.earlyKeys[epoch] = event
@@ -978,6 +1077,8 @@ class GroupCallManager(
             val group = groupOf(conversationId)
             val hostId = event.str("hostId")
             if (group == null || session != null || oneToOneBusy() || hostId == identity.userId) return
+            // A community's calls show as going on but never ring (a thousand phones).
+            if (group.meta.community != null) return
             endedJob?.cancel()
             val s = Session(callId, group.id, kindOf(event))
             s.ringing = true
@@ -1048,6 +1149,9 @@ class GroupCallManager(
         if (session === s) session = null
         s.eventsJob?.cancel()
         s.e2eeCheckJob?.cancel()
+        s.deviceKeysJob?.cancel()
+        s.earlyDeviceKeys.values.forEach { it.key?.key?.fill(0) }
+        s.earlyDeviceKeys.clear()
         release(s)
         audio.stop()
         if (session == null) {
@@ -1079,12 +1183,11 @@ class GroupCallManager(
     // --- Helpers ---
 
     /**
-     * Not communities: a call's room key is sealed to each member's identity key from the group's member
-     * list, and on this phone a community's list holds only the people seen posting (so their calls don't
-     * ring here either).
+     * A group, or a community when this phone has device keys (Part C2: its room keys go pairwise as Part B call
+     * keys, never sealed to the member list, which on this phone holds only the people seen posting).
      */
     private fun groupOf(conversationId: String): Conversation? =
-        conversations().firstOrNull { it.isGroup && it.meta.community == null && it.id == conversationId }
+        conversations().firstOrNull { it.isGroup && (it.meta.community == null || deviceKeys != null) && it.id == conversationId }
 
     private fun blankView(group: Conversation, kind: String, phase: GroupPhase, callId: String?, hostHandle: String?) = GroupCallView(
         callId = callId,
@@ -1125,10 +1228,12 @@ class GroupCallManager(
         private const val ENCODER_SETTLE_MS = 120L
         /** How long a track may fail to decrypt before it's mentioned: longer than a key change takes. */
         private const val E2EE_GRACE_MS = 4000L
+        /** Device-key room keys held for epochs whose roster hasn't arrived (part B). */
+        private const val MAX_EARLY_KEYS = 4
         const val PREMIUM_ONLY = "Only Premium members can start group calls"
         const val ALREADY_IN_CALL = "You're already in a call. Leave it first."
         const val NOT_AVAILABLE = "Group calls aren't available on this server."
-        const val COMMUNITY_CALLS = "Calls in communities aren't in the Android app yet. Join them on the web or desktop."
+        const val COMMUNITY_CALLS = "Calls in communities need device keys on this phone. Link it in Settings, Devices & encryption."
         const val REMOVED_FROM_CALL = "You were removed from this group, so you've left its call."
         const val ENDED_NO_ENCRYPTION = "Call ended: this phone couldn't keep it end-to-end encrypted."
         const val ENCRYPTION_OFF = "End-to-end encryption isn't on for this call, so nothing was turned on."

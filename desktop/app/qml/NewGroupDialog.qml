@@ -11,7 +11,7 @@ RvDialog {
     id: dialog
     required property ChatSession chats
     required property PeopleSession people
-    title: "New group"
+    title: qsTr("New group")
     property string error: ""
 
     onOpened: {
@@ -39,13 +39,13 @@ RvDialog {
         RvTextField {
             id: nameField
             Layout.fillWidth: true
-            placeholderText: "Group name"
+            placeholderText: qsTr("Group name")
             maximumLength: 100
             enabled: !dialog.chats.groupBusy
         }
 
         Text {
-            text: "Members"
+            text: qsTr("Members")
             color: Theme.text2
             font.pixelSize: Theme.fontSmall
             font.weight: Font.DemiBold
@@ -64,7 +64,7 @@ RvDialog {
 
         RvButton {
             Layout.fillWidth: true
-            text: dialog.chats.groupBusy ? "Creating…" : "Create group"
+            text: dialog.chats.groupBusy ? qsTr("Creating…") : qsTr("Create group")
             enabled: !dialog.chats.groupBusy && nameField.text.trim().length > 0 && picker.selected.length > 0
             onClicked: dialog.chats.createGroup(nameField.text, picker.selected)
         }

@@ -706,3 +706,111 @@ pub(crate) fn status(state: &State) -> Result<Value> {
         "pinned": state.signal.pins.len(),
     }))
 }
+
+// --- Anonymous sticker answers (RVSD copies) ---
+
+/// Domain separation for `storySeal` / `storyUnseal`: the KDF prefix and the AEAD's associated data.
+const STORY_SEAL_CONTEXT: &[u8] = b"redvault-rvsd-v1";
+/// The most plaintext one copy takes (a whole RVSD container is at most 8 KiB).
+const STORY_SEAL_MAX_PLAINTEXT: usize = 8192;
+
+/// key = BLAKE2b-256(key = shared, message = context ‖ ephemeral public ‖ recipient identity public).
+/// Both publics are the raw 32-byte Curve25519 keys.
+fn story_seal_key(shared: &[u8], ephemeral: &[u8], recipient: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
+    use blake2::digest::{consts::U32, Mac as _};
+    let mut mac = blake2::Blake2bMac::<U32>::new_with_salt_and_personal(Some(shared), &[], &[])
+        .map_err(|_| Error::new("internal", "kdf setup failed"))?;
+    mac.update(STORY_SEAL_CONTEXT);
+    mac.update(ephemeral);
+    mac.update(recipient);
+    let mut key = Zeroizing::new([0u8; 32]);
+    key.copy_from_slice(mac.finalize().into_bytes().as_slice());
+    Ok(key)
+}
+
+fn story_aead(key: &[u8; 32]) -> Result<chacha20poly1305::XChaCha20Poly1305> {
+    use chacha20poly1305::aead::KeyInit;
+    chacha20poly1305::XChaCha20Poly1305::new_from_slice(key).map_err(|_| Error::new("internal", "bad seal key"))
+}
+
+/// The certificate must be signed by the device it names, that device must be in its account's
+/// verified signed list here, and that list must pin exactly this certificate (an rv-signal-v1
+/// capability with this certificate hash). Returns the certified identity key.
+fn pinned_story_certificate(state: &State, value: Option<&Value>) -> Result<IdentityKey> {
+    let value = value.filter(|v| !v.is_null()).ok_or_else(|| bad_request("certificate is required"))?;
+    let cert: DeviceCertificate =
+        serde_json::from_value(value.clone()).map_err(|_| Error::new("bad_certificate", "not a device certificate"))?;
+    let device = DeviceIdentity {
+        user_id: cert.user_id.clone(),
+        device_id: cert.device_id.clone(),
+        curve25519: cert.curve25519.clone(),
+        ed25519: cert.ed25519.clone(),
+    };
+    verify_certificate_signature(&device, &cert)?;
+    let list = if device.user_id == state.user_id {
+        state.own_list.as_ref()
+    } else {
+        state.contacts.get(&device.user_id).and_then(|c| c.list.as_ref())
+    };
+    let unverified = || Error::new("unverified_device", "this device isn't in a verified signed device list here: verify the author's list first");
+    let list = list.ok_or_else(unverified)?;
+    if !list.devices.contains(&device) {
+        return Err(unverified());
+    }
+    let pinned = list.capabilities.iter().find(|c| c.device_id == device.device_id && c.protocol == SIGNAL_PROTOCOL);
+    match pinned {
+        Some(c) if c.certificate_hash == certificate_hash(&cert) => {}
+        Some(_) => return Err(Error::new("certificate_mismatch", "the signed device list pins another certificate for this device")),
+        None => return Err(Error::new("certificate_mismatch", "the signed device list pins no Signal certificate for this device")),
+    }
+    let identity = IdentityKey::decode(&unb64(&cert.identity_key, "certificate.identityKey")?)
+        .map_err(|_| Error::new("bad_key", "the certified identity key is malformed"))?;
+    Ok(identity)
+}
+
+/// `storySeal {certificate, plaintext}` -> `{sealed}`: one anonymous copy for one author device.
+/// sealed = ephemeral public (32) ‖ XChaCha20-Poly1305(key, nonce = 24 zero bytes, aad = context, plaintext).
+/// The key is fresh for every ephemeral key, so the fixed nonce is never reused under one key.
+/// Needs no Signal identity on this device, and changes no state.
+pub(crate) fn story_seal(state: &State, request: &Value) -> Result<Value> {
+    use chacha20poly1305::aead::{Aead, Payload};
+    let identity = pinned_story_certificate(state, request.get("certificate"))?;
+    let plaintext = str_field(request, "plaintext")?;
+    if plaintext.len() > STORY_SEAL_MAX_PLAINTEXT {
+        return Err(bad_request("plaintext is too large"));
+    }
+    let recipient = identity.public_key();
+    let mut rng = rng().unwrap_err();
+    let ephemeral = KeyPair::generate(&mut rng);
+    let shared = Zeroizing::new(ephemeral.calculate_agreement(recipient).map_err(|_| Error::new("bad_key", "the certified identity key can't be used"))?);
+    let eph_public = ephemeral.public_key.public_key_bytes().to_vec();
+    let key = story_seal_key(&shared, &eph_public, recipient.public_key_bytes())?;
+    let sealed = story_aead(&key)?
+        .encrypt(&chacha20poly1305::XNonce::from([0u8; 24]), Payload { msg: plaintext.as_bytes(), aad: STORY_SEAL_CONTEXT })
+        .map_err(|_| Error::new("internal", "sealing failed"))?;
+    let mut out = eph_public;
+    out.extend_from_slice(&sealed);
+    Ok(json!({ "sealed": b64(&out) }))
+}
+
+/// `storyUnseal {sealed}` -> `{plaintext}`: opens a copy sealed to this device's Signal identity key.
+pub(crate) fn story_unseal(state: &State, request: &Value) -> Result<Value> {
+    use chacha20poly1305::aead::{Aead, Payload};
+    let st = state.signal.session.as_ref().ok_or_else(|| Error::new("signal_not_enabled", "Signal isn't enabled on this device"))?;
+    let blob = unb64(str_field(request, "sealed")?, "sealed")?;
+    if blob.len() < 32 + 16 {
+        return Err(bad_request("sealed is too short"));
+    }
+    let failed = || Error::new("open_failed", "this copy doesn't open with this device's key");
+    let pair = identity_pair(st)?;
+    let ephemeral = PublicKey::from_djb_public_key_bytes(&blob[..32]).map_err(|_| failed())?;
+    let shared = Zeroizing::new(pair.private_key().calculate_agreement(&ephemeral).map_err(|_| failed())?);
+    let key = story_seal_key(&shared, &blob[..32], pair.identity_key().public_key().public_key_bytes())?;
+    let plain = Zeroizing::new(
+        story_aead(&key)?
+            .decrypt(&chacha20poly1305::XNonce::from([0u8; 24]), Payload { msg: &blob[32..], aad: STORY_SEAL_CONTEXT })
+            .map_err(|_| failed())?,
+    );
+    let text = std::str::from_utf8(&plain).map_err(|_| failed())?;
+    Ok(json!({ "plaintext": text }))
+}

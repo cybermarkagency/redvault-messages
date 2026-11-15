@@ -4,6 +4,7 @@
 package com.redvaultsystems.redvaultmessage.data.api
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -37,6 +38,10 @@ interface PublicChannelApi {
         @Header(ACCESS_HEADER) access: String? = null,
     ): List<ChannelPostDto>
 
+    /** A private channel's wrapped keys, every epoch (Part C1), for whoever holds its current link. */
+    @GET("public/channels/{id}/keys")
+    suspend fun keys(@Path("id") id: String, @Header(ACCESS_HEADER) access: String?): ChannelKeysDto
+
     /** One anonymous view for each of these posts (post ids only; each phone reports a post once). */
     @POST("public/channels/views")
     suspend fun views(@Body body: ChannelViewsRequest)
@@ -60,6 +65,14 @@ interface ChannelApi {
     @PUT("channels/{id}/visibility")
     suspend fun setVisibility(@Path("id") id: String, @Body body: ChannelVisibilityRequest): ChannelDto
 
+    /** The owner (any time, also while public) or a holder of the link: every epoch's wrapped key. */
+    @GET("channels/{id}/keys")
+    suspend fun keys(@Path("id") id: String, @Header(ACCESS_HEADER) access: String? = null): ChannelKeysDto
+
+    /** Owner: posts still in the other format after a visibility switch, oldest first. */
+    @GET("channels/{id}/conversion")
+    suspend fun conversion(@Path("id") id: String, @Query("limit") limit: Int): ChannelConversionDto
+
     @PUT("channels/{id}/settings")
     suspend fun setSettings(@Path("id") id: String, @Body body: ChannelSettingsRequest): ChannelDto
 
@@ -80,6 +93,18 @@ interface ChannelApi {
 
     @POST("channels/{id}/posts")
     suspend fun post(@Path("id") id: String, @Body body: ChannelPostRequest): ChannelPostDto
+
+    /** A private channel's post: sealed on this phone. */
+    @POST("channels/{id}/posts")
+    suspend fun postEncrypted(@Path("id") id: String, @Body body: ChannelEncryptedPostRequest): ChannelPostDto
+
+    /** Owner: a conversion to plain text after going public. */
+    @PUT("channels/{id}/posts/{postId}")
+    suspend fun replacePost(@Path("id") id: String, @Path("postId") postId: String, @Body body: ChannelPostRequest): ChannelPostDto
+
+    /** Owner: an edit in a private channel, or a conversion after going private, sealed under the newest epoch. */
+    @PUT("channels/{id}/posts/{postId}")
+    suspend fun replacePostEncrypted(@Path("id") id: String, @Path("postId") postId: String, @Body body: ChannelEncryptedPostRequest): ChannelPostDto
 
     @GET("channels/{id}/scheduled")
     suspend fun scheduled(@Path("id") id: String): List<ChannelPostDto>
@@ -126,6 +151,13 @@ interface ChannelApi {
     @POST("channels/{id}/suggestions")
     suspend fun suggest(@Path("id") id: String, @Body body: ChannelSuggestionRequest, @Header(ACCESS_HEADER) access: String? = null): ChannelSuggestionDto
 
+    @POST("channels/{id}/suggestions")
+    suspend fun suggestEncrypted(
+        @Path("id") id: String,
+        @Body body: ChannelEncryptedSuggestionRequest,
+        @Header(ACCESS_HEADER) access: String? = null,
+    ): ChannelSuggestionDto
+
     @GET("channels/{id}/suggestions/mine")
     suspend fun mySuggestions(@Path("id") id: String): List<ChannelSuggestionDto>
 
@@ -135,6 +167,14 @@ interface ChannelApi {
 
     @POST("channels/{id}/suggestions/{suggestionId}/approve")
     suspend fun approveSuggestion(@Path("id") id: String, @Path("suggestionId") suggestionId: String, @Body body: ChannelApproveRequest): ChannelPostDto
+
+    /** A private channel: the owner's re-sealed post (the suggestion's media carry over). */
+    @POST("channels/{id}/suggestions/{suggestionId}/approve")
+    suspend fun approveSuggestionEncrypted(
+        @Path("id") id: String,
+        @Path("suggestionId") suggestionId: String,
+        @Body body: ChannelEncryptedApproveRequest,
+    ): ChannelPostDto
 
     @POST("channels/{id}/suggestions/{suggestionId}/reject")
     suspend fun rejectSuggestion(@Path("id") id: String, @Path("suggestionId") suggestionId: String)
@@ -164,6 +204,13 @@ data class ChannelDto(
     /** Same-server path of the channel's photo (versioned), or null. Fetched without the cookie. */
     val avatarUrl: String? = null,
     val secretSealed: String? = null,
+    /**
+     * Part C1: a private channel's newest key epoch (null while public, or for a private channel made before
+     * C1 that has no keys yet). The owner's own copy keeps the stored newest epoch also while public.
+     */
+    val keyEpoch: Int? = null,
+    /** Owner's copy, while public: the last private link's secret, sealed to them, to convert old encrypted posts. */
+    val formerSecretSealed: String? = null,
 )
 
 /** A photo, video, file or recording in a post: [url] is a signed, expiring same-server link to its bytes. */
@@ -179,13 +226,22 @@ data class ChannelMediaDto(
     val width: Int? = null,
     val height: Int? = null,
     val url: String,
+    /** Set on this phone for a private channel's media, from the decrypted post. Never sent or parsed. */
+    @Transient val sealed: SealedMedia? = null,
 )
+
+/**
+ * How to open one encrypted upload (FileCrypto's secretstream), from inside a private channel's decrypted post.
+ * [plainSize] is the file's real size; the server only knows [encryptedSize].
+ */
+class SealedMedia(val fileKey: ByteArray, val header: ByteArray, val encryptedSize: Long, val ciphertextSha256: String, val plainSize: Long)
 
 /** A poll as readers see it. A quiz's [correct] stays null until it's closed (or in the answer to your own vote). */
 @Serializable
 data class ChannelPollDto(
-    val question: String,
-    val options: List<String>,
+    // An encrypted poll's answer to a vote has no text: the phone fills it in from the decrypted post.
+    val question: String = "",
+    val options: List<String> = emptyList(),
     val multiple: Boolean = false,
     val quiz: Boolean = false,
     val closed: Boolean = false,
@@ -193,6 +249,8 @@ data class ChannelPollDto(
     val voters: Int = 0,
     val correct: Int? = null,
     val explanation: String? = null,
+    /** Encrypted polls only: how many options the server counts votes for. */
+    val optionCount: Int? = null,
 )
 
 @Serializable
@@ -200,10 +258,13 @@ data class ChannelChecklistItemDto(val text: String, val done: Boolean = false)
 
 @Serializable
 data class ChannelChecklistDto(
-    val title: String,
-    val items: List<ChannelChecklistItemDto>,
+    val title: String = "",
+    val items: List<ChannelChecklistItemDto> = emptyList(),
     /** Followers may tick items too. */
     val collaborative: Boolean = false,
+    /** Encrypted checklists only (the answer to a tick): the server knows the count and the ticks, never the text. */
+    val itemCount: Int? = null,
+    val done: List<Boolean>? = null,
 )
 
 @Serializable
@@ -220,7 +281,39 @@ data class ChannelPostDto(
     val poll: ChannelPollDto? = null,
     val checklist: ChannelChecklistDto? = null,
     val media: List<ChannelMediaDto> = emptyList(),
+    /** Part C1: a private channel's post, sealed on the owner's phone; null for a plain one. */
+    val encrypted: ChannelEncryptedDto? = null,
+    /** Set on this phone: an encrypted post this link's keys can't open. */
+    @Transient val locked: Boolean = false,
 )
+
+/** What the server knows of an encrypted post: the ciphertext, and only the counts it keeps for votes and ticks. */
+@Serializable
+data class ChannelEncryptedDto(
+    val keyEpoch: Int,
+    val nonce: String,
+    val ciphertext: String,
+    /** "text", "poll", "checklist" or "media". */
+    val kind: String = "text",
+    val poll: ChannelSealedPollDto? = null,
+    val checklist: ChannelSealedChecklistDto? = null,
+)
+
+@Serializable
+data class ChannelSealedPollDto(
+    val optionCount: Int,
+    val multiple: Boolean = false,
+    val quiz: Boolean = false,
+    val closed: Boolean = false,
+    val counts: List<Int> = emptyList(),
+    val voters: Int = 0,
+)
+
+@Serializable
+data class ChannelSealedChecklistDto(val itemCount: Int, val collaborative: Boolean = false, val done: List<Boolean> = emptyList())
+
+@Serializable
+data class ChannelSealedDto(val keyEpoch: Int, val nonce: String, val ciphertext: String)
 
 @Serializable
 data class ChannelSuggestionDto(
@@ -230,7 +323,20 @@ data class ChannelSuggestionDto(
     val status: String,
     val createdAt: String,
     val media: List<ChannelMediaDto> = emptyList(),
+    /** Part C1: sealed by the follower under the newest epoch; null for a plain one. */
+    val encrypted: ChannelSealedDto? = null,
+    /** Set on this phone: an encrypted suggestion this phone can't open. */
+    @Transient val locked: Boolean = false,
 )
+
+@Serializable
+data class ChannelWrappedKeyDto(val epoch: Int, val wrapped: String)
+
+@Serializable
+data class ChannelKeysDto(val keyEpoch: Int? = null, val keys: List<ChannelWrappedKeyDto> = emptyList())
+
+@Serializable
+data class ChannelConversionDto(val isPrivate: Boolean, val keyEpoch: Int? = null, val posts: List<ChannelPostDto> = emptyList())
 
 @Serializable
 data class ChannelUploadDto(val id: String, val kind: String = "", val size: Long = 0, val uploadUrl: String)
@@ -241,9 +347,17 @@ data class ChannelVoteDto(val poll: ChannelPollDto, val mine: List<Int> = emptyL
 @Serializable
 data class ChannelDetailsRequest(val name: String, val description: String)
 
-/** Private: with a new link's [access] token and its secret sealed to you. Public: neither. */
+/**
+ * Private: with a new link's [access] token, its secret sealed to you, and every epoch's content key wrapped
+ * under the new link ([keys]: exactly epochs 1..n+1). Public: none of them.
+ */
 @Serializable
-data class ChannelVisibilityRequest(val isPrivate: Boolean, val access: String? = null, val secretSealed: String? = null)
+data class ChannelVisibilityRequest(
+    val isPrivate: Boolean,
+    val access: String? = null,
+    val secretSealed: String? = null,
+    val keys: List<ChannelWrappedKeyDto>? = null,
+)
 
 @Serializable
 data class ChannelSettingsRequest(val acceptSuggestions: Boolean)
@@ -271,16 +385,42 @@ data class ChannelPostRequest(
     val publishAt: String? = null,
 )
 
+/** Public: the file's details. Private: only [encrypted] = true and the encrypted [size] (the rest goes in the post). */
 @Serializable
 data class ChannelMediaStartRequest(
-    val kind: String,
-    val mime: String,
+    val kind: String? = null,
+    val mime: String? = null,
     val size: Long,
     val filename: String? = null,
     val durationMs: Long? = null,
     val width: Int? = null,
     val height: Int? = null,
+    val encrypted: Boolean? = null,
 )
+
+/** A private channel's post (or edit): the server sees the ciphertext and only the counts it needs. */
+@Serializable
+data class ChannelEncryptedPostRequest(
+    val keyEpoch: Int,
+    val nonce: String,
+    val ciphertext: String,
+    val poll: ChannelPollShape? = null,
+    val checklist: ChannelChecklistShape? = null,
+    val media: List<String>? = null,
+    val publishAt: String? = null,
+)
+
+@Serializable
+data class ChannelPollShape(val optionCount: Int, val multiple: Boolean? = null, val quiz: Boolean? = null)
+
+@Serializable
+data class ChannelChecklistShape(val itemCount: Int, val collaborative: Boolean? = null)
+
+@Serializable
+data class ChannelEncryptedSuggestionRequest(val keyEpoch: Int, val nonce: String, val ciphertext: String, val media: List<String>? = null)
+
+@Serializable
+data class ChannelEncryptedApproveRequest(val keyEpoch: Int, val nonce: String, val ciphertext: String, val publishAt: String? = null)
 
 @Serializable
 data class ChannelVoteRequest(val options: List<Int>)

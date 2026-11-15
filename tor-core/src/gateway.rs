@@ -29,6 +29,9 @@ pub struct GatewayConfig {
     pub cache_dir: PathBuf,
     /// `"<v3>.onion:<port>"` entries: the only places the gate will connect to.
     pub allowed_targets: Vec<String>,
+    /// `"<hostname>:443"`, at most one: the sealed backup route's website, reached
+    /// through a Tor exit (see `policy`). Empty: onion services only.
+    pub allowed_exit_targets: Vec<String>,
     /// Test only: point Arti at an unreachable directory cache so it can never
     /// bootstrap (a censored or offline network). Needs an empty cache_dir.
     #[cfg(feature = "test-hooks")]
@@ -106,7 +109,7 @@ impl Gateway {
         // rustls needs a process-wide provider; a second call is a harmless no-op.
         let _ = rustls::crypto::ring::default_provider().install_default();
 
-        let policy = TargetPolicy::parse(&config.allowed_targets)?;
+        let policy = TargetPolicy::parse_with_exits(&config.allowed_targets, &config.allowed_exit_targets)?;
 
         let mut builder = TorClientConfigBuilder::from_directories(&config.state_dir, &config.cache_dir);
         #[cfg(feature = "test-hooks")]

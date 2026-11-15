@@ -44,7 +44,7 @@ ColumnLayout {
 
     Text {
         visible: section.offer.available === true
-        text: "CREATOR"
+        text: qsTr("CREATOR")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
         font.weight: Font.DemiBold
@@ -69,7 +69,7 @@ ColumnLayout {
     }
     RvButton {
         visible: section.offer.available === true && section.offer.tips === true
-        text: "Tip " + section.name
+        text: qsTr("Tip ") + section.name
         iconName: "heart"
         onClicked: tipDialog.openFor(section.userId, section.name)
     }
@@ -77,7 +77,7 @@ ColumnLayout {
     Text {
         visible: section.offer.available === true && (section.offer.posts ?? []).length > 0
         Layout.topMargin: 4
-        text: "EXCLUSIVE POSTS"
+        text: qsTr("EXCLUSIVE POSTS")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
         font.weight: Font.DemiBold
@@ -100,7 +100,7 @@ ColumnLayout {
         spacing: 6
         readonly property bool exempt: section.earnings !== null && section.earnings.settings.exemptCount >= 0 && section.earnings.isExempt(section.userId)
         Text {
-            text: "PAID MESSAGES"
+            text: qsTr("PAID MESSAGES")
             color: Theme.text3
             font.pixelSize: Theme.fontSmall
             font.weight: Font.DemiBold
@@ -110,15 +110,15 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: parent.exempt
-                ? section.name + " can message you for free."
-                : section.name + " pays your message price unless you let them in (friends always can)."
+                ? section.name + qsTr(" can message you for free.")
+                : section.name + qsTr(" pays your message price unless you let them in (friends always can).")
             textFormat: Text.PlainText
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
         }
         RvButton {
             secondary: parent.exempt
-            text: parent.exempt ? "Charge them again" : "Let " + section.name + " message you free"
+            text: parent.exempt ? qsTr("Charge them again") : qsTr("Let ") + section.name + qsTr(" message you free")
             onClicked: section.earnings.setExempt(section.userId, !parent.exempt)
         }
     }

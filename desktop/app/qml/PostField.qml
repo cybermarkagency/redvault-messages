@@ -16,7 +16,7 @@ TextArea {
     textFormat: TextEdit.PlainText
     color: Theme.text
     placeholderTextColor: Theme.text3
-    selectionColor: Theme.accent
+    selectionColor: Theme.accentFill
     selectedTextColor: Theme.accentContrast
     font.pixelSize: Theme.fontSize
     padding: 12

@@ -54,6 +54,11 @@ class TorController(
     /** The onion service's host, e.g. "abc…xyz.onion". */
     val onionHost: String,
     private val dataDir: File,
+    /**
+     * The sealed backup route's website (docs/tor-sealed-fallback.md), e.g. "www.example.com": the one place outside
+     * onion services the gate may reach, on port 443 through a Tor exit. Null: onion services only.
+     */
+    private val exitHost: String? = null,
 ) : TorGateSource {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Any()
@@ -63,6 +68,33 @@ class TorController(
 
     private val _status = MutableStateFlow(TorStatus(TorState.Connecting, detail = "Starting Tor"))
     val status: StateFlow<TorStatus> = _status.asStateFlow()
+
+    // --- The sealed backup route (docs/tor-sealed-fallback.md) ---
+    private val _backupRoute = MutableStateFlow(false)
+    /** True while requests use the sealed backup route. */
+    val backupRoute: StateFlow<Boolean> = _backupRoute.asStateFlow()
+    private val _onionOnly = MutableStateFlow(false)
+    /** The user's choice "Only use the onion address" (off by default; kept on this phone by the app). */
+    val onionOnly: StateFlow<Boolean> = _onionOnly.asStateFlow()
+    /** Whether this build carries the gateway's key, so a backup route exists at all. */
+    @Volatile var backupRouteAvailable: Boolean = false
+    /** Called when the user changes "Only use the onion address" (to save it, and leave the backup route). */
+    @Volatile var onOnionOnlyChanged: ((Boolean) -> Unit)? = null
+
+    fun reportBackupRoute(backup: Boolean) {
+        _backupRoute.value = backup
+    }
+
+    /** Sets the choice without calling back (loading the saved value at start). */
+    fun loadOnionOnly(onionOnly: Boolean) {
+        _onionOnly.value = onionOnly
+    }
+
+    fun setOnionOnly(onionOnly: Boolean) {
+        if (_onionOnly.value == onionOnly) return
+        _onionOnly.value = onionOnly
+        onOnionOnlyChanged?.invoke(onionOnly)
+    }
 
     private val _connected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** Each time Tor becomes connected: drain the outbox, resume paused uploads. */
@@ -86,6 +118,7 @@ class TorController(
                         put("stateDir", state.absolutePath)
                         put("cacheDir", cache.absolutePath)
                         put("allowedTargets", buildJsonArray { add("$onionHost:80") })
+                        exitHost?.let { host -> put("allowedExitTargets", buildJsonArray { add("$host:443") }) }
                     }
                     handle = NativeTor.nativeStart(config.toString())
                     val e = json.decodeFromString<EndpointJson>(NativeTor.nativeEndpoint(handle))

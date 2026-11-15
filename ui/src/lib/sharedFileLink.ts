@@ -12,9 +12,18 @@
 // enough to open it.
 import sodium from "libsodium-wrappers-sumo";
 import { API_BASE } from "./apiBase.js";
-import { secretFromFragment } from "./callLinkCrypto.js";
 import { decryptFile, FileDecryptError } from "./fileCrypto.js";
 import { decryptWithConversationKey, fromBase64, ready } from "./e2eCrypto.js";
+
+/** The link's 32-byte secret from the address fragment (base64url, no padding), or null. */
+export function secretFromFragment(fragment: string): Uint8Array | null {
+  try {
+    const bytes = sodium.from_base64(fragment.replace(/^#/, ""), sodium.base64_variants.URLSAFE_NO_PADDING);
+    return bytes.length === 32 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface SharedFileLinkInfo {
   id: string;
@@ -43,8 +52,6 @@ export class SharedFileLinkError extends Error {
     this.name = "SharedFileLinkError";
   }
 }
-
-export { secretFromFragment };
 
 function linkUrl(linkId: string, suffix = ""): string {
   return `${API_BASE}/public/backup-links/${encodeURIComponent(linkId)}${suffix}`;

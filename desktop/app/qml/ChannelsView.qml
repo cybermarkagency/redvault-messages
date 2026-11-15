@@ -68,7 +68,7 @@ Item {
             spacing: 14
 
             Text {
-                text: "Channels"
+                text: qsTr("Channels")
                 color: Theme.text
                 font.family: Theme.displayFamily
                 font.pixelSize: 26
@@ -86,7 +86,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Channels aren't end-to-end encrypted like your chats: anyone can read a public channel, and anyone with the link can read a private one. Who follows a channel is kept only on each person's device, so there's no limit on followers."
+                    text: qsTr("Channels aren't end-to-end encrypted like your chats: anyone can read a public channel, and anyone with the link can read a private one. Who follows a channel is kept only on each person's device, so there's no limit on followers.")
                     color: Theme.text2
                     font.pixelSize: 13
                 }
@@ -117,12 +117,12 @@ Item {
                     visible: root.channels.followingCount === 0
                     spacing: 10
                     Text {
-                        text: "You don't follow any channels yet."
+                        text: qsTr("You don't follow any channels yet.")
                         color: Theme.text2
                     }
                     RvButton {
                         secondary: true
-                        text: "Discover channels"
+                        text: qsTr("Discover channels")
                         onClicked: root.tab = "discover"
                     }
                 }
@@ -146,7 +146,7 @@ Item {
                 SearchField {
                     id: searchField
                     Layout.fillWidth: true
-                    placeholderText: "Search channels"
+                    placeholderText: qsTr("Search channels")
                     onTextChanged: searchTimer.restart()
                 }
                 Timer {
@@ -160,12 +160,12 @@ Item {
                 }
                 Text {
                     visible: !root.channels.discoverLoaded && root.channels.discoverError.length === 0
-                    text: "Loading…"
+                    text: qsTr("Loading…")
                     color: Theme.text3
                 }
                 Text {
                     visible: root.channels.discoverLoaded && root.channels.discover.length === 0
-                    text: root.channels.discoverQuery.trim().length > 0 ? "No channels match." : "No channels yet."
+                    text: root.channels.discoverQuery.trim().length > 0 ? qsTr("No channels match.") : qsTr("No channels yet.")
                     textFormat: Text.PlainText
                     color: Theme.text3
                 }
@@ -181,7 +181,7 @@ Item {
                 RvButton {
                     visible: root.channels.discoverMore
                     secondary: true
-                    text: "Show more"
+                    text: qsTr("Show more")
                     onClicked: root.channels.loadMoreDiscover()
                 }
             }
@@ -214,12 +214,12 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "Creating a channel needs Premium. Anyone can follow channels on any plan."
+                        text: qsTr("Creating a channel needs Premium. Anyone can follow channels on any plan.")
                         color: Theme.text2
                     }
                     RvButton {
                         secondary: true
-                        text: "See plans"
+                        text: qsTr("See plans")
                         onClicked: root.openPlans()
                     }
                 }
@@ -227,7 +227,7 @@ Item {
                 RvButton {
                     visible: root.channels.canCreate && !yours.creating
                     iconName: "plus"
-                    text: "New channel"
+                    text: qsTr("New channel")
                     onClicked: {
                         yours.error = ""
                         yours.creating = true
@@ -242,21 +242,21 @@ Item {
                     RvTextField {
                         id: newName
                         Layout.fillWidth: true
-                        placeholderText: "Channel name"
+                        placeholderText: qsTr("Channel name")
                         maximumLength: root.channels.maxNameLength
                         Accessible.name: "Channel name"
                     }
                     PostField {
                         id: newDescription
                         Layout.fillWidth: true
-                        placeholderText: "What's it about? (optional)"
+                        placeholderText: qsTr("What's it about? (optional)")
                         Accessible.name: "Description"
                         limit: root.channels.maxDescriptionLength
                     }
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "Your channel starts public: anyone can find it and read everything you post, with no limit on followers. You can make it private later. Posts show the channel's name and photo, never who runs it."
+                        text: qsTr("Your channel starts public: anyone can find it and read everything you post, with no limit on followers. You can make it private later. Posts show the channel's name and photo, never who runs it.")
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall + 1
                     }
@@ -267,13 +267,13 @@ Item {
                     RowLayout {
                         spacing: 8
                         RvButton {
-                            text: root.channels.creating ? "Creating…" : "Create channel"
+                            text: root.channels.creating ? qsTr("Creating…") : qsTr("Create channel")
                             enabled: !root.channels.creating && newName.text.trim().length > 0 && newDescription.text.length <= root.channels.maxDescriptionLength
                             onClicked: root.channels.create(newName.text, newDescription.text)
                         }
                         RvButton {
                             secondary: true
-                            text: "Cancel"
+                            text: qsTr("Cancel")
                             enabled: !root.channels.creating
                             onClicked: yours.creating = false
                         }
@@ -282,12 +282,12 @@ Item {
 
                 Text {
                     visible: !root.channels.mineLoaded
-                    text: "Loading…"
+                    text: qsTr("Loading…")
                     color: Theme.text3
                 }
                 Text {
                     visible: root.channels.mineLoaded && root.channels.mine.length === 0 && root.channels.canCreate && !yours.creating
-                    text: "You haven't made a channel yet."
+                    text: qsTr("You haven't made a channel yet.")
                     color: Theme.text3
                 }
                 Repeater {
@@ -359,7 +359,7 @@ Item {
                         Text {
                             id: privateLabel
                             anchors.centerIn: parent
-                            text: "Private"
+                            text: qsTr("Private")
                             color: Theme.text2
                             font.pixelSize: Theme.fontSmall
                         }
@@ -404,7 +404,7 @@ Item {
                     id: removeButton
                     visible: row.channel.deleted === true
                     primary: false
-                    text: "Remove"
+                    text: qsTr("Remove")
                     onClicked: if (row.session) row.session.removeFollowed(row.channel.id)
                 }
             }

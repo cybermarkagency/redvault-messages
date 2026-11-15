@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +57,7 @@ fun StoriesTray(
         item(key = "me") {
             val hasOwn = state.own.isNotEmpty()
             TrayItem(
-                label = "Your story",
+                label = stringResource(R.string.ui_your_story),
                 avatarUrl = selfAvatarUrl,
                 seed = selfHandle,
                 ring = if (hasOwn) Brush.sweepGradient(StoryStyle.ringGradient) else null,
@@ -76,6 +77,19 @@ fun StoriesTray(
                 onPlus = {},
                 description = "${author.author.handle}'s story" + if (author.allSeen) "" else ", new",
                 onClick = { onOpenAuthor(author.author.userId) },
+            )
+        }
+        // Part D: a story on device keys whose key hasn't reached this phone yet. Nothing to open until it does.
+        items(state.waiting, key = { "waiting-" + it.userId }) { friend ->
+            TrayItem(
+                label = friend.handle,
+                avatarUrl = friend.avatarUrl,
+                seed = friend.handle,
+                ring = SolidColor(StoryStyle.ringSeen),
+                plus = false,
+                onPlus = {},
+                description = "${friend.handle}'s story is loading",
+                onClick = {},
             )
         }
     }
@@ -103,7 +117,7 @@ private fun TrayItem(label: String, avatarUrl: String?, seed: String, ring: Brus
                     Modifier
                         .align(Alignment.BottomEnd)
                         .size(24.dp)
-                        .background(colors.accent, CircleShape)
+                        .background(colors.accentFill, CircleShape)
                         .border(2.dp, colors.bg, CircleShape)
                         .clip(CircleShape)
                         .clickable(role = Role.Button, onClick = onPlus)

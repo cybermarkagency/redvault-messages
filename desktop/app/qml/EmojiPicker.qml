@@ -60,7 +60,7 @@ Popup {
         SearchField {
             id: search
             Layout.fillWidth: true
-            placeholderText: "Search emoji"
+            placeholderText: qsTr("Search emoji")
             Keys.onReturnPressed: if (picker.shown.length > 0) picker.choose(picker.shown[0][0])
         }
 
@@ -89,7 +89,7 @@ Popup {
                         textFormat: Text.PlainText
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
-                        text: tab.index === 0 ? "\u{1F552}" : tab.cat.emoji.length > 0 ? tab.cat.emoji[0][0] : ""
+                        text: tab.index === 0 ? qsTr("\u{1F552}") : tab.cat.emoji.length > 0 ? tab.cat.emoji[0][0] : ""
                         font.pixelSize: 18
                     }
                 }
@@ -97,7 +97,7 @@ Popup {
         }
 
         Text {
-            text: search.text.trim().length > 0 ? (picker.shown.length > 0 ? "Results" : "No emoji found")
+            text: search.text.trim().length > 0 ? (picker.shown.length > 0 ? qsTr("Results") : qsTr("No emoji found"))
                                                 : picker.categories[picker.category].name
             textFormat: Text.PlainText
             color: Theme.text3

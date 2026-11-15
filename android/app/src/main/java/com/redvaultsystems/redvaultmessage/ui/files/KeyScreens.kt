@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.files
 
+import androidx.compose.ui.res.stringResource
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.background
@@ -86,7 +87,7 @@ fun FileKeysScreen(state: FilesState, onBack: () -> Unit, onCreate: () -> Unit, 
             RoundButton(R.drawable.ui_chevron_left, "Back", onClick = onBack, container = colors.bg)
             Spacer(Modifier.weight(1f))
             Text(
-                "Import",
+                stringResource(R.string.ui_import),
                 color = colors.accent,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -94,13 +95,13 @@ fun FileKeysScreen(state: FilesState, onBack: () -> Unit, onCreate: () -> Unit, 
             )
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Encryption keys", style = RedvaultFonts.title, color = colors.text)
+            Text(stringResource(R.string.ui_encryption_keys), style = RedvaultFonts.title, color = colors.text)
             Text(
-                "Your own 256-bit keys for locking files. Saved in your password vault as file keys, so they stay encrypted and sync to your devices.",
+                stringResource(R.string.ui_your_own_256_bit_keys_for),
                 color = colors.text2,
                 fontSize = 15.sp,
             )
-            PillButton("Create key", onCreate, Modifier.fillMaxWidth(), icon = R.drawable.ui_plus)
+            PillButton(stringResource(R.string.ui_create_key), onCreate, Modifier.fillMaxWidth(), icon = R.drawable.ui_plus)
             if (state.keys.isNotEmpty()) {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
                     state.keys.forEachIndexed { i, key ->
@@ -129,10 +130,10 @@ fun FileKeysScreen(state: FilesState, onBack: () -> Unit, onCreate: () -> Unit, 
                     }
                 }
             } else if (state.keysLoaded) {
-                Text("No keys yet. Create one, or import a key you made elsewhere.", color = colors.text3, fontSize = 14.sp)
+                Text(stringResource(R.string.ui_no_keys_yet_create_one_or), color = colors.text3, fontSize = 14.sp)
             }
             Callout(
-                "Fingerprints are the same on every device and don't reveal the key. File keys stay off your Passwords list.",
+                stringResource(R.string.ui_fingerprints_are_the_same_on_every),
                 CalloutTone.Neutral,
                 R.drawable.ui_info,
             )
@@ -165,7 +166,7 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
             RoundButton(R.drawable.ui_chevron_left, "Back", onClick = onBack, container = colors.bg)
             Spacer(Modifier.weight(1f))
             Text(
-                "Rename",
+                stringResource(R.string.ui_rename),
                 color = colors.accent,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -187,14 +188,14 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.lockBg.copy(alpha = 0.6f)).border(1.dp, colors.lockBorder, RoundedCornerShape(16.dp)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("Fingerprint", color = colors.lockText2, fontSize = 12.sp)
+                Text(stringResource(R.string.ui_fingerprint), color = colors.lockText2, fontSize = 12.sp)
                 Text(key.fingerprint, color = colors.text, fontFamily = RedvaultFonts.mono, fontSize = 19.sp, fontWeight = FontWeight.Medium)
-                Text("Same on every device. Doesn't reveal the key.", color = colors.lockText2, fontSize = 12.sp)
+                Text(stringResource(R.string.ui_same_on_every_device_doesn_t), color = colors.lockText2, fontSize = 12.sp)
             }
             // Key password
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Key password", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.ui_key_password), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Text(if (key.passwordProtected) "On" else "Off", color = if (key.passwordProtected) colors.accent else colors.warn, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
@@ -205,18 +206,18 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (key.passwordProtected) {
-                        PillButton("Change", { onPassword("change") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
-                        PillButton("Remove", { onPassword("remove") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_change), { onPassword("change") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_remove), { onPassword("remove") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
                     } else {
-                        PillButton("Set a password", { onPassword("set") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_set_a_password), { onPassword("set") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 44.dp)
                     }
                 }
-                Text("Instant: locked files aren't re-encrypted.", color = colors.accent, fontSize = 12.sp)
+                Text(stringResource(R.string.ui_instant_locked_files_aren_t_re), color = colors.accent, fontSize = 12.sp)
             }
             // Export for backup
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Export for backup", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.ui_export_for_backup), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     RoundButton(
                         if (exported != null) R.drawable.ui_eye_off else R.drawable.ui_eye,
                         if (exported != null) "Hide the key" else "Show the key",
@@ -250,7 +251,7 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DsIcon(R.drawable.ui_alert_circle, colors.warn, 15.dp)
-                    Text("This is the raw key. The key password doesn't protect it, so store it offline.", color = colors.text, fontSize = 13.sp)
+                    Text(stringResource(R.string.ui_this_is_the_raw_key_the), color = colors.text, fontSize = 13.sp)
                 }
             }
             Text(
@@ -259,7 +260,7 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                 color = colors.text3,
                 fontSize = 13.sp,
             )
-            PillButton("Delete key", { deleting = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, height = 48.dp, icon = R.drawable.ui_trash)
+            PillButton(stringResource(R.string.ui_delete_key), { deleting = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, height = 48.dp, icon = R.drawable.ui_trash)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -270,7 +271,7 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
         AlertDialog(
             onDismissRequest = { askingPassword = false },
             containerColor = colors.surface,
-            title = { Text("Show the key", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_show_the_key), color = colors.text) },
             text = {
                 TouchGuard()
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -292,9 +293,9 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                             }
                         }
                     },
-                ) { Text("Show key", color = colors.accent) }
+                ) { Text(stringResource(R.string.ui_show_key), color = colors.accent) }
             },
-            dismissButton = { TextButton(onClick = { askingPassword = false }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { askingPassword = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     if (renaming) {
@@ -307,7 +308,7 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
         AlertDialog(
             onDismissRequest = { deleting = false },
             containerColor = colors.surface,
-            title = { Text("Delete this key?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_delete_this_key), color = colors.text) },
             text = {
                 TouchGuard()
                 Text(
@@ -316,8 +317,8 @@ fun FileKeyScreen(files: FilesSession, state: FilesState, id: String, onBack: ()
                     color = colors.text2,
                 )
             },
-            confirmButton = { TextButton(onClick = { files.deleteKey(key.id); deleting = false; onBack() }) { Text("Delete key", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { files.deleteKey(key.id); deleting = false; onBack() }) { Text(stringResource(R.string.ui_delete_key), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -332,7 +333,7 @@ fun KeyCreateSheet(files: FilesSession, state: FilesState, onDone: () -> Unit) {
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     FullSheet(
-        title = "New key",
+        title = stringResource(R.string.ui_new_key),
         onCancel = onDone,
         primary = "Create key",
         primaryEnabled = name.isNotBlank() && (!protect || files.passwordProblem(password) == null),
@@ -345,7 +346,7 @@ fun KeyCreateSheet(files: FilesSession, state: FilesState, onDone: () -> Unit) {
             }
         },
     ) {
-        Text("A random 256-bit key is made on this phone and saved to your vault as a file key.", color = colors.text2, fontSize = 15.sp)
+        Text(stringResource(R.string.ui_a_random_256_bit_key_is), color = colors.text2, fontSize = 15.sp)
         Column {
             FieldLabel("Name")
             DsTextField(name, { name = it }, "Legal documents")
@@ -359,7 +360,7 @@ fun KeyCreateSheet(files: FilesSession, state: FilesState, onDone: () -> Unit) {
         if (protect) {
             LockPasswordField(files, "Key password", password) { password = it }
             Text(
-                "You'll need it to open files locked with this key, so keep it somewhere safe. Stretched with Argon2id at the stronger setting.",
+                stringResource(R.string.ui_you_ll_need_it_to_open),
                 color = colors.text2,
                 fontSize = 13.sp,
             )
@@ -403,9 +404,9 @@ fun KeyImportSheet(files: FilesSession, state: FilesState, onDone: () -> Unit) {
     ) {
         if (step == 1) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Key", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.ui_key), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Text(
-                    "Paste",
+                    stringResource(R.string.ui_paste),
                     color = colors.accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -415,8 +416,8 @@ fun KeyImportSheet(files: FilesSession, state: FilesState, onDone: () -> Unit) {
                     }.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
-            DsTextField(keyText, { keyText = it }, "8d41 f07c 2b9e 55a3 …", mono = true, singleLine = false, minHeight = 96.dp, label = "Key")
-            Text("64 hex characters, or base64 / base64url. Spaces, line breaks and dashes are ignored.", color = colors.text2, fontSize = 13.sp)
+            DsTextField(keyText, { keyText = it }, "8d41 f07c 2b9e 55a3 …", mono = true, singleLine = false, minHeight = 96.dp, label = stringResource(R.string.ui_key))
+            Text(stringResource(R.string.ui_64_hex_characters_or_base64_base64url), color = colors.text2, fontSize = 13.sp)
             when (check) {
                 is ImportCheck.Valid -> Callout("Valid 256-bit key · ${check.format}", CalloutTone.Ok, R.drawable.ui_check, detail = "Fingerprint ${check.fingerprint}")
                 is ImportCheck.Invalid -> Callout(check.message, CalloutTone.Error, R.drawable.ui_alert_circle)

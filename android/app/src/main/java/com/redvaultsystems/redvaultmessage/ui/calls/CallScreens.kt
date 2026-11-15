@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.calls
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.LockBadge
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -152,7 +155,7 @@ private fun IncomingCall(call: CallView, onDecline: () -> Unit, onAudioOnly: () 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
             BigButton(R.drawable.ui_phone, "Decline", DangerRed, Color.White, rotate = 135f, onClick = onDecline)
             if (call.kind == "video") BigButton(R.drawable.ui_mic, "Audio only", ControlBg, colors.text, onClick = onAudioOnly)
-            BigButton(if (call.kind == "video") R.drawable.ui_video else R.drawable.ui_phone, "Accept", colors.accent, colors.accentContrast, onClick = onAccept)
+            BigButton(if (call.kind == "video") R.drawable.ui_video else R.drawable.ui_phone, "Accept", colors.ok, Color(0xFF0B2016), onClick = onAccept)
         }
         Spacer(Modifier.height(20.dp))
     }
@@ -188,7 +191,7 @@ private fun VoiceCall(calls: CallManager, call: CallView, onMinimize: () -> Unit
                 if (call.conversationId != null) ToggleButton(R.drawable.ui_chat, "Chat", false, 64.dp, onClick = { onMinimize(); onOpenChat(call.conversationId) })
             }
             Spacer(Modifier.height(26.dp))
-            BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = "End call", onClick = calls::hangUp)
+            BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = stringResource(R.string.ui_end_call), onClick = calls::hangUp)
         } else {
             EndedBanner(call, calls::dismiss)
         }
@@ -225,7 +228,7 @@ private fun VideoCall(calls: CallManager, call: CallView, onMinimize: () -> Unit
                     DsIcon(R.drawable.ui_lock, colors.accent, 12.dp)
                     Text("Encrypted · ${statusText(call)}", color = Color.White.copy(alpha = 0.85f), fontFamily = MonoFamily, fontSize = 12.sp)
                 }
-                if (call.remoteSharing) Text("Sharing their screen", color = colors.accent, fontSize = 12.sp)
+                if (call.remoteSharing) Text(stringResource(R.string.ui_sharing_their_screen), color = colors.accent, fontSize = 12.sp)
             }
             if (call.conversationId != null && call.phase != CallPhase.Ended) {
                 RoundIcon(R.drawable.ui_chat, "Open chat", Color.Black.copy(alpha = 0.35f), Color.White, 44.dp) { onMinimize(); onOpenChat(call.conversationId) }
@@ -253,7 +256,7 @@ private fun VideoCall(calls: CallManager, call: CallView, onMinimize: () -> Unit
                 )
                 Spacer(Modifier.height(12.dp))
             }
-            if (call.sharingScreen) Text("You're sharing your screen", color = colors.accent, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
+            if (call.sharingScreen) Text(stringResource(R.string.ui_you_re_sharing_your_screen), color = colors.accent, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
             call.notice?.let { Text(it, color = colors.warn, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)) }
             if (call.phase == CallPhase.Ended) {
                 EndedBanner(call, calls::dismiss)
@@ -263,7 +266,15 @@ private fun VideoCall(calls: CallManager, call: CallView, onMinimize: () -> Unit
                     ToggleButton(if (call.cameraOff) R.drawable.ui_video_off else R.drawable.ui_video, if (call.cameraOff) "Turn camera on" else "Turn camera off", call.cameraOff, 56.dp, calls::toggleCamera, label = false)
                     ToggleButton(R.drawable.ui_refresh, "Flip camera", false, 56.dp, calls::flipCamera, label = false)
                     ToggleButton(R.drawable.ui_speaker, "Speaker", call.speakerOn, 56.dp, calls::toggleSpeaker, label = false)
-                    if (calls.canShareScreen) {
+                    if (!calls.canShareScreen) {
+                        // Shown locked (not hidden) on every plan without it, like the desktop app: a tap explains Premium.
+                        Box {
+                            ToggleButton(R.drawable.ui_monitor_up, "Share your screen, locked: part of Premium", false, 56.dp, {
+                                PlanGate.ask("premium", "Screen sharing")
+                            }, label = false)
+                            LockBadge(Modifier.align(Alignment.TopEnd))
+                        }
+                    } else {
                         ToggleButton(R.drawable.ui_monitor_up, if (call.sharingScreen) "Stop sharing your screen" else "Share your screen", call.sharingScreen, 56.dp, {
                             if (call.sharingScreen) calls.stopScreenShare()
                             else {
@@ -274,7 +285,7 @@ private fun VideoCall(calls: CallManager, call: CallView, onMinimize: () -> Unit
                     }
                 }
                 Spacer(Modifier.height(18.dp))
-                BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = "End call", onClick = calls::hangUp)
+                BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = stringResource(R.string.ui_end_call), onClick = calls::hangUp)
             }
         }
     }
@@ -314,7 +325,7 @@ private fun CallStatus(call: CallView) {
     val colors = RedvaultTheme.colors
     Text(statusText(call), color = colors.text2, fontFamily = MonoFamily, fontSize = 17.sp, modifier = Modifier.padding(top = 6.dp))
     if (call.phase == CallPhase.Active) {
-        Text("Relayed · end-to-end encrypted", color = colors.text3, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+        Text(stringResource(R.string.ui_relayed_end_to_end_encrypted), color = colors.text3, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
@@ -436,12 +447,12 @@ internal fun SmallAction(icon: Int, label: String, onClick: () -> Unit) {
 fun CallBar(call: CallView, onReturn: () -> Unit) {
     val colors = RedvaultTheme.colors
     Row(
-        Modifier.fillMaxWidth().background(colors.accent).statusBarsPadding().clickable(onClick = onReturn).padding(horizontal = 20.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().background(colors.accentFill).statusBarsPadding().clickable(onClick = onReturn).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         DsIcon(if (call.kind == "video") R.drawable.ui_video else R.drawable.ui_phone, colors.accentContrast, 18.dp)
         Text("${call.peerHandle} · ${statusText(call)}", color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
-        Text("Return", color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.ui_return), color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }

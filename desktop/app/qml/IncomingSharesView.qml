@@ -22,7 +22,7 @@ Item {
     FileDialog {
         id: saveDialog
         property string targetId
-        title: "Save a decrypted copy"
+        title: qsTr("Save a decrypted copy")
         fileMode: FileDialog.SaveFile
         currentFolder: StandardPaths.writableLocation(StandardPaths.DownloadLocation)
         onAccepted: view.shares.downloadIncoming(targetId, selectedFile)
@@ -31,9 +31,9 @@ Item {
         id: riskyDialog
         property string targetId
         property string targetName
-        title: "Save a file that can run code?"
-        message: "“" + targetName + "” is a kind of file that can run programs or scripts when opened. Someone anonymous uploaded it. Only open it if you know what it is."
-        confirmText: "Save anyway"
+        title: qsTr("Save a file that can run code?")
+        message: "“" + targetName + qsTr("” is a kind of file that can run programs or scripts when opened. Someone anonymous uploaded it. Only open it if you know what it is.")
+        confirmText: qsTr("Save anyway")
         danger: true
         onConfirmed: view.save(targetId, targetName)
     }
@@ -41,9 +41,9 @@ Item {
         id: rejectDialog
         property string targetId
         property string targetName
-        title: "Reject this file?"
-        message: "“" + targetName + "” is deleted for good and stops counting toward your storage. Whoever uploaded it isn't told."
-        confirmText: "Reject"
+        title: qsTr("Reject this file?")
+        message: "“" + targetName + qsTr("” is deleted for good and stops counting toward your storage. Whoever uploaded it isn't told.")
+        confirmText: qsTr("Reject")
         danger: true
         onConfirmed: view.shares.rejectIncoming(targetId)
     }
@@ -51,14 +51,14 @@ Item {
         id: acceptDialog
         property string targetId
         property string targetName
-        title: "Add “" + targetName + "” to your files"
+        title: qsTr("Add “") + targetName + qsTr("” to your files")
         width: 460
         contentItem: ColumnLayout {
             spacing: 12
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "It's moved, not copied: it stays encrypted, now with your own Files key, and keeps counting toward your storage."
+                text: qsTr("It's moved, not copied: it stays encrypted, now with your own Files key, and keeps counting toward your storage.")
                 color: Theme.text2
             }
             RvChoice {
@@ -71,9 +71,9 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                RvButton { primary: false; text: "Cancel"; onClicked: acceptDialog.close() }
+                RvButton { primary: false; text: qsTr("Cancel"); onClicked: acceptDialog.close() }
                 RvButton {
-                    text: "Add to Files"
+                    text: qsTr("Add to Files")
                     onClicked: {
                         const choices = view.shares.folderChoices()
                         const chosen = choices[Math.max(0, folderChoice.currentIndex)]
@@ -101,18 +101,18 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 4
-            Text { text: "Incoming"; color: Theme.text; font.family: Theme.displayFamily; font.pixelSize: Theme.fontDisplay; font.weight: Font.Bold }
+            Text { text: qsTr("Incoming"); color: Theme.text; font.family: Theme.displayFamily; font.pixelSize: Theme.fontDisplay; font.weight: Font.Bold }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Files people uploaded through your links. Review them, then add them to your files or reject them."
+                text: qsTr("Files people uploaded through your links. Review them, then add them to your files or reject them.")
                 color: Theme.text2
             }
         }
         InfoCard {
             Layout.fillWidth: true
             tone: "warn"
-            text: "Anyone with a Contributor link can upload, and uploaders are anonymous. These files are encrypted for you alone, so RedVault can't scan them for malware: only open what you expect, and scan saved files with your own antivirus."
+            text: qsTr("Anyone with a Contributor link can upload, and uploaders are anonymous. These files are encrypted for you alone, so RedVault can't scan them for malware: only open what you expect, and scan saved files with your own antivirus.")
         }
         Banner { Layout.fillWidth: true; visible: view.shares.error.length > 0; text: view.shares.error }
         InfoCard { Layout.fillWidth: true; visible: view.shares.notice.length > 0; tone: "ok"; text: view.shares.notice }
@@ -123,7 +123,7 @@ Item {
             visible: view.shares.incomingCount === 0
             Item { Layout.fillHeight: true }
             Icon { Layout.alignment: Qt.AlignHCenter; name: "inbox"; size: 28; color: Theme.text3 }
-            Text { Layout.alignment: Qt.AlignHCenter; text: "Nothing waiting for review."; color: Theme.text3 }
+            Text { Layout.alignment: Qt.AlignHCenter; text: qsTr("Nothing waiting for review."); color: Theme.text3 }
             Item { Layout.fillHeight: true }
         }
 
@@ -156,7 +156,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             elide: Text.ElideMiddle
-                            text: row.modelData.name + (row.modelData.folder.length > 0 ? "  ·  from " + row.modelData.folder + "/" : "")
+                            text: row.modelData.name + (row.modelData.folder.length > 0 ? qsTr("  ·  from ") + row.modelData.folder + "/" : "")
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.weight: Font.Medium
@@ -164,7 +164,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
-                            text: row.modelData.size + " · " + row.modelData.sent + " · through " + row.modelData.via
+                            text: row.modelData.size + " · " + row.modelData.sent + qsTr(" · through ") + row.modelData.via
                             textFormat: Text.PlainText
                             color: Theme.text3
                             font.pixelSize: 12
@@ -172,7 +172,7 @@ Item {
                     }
                     IconButton {
                         iconName: "download"
-                        tip: "Save a decrypted copy"
+                        tip: qsTr("Save a decrypted copy")
                         enabled: row.modelData.openable && !view.shares.busy
                         onClicked: {
                             if (view.shares.isRisky(row.modelData.name)) {
@@ -186,7 +186,7 @@ Item {
                     }
                     RvButton {
                         secondary: true
-                        text: "Add to Files"
+                        text: qsTr("Add to Files")
                         enabled: row.modelData.openable && !view.shares.busy
                         onClicked: {
                             acceptDialog.targetId = row.modelData.id
@@ -197,7 +197,7 @@ Item {
                     RvButton {
                         primary: false
                         danger: true
-                        text: "Reject"
+                        text: qsTr("Reject")
                         enabled: !view.shares.busy
                         onClicked: {
                             rejectDialog.targetId = row.modelData.id

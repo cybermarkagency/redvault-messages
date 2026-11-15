@@ -44,18 +44,18 @@ Item {
 
     ContactPickerDialog {
         id: sharePicker
-        title: "Share securely with"
+        title: qsTr("Share securely with")
         chats: root.chats
         onPicked: (userId) => root.vault.share(root.vault.selectedId, userId)
     }
 
     Menu {
         id: newMenu
-        MenuItem { text: "Login"; onTriggered: editor.openWith(root.vault.blankItem("login")) }
-        MenuItem { text: "Passkey"; onTriggered: editor.openWith(root.vault.blankItem("passkey")) }
-        MenuItem { text: "Payment card"; onTriggered: editor.openWith(root.vault.blankItem("card")) }
-        MenuItem { text: "Secure note"; onTriggered: editor.openWith(root.vault.blankItem("note")) }
-        MenuItem { text: "Wi-Fi network"; onTriggered: editor.openWith(root.vault.blankItem("wifi")) }
+        MenuItem { text: qsTr("Login"); onTriggered: editor.openWith(root.vault.blankItem("login")) }
+        MenuItem { text: qsTr("Passkey"); onTriggered: editor.openWith(root.vault.blankItem("passkey")) }
+        MenuItem { text: qsTr("Payment card"); onTriggered: editor.openWith(root.vault.blankItem("card")) }
+        MenuItem { text: qsTr("Secure note"); onTriggered: editor.openWith(root.vault.blankItem("note")) }
+        MenuItem { text: qsTr("Wi-Fi network"); onTriggered: editor.openWith(root.vault.blankItem("wifi")) }
     }
 
     component Category: ItemDelegate {
@@ -103,11 +103,11 @@ Item {
         implicitWidth: badgeText.implicitWidth + 16
         implicitHeight: 22
         radius: 11
-        color: badge.status === "exposed" ? Theme.dangerSoft : "#33291A"
+        color: badge.status === "exposed" ? Theme.dangerSoft : Theme.warnSurface
         Text {
             id: badgeText
             anchors.centerIn: parent
-            text: badge.status === "exposed" ? "Exposed" : badge.status === "reused" ? "Reused" : "Weak"
+            text: badge.status === "exposed" ? qsTr("Exposed") : badge.status === "reused" ? qsTr("Reused") : qsTr("Weak")
             textFormat: Text.PlainText
             color: badge.status === "exposed" ? Theme.danger : Theme.warn
             font.pixelSize: 11
@@ -171,7 +171,7 @@ Item {
                     Layout.leftMargin: 8
                     Layout.preferredHeight: Theme.headerHeight - 12
                     verticalAlignment: Text.AlignVCenter
-                    text: "Passwords"
+                    text: qsTr("Passwords")
                     color: Theme.text
                     font.family: Theme.displayFamily
                     font.pixelSize: 28
@@ -195,7 +195,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 1
                             Text {
-                                text: root.vault.locked ? "Locked" : "Unlocked"
+                                text: root.vault.locked ? qsTr("Locked") : qsTr("Unlocked")
                                 textFormat: Text.PlainText
                                 color: root.vault.locked ? Theme.text : Theme.accent
                                 font.weight: Font.DemiBold
@@ -204,7 +204,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: root.vault.locked ? "Unlock to view items" : "Locks after " + root.vault.lockAfterMinutes + " min idle"
+                                text: root.vault.locked ? qsTr("Unlock to view items") : qsTr("Locks after ") + root.vault.lockAfterMinutes + qsTr(" min idle")
                                 textFormat: Text.PlainText
                                 color: Theme.text2
                                 font.pixelSize: 12
@@ -215,34 +215,34 @@ Item {
                             implicitHeight: 34
                             leftPadding: 10
                             rightPadding: 10
-                            text: root.vault.locked ? "Unlock" : "Lock now"
+                            text: root.vault.locked ? qsTr("Unlock") : qsTr("Lock now")
                             onClicked: root.vault.locked ? (root.vault.helloAvailable ? root.vault.unlockWithHello(Window.window) : (root.passwordUnlock = true))
                                                          : root.vault.lockNow()
                         }
                     }
                 }
 
-                Category { key: "all"; text: "All items"; count: root.vault.counts.all || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "login"; text: "Logins"; count: root.vault.counts.login || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "passkey"; text: "Passkeys"; count: root.vault.counts.passkey || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "card"; text: "Payment cards"; count: root.vault.counts.card || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "note"; text: "Secure notes"; count: root.vault.counts.note || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "wifi"; text: "Wi-Fi"; count: root.vault.counts.wifi || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "shared"; text: "Shared with me"; count: root.vault.counts.shared || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "all"; text: qsTr("All items"); count: root.vault.counts.all || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "login"; text: qsTr("Logins"); count: root.vault.counts.login || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "passkey"; text: qsTr("Passkeys"); count: root.vault.counts.passkey || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "card"; text: qsTr("Payment cards"); count: root.vault.counts.card || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "note"; text: qsTr("Secure notes"); count: root.vault.counts.note || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "wifi"; text: qsTr("Wi-Fi"); count: root.vault.counts.wifi || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "shared"; text: qsTr("Shared with me"); count: root.vault.counts.shared || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
 
                 Text {
                     Layout.leftMargin: 12
                     Layout.topMargin: 14
                     Layout.bottomMargin: 4
-                    text: "SECURITY CHECK"
+                    text: qsTr("SECURITY CHECK")
                     color: Theme.text3
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.8
                 }
-                Category { key: "exposed"; iconName: "triangle-alert"; ink: Theme.danger; text: "Exposed in a breach"; count: root.vault.counts.exposed || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "reused"; iconName: "repeat"; ink: Theme.warn; text: "Reused"; count: root.vault.counts.reused || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
-                Category { key: "weak"; iconName: "alert-circle"; ink: Theme.warn; text: "Weak"; count: root.vault.counts.weak || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "exposed"; iconName: "triangle-alert"; ink: Theme.danger; text: qsTr("Exposed in a breach"); count: root.vault.counts.exposed || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "reused"; iconName: "repeat"; ink: Theme.warn; text: qsTr("Reused"); count: root.vault.counts.reused || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
+                Category { key: "weak"; iconName: "alert-circle"; ink: Theme.warn; text: qsTr("Weak"); count: root.vault.counts.weak || 0; current: root.vault.category; onPicked: (k) => root.vault.category = k }
 
                 Item { Layout.fillHeight: true }
                 Rectangle {
@@ -256,13 +256,13 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 4
-                        Text { text: "Unlimited items and devices"; color: Theme.accent; font.weight: Font.DemiBold }
+                        Text { text: qsTr("Unlimited items and devices"); color: Theme.accent; font.weight: Font.DemiBold }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             readonly property int devices: App.devices ? App.devices.devices.length : 0
-                            text: (devices > 0 ? "Synced on " + devices + (devices === 1 ? " device. " : " devices. ") : "Synced across your devices. ")
-                                  + "Your vault is encrypted with a key only you hold."
+                            text: (devices > 0 ? qsTr("Synced on ") + devices + (devices === 1 ? qsTr(" device. ") : qsTr(" devices. ")) : qsTr("Synced across your devices. "))
+                                  + qsTr("Your vault is encrypted with a key only you hold.")
                             textFormat: Text.PlainText
                             color: Theme.text2
                             font.pixelSize: 12
@@ -292,7 +292,7 @@ Item {
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Your vault is locked"
+                    text: qsTr("Your vault is locked")
                     color: Theme.text
                     font.family: Theme.displayFamily
                     font.pixelSize: 30
@@ -302,7 +302,7 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
-                    text: "Unlock to see your passwords. Nothing in the vault can be read until you do — not even by us."
+                    text: qsTr("Unlock to see your passwords. Nothing in the vault can be read until you do — not even by us.")
                     color: Theme.text2
                     font.pixelSize: 15
                 }
@@ -311,14 +311,14 @@ Item {
                     visible: root.vault.helloAvailable && !root.passwordUnlock
                     implicitHeight: 48
                     iconName: "fingerprint"
-                    text: "Unlock with Windows Hello"
+                    text: qsTr("Unlock with Windows Hello")
                     onClicked: root.vault.unlockWithHello(Window.window)
                 }
                 RvButton {
                     Layout.alignment: Qt.AlignHCenter
                     visible: root.vault.helloAvailable && !root.passwordUnlock
                     primary: false
-                    text: "Use master password instead"
+                    text: qsTr("Use master password instead")
                     onClicked: root.passwordUnlock = true
                 }
                 ColumnLayout {
@@ -328,7 +328,7 @@ Item {
                     RvTextField {
                         id: masterPassword
                         Layout.fillWidth: true
-                        placeholderText: "Your account password"
+                        placeholderText: qsTr("Your account password")
                         echoMode: TextInput.Password
                         enabled: !root.vault.busy
                         onAccepted: unlockButton.clicked()
@@ -338,7 +338,7 @@ Item {
                         id: unlockButton
                         Layout.fillWidth: true
                         implicitHeight: 44
-                        text: root.vault.busy ? "Checking…" : "Unlock"
+                        text: root.vault.busy ? qsTr("Checking…") : qsTr("Unlock")
                         enabled: !root.vault.busy && masterPassword.text.length > 0
                         onClicked: {
                             root.vault.unlockWithPassword(masterPassword.text)
@@ -349,7 +349,7 @@ Item {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.vault.helloAvailable
                         primary: false
-                        text: "Use Windows Hello instead"
+                        text: qsTr("Use Windows Hello instead")
                         onClicked: root.passwordUnlock = false
                     }
                 }
@@ -358,8 +358,8 @@ Item {
                     Layout.fillWidth: true
                     error: true
                     text: root.vault.refused === 0 ? ""
-                        : (root.vault.refused === 1 ? "One item isn't shown" : root.vault.refused + " items aren't shown")
-                          + ": they don't match what this computer last saw, so they may have been changed on the server."
+                        : (root.vault.refused === 1 ? qsTr("One item isn't shown") : root.vault.refused + qsTr(" items aren't shown"))
+                          + qsTr(": they don't match what this computer last saw, so they may have been changed on the server.")
                 }
             }
         }
@@ -381,7 +381,7 @@ Item {
                     spacing: 8
                     SearchField {
                         Layout.fillWidth: true
-                        placeholderText: "Search vault"
+                        placeholderText: qsTr("Search vault")
                         text: root.vault.search
                         onTextChanged: root.vault.search = text
                     }
@@ -390,9 +390,9 @@ Item {
                         implicitHeight: 40
                         iconName: "plus"
                         iconColor: Theme.accentContrast
-                        tip: "New item"
+                        tip: qsTr("New item")
                         onClicked: newMenu.popup()
-                        background: Rectangle { radius: Theme.radiusSmall; color: Theme.accent }
+                        background: Rectangle { radius: Theme.radiusSmall; color: Theme.accentFill }
                     }
                 }
                 ListView {
@@ -461,8 +461,8 @@ Item {
                             visible: root.vault.loaded
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
-                            text: root.vault.search.length > 0 ? "Nothing matches that." : root.vault.category === "all"
-                                  ? "Your vault is empty. Add your first login with +." : "Nothing here."
+                            text: root.vault.search.length > 0 ? qsTr("Nothing matches that.") : root.vault.category === "all"
+                                  ? qsTr("Your vault is empty. Add your first login with +.") : qsTr("Nothing here.")
                             textFormat: Text.PlainText
                             color: Theme.text3
                         }
@@ -481,7 +481,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: root.vault.selected.id === undefined
-                text: "Select an item"
+                text: qsTr("Select an item")
                 color: Theme.text3
             }
 
@@ -528,7 +528,7 @@ Item {
                             }
                             Text {
                                 visible: text.length > 0
-                                text: itemColumn.s.incoming ? "Shared with you by " + itemColumn.s.owner : (itemColumn.s.host || "")
+                                text: itemColumn.s.incoming ? qsTr("Shared with you by ") + itemColumn.s.owner : (itemColumn.s.host || "")
                                 textFormat: Text.PlainText
                                 color: Theme.text2
                                 font.family: itemColumn.s.incoming ? Theme.fontFamily : Theme.monoFamily
@@ -538,14 +538,14 @@ Item {
                         RvButton {
                             visible: !itemColumn.s.incoming
                             secondary: true
-                            text: "Edit"
+                            text: qsTr("Edit")
                             onClicked: editor.openWith(root.vault.editableItem(itemColumn.s.id))
                         }
                         RvButton {
                             visible: !itemColumn.s.incoming
                             primary: false
                             iconName: "share"
-                            text: "Share securely"
+                            text: qsTr("Share securely")
                             onClicked: sharePicker.open()
                         }
                     }
@@ -577,15 +577,15 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "This password appears in known data breaches (" + (itemColumn.s.breach || "").toLowerCase()
-                                      + "), so attackers try it first. Change it on the site, then update it here."
+                                text: qsTr("This password appears in known data breaches (") + (itemColumn.s.breach || "").toLowerCase()
+                                      + qsTr("), so attackers try it first. Change it on the site, then update it here.")
                                 textFormat: Text.PlainText
                                 color: Theme.text
                                 font.pixelSize: 14
                             }
                             RvButton {
                                 secondary: true
-                                text: "Generate new"
+                                text: qsTr("Generate new")
                                 onClicked: root.vault.useGenerated(itemColumn.s.id)
                             }
                         }
@@ -597,8 +597,8 @@ Item {
                         visible: itemColumn.s.status === "reused"
                         implicitHeight: warnRow.implicitHeight + 28
                         radius: Theme.radiusCard
-                        color: "#2A2418"
-                        border.color: "#4A3F28"
+                        color: Theme.warnSurface2
+                        border.color: Theme.warnBorder
                         RowLayout {
                             id: warnRow
                             anchors.fill: parent
@@ -612,15 +612,15 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "This password is also used for " + itemColumn.s.reusedWith + (itemColumn.s.reusedWith === 1 ? " other item" : " other items")
-                                        + ". Give each account its own password."
+                                text: qsTr("This password is also used for ") + itemColumn.s.reusedWith + (itemColumn.s.reusedWith === 1 ? qsTr(" other item") : qsTr(" other items"))
+                                        + qsTr(". Give each account its own password.")
                                 textFormat: Text.PlainText
                                 color: Theme.text
                                 font.pixelSize: 14
                             }
                             RvButton {
                                 secondary: true
-                                text: "Generate new"
+                                text: qsTr("Generate new")
                                 onClicked: root.vault.useGenerated(itemColumn.s.id)
                             }
                         }
@@ -648,20 +648,20 @@ Item {
 
                                 FieldRow {
                                     visible: (itemColumn.s.username || "").length > 0
-                                    label: "Username"
+                                    label: qsTr("Username")
                                     value: itemColumn.s.username || ""
-                                    IconButton { filled: true; iconName: "copy"; tip: "Copy username"; onClicked: root.vault.copyField(itemColumn.s.id, "username") }
+                                    IconButton { filled: true; iconName: "copy"; tip: qsTr("Copy username"); onClicked: root.vault.copyField(itemColumn.s.id, "username") }
                                 }
                                 FieldRow {
                                     visible: itemColumn.s.type === "wifi"
-                                    label: "Network"
+                                    label: qsTr("Network")
                                     value: (itemColumn.s.wifiSsid || "") + (itemColumn.s.wifiSecurity ? "  ·  " + itemColumn.s.wifiSecurity : "")
                                 }
                                 FieldRow {
                                     visible: itemColumn.s.type === "card"
-                                    label: "Card"
+                                    label: qsTr("Card")
                                     value: (itemColumn.s.cardHolder || "") + "  ·  •••• " + (itemColumn.s.cardLast4 || "") + "  ·  " + (itemColumn.s.cardExpiry || "")
-                                    IconButton { filled: true; iconName: "copy"; tip: "Copy card number"; onClicked: root.vault.copyField(itemColumn.s.id, "cardNumber") }
+                                    IconButton { filled: true; iconName: "copy"; tip: qsTr("Copy card number"); onClicked: root.vault.copyField(itemColumn.s.id, "cardNumber") }
                                 }
 
                                 // Password
@@ -682,7 +682,7 @@ Item {
                                             ColumnLayout {
                                                 Layout.fillWidth: true
                                                 spacing: 3
-                                                Text { text: "Password"; color: Theme.text3; font.pixelSize: 12 }
+                                                Text { text: qsTr("Password"); color: Theme.text3; font.pixelSize: 12 }
                                                 Text {
                                                     Layout.fillWidth: true
                                                     elide: Text.ElideRight
@@ -698,7 +698,7 @@ Item {
                                                 filled: !root.revealed
                                                 toggled: root.revealed
                                                 iconName: root.revealed ? "eye-off" : "eye"
-                                                tip: root.revealed ? "Hide password" : "Show password"
+                                                tip: root.revealed ? qsTr("Hide password") : qsTr("Show password")
                                                 onClicked: {
                                                     if (root.revealed) {
                                                         root.hide()
@@ -708,7 +708,7 @@ Item {
                                                     }
                                                 }
                                             }
-                                            IconButton { filled: true; iconName: "copy"; tip: "Copy password"; onClicked: root.vault.copyField(itemColumn.s.id, "password") }
+                                            IconButton { filled: true; iconName: "copy"; tip: qsTr("Copy password"); onClicked: root.vault.copyField(itemColumn.s.id, "password") }
                                         }
                                         StrengthBar { Layout.fillWidth: true; strength: itemColumn.s.strength || ({}) }
                                         // The private breach check: only 5 characters of the password's hash leave this computer.
@@ -720,17 +720,17 @@ Item {
                                                 color: itemColumn.s.exposed ? Theme.danger : Theme.text3
                                             }
                                             Text {
-                                                text: "Breach check: " + (itemColumn.s.breach || "")
+                                                text: qsTr("Breach check: ") + (itemColumn.s.breach || "")
                                                 textFormat: Text.PlainText
                                                 color: itemColumn.s.exposed ? Theme.danger : Theme.text3
                                                 font.pixelSize: 12
                                                 ToolTip.visible: breachHover.hovered
-                                                ToolTip.text: "Checked without revealing the password: only the first 5 characters of its SHA-1 hash are sent, through our server, to Have I Been Pwned."
+                                                ToolTip.text: qsTr("Checked without revealing the password: only the first 5 characters of its SHA-1 hash are sent, through our server, to Have I Been Pwned.")
                                                 HoverHandler { id: breachHover }
                                             }
                                         }
                                         Text {
-                                            text: "Copied passwords clear from the clipboard after 30 seconds."
+                                            text: qsTr("Copied passwords clear from the clipboard after 30 seconds.")
                                             color: Theme.text3
                                             font.pixelSize: 12
                                         }
@@ -748,7 +748,7 @@ Item {
                                         anchors.leftMargin: 16
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 3
-                                        Text { text: "One-time code"; color: Theme.text3; font.pixelSize: 12 }
+                                        Text { text: qsTr("One-time code"); color: Theme.text3; font.pixelSize: 12 }
                                         Text {
                                             text: root.vault.totpCode
                                             textFormat: Text.PlainText
@@ -769,7 +769,7 @@ Item {
                                             seconds: root.vault.totpSecondsLeft
                                             period: root.vault.totpPeriod
                                         }
-                                        IconButton { filled: true; iconName: "copy"; tip: "Copy code"; onClicked: root.vault.copyField(itemColumn.s.id, "totp") }
+                                        IconButton { filled: true; iconName: "copy"; tip: qsTr("Copy code"); onClicked: root.vault.copyField(itemColumn.s.id, "totp") }
                                     }
                                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
                                 }
@@ -788,11 +788,11 @@ Item {
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             spacing: 2
-                                            Text { text: "Passkey saved"; color: Theme.text; font.weight: Font.DemiBold }
+                                            Text { text: qsTr("Passkey saved"); color: Theme.text; font.weight: Font.DemiBold }
                                             Text {
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
-                                                text: "Sign in without a password on " + itemColumn.s.passkeyRpId
+                                                text: qsTr("Sign in without a password on ") + itemColumn.s.passkeyRpId
                                                 textFormat: Text.PlainText
                                                 color: Theme.text2
                                                 font.pixelSize: 13
@@ -804,7 +804,7 @@ Item {
 
                                 FieldRow {
                                     visible: (itemColumn.s.website || "").length > 0
-                                    label: "Website"
+                                    label: qsTr("Website")
                                     value: itemColumn.s.website || ""
                                     IconButton {
                                         // Only web addresses: a shared item could carry file:// or another
@@ -817,7 +817,7 @@ Item {
                                         visible: target.length > 0
                                         filled: true
                                         iconName: "external"
-                                        tip: "Open website"
+                                        tip: qsTr("Open website")
                                         onClicked: {
                                             App.lock.expectExternalReturn()
                                             Qt.openUrlExternally(target)
@@ -836,7 +836,7 @@ Item {
                                         anchors.margins: 14
                                         anchors.leftMargin: 16
                                         spacing: 3
-                                        Text { text: "Notes"; color: Theme.text3; font.pixelSize: 12 }
+                                        Text { text: qsTr("Notes"); color: Theme.text3; font.pixelSize: 12 }
                                         TextEdit {
                                             Layout.fillWidth: true
                                             readOnly: true
@@ -872,8 +872,8 @@ Item {
                                     spacing: 12
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        Text { Layout.fillWidth: true; text: "Password generator"; color: Theme.text; font.weight: Font.DemiBold }
-                                        IconButton { filled: true; implicitWidth: 34; implicitHeight: 34; iconSize: 16; iconName: "refresh"; tip: "Generate another"; onClicked: root.vault.regenerate() }
+                                        Text { Layout.fillWidth: true; text: qsTr("Password generator"); color: Theme.text; font.weight: Font.DemiBold }
+                                        IconButton { filled: true; implicitWidth: 34; implicitHeight: 34; iconSize: 16; iconName: "refresh"; tip: qsTr("Generate another"); onClicked: root.vault.regenerate() }
                                     }
                                     Rectangle {
                                         Layout.fillWidth: true
@@ -926,14 +926,14 @@ Item {
                                     }
                                     Row {
                                         spacing: 6
-                                        Chip { text: "A–Z"; checked: root.vault.genUpper; onClicked: root.vault.genUpper = !root.vault.genUpper }
+                                        Chip { text: qsTr("A–Z"); checked: root.vault.genUpper; onClicked: root.vault.genUpper = !root.vault.genUpper }
                                         Chip { text: "0–9"; checked: root.vault.genDigits; onClicked: root.vault.genDigits = !root.vault.genDigits }
                                         Chip { text: "!@#"; checked: root.vault.genSymbols; enabled: !root.vault.genWords; onClicked: root.vault.genSymbols = !root.vault.genSymbols }
-                                        Chip { text: "Words"; checked: root.vault.genWords; onClicked: root.vault.genWords = !root.vault.genWords }
+                                        Chip { text: qsTr("Words"); checked: root.vault.genWords; onClicked: root.vault.genWords = !root.vault.genWords }
                                     }
                                     RvButton {
                                         Layout.fillWidth: true
-                                        text: "Use this password"
+                                        text: qsTr("Use this password")
                                         enabled: itemColumn.s.hasPassword === true || itemColumn.s.type === "login" || itemColumn.s.type === "wifi"
                                         onClicked: root.vault.useGenerated(itemColumn.s.id)
                                     }
@@ -941,7 +941,7 @@ Item {
                                         Layout.fillWidth: true
                                         primary: false
                                         iconName: "copy"
-                                        text: "Copy"
+                                        text: qsTr("Copy")
                                         onClicked: root.vault.copy(root.vault.generated, true)
                                     }
                                 }
@@ -959,19 +959,19 @@ Item {
                                     columns: 2
                                     rowSpacing: 8
                                     columnSpacing: 12
-                                    Text { text: "Shared with"; color: Theme.text2; font.pixelSize: 13 }
+                                    Text { text: qsTr("Shared with"); color: Theme.text2; font.pixelSize: 13 }
                                     Text {
                                         Layout.fillWidth: true
                                         horizontalAlignment: Text.AlignRight
                                         elide: Text.ElideRight
-                                        text: itemColumn.s.incoming ? "You (from " + itemColumn.s.owner + ")"
-                                              : (itemColumn.s.sharedWith || []).length === 0 ? "Only you"
+                                        text: itemColumn.s.incoming ? qsTr("You (from ") + itemColumn.s.owner + ")"
+                                              : (itemColumn.s.sharedWith || []).length === 0 ? qsTr("Only you")
                                               : (itemColumn.s.sharedWith || []).map(p => p.handle).join(", ")
                                         textFormat: Text.PlainText
                                         color: Theme.text
                                         font.pixelSize: 13
                                     }
-                                    Text { text: "Last changed"; color: Theme.text2; font.pixelSize: 13 }
+                                    Text { text: qsTr("Last changed"); color: Theme.text2; font.pixelSize: 13 }
                                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; text: itemColumn.s.lastChanged || "—"; color: Theme.text; font.pixelSize: 13 }
                                 }
                             }
@@ -990,7 +990,7 @@ Item {
                                         primary: false
                                         danger: true
                                         implicitHeight: 28
-                                        text: "Stop sharing"
+                                        text: qsTr("Stop sharing")
                                         onClicked: root.vault.unshare(itemColumn.s.id, sharedPerson.modelData.userId)
                                     }
                                 }

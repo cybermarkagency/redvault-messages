@@ -74,7 +74,63 @@ Overlay parseOverlay(const Json& o) {
     if (const auto c = str(o, "color"); c && contains(kColors, *c)) out.color = *c;
     if (const auto it = o.find("boxed"); it != o.end() && it->is_boolean()) out.boxed = it->get<bool>();
     if (const auto f = str(o, "font"); f && contains(kFonts, *f)) out.font = *f;
+    if (const auto a = str(o, "anim"); a && contains(kAnimations, *a)) out.anim = *a;
     return out;
+}
+
+/// Math.round: halves go up.
+std::int64_t jsRound(double v) {
+    return static_cast<std::int64_t>(std::floor(v + 0.5));
+}
+
+std::vector<Caption> captionsFrom(const Json& raw) {
+    std::vector<Caption> out;
+    if (!raw.is_array()) return out;
+    std::size_t n = 0;
+    for (const auto& c : raw) {
+        if (n++ >= kMaxCaptions) break;
+        if (!c.is_object()) continue;
+        const auto t = c.find("text");
+        if (t == c.end() || !t->is_string()) continue;
+        const auto text = cleanStickerText(t->get<std::string>(), kMaxCaptionText);
+        if (!text) continue;
+        const auto s = c.find("startMs");
+        const auto e = c.find("endMs");
+        if (s == c.end() || e == c.end() || !s->is_number() || !e->is_number()) continue;
+        const double sv = s->get<double>();
+        const double ev = e->get<double>();
+        if (!std::isfinite(sv) || !std::isfinite(ev)) continue;
+        const std::int64_t startMs = jsRound(sv);
+        const std::int64_t endMs = jsRound(ev);
+        if (startMs < 0 || endMs <= startMs || endMs > kMaxCaptionEndMs) continue;
+        out.push_back({startMs, endMs, *text});
+    }
+    std::stable_sort(out.begin(), out.end(), [](const Caption& a, const Caption& b) { return a.startMs < b.startMs; });
+    return out;
+}
+
+std::optional<std::vector<int>> waveformFrom(const Json& raw) {
+    if (!raw.is_array() || raw.size() < kWaveformMin || raw.size() > kWaveformMax) return std::nullopt;
+    std::vector<int> out;
+    for (const auto& v : raw) {
+        if (!v.is_number()) return std::nullopt;
+        const double d = v.get<double>();
+        if (!std::isfinite(d) || d != std::floor(d) || d < 0 || d > 100) return std::nullopt;
+        out.push_back(static_cast<int>(d));
+    }
+    return out;
+}
+
+OrderedJson captionsJson(const std::vector<Caption>& captions) {
+    OrderedJson list = OrderedJson::array();
+    for (const auto& c : captions) {
+        OrderedJson item;
+        item["startMs"] = c.startMs;
+        item["endMs"] = c.endMs;
+        item["text"] = c.text;
+        list.push_back(std::move(item));
+    }
+    return list;
 }
 
 OrderedJson overlayJson(const Overlay& o) {
@@ -88,6 +144,7 @@ OrderedJson overlayJson(const Overlay& o) {
     item["color"] = o.color;
     item["boxed"] = o.boxed;
     item["font"] = o.font;
+    if (!o.anim.empty()) item["anim"] = o.anim;
     return item;
 }
 
@@ -139,7 +196,8 @@ Meta parseMeta(std::string_view json, std::string_view kind) {
         if (const auto f = str(r, "font"); f && contains(kFonts, *f)) meta.font = *f;
         return meta;
     }
-    if (kind != "image" && kind != "video") throw StoryFormatError();
+    if (kind != "image" && kind != "video" && kind != "audio") throw StoryFormatError();
+    const bool audio = kind == "audio";
     const auto it = r.find("media");
     if (it == r.end() || !it->is_object()) throw StoryFormatError();
     const Json& m = *it;
@@ -151,13 +209,16 @@ Meta parseMeta(std::string_view json, std::string_view kind) {
     if (!isB64(key, 64) || !isB64(header, 64) || !sha || !std::regex_match(*sha, kSha)) throw StoryFormatError();
     const auto encryptedSize = positive(m, "encryptedSize");
     const auto chunkSize = positive(m, "chunkSize");
-    const auto width = positive(m, "width");
-    const auto height = positive(m, "height");
+    // A voice story has no picture: its width and height are 1, whatever it says.
+    const auto width = audio ? std::optional<std::uint64_t>(1) : positive(m, "width");
+    const auto height = audio ? std::optional<std::uint64_t>(1) : positive(m, "height");
     if (!encryptedSize || !chunkSize || !width || !height) throw StoryFormatError();
+    if (*width > 2147483647ull || *height > 2147483647ull) throw StoryFormatError();
     const std::string mime = str(m, "mime").value_or("");
     static const std::regex kImage("^image/(jpeg|png|webp)$");
     static const std::regex kVideo("^video/(mp4|webm|quicktime)$");
-    if (!std::regex_match(mime, kind == "image" ? kImage : kVideo)) throw StoryFormatError();
+    static const std::regex kAudio("^audio/(webm|ogg|mp4|mpeg|wav|aac)$");
+    if (!std::regex_match(mime, kind == "image" ? kImage : audio ? kAudio : kVideo)) throw StoryFormatError();
     media.key = *key;
     media.header = *header;
     media.sha256 = *sha;
@@ -166,12 +227,23 @@ Meta parseMeta(std::string_view json, std::string_view kind) {
     media.mime = mime;
     media.width = static_cast<int>(*width);
     media.height = static_cast<int>(*height);
-    if (kind == "video") {
+    if (kind == "video" || audio) {
         const auto duration = positive(m, "durationMs");
         if (!duration) throw StoryFormatError();
         media.durationMs = static_cast<std::int64_t>(*duration);
     }
     meta.media = std::move(media);
+    if (audio) {
+        // A look to sit on, an optional title, and the bars that show its loudness.
+        meta.background = "night";
+        if (const auto b = str(r, "background"); b && contains(kBackgrounds, *b)) meta.background = *b;
+        if (const auto f = str(r, "font"); f && contains(kFonts, *f)) meta.font = *f;
+        if (const auto t = str(r, "text"); t && !util::trim(util::decodeUtf8(*t)).empty() && utf16Size(*t) <= kMaxStoryText) meta.text = *t;
+        if (const auto w = r.find("waveform"); w != r.end()) meta.waveform = waveformFrom(*w);
+    }
+    if (kind != "image") {
+        if (const auto c = r.find("captions"); c != r.end()) meta.captions = captionsFrom(*c);
+    }
     return meta;
 }
 
@@ -189,6 +261,13 @@ std::string toJson(const Meta& meta) {
         j["background"] = meta.background;
         j["font"] = meta.font;
     } else if (meta.media) {
+        if (meta.kind == "audio") {
+            j["background"] = meta.background;
+            j["font"] = meta.font;
+            if (!meta.text.empty()) j["text"] = meta.text;
+            if (meta.waveform) j["waveform"] = *meta.waveform;
+        }
+        if (meta.kind != "image" && !meta.captions.empty()) j["captions"] = captionsJson(meta.captions);
         const auto& m = *meta.media;
         OrderedJson media;
         media["key"] = m.key;
@@ -197,8 +276,8 @@ std::string toJson(const Meta& meta) {
         media["encryptedSize"] = m.encryptedSize;
         media["chunkSize"] = m.chunkSize;
         media["mime"] = m.mime;
-        media["width"] = m.width;
-        media["height"] = m.height;
+        media["width"] = meta.kind == "audio" ? 1 : m.width;
+        media["height"] = meta.kind == "audio" ? 1 : m.height;
         if (m.durationMs) media["durationMs"] = *m.durationMs;
         j["media"] = std::move(media);
     }
@@ -223,6 +302,37 @@ std::vector<Overlay> parseOverlays(std::string_view jsonArray) {
         }
     }
     return out;
+}
+
+bool isKnownKind(std::string_view kind) {
+    return kind == "image" || kind == "video" || kind == "text" || kind == "audio";
+}
+
+std::vector<Caption> parseCaptions(std::string_view jsonArray) {
+    try {
+        return captionsFrom(Json::parse(jsonArray));
+    } catch (const Json::exception&) {
+        return {};
+    }
+}
+
+std::string toJson(const std::vector<Caption>& captions) {
+    return captionsJson(captions).dump();
+}
+
+std::optional<std::string> captionAt(const std::vector<Caption>& captions, std::int64_t timeMs) {
+    for (const auto& c : captions) {
+        if (timeMs >= c.startMs && timeMs < c.endMs) return c.text;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::vector<int>> parseWaveform(std::string_view json) {
+    try {
+        return waveformFrom(Json::parse(json));
+    } catch (const Json::exception&) {
+        return std::nullopt;
+    }
 }
 
 std::string toJson(const std::vector<Overlay>& overlays) {
@@ -299,7 +409,12 @@ std::string age(std::int64_t createdAtMs, std::int64_t nowMs) {
 std::string preview(const Meta& meta) {
     if (meta.kind == "image") return "Photo";
     if (meta.kind == "video") return "Video";
+    if (meta.kind == "audio" && meta.text.empty()) return "Voice";
     return util::encodeUtf8(util::takeUtf16(util::decodeUtf8(meta.text), 60));
+}
+
+std::string replyKind(const Meta& meta) {
+    return meta.kind == "audio" ? "text" : meta.kind;
 }
 
 std::vector<SeenEntry> parseSeen(std::string_view json, std::int64_t nowMs) {

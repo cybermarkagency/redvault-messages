@@ -32,7 +32,7 @@ RvDialog {
         Text {
             Layout.fillWidth: true
             visible: dialog.pages.length === 0
-            text: "This text isn't built into this copy of the app."
+            text: qsTr("This text isn't built into this copy of the app.")
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             color: Theme.warn
@@ -67,7 +67,7 @@ RvDialog {
 
         RvButton {
             Layout.alignment: Qt.AlignRight
-            text: "Done"
+            text: qsTr("Done")
             onClicked: dialog.close()
         }
     }

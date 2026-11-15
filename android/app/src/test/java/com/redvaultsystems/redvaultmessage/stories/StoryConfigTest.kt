@@ -23,6 +23,17 @@ class StoryConfigTest {
     }
 
     @Test
+    fun voiceStoriesAreOnlyOfferedWhenTheServerSaysSo() {
+        assertTrue(on("""{"enabled":true,"media":true,"audio":true}""").audio)
+        assertFalse(on("""{"enabled":true,"media":true,"audio":false}""").audio)
+        // A server from before voice stories says nothing, which means no (it would refuse the kind).
+        assertFalse(on("""{"enabled":true,"media":true}""").audio)
+        assertFalse(on("""{"enabled":true,"audio":"true"}""").audio)
+        assertFalse(on("""{"enabled":true,"audio":1}""").audio)
+        assertFalse(on("""{"enabled":true,"audio":null}""").audio)
+    }
+
+    @Test
     fun aMissingEnabledMeansOn() {
         // A server from before the switch says nothing about it.
         val config = on("""{"media":true,"interactive":true,"ttlSeconds":[3600,86400]}""")

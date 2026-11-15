@@ -27,7 +27,7 @@ internal sealed interface ChannelRow {
 internal enum class ChannelBottomBar { Composer, ReadOnly }
 
 /** What can be done to one post, from a long press or its overflow button. */
-internal enum class PostAction { CopyText, Forward, Delete }
+internal enum class PostAction { CopyText, Forward, Edit, Delete }
 
 /** What the owner's strip above the thread opens. */
 internal enum class OwnerPanel { Scheduled, Suggestions }
@@ -36,9 +36,12 @@ internal data class OwnerStripItem(val panel: OwnerPanel, val label: String)
 
 /** The channel screen's decisions, apart from the screen so they can be tested off a phone. */
 internal object ChannelThread {
-    /** The header's line. It is the honest disclosure: channels are readable by the server. */
+    /**
+     * The header's line, the honest disclosure: a public channel is readable by the server; a private one's
+     * posts are end-to-end encrypted with its link (Part C1).
+     */
     fun subtitle(isPrivate: Boolean): String =
-        (if (isPrivate) "Private channel" else "Public channel") + " · not end-to-end encrypted"
+        if (isPrivate) "Private channel · end-to-end encrypted" else "Public channel · not end-to-end encrypted"
 
     /** Only the owner gets a composer. An admin can take posts down but doesn't post, so reads like anyone else. */
     fun bottomBar(isOwner: Boolean): ChannelBottomBar = if (isOwner) ChannelBottomBar.Composer else ChannelBottomBar.ReadOnly
@@ -52,6 +55,8 @@ internal object ChannelThread {
             add(PostAction.CopyText)
             add(PostAction.Forward)
         }
+        // Only a private channel's (encrypted) posts can be edited, and only by the owner.
+        if (isOwner && post.encrypted != null && !post.locked) add(PostAction.Edit)
         if (isOwner || isAdmin) add(PostAction.Delete)
     }
 

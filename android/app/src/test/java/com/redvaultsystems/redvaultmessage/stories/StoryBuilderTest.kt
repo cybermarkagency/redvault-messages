@@ -97,6 +97,9 @@ class StoryBuilderTest {
     private fun fileOf(bytes: ByteArray, kind: StoryKind, mime: String, durationMs: Long? = null) =
         PreparedStoryMedia(kind, mime, 640, 480, durationMs, bytes.size.toLong()) { ByteArrayInputStream(bytes) }
 
+    private fun voiceOf(bytes: ByteArray, durationMs: Long?, waveform: List<Int>? = null) =
+        PreparedStoryMedia(StoryKind.Audio, "audio/wav", 1, 1, durationMs, bytes.size.toLong(), waveform = waveform) { ByteArrayInputStream(bytes) }
+
     private fun keyUserIds(body: JsonObject) = body.arr("keys").map { it.jsonObject.str("userId") }
 
     @Test
@@ -272,10 +275,39 @@ class StoryBuilderTest {
     }
 
     @Test
+    fun aVoiceCarriesItsTitleLengthBarsAndSubtitlesAndOneWithNoLengthIsRefusedLeavingNoFileBehind() {
+        val bars = List(48) { (it * 2 + 3) % 101 }
+        val voice = build(draft(text = "  Morning note ", media = voiceOf(ByteArray(3_000) { 9 }, 12_000, bars), captions = listOf(StoryCaption(0, 1_500, "hello"))))
+        assertEquals("audio", voice.body.str("kind"))
+        val key = crypto.unwrapStoryKey(voice.id, Base64Codec.decode(voice.body.arr("keys")[0].jsonObject.str("wrappedKey")), alice.b64("publicKey"), alice.b64("privateKey"))
+        val meta = StoryMetaParser.parse(Json.parseToJsonElement(crypto.openStoryMeta(voice.id, key, voice.body.b64("metaCiphertext"), voice.body.b64("metaNonce"))), StoryKind.Audio)
+        assertEquals("Morning note", meta.text)
+        assertEquals(StoryBackground.Ocean, meta.background)
+        assertEquals(StoryFont.Typewriter, meta.font)
+        val media = meta.media!!
+        assertEquals("audio/wav", media.mime)
+        assertEquals(12_000L, media.durationMs)
+        assertEquals(1 to 1, media.width to media.height)
+        assertEquals(bars, meta.waveform)
+        assertEquals(listOf(Triple(0L, 1_500L, "hello")), meta.captions.map { Triple(it.startMs, it.endMs, it.text) })
+        // No length, or a length of nothing at all, is refused in plain words and nothing is left in the cache; one millisecond is a length.
+        for (length in listOf(null, 0L, -5L)) {
+            val failing = File(tmp.root, "voice-$length")
+            val refused = assertThrows(StoryInputException::class.java) {
+                builder.build(ids.str("alice"), alice.b64("publicKey"), alice.b64("privateKey"), draft(text = null, media = voiceOf(ByteArray(10), length)), friends, none, failing)
+            }
+            assertEquals("That audio has no length.", refused.message)
+            assertFalse(failing.exists())
+        }
+        assertEquals("audio", build(draft(text = null, media = voiceOf(ByteArray(10), 1))).body.str("kind"))
+    }
+
+    @Test
     fun writeAStoryOfEachKindForTheWebToOpen() {
         // Fixed inputs; the output is only used by verify_android_posted.ts.
         val photoBytes = ByteArray(70_000) { ((it * 7 + 3) and 0xff).toByte() }
         val videoBytes = ByteArray(2_000) { ((it * 11 + 1) and 0xff).toByte() }
+        val voiceBytes = ByteArray(3_000) { ((it * 13 + 5) and 0xff).toByte() }
         val drafts = listOf(
             "text" to draft(),
             "close" to draft(text = "Close friends only", audience = StoryAudience.CloseFriends),
@@ -295,6 +327,7 @@ class StoryBuilderTest {
             ),
             "picked" to draft(text = "Only for Bob", audience = StoryAudience.Custom, customIds = setOf(bob.userId)),
             "captioned" to draft(text = null, media = fileOf(videoBytes, StoryKind.Video, "video/mp4", 9_000), captions = listOf(StoryCaption(0, 1_500, "first"), StoryCaption(2_000, 4_000, "second"))),
+            "voice" to draft(text = "Morning note", media = voiceOf(voiceBytes, 12_000, List(48) { (it * 2 + 3) % 101 }), captions = listOf(StoryCaption(500, 2_500, "good morning"))),
         )
         val stories = buildJsonArray {
             for ((name, d) in drafts) {
@@ -332,9 +365,10 @@ class StoryBuilderTest {
                 put("stories", stories)
                 put("photoLength", photoBytes.size)
                 put("videoLength", videoBytes.size)
+                put("voiceLength", voiceBytes.size)
             }.toString(),
         )
         assertTrue(File(out, "android_posted.json").length() > 1000)
-        assertEquals(8, stories.size)
+        assertEquals(9, stories.size)
     }
 }

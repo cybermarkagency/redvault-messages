@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -183,13 +184,25 @@ internal fun StoryViewerScreen(
             }
         }
     }
-    val ready = story.kind == StoryKind.Text || photo != null || video != null
+    val audio by produceState<File?>(null, story.id) {
+        value = null
+        if (story.kind == StoryKind.Audio) {
+            try {
+                value = session.audio(story)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failed = true
+            }
+        }
+    }
+    val ready = story.kind == StoryKind.Text || photo != null || video != null || audio != null
     var videoPosition by remember(story.id) { mutableStateOf(0L) }
 
     // Stills run on a clock that stops while a finger is down; a video's progress is its own position.
     val stillMs = StoryTiming.stillMs(story.meta.stickers)
     LaunchedEffect(story.id, ready, holding) {
-        if (story.kind == StoryKind.Video || !ready || holding) return@LaunchedEffect
+        if (story.kind == StoryKind.Video || story.kind == StoryKind.Audio || !ready || holding) return@LaunchedEffect
         var last = System.nanoTime()
         while (progress < 1f) {
             delay(30)
@@ -234,10 +247,12 @@ internal fun StoryViewerScreen(
                 meta = story.meta,
                 photo = photo,
                 video = video,
+                audio = audio,
+                audioProgress = progress,
                 paused = holding,
                 muted = muted,
                 stickers = stickerEnv,
-                caption = if (story.kind == StoryKind.Video) StoryMetaParser.captionAt(story.meta.captions, videoPosition) else null,
+                caption = if (story.kind == StoryKind.Video || story.kind == StoryKind.Audio) StoryMetaParser.captionAt(story.meta.captions, videoPosition) else null,
                 modifier = Modifier.fillMaxSize(),
                 onVideoPosition = { position, duration ->
                     videoPosition = position
@@ -247,7 +262,7 @@ internal fun StoryViewerScreen(
             )
             if (!ready && !failed) CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
             if (failed) {
-                Text("This story couldn't be opened.", color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(32.dp))
+                Text(stringResource(R.string.ui_this_story_couldn_t_be_opened), color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(32.dp))
             }
         }
 
@@ -272,7 +287,7 @@ internal fun StoryViewerScreen(
                     Text(if (group.isOwn) "Your story" else group.handle, color = StoryStyle.chrome, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text(age(story.createdAtMs), color = StoryStyle.chrome.copy(alpha = 0.7f), fontSize = 12.sp)
                 }
-                if (story.kind == StoryKind.Video) {
+                if (story.kind == StoryKind.Video || story.kind == StoryKind.Audio) {
                     RoundButton(
                         if (muted) R.drawable.ui_speaker_off else R.drawable.ui_speaker,
                         if (muted) "Turn the sound on" else "Turn the sound off",
@@ -307,7 +322,7 @@ internal fun StoryViewerScreen(
                         Text(if (story.viewCount == 1) "Seen by 1 friend" else "Seen by ${story.viewCount} friends", color = Color.White, fontSize = 14.sp)
                     }
                     if (story.answerableStickers().isNotEmpty()) {
-                        PillButton("Answers", onClick = { showAnswers = true }, style = PillStyle.Secondary, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_answers), onClick = { showAnswers = true }, style = PillStyle.Secondary, height = 44.dp)
                     }
                     if (onCompose != null) RoundButton(R.drawable.ui_plus, "Add to your story", onClick = onCompose, size = 44.dp, container = StoryStyle.scrim, tint = Color.White)
                     RoundButton(R.drawable.ui_trash, "Delete this story", onClick = { askDelete = true }, size = 44.dp, container = StoryStyle.scrim, tint = Color.White)
@@ -345,26 +360,26 @@ internal fun StoryViewerScreen(
         AlertDialog(
             onDismissRequest = { askDelete = false },
             containerColor = colors.surface,
-            title = { Text("Delete this story?", color = colors.text) },
-            text = { Text("It disappears for everyone who could see it. This can't be undone.", color = colors.text2) },
+            title = { Text(stringResource(R.string.ui_delete_this_story), color = colors.text) },
+            text = { Text(stringResource(R.string.ui_it_disappears_for_everyone_who_could), color = colors.text2) },
             confirmButton = {
                 TextButton(onClick = {
                     askDelete = false
                     scope.launch {
                         runCatching { session.remove(story.id) }.onSuccess { if (group.stories.size <= 1) onClose() else next() }.onFailure { toast = "Couldn't delete that. Try again." }
                     }
-                }) { Text("Delete", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { askDelete = false }) { Text("Keep", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { askDelete = false }) { Text(stringResource(R.string.ui_keep), color = colors.text2) } },
         )
     }
     showViewers?.let { names ->
         AlertDialog(
             onDismissRequest = { showViewers = null },
             containerColor = colors.surface,
-            title = { Text("Seen by", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_seen_by), color = colors.text) },
             text = { Text(if (names.isEmpty()) "Nobody has shared that they saw it yet. Friends who turned off sharing views aren't listed." else names.joinToString("\n"), color = colors.text2) },
-            confirmButton = { TextButton(onClick = { showViewers = null }) { Text("Done", color = colors.accent) } },
+            confirmButton = { TextButton(onClick = { showViewers = null }) { Text(stringResource(R.string.ui_done), color = colors.accent) } },
         )
     }
     asking?.let { question ->

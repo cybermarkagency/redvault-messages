@@ -287,6 +287,36 @@ TEST_CASE("the header says what a channel is, and a post claims no encryption", 
     CHECK(footerSeen);
 }
 
+TEST_CASE("a private channel with keys says it's encrypted with its link, and a post no key opens says so", "[app][channelpage]") {
+    Page p(false);
+    channels::Post locked = textPost("x", "", 0);
+    locked.encrypted = channels::EncryptedPost{{1, "n", "c"}, "text", std::nullopt, std::nullopt};
+    locked.locked = true;
+    p.posts.reset({textPost("a", "Opened fine.", 0, 1), locked});
+    QVariantMap channel = p.session->property("channel").toMap();
+    channel[QStringLiteral("isPrivate")] = true;
+    channel[QStringLiteral("e2ee")] = true;
+    channel[QStringLiteral("cantOpen")] = true;
+    p.session->setProperty("channel", channel);
+    p.layOut();
+    QQuickItem* subtitle = p.named("channelSubtitle");
+    REQUIRE(subtitle);
+    CHECK(subtitle->property("text").toString() == QStringLiteral("Private channel · end-to-end encrypted with its link"));
+    QQuickItem* banner = p.named("channelCantOpen");
+    REQUIRE(banner);
+    CHECK(banner->isVisible());
+    const QStringList texts = p.texts();
+    CHECK(texts.count(QStringLiteral("This channel's posts can't be opened with this link")) >= 2);
+    CHECK(texts.contains(QStringLiteral("Opened fine.")));
+
+    // Without keys yet (made private before Part C1), it still says it isn't encrypted.
+    channel[QStringLiteral("e2ee")] = false;
+    channel[QStringLiteral("cantOpen")] = false;
+    p.session->setProperty("channel", channel);
+    CHECK(subtitle->property("text").toString() == QStringLiteral("Private channel · not end-to-end encrypted"));
+    CHECK_FALSE(banner->isVisible());
+}
+
 TEST_CASE("the thread runs as a chat: oldest on top, newest at the bottom, with a header per day", "[app][channelpage]") {
     Page p(false);
     p.posts.reset({textPost("new", "Today's post", 0), textPost("old", "Yesterday's post", 1)});

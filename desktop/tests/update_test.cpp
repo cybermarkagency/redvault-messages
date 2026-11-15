@@ -323,3 +323,151 @@ TEST_CASE("nothing published yet means nothing newer, not an error", "[update][t
     transport.handler = [](const net::HttpRequest&) { return net::HttpResponse{500, {}, ""}; };
     CHECK_THROWS_AS(fetchManifest(transport, sourceFor(keys, kClearApi, false)), UpdateError);
 }
+
+// --- The Android app's manifest (android-latest.json) ---
+
+namespace {
+
+/// A fixed test key (never the release key): its seed is public, so the vector below is reproducible.
+SigningKeyPair androidTestKey() {
+    std::array<unsigned char, crypto_sign_SEEDBYTES> seed{};
+    for (std::size_t i = 0; i < seed.size(); ++i) seed[i] = static_cast<unsigned char>(0xA0 + i);
+    SigningKeyPair keys;
+    keys.publicKey = crypto::Bytes(crypto_sign_PUBLICKEYBYTES);
+    keys.secretKey = crypto::SecretBytes(crypto_sign_SECRETKEYBYTES);
+    crypto_sign_seed_keypair(keys.publicKey.data(), keys.secretKey.data(), seed.data());
+    return keys;
+}
+
+Release androidRelease() {
+    Release r;
+    r.product = std::string(kAndroidProduct);
+    r.version = "0.6.2";
+    r.versionCode = 12;
+    r.url = kPrefix + "RedVault-Messages-0.6.2.apk";
+    r.sha256 = std::string(64, 'b');
+    r.size = 4321;
+    r.notes = "Test release";
+    r.published = "2026-11-13T00:00:00Z";
+    r.expires = "2027-02-11T00:00:00Z";
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("an Android manifest signs and verifies, with its versionCode", "[update]") {
+    const auto keys = androidTestKey();
+    const auto manifest = signManifest(androidRelease(), keys.secretKey);
+    const auto checked = verifyAndroidManifest(manifest, keys.publicKey, kPrefix);
+    CHECK(checked.versionCode == 12);
+    CHECK(checked.version == "0.6.2");
+    CHECK(checked.url == kPrefix + "RedVault-Messages-0.6.2.apk");
+    CHECK(checked.size == 4321);
+}
+
+TEST_CASE("the desktop app never takes an Android manifest, nor the other way round", "[update]") {
+    const auto keys = androidTestKey();
+    CHECK_THROWS_AS(verifyManifest(signManifest(androidRelease(), keys.secretKey), keys.publicKey, "0.0.1", kPrefix), UpdateError);
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(release("9.9.9"), keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+}
+
+TEST_CASE("Android manifests without a versionCode, outside the folder or not an APK are refused", "[update]") {
+    const auto keys = androidTestKey();
+    auto r = androidRelease();
+    r.versionCode = 0;
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+    r = androidRelease();
+    r.url = "https://evil.example/RedVault-Messages-0.6.2.apk";
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+    r = androidRelease();
+    r.url = kPrefix + "RedVault-Messages-0.6.2.exe";
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+}
+
+#ifdef REDVAULT_ANDROID_UPDATE_VECTOR
+/// The vector the Android app's tests verify (android/app/src/test/resources/android_update_vector.json):
+/// signed here by the release tool's code, checked there by the app's Kotlin. Ed25519 is deterministic, so it's stable.
+TEST_CASE("the shared Android update vector is what the signer produces", "[update]") {
+    const auto keys = androidTestKey();
+    const Json vector = {{"publicKey", crypto::base64Encode(keys.publicKey)}, {"manifest", signManifest(androidRelease(), keys.secretKey)}};
+    const std::filesystem::path path = REDVAULT_ANDROID_UPDATE_VECTOR;
+    if (!std::filesystem::exists(path)) {
+        std::ofstream(path, std::ios::binary) << vector.dump(2) << "\n";
+        FAIL("Wrote " << path.string() << ": run again");
+    }
+    std::ifstream in(path, std::ios::binary);
+    const Json stored = Json::parse(in);
+    CHECK(stored == vector);
+}
+#endif
+
+namespace {
+
+Release linuxRelease(std::string_view product, const std::string& version = "0.7.3") {
+    Release r = release(version);
+    r.product = std::string(product);
+    r.url = product == kLinuxAppImageProduct ? kPrefix + "redvaultmessages-" + version + "-x86_64.AppImage"
+                                             : kPrefix + "redvaultmessages_" + version + "_amd64.deb";
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("Linux manifests verify only as their own kind of install", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    const auto appImage = signManifest(linuxRelease(kLinuxAppImageProduct), keys.secretKey);
+    const auto deb = signManifest(linuxRelease(kLinuxDebProduct), keys.secretKey);
+
+    const auto found = verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct);
+    REQUIRE(found);
+    CHECK(found->product == kLinuxAppImageProduct);
+    CHECK(found->url == kPrefix + "redvaultmessages-0.7.3-x86_64.AppImage");
+    REQUIRE(verifyManifest(deb, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct));
+
+    // An AppImage install never takes the .deb's manifest (or the Windows one), and so on.
+    CHECK_THROWS_AS(verifyManifest(deb, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix), UpdateError);
+    const auto windows = signManifest(release("0.7.3"), keys.secretKey);
+    CHECK_THROWS_AS(verifyManifest(windows, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(windows, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct), UpdateError);
+}
+
+TEST_CASE("a Linux manifest naming the wrong kind of file is refused, even when signed", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    auto r = linuxRelease(kLinuxAppImageProduct);
+    r.url = kPrefix + "redvaultmessages-0.7.3.sh";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct),
+                    UpdateError);
+    r = linuxRelease(kLinuxDebProduct);
+    r.url = kPrefix + "redvaultmessages-0.7.3-x86_64.AppImage";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct),
+                    UpdateError);
+    r = linuxRelease(kLinuxDebProduct);
+    r.url = "https://evil.example/redvaultmessages_0.7.3_amd64.deb";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct),
+                    UpdateError);
+}
+
+TEST_CASE("Linux updates only move forward", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    CHECK_FALSE(verifyManifest(signManifest(linuxRelease(kLinuxDebProduct, "0.7.2"), keys.secretKey), keys.publicKey, "0.7.2",
+                               kPrefix, kLinuxDebProduct));
+    CHECK_FALSE(verifyManifest(signManifest(linuxRelease(kLinuxAppImageProduct, "0.7.1"), keys.secretKey), keys.publicKey,
+                               "0.7.2", kPrefix, kLinuxAppImageProduct));
+}
+
+TEST_CASE("the Linux manifest is fetched over the same route as the Windows one", "[update][linux][tor]") {
+    const auto keys = generateSigningKey();
+    const std::string onionApi = "http://" + std::string(56, 'a') + ".onion/redvaultmessages/api/";
+    const std::string manifestUrl = kPrefix + "linux-deb-latest.json";
+    test::FakeTransport transport;
+    transport.enqueue(200, signManifest(linuxRelease(kLinuxDebProduct), keys.secretKey), {{"content-type", "application/json"}});
+    UpdateSource source{manifestUrl, keys.publicKey, "0.7.2", kPrefix, onionApi, true, 0};
+    source.product = std::string(kLinuxDebProduct);
+    const auto check = fetchManifest(transport, source);
+    REQUIRE(check.release);
+    CHECK(check.release->version == "0.7.3");
+    REQUIRE(transport.requests.size() == 1);
+    CHECK(transport.requests[0].url == "http://" + std::string(56, 'a') + ".onion/redvaultmessages/desktop/linux-deb-latest.json");
+}

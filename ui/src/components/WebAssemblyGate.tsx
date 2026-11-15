@@ -9,7 +9,8 @@ import styles from "./TorGate.module.css";
  * The app's encryption (libsodium: key derivation, sealed boxes, signatures) is WebAssembly, with no
  * fallback. Some browsers don't offer it: Tor Browser removes it on non-HTTPS pages at its "Safer"
  * and "Safest" security levels, and an onion address is plain http. Without this, the app would
- * start and then fail at the first sign-in with a message about a wrong password. This says what's
+ * start and then fail at the first sign-in with a message about a wrong password. The website's other pages
+ * (the downloads, the transparency feed) don't need it, so only signing in and the file viewer sit behind this. This says what's
  * actually wrong, and what to do about it.
  */
 export function WebAssemblyGate({ children }: { children: ReactNode }) {
@@ -22,7 +23,7 @@ export function WebAssemblyGate({ children }: { children: ReactNode }) {
           This browser can't run Redvault's encryption
         </h1>
         <p>
-          Redvault encrypts everything on your device using WebAssembly, and this browser has it turned off, so the app can't start
+          Redvault does its encryption on your device using WebAssembly, and this browser has it turned off, so this can't run
           here. Nothing was sent anywhere.
         </p>
         {onion ? (

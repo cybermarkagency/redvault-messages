@@ -28,7 +28,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "Relay servers"
+        text: qsTr("Relay servers")
         color: Theme.text
         font.family: Theme.displayFamily
         font.pixelSize: 26
@@ -37,19 +37,19 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "Messages go through the message relay, and calls always go through a call relay, so nobody you talk to ever learns your IP address. Relays only ever carry ciphertext: they can't read messages or listen to calls."
+        text: qsTr("Messages go through the message relay, and calls always go through a call relay, so nobody you talk to ever learns your IP address. Relays only ever carry ciphertext: they can't read messages or listen to calls.")
         color: Theme.text2
         font.pixelSize: 14
     }
     RvButton {
         secondary: true
         iconName: "refresh"
-        text: "Check connections"
+        text: qsTr("Check connections")
         enabled: root.relays !== null
         onClicked: root.relays.checkAll()
     }
 
-    Caption { text: "MESSAGE RELAY" }
+    Caption { text: qsTr("MESSAGE RELAY") }
     Card {
         Layout.fillWidth: true
         RowLayout {
@@ -89,7 +89,7 @@ ColumnLayout {
         }
     }
 
-    Caption { text: "CALL RELAYS (TURN)" }
+    Caption { text: qsTr("CALL RELAYS (TURN)") }
     Card {
         Layout.fillWidth: true
         spacing: 0
@@ -140,7 +140,7 @@ ColumnLayout {
                             font.pixelSize: 13
                         }
                         Text {
-                            text: relay.modelData.transport + " · relay only"
+                            text: relay.modelData.transport + qsTr(" · relay only")
                             textFormat: Text.PlainText
                             color: Theme.text3
                             font.pixelSize: 12
@@ -159,7 +159,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "This app relays calls over UDP. TCP and TLS relays are there for browsers on networks that block UDP."
+        text: qsTr("This app relays calls over UDP. TCP and TLS relays are there for browsers on networks that block UDP.")
         color: Theme.text3
         font.pixelSize: 12
     }

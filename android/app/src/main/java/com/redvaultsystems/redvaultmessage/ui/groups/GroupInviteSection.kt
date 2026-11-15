@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.groups
 
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -98,7 +99,7 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
 
     if (!loaded || (link == null && !canManage)) return
 
-    SectionLabel("Invite link")
+    SectionLabel(stringResource(R.string.ui_invite_link))
     error?.let { Notice(it) }
     val current = link
     if (current == null) {
@@ -108,7 +109,7 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
             color = colors.text2,
             fontSize = 14.sp,
         )
-        PrimaryButton(text = "Create invite link", enabled = !busy, busy = busy) {
+        PrimaryButton(text = stringResource(R.string.ui_create_invite_link), enabled = !busy, busy = busy) {
             run("Couldn't create the link.") { link = chats.newInviteLink(groupId, approval = true) }
         }
     } else {
@@ -136,16 +137,16 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
                         height = 36.dp,
                         icon = R.drawable.ui_copy,
                     )
-                    PillButton("Share", { shareInvite(context, url) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_share)
+                    PillButton(stringResource(R.string.ui_share), { shareInvite(context, url) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_share)
                 }
             }
         } else {
-            Text("This group's link couldn't be opened on this device.", color = colors.text3, fontSize = 14.sp)
+            Text(stringResource(R.string.ui_this_group_s_link_couldn_t), color = colors.text3, fontSize = 14.sp)
         }
         if (canManage) {
             val secret = current.secret
             SettingsRow(
-                title = "Approve new members",
+                title = stringResource(R.string.ui_approve_new_members),
                 description = if (current.approval) "An admin lets in each person who opens the link." else "Anyone who opens the link joins straight away.",
                 trailing = {
                     RvSwitch(
@@ -154,21 +155,21 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
                         onCheckedChange = if (busy || secret == null) null else { on ->
                             run("Couldn't change that setting.") { link = chats.setInviteApproval(groupId, on, secret) }
                         },
-                        description = "Approve new members",
+                        description = stringResource(R.string.ui_approve_new_members),
                     )
                 },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(enabled = !busy, onClick = {
                     confirm = "Reset the invite link? The current link stops working." to { link = chats.newInviteLink(groupId, current.approval) }
-                }) { Text("Reset link", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_reset_link), color = colors.accent) }
                 TextButton(enabled = !busy, onClick = {
                     confirm = "Turn off the invite link? It stops working, and pending requests are dropped." to {
                         chats.turnOffInviteLink(groupId)
                         link = null
                         requests = emptyList()
                     }
-                }) { Text("Turn off link", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_turn_off_link), color = colors.danger) }
             }
         }
     }
@@ -188,13 +189,13 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
                         chats.approveJoinRequest(groupId, request.userId)
                         loadRequests()
                     }
-                }) { Text("Approve", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_approve), color = colors.accent) }
                 TextButton(enabled = !busy, onClick = {
                     run("Couldn't decline the request.") {
                         chats.declineJoinRequest(groupId, request.userId)
                         loadRequests()
                     }
-                }) { Text("Decline", color = colors.text2) }
+                }) { Text(stringResource(R.string.ui_decline), color = colors.text2) }
             }
         }
     }
@@ -208,9 +209,9 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
                 TextButton(onClick = {
                     confirm = null
                     run("That didn't work. Try again.", action)
-                }) { Text("Yes", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_yes), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }

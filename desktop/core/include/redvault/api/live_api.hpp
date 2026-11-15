@@ -61,6 +61,9 @@ struct LiveEvent {
     std::optional<std::string> userId;
     std::optional<std::string> reason;
     std::optional<SealedSignal> sealed;  // the offer, answer or signal (a group call's room key, for "group-key")
+    /// Part B: the offer, answer or signal is {"carrier":"device-keys"}: its SDP went as a device-key message
+    /// (docs/signal-integration/09-part-b-calls.md). `sealed` is then empty.
+    bool deviceKeys = false;
     std::vector<IceServer> iceServers;
     bool on = false;
     // Group calls:
@@ -94,6 +97,11 @@ StartedCall startCall(ApiClient& api, const std::string& conversationId, const s
 void sendOffer(ApiClient& api, const std::string& callId, const SealedSignal& offer);
 void sendAnswer(ApiClient& api, const std::string& callId, const SealedSignal& answer);
 void sendSignal(ApiClient& api, const std::string& callId, const SealedSignal& signal);
+/// Part B: the offer's, answer's or restart's SDP went to the other person's devices as a device-key message; the
+/// server only marks the step ({"carrier":"device-keys"}) so the call rings, connects and ends as usual.
+void sendOfferOverDeviceKeys(ApiClient& api, const std::string& callId);
+void sendAnswerOverDeviceKeys(ApiClient& api, const std::string& callId);
+void sendSignalOverDeviceKeys(ApiClient& api, const std::string& callId);
 void declineCall(ApiClient& api, const std::string& callId);
 void hangUp(ApiClient& api, const std::string& callId);
 /// Screen sharing is Premium: the server checks, then tells the other side.

@@ -5,8 +5,11 @@ package com.redvaultsystems.redvaultmessage.ui.chats
 
 import com.redvaultsystems.redvaultmessage.data.model.Message
 import com.redvaultsystems.redvaultmessage.data.model.MessageKind
+import com.redvaultsystems.redvaultmessage.data.model.PollView
+import com.redvaultsystems.redvaultmessage.data.model.ReplyView
 import com.redvaultsystems.redvaultmessage.data.model.ReactionView
 import com.redvaultsystems.redvaultmessage.data.model.RichMessage
+import com.redvaultsystems.redvaultmessage.devicekeys.ChatOp
 import com.redvaultsystems.redvaultmessage.devicekeys.ShownMessage
 import com.redvaultsystems.redvaultmessage.devicekeys.V3Chat
 import java.time.LocalDate
@@ -64,11 +67,11 @@ internal object ThreadSearch {
 
 /** Ticking several messages to forward or delete them together (the desktop's selection mode). */
 internal object MessageSelection {
-    /** A bubble that's on the server: not a pin notice, not still waiting in the Tor outbox. Device-key messages aren't there at all. */
-    fun selectable(m: Message): Boolean = m.notice == null && !m.queued && !m.v3
+    /** A bubble that went out: not a pin notice, not still waiting in the Tor outbox, not a deleted device-key message. */
+    fun selectable(m: Message): Boolean = m.notice == null && !m.queued && !m.deleted
 
     fun canForward(m: Message): Boolean =
-        m.notice == null && m.poll == null && !m.queued && !m.v3 && (m.kind == MessageKind.Text || (m.kind == MessageKind.File && m.file != null))
+        m.notice == null && m.poll == null && !m.queued && !m.deleted && (m.kind == MessageKind.Text || (m.kind == MessageKind.File && m.file != null))
 
     /** The ticked messages that can be forwarded, oldest first (the order they're sent in). */
     fun forwardable(messages: List<Message>, ids: Set<String>): List<Message> =
@@ -78,9 +81,12 @@ internal object MessageSelection {
     fun allFromMe(messages: List<Message>, ids: Set<String>): Boolean =
         ids.isNotEmpty() && ids.all { id -> messages.firstOrNull { it.id == id }?.let { it.fromMe && it.kind != MessageKind.Undecryptable } == true }
 
-    /** What goes with a message deleted for everyone: its edits and your own pin notices for it (both repeat its text). */
+    /**
+     * What goes with a message deleted for everyone: its edits and your own pin notices for it (both repeat its text).
+     * A device-key message's delete erases those on every device by itself.
+     */
     fun deletedWith(message: Message, messages: List<Message>): List<String> =
-        message.editMessageIds + messages.filter { it.fromMe && it.notice?.targetId == message.id.lowercase() }.map { it.id }
+        if (message.v3) emptyList() else message.editMessageIds + messages.filter { it.fromMe && it.notice?.targetId == message.id.lowercase() }.map { it.id }
 
     /** Every id to delete for everyone: each of your own ticked messages and what goes with it, each once. */
     fun deletions(messages: List<Message>, ids: Set<String>): List<String> =
@@ -91,11 +97,14 @@ internal object MessageSelection {
 internal object V3Messages {
     const val DELETED_TEXT = "This message was deleted."
 
-    fun toMessage(shown: ShownMessage, selfUserId: String): Message {
+    /** [byId]: the chat's other device-key messages, for a reply's quote and whether it answers one of yours. */
+    fun toMessage(shown: ShownMessage, selfUserId: String, byId: Map<String, ShownMessage> = emptyMap()): Message {
         val r = shown.record
         val failed = r.status == "failed"
         val file = r.file
         fun quick(emoji: String) = RichMessage.REACTION_EMOJI.indexOf(emoji).let { if (it < 0) RichMessage.REACTION_EMOJI.size else it }
+        val others = shown.receipts.filter { it.userId != selfUserId }
+        val poll = shown.poll
         return Message(
             id = r.id,
             fromMe = r.direction == "out",
@@ -108,15 +117,52 @@ internal object V3Messages {
             },
             file = file,
             fileStatus = if (file != null) "available" else null,
+            replyTo = shown.replyTo?.let { target ->
+                // The original's text as this phone has it now (an edit shows), else the preview the reply carried.
+                val original = byId[target]
+                val preview = when {
+                    original == null -> shown.replyPreview.orEmpty()
+                    original.deleted -> DELETED_TEXT
+                    original.record.file != null -> "\uD83D\uDCCE " + original.record.file.filename
+                    else -> original.record.text
+                }
+                ReplyView(target, RichMessage.makePreview(preview), fromMe = original?.record?.direction == "out")
+            },
+            forwarded = shown.forwarded,
+            poll = if (poll != null && !shown.deleted) {
+                PollView(
+                    question = r.text,
+                    options = poll.options,
+                    multiple = poll.multi,
+                    closed = poll.ended,
+                    counts = poll.votes,
+                    mine = poll.choices[selfUserId].orEmpty(),
+                    voters = poll.choices.size,
+                )
+            } else {
+                null
+            },
             reactions = shown.reactions.groupBy { it.emoji }
                 .map { (emoji, people) -> ReactionView(emoji, people.size, people.any { it.userId == selfUserId }, null) }
                 .sortedBy { quick(it.emoji) },
             editedAtMs = shown.editedAt,
             createdAtMs = r.ts,
-            deleteAtMs = null,
-            // No receipts on device keys yet: "Delivered" would claim more than we know.
+            // Disappearing (part A): when this phone erases it.
+            deleteAtMs = shown.expiresAt,
+            // Ticks from the receipts the others' devices sent back (part A): read once anyone read it.
+            seen = r.direction == "out" && others.any { it.status == ChatOp.READ },
+            delivered = r.direction == "out" && others.isNotEmpty(),
+            receiptsFrom = if (r.direction == "out") others.size else 0,
+            readBy = if (r.direction == "out") others.count { it.status == ChatOp.READ } else 0,
             v3 = true,
+            // Part D: a reply or reaction to a story, on device keys.
+            storyReply = r.storyReply?.takeIf { !shown.deleted }?.let {
+                com.redvaultsystems.redvaultmessage.data.model.StoryReplyRef(it.authorId, it.storyId, it.kind, it.preview, it.reaction)
+            },
             deleted = shown.deleted,
+            pinned = shown.pinned,
+            pinnedBy = shown.pinnedBy,
+            pinnedByMe = shown.pinnedBy == selfUserId,
             // A send that failed after it was encrypted: the usual "Not sent" row with Retry and Discard. One that waits,
             // encrypted, in the device-key queue for Tor shows as queued (docs/tor-by-default.md).
             queued = failed || r.status == V3Chat.QUEUED,

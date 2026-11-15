@@ -11,7 +11,7 @@
 //
 // What it holds: a feed exactly as the server would hand it to a viewer (bob), made of stories
 // sealed by their author (alice) with the web's own functions, among them ones an older Android app
-// must skip (an `audio` story, a kind nobody knows yet, a story with an overlay type nobody knows)
+// must skip (a kind nobody knows yet, a story with an overlay type nobody knows; an `audio` story used to be one of them)
 // and ones every app must refuse (a key made for another story, a changed byte, a kind that does not
 // match). `webVisible` is what the web's own decodeFeed makes of that feed: the Android parser must
 // agree with it on every story it shows. Everything is fixed (ids, keys, times) except the random
@@ -145,7 +145,7 @@ it("writes the vectors", async () => {
     dto(1, { kind: "text", meta: { v: 1, kind: "text", text: "Good morning ☀️", background: "ocean", font: "typewriter", overlays: [textOverlay, emojiOverlay], closeFriends: true }, mediaSize: null }),
     dto(2, { kind: "image", meta: { v: 1, kind: "image", overlays: [plainOverlay], stickers, captions, closeFriends: false, media: imageMedia }, mediaSize: imageMedia.encryptedSize, seen: true }),
     dto(3, { kind: "video", meta: { v: 1, kind: "video", overlays: [], captions, closeFriends: false, media: videoMedia }, mediaSize: videoMedia.encryptedSize }),
-    // A voice story: shown by the web, skipped by an app that does not know the kind.
+    // A voice story: shown by the web and by the Android app (an older Android app skipped it).
     dto(4, { kind: "audio", meta: { v: 1, kind: "audio", text: "Voice note", background: "night", font: "classic", waveform, captions, overlays: [], closeFriends: false, media: audioMedia }, mediaSize: audioMedia.encryptedSize }),
     // A kind nobody has built yet, from a newer app.
     dto(5, { kind: "reel", meta: { v: 1, kind: "reel", overlays: [], closeFriends: false, effects: ["sparkle"] }, mediaSize: null }),

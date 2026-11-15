@@ -14,6 +14,9 @@
 #include <QSettings>
 
 #include "redvault/net/curl_transport.hpp"
+#ifdef REDVAULT_HAS_SEALED_ROUTE
+#include "redvault/e2ev3/sealed_route.hpp"
+#endif
 
 namespace redvault::app {
 
@@ -43,8 +46,43 @@ AppController::AppController(std::string apiBase, TorController* tor, QObject* p
     // Over Tor, first contact with the onion service can take a while, and a
     // 25 s long poll needs room for Tor's latency on top.
     const bool overTor = tor_ != nullptr && tor_->enabled();
-    auto transport = std::make_shared<net::CurlTransport>(
+    std::shared_ptr<net::HttpTransport> transport = std::make_shared<net::CurlTransport>(
         transportOptions(std::chrono::seconds(overTor ? 90 : 15), std::chrono::seconds(overTor ? 60 : 30)));
+#ifdef REDVAULT_HAS_SEALED_ROUTE
+    // The sealed backup route (docs/tor-sealed-fallback.md): when the onion can't be reached but Tor works,
+    // requests go sealed to the gateway's pinned key, through Tor, to the website. Never without Tor.
+    if (overTor && tor_->backupRouteAvailable()) {
+        if (const auto api = net::parseUrl(apiBase); api && api->path.size() >= 5 && api->path.ends_with("/api/")) {
+            net::SealedFallbackTransport::Config config;
+            config.onionOrigin = api->scheme + "://" + api->host;
+            config.pathPrefix = api->path.substr(0, api->path.size() - 5);
+            config.gatewayUrl = REDVAULT_SEALED_GATEWAY_URL;
+            config.probeUrl = apiBase + "public/routing";
+            const std::string hex = REDVAULT_SEALED_KEY_CONFIG;
+            for (std::size_t i = 0; i + 1 < hex.size(); i += 2) {
+                config.keyConfig.push_back(static_cast<std::uint8_t>(std::stoi(hex.substr(i, 2), nullptr, 16)));
+            }
+            net::CurlTransport::Options website;
+            website.allowedHost = net::parseUrl(config.gatewayUrl) ? net::parseUrl(config.gatewayUrl)->host : std::string();
+            website.connectTimeout = std::chrono::seconds(90);
+            website.stallTimeout = std::chrono::seconds(60);
+            website.torGate = tor_->gate();
+            website.httpsOverTor = true;
+            auto onionOnly = tor_->onionOnlyFlag();
+            QPointer<TorController> torRef(tor_);
+            sealedRoute_ = std::make_shared<net::SealedFallbackTransport>(
+                transport, std::make_shared<net::CurlTransport>(website), std::move(config),
+                [onionOnly] { return !onionOnly->load(); },
+                [torRef](bool backup) {
+                    if (torRef) torRef->reportBackupRoute(backup);
+                });
+            connect(tor_, &TorController::onionOnlyChosen, this, [this] {
+                if (sealedRoute_) sealedRoute_->useOnion();
+            });
+            transport = sealedRoute_;
+        }
+    }
+#endif
     cookies_ = std::make_shared<net::SessionCookieJar>();
     api_ = std::make_shared<api::ApiClient>(std::move(apiBase), transport, cookies_);
     auth_ = std::make_shared<data::AuthRepository>(api_);
@@ -382,6 +420,16 @@ void AppController::enterSignedIn() {
         if (!lock_->locked() && deviceKeys_) deviceKeys_->ensureDeviceKeys();
     });
     connect(deviceKeys_.get(), &DeviceKeysSession::incoming, this, &AppController::deviceKeyMessages);
+    // Part B: calls in chats on device keys are set up with device-key messages (docs/signal-integration/09-part-b-calls.md).
+    calls_->setDeviceKeys(deviceKeys_.get());
+    groupCalls_->setDeviceKeys(deviceKeys_.get());
+    deviceKeys_->setCallHandlers(
+        [calls = QPointer<CallController>(calls_.get())](const DeviceKeysSession::IncomingCallSignal& s) {
+            if (calls) calls->onDeviceCallSignal(s.callId, s.fromDeviceId, s.step, s.kind, s.sdp);
+        },
+        [groupCalls = QPointer<GroupCallController>(groupCalls_.get())](const DeviceKeysSession::IncomingCallKey& k) {
+            if (groupCalls) groupCalls->onDeviceCallKey(k.callId, k.conversationId, k.epoch, k.fromUserId, k.key);
+        });
     // A chat on device keys (pinned, or the open one decided for them) never falls back to the older protocol,
     // whichever screen sends.
     chats_->setDeviceKeyCheck([keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& chatId) {
@@ -390,6 +438,60 @@ void AppController::enterSignedIn() {
     chats_->setDeviceKeyReason([keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& chatId) {
         return keys ? keys->chatRefusal(QString::fromStdString(chatId)) : QString();
     });
+    // Part A (docs/signal-integration/08-part-a-chat-features.md): forwarding out of and into device-key chats, each
+    // target by its own rule; files go again with a new key.
+    chats_->setDeviceKeyForward(
+        [keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& messageId) -> std::optional<ChatSession::DeviceKeyForward> {
+            if (!keys) return std::nullopt;
+            auto item = keys->forwardItem(QString::fromStdString(messageId));
+            if (!item) return std::nullopt;
+            return ChatSession::DeviceKeyForward{std::move(item->text), std::move(item->file), item->at};
+        },
+        [keys = QPointer<DeviceKeysSession>(deviceKeys_.get())](const std::string& chatId, std::vector<ChatSession::DeviceKeyForward> items) {
+            if (!keys) return;
+            std::vector<DeviceKeysSession::ForwardItem> out;
+            for (auto& item : items) out.push_back(DeviceKeysSession::ForwardItem{std::move(item.text), std::move(item.file), item.at});
+            keys->forwardInto(QString::fromStdString(chatId), std::move(out));
+        });
+    // Part C2: the community chats go over device keys only; the list tells the device-key side which they are.
+    connect(chats_.get(), &ChatSession::contactsChanged, deviceKeys_.get(),
+            [chats = QPointer<ChatSession>(chats_.get()), keys = QPointer<DeviceKeysSession>(deviceKeys_.get())] {
+                if (!chats || !keys) return;
+                std::vector<DeviceKeysSession::CommunityChat> list;
+                for (const auto& meta : chats->communityMetas()) {
+                    list.push_back(DeviceKeysSession::CommunityChat{meta->community->id, meta->id, meta->community->kind,
+                                                                    meta->community->role, meta->community->canPost});
+                }
+                keys->setCommunities(list);
+            });
+    // What the chat list knows about a chat: names for senders and mentions, members for ticks, your timer.
+    deviceKeys_->setChatInfo([chats = QPointer<ChatSession>(chats_.get())](const std::string& chatId) {
+        DeviceKeysSession::ChatInfo info;
+        if (!chats) return info;
+        const auto meta = chats->metaFor(chatId);
+        if (!meta) return info;
+        info.known = true;
+        info.isGroup = meta->isGroup;
+        info.contactUserId = meta->otherUserId;
+        info.timerSeconds = chats->disappearingFor(chatId);
+        int others = 0;
+        for (const auto& member : meta->members) {
+            info.handles[member.userId] = member.handle;
+            if (member.isSelf) {
+                info.selfHandle = member.handle;
+            } else {
+                ++others;
+            }
+        }
+        if (!meta->isGroup) {
+            if (!meta->otherUserId.empty()) info.handles[meta->otherUserId] = meta->handle;
+            others = 1;
+        }
+        info.others = std::max(1, others);
+        return info;
+    });
+    // Your timer changed, or the chat list learnt names: the open device-key chat shows it.
+    connect(chats_.get(), &ChatSession::currentChatChanged, deviceKeys_.get(), [keys = deviceKeys_.get()] { emit keys->chatChanged(); });
     // The server tells a device its mailbox has something ({"type":"v3-mailbox"}, no sender or chat): read it now.
     connect(live_.get(), &LiveSession::liveEvent, deviceKeys_.get(), [keys = deviceKeys_.get()](const api::live::LiveEvent& event) {
         if (event.type == "v3-mailbox") keys->receiveNow();
@@ -403,6 +505,9 @@ void AppController::enterSignedIn() {
     // Paid and free communities, and their key upkeep (the epoch keys live with the chats).
     communities_ = std::make_unique<CommunitySession>(api_, identity_, chats_->communityKeys(), chats_.get(), calls_->webAppBase());
     connect(communities_.get(), &CommunitySession::sessionExpired, this, expired);
+    if (deviceKeys_) communities_->setMembershipHook([keys = QPointer<DeviceKeysSession>(deviceKeys_.get())] {
+        if (keys) keys->membershipNow();
+    });
     // RedVault's own staff: the admin tab's Communities section.
     if (superAdmin()) {
         communityAdmin_ = std::make_unique<CommunityAdminSession>(api_);
@@ -411,6 +516,10 @@ void AppController::enterSignedIn() {
     // Stories: end-to-end encrypted photos, videos and text for friends, on every plan.
     stories_ = std::make_unique<StoriesSession>(api_, identity_, chats_.get());
     connect(stories_.get(), &StoriesSession::sessionExpired, this, expired);
+    // Part D (docs/signal-integration/12-part-d-stories.md): with a trusted device, stories go over device keys: K to
+    // each viewer device, answers and replies as device-key messages.
+    stories_->setDeviceKeys(deviceKeys_.get());
+    connect(deviceKeys_.get(), &DeviceKeysSession::storyKeysArrived, stories_.get(), &StoriesSession::storyKeysArrived);
     // Paid messages, tips and exclusive posts (paying happens on Stripe's page; only the server says it's paid).
     earnings_ = std::make_unique<EarningsSession>(api_, identity_, chats_.get());
     connect(earnings_.get(), &EarningsSession::sessionExpired, this, expired);

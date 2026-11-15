@@ -17,11 +17,14 @@ import kotlin.math.floor
 // thumb for a newer app's story is the web's: a field or value this app doesn't know is left out and
 // the rest of the story shows; a story whose own structure is wrong is refused whole.
 
-/** The kinds this app can show. The web also makes `audio` stories; they're skipped here, as is any kind not yet invented. */
+/** The kinds this app can show. A kind not yet invented is skipped, and the author's other stories still show. */
 enum class StoryKind(val wire: String) {
     Image("image"),
     Video("video"),
     Text("text"),
+
+    /** A voice recording or an audio file, with a title and a picture of its loudness. */
+    Audio("audio"),
     ;
 
     companion object {
@@ -59,7 +62,7 @@ enum class StoryFont(val wire: String) {
     }
 }
 
-/** How an overlay moves on the web. Read so it can be passed on, but not drawn here: this app shows the overlay still, like apps from before it existed. */
+/** How an overlay moves (the web's `anim`): picked in the composer and played in the viewer by [com.redvaultsystems.redvaultmessage.studio.StoryMotion]; no motion is null. */
 enum class StoryAnimation(val wire: String) {
     Pulse("pulse"), Bounce("bounce"), Fade("fade"),
     ;
@@ -100,7 +103,7 @@ class StoryMediaRef(
     val mime: String,
     val width: Int,
     val height: Int,
-    /** Video only. */
+    /** Video and audio only. */
     val durationMs: Long?,
 )
 
@@ -118,6 +121,8 @@ class StoryMeta(
     val closeFriends: Boolean,
     /** Interactive and informational stickers; empty when there are none (or none this app knows). */
     val stickers: List<StorySticker> = emptyList(),
+    /** Audio only: 16 to 96 loudness bars, 0 to 100 each, drawn before and while it plays. */
+    val waveform: List<Int>? = null,
 )
 
 /** The details of a story are wrong in a way that isn't just "something newer": the story is refused rather than half shown. */
@@ -135,6 +140,10 @@ object StoryLimits {
     const val MAX_IMAGE_SIDE = 1920
     const val MAX_VIDEO_MS = 60_000L
     const val MAX_VIDEO_BYTES = 60L * 1024 * 1024
+    const val MAX_AUDIO_MS = 5 * 60_000L
+    const val MAX_AUDIO_BYTES = 24L * 1024 * 1024
+    const val WAVEFORM_MIN = 16
+    const val WAVEFORM_MAX = 96
 
     /** The only chunk size a story's media is cut into (and the web refuses any other). */
     const val FILE_CHUNK_BYTES = 64L * 1024
@@ -163,7 +172,18 @@ object StoryMetaParser {
         } else {
             val media = parseMedia(r["media"] as? JsonObject ?: throw MalformedStoryException(), kind)
             val captions = if (kind == StoryKind.Image) emptyList() else parseCaptions(r["captions"])
-            StoryMeta(kind, null, null, null, overlays, media, captions, closeFriends, stickers)
+            if (kind == StoryKind.Audio) {
+                // A voice story has no picture: a look to sit on, an optional title, and the bars that show its loudness.
+                val title = r["text"]?.string()?.takeIf { jsTrim(it).isNotEmpty() && it.length <= StoryLimits.MAX_STORY_TEXT }
+                StoryMeta(
+                    kind, title,
+                    StoryBackground.fromWire(r["background"]?.string()) ?: StoryBackground.Night,
+                    StoryFont.fromWire(r["font"]?.string()) ?: StoryFont.Classic,
+                    overlays, media, captions, closeFriends, stickers, parseWaveform(r["waveform"]),
+                )
+            } else {
+                StoryMeta(kind, null, null, null, overlays, media, captions, closeFriends, stickers)
+            }
         }
     }
 
@@ -174,13 +194,32 @@ object StoryMetaParser {
         if (!isBase64Ish(key, 64) || !isBase64Ish(header, 64) || sha256 == null || !SHA256_HEX.matches(sha256)) throw MalformedStoryException()
         val encryptedSize = m["encryptedSize"]?.positiveSafeInteger() ?: throw MalformedStoryException()
         val chunkSize = m["chunkSize"]?.positiveSafeInteger() ?: throw MalformedStoryException()
-        val width = m["width"]?.positiveSafeInteger() ?: throw MalformedStoryException()
-        val height = m["height"]?.positiveSafeInteger() ?: throw MalformedStoryException()
+        // An audio story has no picture: its width and height are 1, whatever it says.
+        val audio = kind == StoryKind.Audio
+        val width = if (audio) 1L else m["width"]?.positiveSafeInteger() ?: throw MalformedStoryException()
+        val height = if (audio) 1L else m["height"]?.positiveSafeInteger() ?: throw MalformedStoryException()
         val mime = m["mime"]?.string() ?: ""
-        val allowed = if (kind == StoryKind.Image) IMAGE_MIME else VIDEO_MIME
+        val allowed = when (kind) {
+            StoryKind.Image -> IMAGE_MIME
+            StoryKind.Audio -> AUDIO_MIME
+            else -> VIDEO_MIME
+        }
         if (!allowed.matches(mime)) throw MalformedStoryException()
-        val durationMs = if (kind == StoryKind.Video) m["durationMs"]?.positiveSafeInteger() ?: throw MalformedStoryException() else null
+        val durationMs = if (kind == StoryKind.Video || audio) m["durationMs"]?.positiveSafeInteger() ?: throw MalformedStoryException() else null
         return StoryMediaRef(key!!, header!!, sha256, encryptedSize, chunkSize, mime, width.toIntChecked(), height.toIntChecked(), durationMs)
+    }
+
+    /** The loudness bars of an audio story: 16 to 96 whole numbers from 0 to 100, or nothing at all. */
+    fun parseWaveform(raw: JsonElement?): List<Int>? {
+        val items = raw as? JsonArray ?: return null
+        if (items.size < StoryLimits.WAVEFORM_MIN || items.size > StoryLimits.WAVEFORM_MAX) return null
+        val out = ArrayList<Int>(items.size)
+        for (item in items) {
+            val n = item.number() ?: return null
+            if (n != floor(n) || n < 0 || n > 100) return null
+            out.add(n.toInt())
+        }
+        return out
     }
 
     private fun Long.toIntChecked(): Int = if (this <= Int.MAX_VALUE) toInt() else throw MalformedStoryException()
@@ -237,6 +276,7 @@ object StoryMetaParser {
     private val SHA256_HEX = Regex("^[0-9a-f]{64}$")
     private val IMAGE_MIME = Regex("^image/(jpeg|png|webp)$")
     private val VIDEO_MIME = Regex("^video/(mp4|webm|quicktime)$")
+    private val AUDIO_MIME = Regex("^audio/(webm|ogg|mp4|mpeg|wav|aac)$")
     private val BASE64_ISH = Regex("^[A-Za-z0-9+/_=-]+$")
 
     private fun isBase64Ish(v: String?, max: Int) = v != null && v.isNotEmpty() && v.length <= max && BASE64_ISH.matches(v)

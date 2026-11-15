@@ -68,7 +68,7 @@ QString whenText(std::int64_t ms) {
 
 /// The type tile: a short label and its tint (the design's per-type colours).
 std::pair<QString, QString> typeOf(const QString& name, bool folder) {
-    if (folder) return {QStringLiteral("DIR"), QStringLiteral("#86D9AE")};
+    if (folder) return {QStringLiteral("DIR"), QStringLiteral("#E7A0AE")};
     const QString ext = QFileInfo(name).suffix().toLower();
     const QString label = ext.isEmpty() ? QStringLiteral("FILE") : ext.left(4).toUpper();
     static const QStringList sheets = {"xlsx", "xls", "csv", "ods", "numbers"};

@@ -18,6 +18,9 @@ struct JsonConfig {
     state_dir: PathBuf,
     cache_dir: PathBuf,
     allowed_targets: Vec<String>,
+    /// The sealed backup route's website (`"<hostname>:443"`, at most one); absent: onion services only.
+    #[serde(default)]
+    allowed_exit_targets: Vec<String>,
     /// "error" | "warn" | "info" | "debug": Arti's log (addresses redacted) on stderr.
     #[serde(default)]
     log: Option<String>,
@@ -52,6 +55,7 @@ impl Handle {
             state_dir: parsed.state_dir,
             cache_dir: parsed.cache_dir,
             allowed_targets: parsed.allowed_targets,
+            allowed_exit_targets: parsed.allowed_exit_targets,
             #[cfg(feature = "test-hooks")]
             test_blocked_network: parsed.test_blocked_network,
         };

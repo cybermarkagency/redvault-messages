@@ -57,6 +57,33 @@ object TorRouting {
             .writeTimeout(60, TimeUnit.SECONDS)
     }
 
+    /**
+     * The sealed backup route's own client (docs/tor-sealed-fallback.md): the same gate, selector, no-DNS and
+     * credentials, but it may only reach [host] over https (what it carries is already sealed to the gateway's key).
+     */
+    fun installForWebsite(builder: OkHttpClient.Builder, tor: TorGateSource, host: String): OkHttpClient.Builder {
+        SocksCredentials.install(tor)
+        return builder
+            .addInterceptor(WebsiteGate(tor, host.lowercase()))
+            .proxySelector(GateSelector(tor))
+            .dns(NoDns)
+            .connectTimeout(90, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+    }
+
+    /** The website client's gate: Tor connected, https, and only the one host. */
+    class WebsiteGate(private val tor: TorGateSource, private val host: String) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            if (tor.gate() == null) throw TorUnavailableException()
+            val url = chain.request().url
+            if (!url.isHttps || url.host != host || TorController.isOnionHost(url.host)) {
+                throw IOException("Tor routing: the backup route only reaches $host over https")
+            }
+            return chain.proceed(chain.request())
+        }
+    }
+
     /** Before any connection: no gate, no request. */
     class TorGate(private val tor: TorGateSource) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {

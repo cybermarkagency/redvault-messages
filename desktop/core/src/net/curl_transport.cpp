@@ -194,7 +194,13 @@ CurlTransport::CurlTransport(Options options) : options_(std::move(options)), po
     ensureCurl();
     if (options_.torGate) {
         options_.allowedHost = toLower(options_.allowedHost);
-        if (!isOnionHost(options_.allowedHost)) {
+        if (options_.httpsOverTor) {
+            // The sealed backup route's website (docs/tor-sealed-fallback.md): one https host reached through a
+            // Tor exit, never an onion (that one goes through the onion transport).
+            if (options_.allowedHost.empty() || isOnionHost(options_.allowedHost)) {
+                throw std::invalid_argument("https over Tor needs the gateway's website host");
+            }
+        } else if (!isOnionHost(options_.allowedHost)) {
             throw std::invalid_argument("Tor routing needs a .onion server address");
         }
     }
@@ -221,9 +227,14 @@ HttpResponse CurlTransport::sendStreaming(const HttpRequest& request, const Stre
             throw NetworkError("Refusing to contact " + (url ? url->host : request.url) + "; this app only talks to " +
                                options_.allowedHost);
         }
-        if (tor && url->scheme != "http") {
+        if (tor && !options_.httpsOverTor && url->scheme != "http") {
             throw NetworkError("Inside the onion service the app speaks plain http; refusing " + url->scheme);
         }
+        if (tor && options_.httpsOverTor && (url->scheme != "https" || isOnionHost(url->host))) {
+            throw NetworkError("The sealed backup route only speaks https to the website; refusing " + request.url);
+        }
+    } else if (tor && options_.httpsOverTor) {
+        throw NetworkError("The sealed backup route needs its one allowed host");
     }
     std::optional<SocksEndpoint> gate;
     if (tor) {
@@ -241,7 +252,7 @@ HttpResponse CurlTransport::sendStreaming(const HttpRequest& request, const Stre
     char errorBuffer[CURL_ERROR_SIZE] = {};
 
     check(curl_easy_setopt(handle, CURLOPT_URL, request.url.c_str()));
-    check(curl_easy_setopt(handle, CURLOPT_PROTOCOLS_STR, tor ? "http" : "http,https"));
+    check(curl_easy_setopt(handle, CURLOPT_PROTOCOLS_STR, tor ? (options_.httpsOverTor ? "https" : "http") : "http,https"));
     check(curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 0L));
     check(curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L));
     check(curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer));
@@ -262,7 +273,8 @@ HttpResponse CurlTransport::sendStreaming(const HttpRequest& request, const Stre
         guard = TorGuard{gate->port, &pool_->mutex, &pool_->log};
         check(curl_easy_setopt(handle, CURLOPT_OPENSOCKETFUNCTION, &onOpenSocket));
         check(curl_easy_setopt(handle, CURLOPT_OPENSOCKETDATA, &guard));
-    } else {
+    }
+    if (!tor || options_.httpsOverTor) {
 #ifdef _WIN32
         // Trust what Windows trusts, rather than a CA bundle shipped next to the exe.
         check(curl_easy_setopt(handle, CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA)));

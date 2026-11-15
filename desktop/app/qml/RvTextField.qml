@@ -12,7 +12,7 @@ TextField {
     font.pixelSize: Theme.fontSize
     color: Theme.text
     placeholderTextColor: Theme.text3
-    selectionColor: Theme.accent
+    selectionColor: Theme.accentFill
     selectedTextColor: Theme.accentContrast
 
     background: Rectangle {

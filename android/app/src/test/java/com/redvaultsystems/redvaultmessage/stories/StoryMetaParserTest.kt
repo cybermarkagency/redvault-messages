@@ -49,6 +49,69 @@ class StoryMetaParserTest {
         assertEquals(false, known.closeFriends)
     }
 
+    private val audioMedia = """{"key":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=","header":"CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ","sha256":"${"ab".repeat(32)}","encryptedSize":65553,"chunkSize":65536,"mime":"audio/wav","durationMs":9000}"""
+    private val bars = (0 until 32).joinToString(",") { "${(it * 3) % 101}" }
+
+    @Test
+    fun aVoiceStoryHasNoPictureAndTakesItsLookTitleAndBarsFromTheDetails() {
+        val meta = parse("""{"v":1,"kind":"audio","text":"Hello there","background":"ocean","font":"strong","waveform":[$bars],"overlays":[],"media":$audioMedia}""", StoryKind.Audio)
+        assertEquals("Hello there", meta.text)
+        assertEquals(StoryBackground.Ocean, meta.background)
+        assertEquals(StoryFont.Strong, meta.font)
+        assertEquals(32, meta.waveform!!.size)
+        assertEquals(listOf(0, 3, 6), meta.waveform!!.take(3))
+        assertEquals(1, meta.media!!.width)
+        assertEquals(1, meta.media!!.height)
+        assertEquals(9000L, meta.media!!.durationMs)
+        // Whatever width and height it claims, a voice story is 1 by 1; a look nobody knows falls back to night and classic; the title is optional.
+        val bare = parse("""{"v":1,"kind":"audio","background":"aurora","font":"gothic","overlays":[],"media":${audioMedia.replace("\"durationMs\"", "\"width\":500,\"height\":400,\"durationMs\"")}}""", StoryKind.Audio)
+        assertNull(bare.text)
+        assertEquals(StoryBackground.Night, bare.background)
+        assertEquals(StoryFont.Classic, bare.font)
+        assertEquals(1, bare.media!!.width)
+        assertNull(bare.waveform)
+        // A blank or too long title is left out, not a reason to refuse the story.
+        assertNull(parse("""{"v":1,"kind":"audio","text":"   ","overlays":[],"media":$audioMedia}""", StoryKind.Audio).text)
+        assertNull(parse("""{"v":1,"kind":"audio","text":"${"x".repeat(701)}","overlays":[],"media":$audioMedia}""", StoryKind.Audio).text)
+        assertEquals("x".repeat(700), parse("""{"v":1,"kind":"audio","text":"${"x".repeat(700)}","overlays":[],"media":$audioMedia}""", StoryKind.Audio).text)
+    }
+
+    @Test
+    fun theBarsOfAVoiceStoryAreSixteenToNinetySixWholeNumbersFromZeroToAHundred() {
+        fun waveform(list: String) = parse("""{"v":1,"kind":"audio","waveform":$list,"overlays":[],"media":$audioMedia}""", StoryKind.Audio).waveform
+        fun n(count: Int, value: Int = 50) = "[" + List(count) { value }.joinToString(",") + "]"
+        assertEquals(16, waveform(n(16))!!.size)
+        assertEquals(96, waveform(n(96))!!.size)
+        assertNull(waveform(n(15)))
+        assertNull(waveform(n(97)))
+        assertNull(waveform("[]"))
+        assertNull(waveform("\"bars\""))
+        assertNull(waveform("{}"))
+        assertNull("one bar over 100 spoils all of them", waveform("[" + List(15) { 5 }.joinToString(",") + ",101]"))
+        assertNull("a negative bar", waveform("[" + List(15) { 5 }.joinToString(",") + ",-1]"))
+        assertNull("a bar with a fraction", waveform("[" + List(15) { 5 }.joinToString(",") + ",5.5]"))
+        assertNull("a bar that is text", waveform("[" + List(15) { 5 }.joinToString(",") + ",\"5\"]"))
+        assertEquals("100.0 is a whole number, as in JavaScript", 100, waveform("[" + List(15) { 5 }.joinToString(",") + ",100.0]")!!.last())
+        assertEquals(0, waveform("[" + List(15) { 5 }.joinToString(",") + ",0]")!!.last())
+    }
+
+    @Test
+    fun aVoiceStoryNeedsItsLengthAndAnAudioTypeAndKeepsItsSubtitles() {
+        refused("""{"v":1,"kind":"audio","overlays":[],"media":${audioMedia.replace(",\"durationMs\":9000", "")}}""", StoryKind.Audio)
+        refused("""{"v":1,"kind":"audio","overlays":[],"media":${audioMedia.replace("9000", "0")}}""", StoryKind.Audio)
+        refused("""{"v":1,"kind":"audio","overlays":[],"media":${audioMedia.replace("audio/wav", "video/mp4")}}""", StoryKind.Audio)
+        refused("""{"v":1,"kind":"audio","overlays":[],"media":${audioMedia.replace("audio/wav", "audio/flac")}}""", StoryKind.Audio)
+        refused("""{"v":1,"kind":"audio","overlays":[]}""", StoryKind.Audio)
+        refused("""{"v":1,"kind":"video","overlays":[],"media":$audioMedia}""", StoryKind.Audio)
+        for (mime in listOf("webm", "ogg", "mp4", "mpeg", "wav", "aac")) {
+            parse("""{"v":1,"kind":"audio","overlays":[],"media":${audioMedia.replace("audio/wav", "audio/$mime")}}""", StoryKind.Audio)
+        }
+        // A photo can't claim an audio type, and a video can't either.
+        refused("""{"v":1,"kind":"image","overlays":[],"media":${media.replace("image/jpeg", "audio/wav")}}""", StoryKind.Image)
+        val withCaptions = parse("""{"v":1,"kind":"audio","overlays":[],"captions":[{"startMs":0,"endMs":1500,"text":"first"},{"startMs":9,"endMs":9,"text":"empty"}],"media":$audioMedia}""", StoryKind.Audio)
+        assertEquals(listOf("first"), withCaptions.captions.map { it.text })
+    }
+
     @Test
     fun theStructureMustFit() {
         refused("""{"v":2,"kind":"text","text":"x","overlays":[]}""", StoryKind.Text)

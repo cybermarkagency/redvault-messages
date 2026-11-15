@@ -12,7 +12,6 @@ import com.redvaultsystems.redvaultmessage.crypto.KeyPair
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
 import com.redvaultsystems.redvaultmessage.data.api.ConversationDto
 import com.redvaultsystems.redvaultmessage.data.api.MessageDto
-import com.redvaultsystems.redvaultmessage.data.api.RotateRequest
 import com.redvaultsystems.redvaultmessage.data.api.SendMessageRequest
 import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
 import kotlinx.coroutines.runBlocking
@@ -55,7 +54,8 @@ class CommunitySendTest {
     @Volatile private var epoch = 0L
     @Volatile private var rekeyRequired = false
     private val sent = Collections.synchronizedList(mutableListOf<SendMessageRequest>())
-    private val rotations = Collections.synchronizedList(mutableListOf<RotateRequest>())
+    // Retired since Part C2: any call to the old rotate route is recorded here, and there must be none.
+    private val rotations = Collections.synchronizedList(mutableListOf<String>())
 
     @Before
     fun setUp() {
@@ -76,12 +76,8 @@ class CommunitySendTest {
                             {"userId":"u-stayer","publicKey":"${Base64Codec.encode(stayer.publicKey)}"}]}""",
                     )
                     path == "/api/communities/$communityId/rotate" -> {
-                        val rotation = json.decodeFromString(RotateRequest.serializer(), body)
-                        rotations += rotation
-                        epoch = rotation.fromEpoch + 1
-                        rekeyRequired = false
-                        myCopies[epoch] = rotation.keys.first { it.userId == "u-me" }.wrappedKey
-                        ok("""{"keyEpoch":$epoch}""")
+                        rotations += body
+                        conflict("retired")
                     }
                     path == "/api/conversations/c1/messages" && request.method == "POST" -> {
                         val message = json.decodeFromString(SendMessageRequest.serializer(), body)
@@ -122,47 +118,16 @@ class CommunitySendTest {
     private fun epochKey(epoch: Long, pair: KeyPair, copy: String) = crypto.openEpochKey(Base64Codec.decode(copy), epoch, communityId, pair)
 
     @Test
-    fun sendsUnderTheCurrentEpoch() = runBlocking {
+    fun aCommunityNeverSendsTheProtocol1Way() = runBlocking {
+        // Part C2: community messages go on device keys only; nothing is posted to /conversations/:id/messages.
         val meta = repository.hydrateCommunity(conversation(), identity, previous = null)
         assertEquals(communityId, meta.community?.id)
-        repository.send(meta, "hello")
-        val message = sent.single()
-        assertEquals(0, message.keyEpoch)
-        assertEquals("hello", e2e.decryptWithConversationKey(Base64Codec.decode(message.ciphertext), Base64Codec.decode(message.nonce), epochKey(0, me, myCopies[0]!!)))
+        val error = runCatching { repository.send(meta, "hello") }.exceptionOrNull()
+        assertTrue("$error", error is UserFacingException)
+        assertTrue(sent.isEmpty())
         assertTrue(rotations.isEmpty())
-    }
-
-    @Test
-    fun aRemovalForcesARotationToExactlyWhoRemainsBeforeTheMessageGoesOut() = runBlocking {
-        val meta = repository.hydrateCommunity(conversation(), identity, previous = null)
-        // Someone left after this phone loaded the keys.
-        rekeyRequired = true
-        repository.send(meta, "after the removal")
-
-        val rotation = rotations.single()
-        assertEquals(0L, rotation.fromEpoch)
-        assertEquals(listOf("u-me", "u-stayer"), rotation.keys.map { it.userId })
-        val newKey = epochKey(1, stayer, rotation.keys[1].wrappedKey)
-        // Never a key anyone already held.
-        assertTrue(!newKey.contentEquals(epochKey(0, me, myCopies[0]!!)))
-
-        val message = sent.single()
-        assertEquals(1, message.keyEpoch)
-        assertEquals("after the removal", e2e.decryptWithConversationKey(Base64Codec.decode(message.ciphertext), Base64Codec.decode(message.nonce), newKey))
-    }
-
-    @Test
-    fun anotherAppRotatedFirstSoItReloadsAndSendsUnderTheNewEpoch() = runBlocking {
-        val meta = repository.hydrateCommunity(conversation(), identity, previous = null)
-        // Another member's app rotated meanwhile: epoch 1 exists and this phone holds a copy of it.
-        val k1 = e2e.generateConversationKey()
-        myCopies[1] = Base64Codec.encode(crypto.sealEpochKey(k1, 1, communityId, me.publicKey))
-        epoch = 1
-        repository.send(meta, "late")
-        assertTrue(rotations.isEmpty())
-        val message = sent.single()
-        assertEquals(1, message.keyEpoch)
-        assertEquals("late", e2e.decryptWithConversationKey(Base64Codec.decode(message.ciphertext), Base64Codec.decode(message.nonce), k1))
+        // Hydrating fetches no epoch key either (nothing is loaded until older rows show up).
+        assertNull(keys.ringFor("c1"))
     }
 
     @Test
@@ -190,6 +155,7 @@ class CommunitySendTest {
             }
         }
         val messages = repository.fetchMessages(meta, identity.userId).messages
+        // Older protocol-1 rows are read with the member's old keys, fetched once when they show up.
         assertEquals("from the creator", messages.first { it.id == "m9" }.text)
         assertEquals(com.redvaultsystems.redvaultmessage.data.model.MessageKind.Undecryptable, messages.first { it.id == "m10" }.kind)
         assertNull(messages.first { it.id == "m9" }.ciphertextB64)

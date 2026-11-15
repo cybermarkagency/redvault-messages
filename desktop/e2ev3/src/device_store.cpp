@@ -237,6 +237,18 @@ void DeviceStore::writeMirror(const std::string& userId, const Counter& counter)
     vault_->put(counterId(userId, counter.deviceId), value);
 }
 
+bool DeviceStore::wipeDevice(const std::string& userId, const std::string& deviceId) {
+    if (const auto metaText = fsutil::readAll(folder(userId) / "device.json")) {
+        const Json meta = Json::parse(*metaText, nullptr, false);
+        if (meta.is_object() && meta.contains("deviceId") && meta.at("deviceId").is_string() &&
+            meta.at("deviceId").get<std::string>() != deviceId) {
+            return false;
+        }
+    }
+    wipe(userId);
+    return true;
+}
+
 void DeviceStore::wipe(const std::string& userId) {
     if (const auto metaText = fsutil::readAll(folder(userId) / "device.json")) {
         const Json meta = Json::parse(*metaText, nullptr, false);

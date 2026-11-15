@@ -30,11 +30,11 @@ ColumnLayout {
 
     ConfirmDialog {
         id: leaveDialog
-        title: "Leave this community?"
-        message: page.loaded ? "Leave " + page.c.name + "?"
-                               + (page.subscription ? " Your subscription stops renewing; you won't be charged again. You can come back until the paid period ends." : "")
+        title: qsTr("Leave this community?")
+        message: page.loaded ? qsTr("Leave ") + page.c.name + "?"
+                               + (page.subscription ? qsTr(" Your subscription stops renewing; you won't be charged again. You can come back until the paid period ends.") : "")
                              : ""
-        confirmText: "Leave"
+        confirmText: qsTr("Leave")
         danger: true
         onConfirmed: page.communities.leave()
     }
@@ -53,7 +53,7 @@ ColumnLayout {
 
     Text {
         visible: !page.loaded && page.communities.communityError.length === 0
-        text: "Loading…"
+        text: qsTr("Loading…")
         color: Theme.text3
     }
     Banner {
@@ -109,7 +109,7 @@ ColumnLayout {
             }
             Text {
                 Layout.fillWidth: true
-                text: page.loaded ? "by " + page.c.creator.displayName + " (@" + page.c.creator.handle + ")" + (page.c.creator.verified ? " · verified creator" : "") : ""
+                text: page.loaded ? qsTr("by ") + page.c.creator.displayName + " (@" + page.c.creator.handle + ")" + (page.c.creator.verified ? qsTr(" · verified creator") : "") : ""
                 textFormat: Text.PlainText
                 wrapMode: Text.Wrap
                 color: Theme.text3
@@ -125,7 +125,7 @@ ColumnLayout {
         Pill { text: page.loaded ? page.communities.categoryLabel(page.c.category) : "" }
         Pill {
             visible: page.loaded && page.c.memberCount !== null && page.c.memberCount !== undefined
-            text: page.loaded ? (page.c.memberCount === 1 ? "1 member" : page.c.memberCount + " members") : ""
+            text: page.loaded ? (page.c.memberCount === 1 ? qsTr("1 member") : page.c.memberCount + qsTr(" members")) : ""
         }
         Pill {
             visible: page.loaded && page.c.status !== "published"
@@ -158,7 +158,7 @@ ColumnLayout {
             spacing: 8
             Text {
                 Layout.fillWidth: true
-                text: "You're a member" + (page.membership && page.membership.role !== "member" ? " (" + page.membership.role + ")" : "") + "."
+                text: qsTr("You're a member") + (page.membership && page.membership.role !== "member" ? " (" + page.membership.role + ")" : "") + "."
                 textFormat: Text.PlainText
                 color: Theme.text
                 font.weight: Font.DemiBold
@@ -170,8 +170,8 @@ ColumnLayout {
                 color: Theme.text2
                 font.pixelSize: 13
                 text: !page.subscription ? ""
-                    : page.subscription.entitlementStatus === "cancel_scheduled" ? "Your membership ends on " + page.communities.formatDate(page.subscription.accessUntil) + "."
-                    : page.subscription.renewsOn ? "Renews on " + page.communities.formatDate(page.subscription.renewsOn) + "."
+                    : page.subscription.entitlementStatus === "cancel_scheduled" ? qsTr("Your membership ends on ") + page.communities.formatDate(page.subscription.accessUntil) + "."
+                    : page.subscription.renewsOn ? qsTr("Renews on ") + page.communities.formatDate(page.subscription.renewsOn) + "."
                     : ""
                 textFormat: Text.PlainText
             }
@@ -180,21 +180,21 @@ ColumnLayout {
                 spacing: 8
                 RvButton {
                     iconName: "chat"
-                    text: page.loaded && page.c.kind === "channel" ? "Open channel" : "Open chat"
+                    text: page.loaded && page.c.kind === "channel" ? qsTr("Open channel") : qsTr("Open chat")
                     onClicked: page.communities.openChat()
                 }
                 RvButton {
                     visible: page.viewer.isStaff === true
                     secondary: true
                     iconName: "sliders"
-                    text: "Manage"
+                    text: qsTr("Manage")
                     onClicked: page.communities.open("manage", page.c.id)
                 }
                 RvButton {
                     visible: page.membership !== null && page.membership.role !== "owner"
                     primary: false
                     danger: true
-                    text: "Leave"
+                    text: qsTr("Leave")
                     enabled: !page.communities.busy
                     onClicked: leaveDialog.open()
                 }
@@ -207,15 +207,15 @@ ColumnLayout {
         visible: page.membership !== null && ["pending_enrollment", "pending_approval", "banned"].includes(page.membership.status)
         tone: page.membership !== null && page.membership.status === "banned" ? "error" : "neutral"
         text: page.membership === null ? ""
-            : page.membership.status === "pending_enrollment" ? "You're in. Your app is waiting for the community's encryption key, which the creator's or another member's app delivers automatically the next time one of them is online. Nothing to do on your side."
-            : page.membership.status === "pending_approval" ? "Your request to join was sent. A moderator will review it."
-            : page.membership.status === "banned" ? "You can't join this community."
+            : page.membership.status === "pending_enrollment" ? qsTr("You're in. Your app is waiting for the community's encryption key, which the creator's or another member's app delivers automatically the next time one of them is online. Nothing to do on your side.")
+            : page.membership.status === "pending_approval" ? qsTr("Your request to join was sent. A moderator will review it.")
+            : page.membership.status === "banned" ? qsTr("You can't join this community.")
             : ""
     }
     InfoCard {
         Layout.fillWidth: true
         visible: page.subscription !== null && page.subscription.entitlementStatus === "pending"
-        text: "Your payment is being confirmed with Stripe. This page updates once it's done."
+        text: qsTr("Your payment is being confirmed with Stripe. This page updates once it's done.")
     }
 
     // Joining: free, rejoining a paid period, or subscribing.
@@ -230,18 +230,18 @@ ColumnLayout {
             visible: page.loaded && page.c.accessType === "free"
             spacing: 8
             Text {
-                text: "Free to join"
+                text: qsTr("Free to join")
                 color: Theme.text
                 font.weight: Font.DemiBold
             }
             Text {
                 visible: page.closedForJoining && !page.c.staff
-                text: "Not accepting new members right now."
+                text: qsTr("Not accepting new members right now.")
                 color: Theme.text3
                 font.pixelSize: 13
             }
             RvButton {
-                text: "Join"
+                text: qsTr("Join")
                 enabled: !page.communities.busy && !page.closedForJoining
                 onClicked: page.communities.join()
             }
@@ -256,13 +256,13 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: page.subscription ? "You still have a paid membership until " + page.communities.formatDate(page.subscription.accessUntil) + "." : ""
+                text: page.subscription ? qsTr("You still have a paid membership until ") + page.communities.formatDate(page.subscription.accessUntil) + "." : ""
                 textFormat: Text.PlainText
                 color: Theme.text
                 font.weight: Font.DemiBold
             }
             RvButton {
-                text: "Rejoin"
+                text: qsTr("Rejoin")
                 enabled: !page.communities.busy
                 onClicked: page.communities.join()
             }
@@ -289,7 +289,7 @@ ColumnLayout {
                 }
                 Text {
                     anchors.baseline: priceText.baseline
-                    text: "/ month"
+                    text: qsTr("/ month")
                     color: Theme.text3
                     font.pixelSize: 14
                 }
@@ -299,28 +299,28 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 color: Theme.text3
                 font.pixelSize: 13
-                text: "Billed monthly by RedVault through Stripe. Your card statement shows RedVault; this community's code is " + (page.loaded ? page.c.code : "") + "."
+                text: qsTr("Billed monthly by RedVault through Stripe. Your card statement shows RedVault; this community's code is ") + (page.loaded ? page.c.code : "") + "."
                 textFormat: Text.PlainText
             }
             ConsentBox {
                 id: termsBox
                 Layout.fillWidth: true
-                label: "I agree to the community membership terms. This membership <b>renews automatically every month</b> at " + buy.price
-                       + " until I cancel. I can cancel any time in Communities → Memberships and keep access until the end of the period I paid for. Refunds follow the terms."
+                label: qsTr("I agree to the community membership terms. This membership <b>renews automatically every month</b> at ") + buy.price
+                       + qsTr(" until I cancel. I can cancel any time in Communities → Memberships and keep access until the end of the period I paid for. Refunds follow the terms.")
             }
             ConsentBox {
                 id: ageBox
                 Layout.fillWidth: true
-                label: "I'm 18 or older."
+                label: qsTr("I'm 18 or older.")
             }
             InfoCard {
                 Layout.fillWidth: true
                 visible: !page.canBuyHere
                 tone: "warn"
-                text: "Memberships can't be bought here right now."
+                text: qsTr("Memberships can't be bought here right now.")
             }
             RvButton {
-                text: page.communities.busy ? "Opening checkout…" : "Subscribe"
+                text: page.communities.busy ? qsTr("Opening checkout…") : qsTr("Subscribe")
                 iconName: "external"
                 enabled: !page.communities.busy && termsBox.checked && ageBox.checked && page.canBuyHere && !page.closedForJoining
                 onClicked: page.communities.subscribe(termsBox.checked, ageBox.checked)
@@ -330,15 +330,15 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall + 1
-                text: page.closedForJoining ? "Not accepting new members right now."
-                                            : "Stripe's checkout opens in your browser. Access starts once Stripe confirms the payment, not before."
+                text: page.closedForJoining ? qsTr("Not accepting new members right now.")
+                                            : qsTr("Stripe's checkout opens in your browser. Access starts once Stripe confirms the payment, not before.")
                 textFormat: Text.PlainText
             }
         }
 
         Text {
             visible: page.loaded && page.c.accessType === "paid" && !page.c.price
-            text: "This community has no price yet."
+            text: qsTr("This community has no price yet.")
             color: Theme.text3
         }
     }
@@ -346,18 +346,18 @@ ColumnLayout {
     // Preview, rules, privacy.
     Section {
         visible: page.loaded && (page.c.previewText || "").length > 0
-        caption: "PREVIEW"
+        caption: qsTr("PREVIEW")
         body: page.loaded ? page.c.previewText : ""
         quoted: true
     }
     Section {
         visible: page.loaded && (page.c.rules || "").length > 0
-        caption: "RULES"
+        caption: qsTr("RULES")
         body: page.loaded ? page.c.rules : ""
     }
     Section {
         visible: page.loaded
-        caption: "PRIVACY"
+        caption: qsTr("PRIVACY")
         body: "Messages, images, voice notes and files inside are end-to-end encrypted: neither RedVault nor Stripe can read them. RedVault does see this public listing, who is a member, and the state of each membership's billing. When someone leaves, the members' apps switch to a new key they never get."
         muted: true
     }
@@ -366,7 +366,7 @@ ColumnLayout {
         primary: false
         danger: true
         iconName: "flag"
-        text: "Report this community"
+        text: qsTr("Report this community")
         onClicked: reportDialog.reportCommunity(page.c.id)
     }
 

@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.calls
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -90,17 +92,27 @@ fun CallsTab(
     var creating by remember { mutableStateOf(false) }
     var joining by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { onRefreshLinks() }
+    if (picking) {
+        NewCallDialog(
+            contacts = conversations.filter { !it.isGroup }.sortedBy { it.handle.lowercase() },
+            available = state.available,
+            onDismiss = { picking = false },
+            onCall = { id, kind -> picking = false; onCall(id, kind) },
+            onAddContacts = { picking = false; onNewCall() },
+        )
+    }
     val shown = state.history.filter { !missedOnly || it.outcome == CallOutcome.missed }
 
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
-        TabHeader("Calls") {
+        TabHeader(stringResource(R.string.ui_calls)) {
             RoundButton(R.drawable.ui_link, "Join with a link", onClick = { onClearLinkMessages(); joining = true })
-            RoundButton(R.drawable.ui_phone, "New call", onClick = onNewCall, container = colors.accent, tint = colors.accentContrast)
+            RoundButton(R.drawable.ui_phone, "New call", onClick = { picking = true }, container = colors.accentFill, tint = colors.accentContrast)
         }
         if (!state.available) {
             Callout(
-                "Calling isn't available on this server right now.",
+                stringResource(R.string.ui_calling_isn_t_available_on_this),
                 CalloutTone.Neutral,
                 R.drawable.ui_info,
                 Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -114,20 +126,23 @@ fun CallsTab(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF16271F))
-                            .border(1.dp, Color(0xFF244536), RoundedCornerShape(16.dp))
+                            .background(colors.accentSoft)
+                            .border(1.dp, colors.accentBorder, RoundedCornerShape(16.dp))
                             .clickable(role = Role.Button) { onClearLinkMessages(); creating = true }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.accent), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.accentFill), contentAlignment = Alignment.Center) {
                             DsIcon(R.drawable.ui_link, colors.accentContrast, 20.dp)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Create a call link", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            Text("Anyone with the link joins an encrypted call", color = colors.text3, fontSize = 13.sp)
+                            Text(stringResource(R.string.ui_create_a_call_link), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.ui_anyone_with_the_link_joins_an), color = colors.text3, fontSize = 13.sp)
+                            // Said before the tap: making links is part of Pro (voice) and Premium (video).
+                            if (tier == "free") Text("Part of Pro and Premium. Joining a link works on every plan.", color = colors.lockText, fontSize = 12.sp)
                         }
+                        if (tier == "free") com.redvaultsystems.redvaultmessage.ui.components.LockBadge()
                     }
                     Row(
                         Modifier
@@ -139,19 +154,19 @@ fun CallsTab(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF16271F)), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.accentSoft), contentAlignment = Alignment.Center) {
                             DsIcon(R.drawable.ui_users, colors.accent, 20.dp)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Join with a link", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            Text("A group call's link, or a call link someone sent you", color = colors.text3, fontSize = 13.sp)
+                            Text(stringResource(R.string.ui_join_with_a_link), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.ui_a_group_call_s_link_or), color = colors.text3, fontSize = 13.sp)
                         }
                     }
                     state.createdLinkUrl?.let { url ->
-                        Callout("Link created. Share it with the people you want to call; you'll ring when someone opens it.", CalloutTone.Ok, R.drawable.ui_check) {
+                        Callout(stringResource(R.string.ui_link_created_share_it_with_the), CalloutTone.Ok, R.drawable.ui_check) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PillButton("Copy", { SecretClipboard.copy(context, url, secret = false) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_copy)
-                                PillButton("Share", { shareLink(context, url) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_share)
+                                PillButton(stringResource(R.string.ui_copy), { SecretClipboard.copy(context, url, secret = false) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_copy)
+                                PillButton(stringResource(R.string.ui_share), { shareLink(context, url) }, style = PillStyle.Secondary, height = 36.dp, icon = R.drawable.ui_share)
                             }
                         }
                     }
@@ -159,15 +174,15 @@ fun CallsTab(
                 }
             }
             if (state.links.isNotEmpty()) {
-                item { SectionCaps("Your call links", Modifier.padding(top = 12.dp)) }
+                item { SectionCaps(stringResource(R.string.ui_your_call_links), Modifier.padding(top = 12.dp)) }
                 items(state.links, key = { "link-" + it.id }) { link -> LinkRow(link, onCopy = { SecretClipboard.copy(context, link.url, secret = false) }, onShare = { shareLink(context, link.url) }, onDelete = { onDeleteLink(link.id) }) }
             }
             item {
                 Row(Modifier.fillMaxWidth().padding(start = 0.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SectionCaps("Recent", Modifier.weight(1f))
+                    SectionCaps(stringResource(R.string.ui_recent), Modifier.weight(1f))
                     if (state.history.isNotEmpty()) {
                         Text(
-                            "Clear",
+                            stringResource(R.string.ui_clear),
                             color = colors.text3,
                             fontSize = 13.sp,
                             modifier = Modifier.clickable(role = Role.Button) { confirmClear = true }.padding(8.dp),
@@ -207,7 +222,7 @@ fun CallsTab(
         AlertDialog(
             onDismissRequest = { if (!busy) joining = false },
             containerColor = colors.surface2,
-            title = { Text("Join with a link", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_join_with_a_link), color = colors.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
@@ -229,17 +244,17 @@ fun CallsTab(
                     }
                 }) { Text(if (busy) "Joining…" else "Join", color = colors.accent) }
             },
-            dismissButton = { TextButton(enabled = !busy, onClick = { joining = false }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { joining = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             containerColor = colors.surface2,
-            title = { Text("Clear call history?", color = colors.text) },
-            text = { Text("It's only on this phone, so it's gone for good.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { confirmClear = false; onClearHistory() }) { Text("Clear", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel", color = colors.text2) } },
+            title = { Text(stringResource(R.string.ui_clear_call_history), color = colors.text) },
+            text = { Text(stringResource(R.string.ui_it_s_only_on_this_phone), color = colors.text2) },
+            confirmButton = { TextButton(onClick = { confirmClear = false; onClearHistory() }) { Text(stringResource(R.string.ui_clear), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -318,9 +333,9 @@ private fun LinkRow(link: CallLink, onCopy: () -> Unit, onShare: () -> Unit, onD
             onDismissRequest = { confirm = false },
             containerColor = colors.surface2,
             title = { Text("Delete “${link.name}”?", color = colors.text) },
-            text = { Text("The link stops working for everyone who has it.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text("Delete", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel", color = colors.text2) } },
+            text = { Text(stringResource(R.string.ui_the_link_stops_working_for_everyone), color = colors.text2) },
+            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text(stringResource(R.string.ui_delete), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -333,20 +348,26 @@ private fun CreateLinkDialog(tier: String, onDismiss: () -> Unit, onCreate: (Str
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface2,
-        title = { Text("Create a call link", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_create_a_call_link), color = colors.text) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Anyone with the link can ask to join; you'll ring and decide. The name and the call are encrypted with a secret that's only in the link.",
+                    stringResource(R.string.ui_anyone_with_the_link_can_ask),
                     color = colors.text2,
                     fontSize = 14.sp,
                 )
                 DsTextField(name, { if (it.length <= 60) name = it }, "Name, e.g. Weekly catch-up")
-                ChipRow(listOf(false, true), video, { if (it) "Video" else "Voice" }, { video = it }, edge = 0.dp)
+                ChipRow(
+                    listOf(false, true), video, { if (it) "Video" else "Voice" }, { video = it },
+                    // Video links are Premium: the chip shows a lock on other plans.
+                    lockOption = if (tier != "premium") true else null,
+                    lockIcon = if (tier != "premium") R.drawable.ui_lock else null,
+                    edge = 0.dp,
+                )
                 Text(
                     when {
                         video && tier != "premium" -> "Video call links are part of Premium."
-                        !video && tier == "free" -> "Call links are part of Pro and Premium."
+                        !video && tier == "free" -> "Call links are part of Pro (voice) and Premium (video). Anyone can join a link on any plan."
                         else -> "You host: the call uses your plan."
                     },
                     color = colors.text3,
@@ -354,8 +375,18 @@ private fun CreateLinkDialog(tier: String, onDismiss: () -> Unit, onCreate: (Str
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onCreate(name, if (video) "video" else "voice") }) { Text("Create", color = colors.accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        confirmButton = {
+            // Locked rather than refused afterwards: Create explains the plan when it doesn't include this kind of link.
+            val allowed = if (video) tier == "premium" else tier == "pro" || tier == "premium"
+            TextButton(onClick = {
+                if (allowed) onCreate(name, if (video) "video" else "voice")
+                else {
+                    onDismiss()
+                    PlanGate.ask(if (video) "premium" else "pro", if (video) "A video call link" else "A call link")
+                }
+            }) { Text(if (allowed) "Create" else "See plans", color = colors.accent) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -375,4 +406,52 @@ private fun whenText(ms: Long): String {
         today.timeInMillis - ms < 6 * 24 * 3600 * 1000L -> SimpleDateFormat("EEE", Locale.getDefault()).format(Date(ms))
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ms))
     }
+}
+
+/** "New call": pick a contact, then voice or video. With no contacts yet it offers the Contacts tab. */
+@Composable
+private fun NewCallDialog(
+    contacts: List<Conversation>,
+    available: Boolean,
+    onDismiss: () -> Unit,
+    onCall: (conversationId: String, kind: String) -> Unit,
+    onAddContacts: () -> Unit,
+) {
+    val colors = RedvaultTheme.colors
+    var query by remember { mutableStateOf("") }
+    val shown = contacts.filter { query.isBlank() || it.handle.contains(query.trim(), ignoreCase = true) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface2,
+        title = { Text(stringResource(R.string.ui_new_call), color = colors.text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                when {
+                    !available -> Text(stringResource(R.string.ui_calling_isn_t_available_on_this), color = colors.text2, fontSize = 14.sp)
+                    contacts.isEmpty() -> Text(stringResource(R.string.ui_add_a_contact_first_you_can), color = colors.text2, fontSize = 14.sp)
+                    else -> {
+                        DsTextField(query, { query = it }, "Search contacts")
+                        LazyColumn(Modifier.fillMaxWidth().height(320.dp)) {
+                            items(shown, key = { it.id }) { contact ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Avatar(avatarUrl = contact.avatarUrl, seed = contact.handle, size = 36.dp)
+                                    Text(contact.handle, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    RoundButton(R.drawable.ui_phone, "Voice call ${contact.handle}", onClick = { onCall(contact.id, "voice") })
+                                    RoundButton(R.drawable.ui_video, "Video call ${contact.handle}", onClick = { onCall(contact.id, "video") })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (contacts.isEmpty() && available) TextButton(onClick = onAddContacts) { Text(stringResource(R.string.ui_go_to_contacts), color = colors.accent) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
+    )
 }

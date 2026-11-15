@@ -6,13 +6,19 @@
 #include <sodium.h>
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <regex>
 #include <set>
 #include <tuple>
 
+#include "batches.hpp"
 #include "fs_util.hpp"
+#include "redvault/e2ev3/community.hpp"
+#include "redvault/e2ev3/stories.hpp"
+#include "redvault/crypto/story_crypto.hpp"
 #include "redvault/api/api_error.hpp"
+#include "redvault/crypto/base64.hpp"
 #include "redvault/util/text.hpp"
 
 namespace redvault::e2ev3 {
@@ -24,6 +30,19 @@ constexpr std::size_t kMaxText = 16 * 1024;
 constexpr std::size_t kMaxEmoji = 32;
 constexpr std::int64_t kMaxPast = 30 * kDay;
 constexpr std::int64_t kMaxFuture = 5 * 60 * 1000;
+// Part A (docs/signal-integration/08-part-a-chat-features.md). Lengths in characters are UTF-16 code units (textLength).
+constexpr int kMaxExp = 2419200;  // four weeks, in seconds
+constexpr std::size_t kMaxPreview = 200;
+constexpr std::size_t kMaxQuestion = 300;
+constexpr std::size_t kMaxOption = 100;
+constexpr std::size_t kMinOptions = 2;
+constexpr std::size_t kMaxOptions = 10;
+constexpr std::size_t kMaxChoices = 10;
+constexpr std::size_t kMaxReceiptIds = 100;
+// Part D (docs/signal-integration/12-part-d-stories.md).
+constexpr std::size_t kMaxStoryPreview = 80;
+constexpr std::size_t kMaxStickerId = 64;
+constexpr std::int64_t kMaxStoryRev = 1000000000;
 
 std::int64_t resolveNow(std::int64_t nowMs) {
     return nowMs > 0 ? nowMs : util::nowMillis();
@@ -49,10 +68,63 @@ std::optional<model::FileDescriptor> fileFrom(const Json& json) {
 }
 
 Json opJson(const ChatOp& op) {
-    Json j = {{"t", op.t}, {"target", op.target}};
+    Json j = {{"t", op.t}};
+    if (op.t == "receipt") {
+        j["targets"] = op.targets;
+        j["status"] = op.status;
+        return j;
+    }
+    j["target"] = op.target;
     if (op.t == "edit") j["body"] = op.body;
     if (op.t == "reaction") j["emoji"] = op.emoji;
+    if (op.t == "vote") j["choices"] = op.choices;
+    if (op.t == "pin") j["pinned"] = op.pinned;
     return j;
+}
+
+ChatOp opFrom(const Json& j) {
+    ChatOp op{stringOr(j, "t"), stringOr(j, "target"), stringOr(j, "body"), stringOr(j, "emoji")};
+    if (const auto it = j.find("choices"); it != j.end() && it->is_array()) {
+        for (const Json& c : *it) {
+            if (c.is_number_integer()) op.choices.push_back(c.get<int>());
+        }
+    }
+    if (const auto it = j.find("pinned"); it != j.end() && it->is_boolean()) op.pinned = it->get<bool>();
+    if (const auto it = j.find("targets"); it != j.end() && it->is_array()) {
+        for (const Json& t : *it) {
+            if (t.is_string()) op.targets.push_back(t.get<std::string>());
+        }
+    }
+    op.status = stringOr(j, "status");
+    return op;
+}
+
+bool validStoryReply(const model::StoryReplyRef& r) {
+    static const std::set<std::string> kKinds = {"text", "image", "video", "audio"};
+    return isUuid(r.authorId) && isUuid(r.storyId) && kKinds.count(r.kind) && textLength(r.preview) <= kMaxStoryPreview;
+}
+
+Json storyReplyJson(const model::StoryReplyRef& r) {
+    return Json{{"authorId", r.authorId}, {"storyId", r.storyId}, {"kind", r.kind}, {"preview", r.preview}, {"reaction", r.reaction}};
+}
+
+/// Every field required, with the right type; nothing when anything is off.
+std::optional<model::StoryReplyRef> storyReplyFrom(const Json& j) {
+    if (!j.is_object()) return std::nullopt;
+    const auto field = [&](const char* key) -> const Json* {
+        const auto it = j.find(key);
+        return it == j.end() || !it->is_string() ? nullptr : &*it;
+    };
+    const Json* author = field("authorId");
+    const Json* story = field("storyId");
+    const Json* kind = field("kind");
+    const Json* preview = field("preview");
+    const auto reaction = j.find("reaction");
+    if (!author || !story || !kind || !preview || reaction == j.end() || !reaction->is_boolean()) return std::nullopt;
+    model::StoryReplyRef r{author->get<std::string>(), story->get<std::string>(), kind->get<std::string>(), preview->get<std::string>(),
+                           reaction->get<bool>()};
+    if (!validStoryReply(r)) return std::nullopt;
+    return r;
 }
 
 Json recordJson(const ChatRecord& r) {
@@ -61,6 +133,12 @@ Json recordJson(const ChatRecord& r) {
     if (r.file) j["file"] = fileJson(*r.file);
     if (r.op) j["op"] = opJson(*r.op);
     if (!r.to.empty()) j["to"] = r.to;
+    // Part A, only when set: a record without them is stored as before.
+    if (!r.replyTo.empty()) j["reply"] = Json{{"target", r.replyTo}, {"preview", r.replyPreview}};
+    if (r.forwarded) j["fwd"] = true;
+    if (r.exp > 0) j["exp"] = r.exp;
+    if (r.poll) j["poll"] = Json{{"options", r.poll->options}, {"multi", r.poll->multi}};
+    if (r.storyReply) j["storyReply"] = storyReplyJson(*r.storyReply);
     return j;
 }
 
@@ -77,11 +155,68 @@ ChatRecord recordFrom(const Json& j) {
     r.status = stringOr(j, "status");
     // Records written before reactions, edits, deletes and files have neither field.
     if (const auto file = j.find("file"); file != j.end()) r.file = fileFrom(*file);
-    if (const auto op = j.find("op"); op != j.end() && op->is_object()) {
-        r.op = ChatOp{stringOr(*op, "t"), stringOr(*op, "target"), stringOr(*op, "body"), stringOr(*op, "emoji")};
-    }
+    if (const auto op = j.find("op"); op != j.end() && op->is_object()) r.op = opFrom(*op);
     r.to = stringOr(j, "to");
+    if (const auto reply = j.find("reply"); reply != j.end() && reply->is_object()) {
+        r.replyTo = stringOr(*reply, "target");
+        r.replyPreview = stringOr(*reply, "preview");
+    }
+    r.forwarded = j.value("fwd", false);
+    r.exp = j.value("exp", 0);
+    if (const auto poll = j.find("poll"); poll != j.end() && poll->is_object()) {
+        ChatPoll p;
+        for (const Json& o : poll->value("options", Json::array())) {
+            if (o.is_string()) p.options.push_back(o.get<std::string>());
+        }
+        p.multi = poll->value("multi", false);
+        r.poll = std::move(p);
+    }
+    if (const auto story = j.find("storyReply"); story != j.end()) r.storyReply = storyReplyFrom(*story);
     return r;
+}
+
+/// The (ts, id) order every device agrees on: is `a` before `b`?
+bool before(const ChatRecord& a, const ChatRecord& b) {
+    return std::tie(a.ts, a.id) < std::tie(b.ts, b.id);
+}
+
+bool validChoices(const std::vector<int>& choices) {
+    if (choices.size() > kMaxChoices) return false;
+    std::set<int> seen;
+    for (const int c : choices) {
+        if (c < 0 || c > 9 || !seen.insert(c).second) return false;
+    }
+    return true;
+}
+
+bool validPoll(const std::string& question, const std::vector<std::string>& options) {
+    const std::size_t q = textLength(question);
+    if (q < 1 || q > kMaxQuestion || options.size() < kMinOptions || options.size() > kMaxOptions) return false;
+    std::set<std::string> seen;
+    for (const std::string& o : options) {
+        const std::size_t n = textLength(o);
+        if (n < 1 || n > kMaxOption || !seen.insert(o).second) return false;
+    }
+    return true;
+}
+
+MessageExtras extrasOf(const ChatRecord& r) {
+    return MessageExtras{r.replyTo, r.replyPreview, r.forwarded, r.exp, r.storyReply};
+}
+
+void checkExtras(const MessageExtras& x) {
+    if (!x.replyTo.empty() && !isUuid(x.replyTo)) throw EngineError("bad_reply", "That reply doesn't point at a message.");
+    if (textLength(x.replyPreview) > kMaxPreview) throw EngineError("bad_reply", "A reply's preview has to be at most 200 characters.");
+    if (x.exp < 0 || x.exp > kMaxExp) throw EngineError("bad_timer", "A disappearing time has to be between 1 second and 4 weeks.");
+    if (x.storyReply && !validStoryReply(*x.storyReply)) throw EngineError("bad_story_reply", "That reply doesn't point at a story.");
+}
+
+void putExtras(Json& j, const MessageExtras& x) {
+    checkExtras(x);
+    if (!x.replyTo.empty()) j["reply"] = Json{{"target", x.replyTo}, {"preview", x.replyPreview}};
+    if (x.forwarded) j["fwd"] = true;
+    if (x.exp > 0) j["exp"] = x.exp;
+    if (x.storyReply) j["storyReply"] = storyReplyJson(*x.storyReply);
 }
 
 /// Later wins: by the sender's clock, then by id, so every device settles on the same answer whatever order things arrived in.
@@ -101,6 +236,29 @@ bool isStale(const api::ApiError& error) {
 
 // --- Envelope ---
 
+std::size_t textLength(const std::string& utf8) {
+    std::size_t n = 0;
+    for (const unsigned char c : utf8) {
+        if ((c & 0xC0) == 0x80) continue;  // a continuation byte
+        n += c >= 0xF0 ? 2 : 1;  // outside the BMP: a surrogate pair
+    }
+    return n;
+}
+
+std::string previewText(const std::string& text) {
+    std::size_t units = 0;
+    std::size_t i = 0;
+    while (i < text.size()) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        const std::size_t width = c < 0x80 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : 2;
+        const std::size_t cost = c >= 0xF0 ? 2 : 1;
+        if (units + cost > kMaxPreview) break;
+        units += cost;
+        i += width;
+    }
+    return text.substr(0, std::min(i, text.size()));
+}
+
 /// Envelopes fill 256-byte buckets, so their size shows less about what they hold. Spaces after the JSON, which every parser skips.
 std::string padded(std::string json) {
     constexpr std::size_t kBucket = 256;
@@ -109,12 +267,23 @@ std::string padded(std::string json) {
 }
 
 std::string encodeEnvelope(const Envelope& e) {
-    return padded(Json{{"v", e.v}, {"t", e.t}, {"id", e.id}, {"c", e.c}, {"ts", e.ts}, {"body", e.body}}.dump());
+    Json j{{"v", e.v}, {"t", e.t}, {"id", e.id}, {"c", e.c}, {"ts", e.ts}, {"body", e.body}};
+    putExtras(j, e.extras);
+    return padded(j.dump());
 }
 
 std::string encodeOp(const std::string& conversationId, const ChatOp& op, const std::string& id, std::int64_t ts) {
     if (op.t == "edit" && (op.body.empty() || op.body.size() > kMaxText)) throw EngineError("bad_text", "A message has to be between 1 and 16,384 bytes.");
     if (op.t == "reaction" && op.emoji.size() > kMaxEmoji) throw EngineError("bad_emoji", "That reaction is too long.");
+    if ((op.t == "vote" || op.t == "end" || op.t == "pin") && !isUuid(op.target)) throw EngineError("bad_target", "That doesn't point at a message.");
+    if (op.t == "vote" && !validChoices(op.choices)) throw EngineError("bad_vote", "A vote picks up to 10 different options.");
+    if (op.t == "receipt") {
+        if (op.targets.empty() || op.targets.size() > kMaxReceiptIds) throw EngineError("bad_receipt", "A receipt covers 1 to 100 messages.");
+        for (const std::string& target : op.targets) {
+            if (!isUuid(target)) throw EngineError("bad_receipt", "A receipt covers messages by their ids.");
+        }
+        if (op.status != "delivered" && op.status != "read") throw EngineError("bad_receipt", "A receipt says delivered or read.");
+    }
     Json j = opJson(op);
     j["v"] = 1;
     j["id"] = id;
@@ -123,8 +292,178 @@ std::string encodeOp(const std::string& conversationId, const ChatOp& op, const 
     return padded(j.dump());
 }
 
-std::string encodeFile(const std::string& conversationId, const model::FileDescriptor& file, const std::string& id, std::int64_t ts) {
-    return padded(Json{{"v", 1}, {"t", "file"}, {"id", id}, {"c", conversationId}, {"ts", ts}, {"file", fileJson(file)}}.dump());
+std::string encodeFile(const std::string& conversationId, const model::FileDescriptor& file, const std::string& id, std::int64_t ts,
+                       const MessageExtras& extras) {
+    Json j{{"v", 1}, {"t", "file"}, {"id", id}, {"c", conversationId}, {"ts", ts}, {"file", fileJson(file)}};
+    MessageExtras x = extras;
+    x.storyReply.reset();  // a story reply is a text
+    putExtras(j, x);
+    return padded(j.dump());
+}
+
+std::string encodePoll(const std::string& conversationId, const std::string& question, const std::vector<std::string>& options, bool multi,
+                       const std::string& id, std::int64_t ts, const MessageExtras& extras) {
+    if (!validPoll(question, options)) {
+        throw EngineError("bad_poll", "A poll needs a question (up to 300 characters) and 2 to 10 different options (up to 100 characters each).");
+    }
+    Json j{{"v", 1}, {"t", "poll"}, {"id", id}, {"c", conversationId}, {"ts", ts}, {"question", question}, {"options", options}, {"multi", multi}};
+    MessageExtras x = extras;
+    x.storyReply.reset();
+    putExtras(j, x);
+    return padded(j.dump());
+}
+
+namespace {
+
+/// Part B (docs/signal-integration/09-part-b-calls.md): `d` has the id and conversation checked already. Every field
+/// is required: null, absent, the wrong type or a number like 2.0 where an integer belongs and the envelope is ignored.
+DecodedEnvelope decodeCallEnvelope(const Json& e, const std::string& t, DecodedEnvelope d, std::int64_t now) {
+    const auto ignore = [](const char* reason) {
+        DecodedEnvelope out;
+        out.reason = reason;
+        return out;
+    };
+    const auto ts = e.find("ts");
+    if (ts == e.end() || !ts->is_number_integer()) return ignore("bad_ts");
+    const auto sent = ts->is_number_unsigned() && ts->get<std::uint64_t>() > static_cast<std::uint64_t>(INT64_MAX)
+                          ? INT64_MAX
+                          : ts->get<std::int64_t>();
+    d.ts = std::clamp(sent, now - kMaxPast, now + kMaxFuture);
+    const std::string callId = stringOr(e, "callId");
+    if (!isUuid(callId)) return ignore("bad_call_id");
+    if (t == "call") {
+        // Refused when more than 120 s old: an offer replayed later rings nobody.
+        if (now - sent > kCallMaxAgeMs) return ignore("stale_call");
+        static const std::set<std::string> kSteps = {"offer", "answer", "restart-offer", "restart-answer"};
+        CallSignal call;
+        call.callId = callId;
+        call.step = stringOr(e, "step");
+        if (!kSteps.count(call.step)) return ignore("bad_step");
+        call.kind = stringOr(e, "kind");
+        if (call.kind != "voice" && call.kind != "video") return ignore("bad_kind");
+        const auto sdp = e.find("sdp");
+        if (sdp == e.end() || !sdp->is_string()) return ignore("bad_sdp");
+        const auto& sdpText = sdp->get_ref<const std::string&>();
+        // A quick bound in bytes first (4 bytes at most per unit), so a huge string isn't walked.
+        if (sdpText.empty() || sdpText.size() > 4 * kCallMaxSdp || textLength(sdpText) > kCallMaxSdp) return ignore("bad_sdp");
+        call.sdp = sdpText;
+        call.to = stringOr(e, "to");
+        if (call.to != "*" && !isUuid(call.to)) return ignore("bad_to");
+        d.kind = DecodedEnvelope::Kind::Call;
+        d.call = std::move(call);
+        return d;
+    }
+    const auto epoch = e.find("epoch");
+    if (epoch == e.end() || !epoch->is_number_integer()) return ignore("bad_epoch");
+    if (epoch->is_number_unsigned() && epoch->get<std::uint64_t>() > static_cast<std::uint64_t>(INT64_MAX)) return ignore("bad_epoch");
+    if (epoch->get<std::int64_t>() < 1) return ignore("bad_epoch");
+    const auto key = e.find("key");
+    if (key == e.end() || !key->is_string() || key->get_ref<const std::string&>().size() > 64) return ignore("bad_key");
+    crypto::Bytes raw;
+    try {
+        raw = crypto::base64Decode(key->get_ref<const std::string&>());
+    } catch (const std::exception&) {
+        return ignore("bad_key");
+    }
+    if (raw.size() != 32) {
+        sodium_memzero(raw.data(), raw.size());
+        return ignore("bad_key");
+    }
+    CallKey callKey;
+    callKey.callId = callId;
+    callKey.epoch = epoch->get<std::int64_t>();
+    callKey.key = std::make_shared<const crypto::SecretBytes>(crypto::SecretBytes::copyOf(raw));
+    sodium_memzero(raw.data(), raw.size());
+    d.kind = DecodedEnvelope::Kind::CallKey;
+    d.callKey = std::move(callKey);
+    return d;
+}
+
+/// Part D: `d` has the id checked already; the item's conversation must be the story itself. Every field is required:
+/// null, absent, the wrong type or a number like 9.5 where an integer belongs and the envelope is ignored.
+DecodedEnvelope decodeStoryEnvelope(const Json& e, const std::string& t, DecodedEnvelope d, const std::string& conversationId) {
+    const auto ignore = [](const char* reason) {
+        DecodedEnvelope out;
+        out.reason = reason;
+        return out;
+    };
+    const std::string storyId = stringOr(e, "storyId");
+    if (!isUuid(storyId)) return ignore("bad_story_id");
+    if (storyId != conversationId || stringOr(e, "c") != storyId) return ignore("wrong_conversation");
+    if (t == "storykey") {
+        const auto expires = e.find("expiresAt");
+        if (expires == e.end() || !expires->is_number_integer()) return ignore("bad_expires");
+        if (expires->is_number_unsigned() && expires->get<std::uint64_t>() > static_cast<std::uint64_t>(INT64_MAX)) return ignore("bad_expires");
+        if (expires->get<std::int64_t>() < 1) return ignore("bad_expires");
+        const auto key = e.find("key");
+        if (key == e.end() || !key->is_string() || key->get_ref<const std::string&>().size() > 64) return ignore("bad_key");
+        crypto::Bytes raw;
+        try {
+            raw = crypto::base64Decode(key->get_ref<const std::string&>());
+        } catch (const std::exception&) {
+            return ignore("bad_key");
+        }
+        if (raw.size() != crypto::stories::kKeyBytes) {
+            sodium_memzero(raw.data(), raw.size());
+            return ignore("bad_key");
+        }
+        StoryKeyEnvelope out;
+        out.storyId = storyId;
+        out.expiresAt = expires->get<std::int64_t>();
+        out.key = std::make_shared<const crypto::SecretBytes>(crypto::SecretBytes::copyOf(raw));
+        sodium_memzero(raw.data(), raw.size());
+        d.kind = DecodedEnvelope::Kind::StoryKey;
+        d.storyKey = std::move(out);
+        return d;
+    }
+    const auto sticker = e.find("stickerId");
+    if (sticker == e.end() || !sticker->is_string()) return ignore("bad_sticker");
+    const std::string stickerId = sticker->get<std::string>();
+    if (stickerId.empty() || stickerId.size() > kMaxStickerId) return ignore("bad_sticker");
+    for (const char c : stickerId) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return ignore("bad_sticker");
+    }
+    const auto rev = e.find("rev");
+    if (rev == e.end() || !rev->is_number_integer()) return ignore("bad_rev");
+    if (rev->is_number_unsigned() && rev->get<std::uint64_t>() > static_cast<std::uint64_t>(kMaxStoryRev)) return ignore("bad_rev");
+    if (rev->get<std::int64_t>() < 1 || rev->get<std::int64_t>() > kMaxStoryRev) return ignore("bad_rev");
+    const auto final = e.find("final");
+    if (final == e.end() || !final->is_boolean()) return ignore("bad_final");
+    const auto payload = e.find("payload");
+    if (payload == e.end() || !payload->is_object() || payload->dump().size() > kMaxStoryAnswerPayload) return ignore("bad_payload");
+    StoryAnswerEnvelope out;
+    out.storyId = storyId;
+    out.stickerId = stickerId;
+    out.rev = rev->get<std::int64_t>();
+    out.final = final->get<bool>();
+    out.payload = *payload;
+    d.kind = DecodedEnvelope::Kind::StoryAnswer;
+    d.storyAnswer = std::move(out);
+    return d;
+}
+
+}  // namespace
+
+std::string encodeCall(const std::string& conversationId, const CallSignal& signal, const std::string& id, std::int64_t ts) {
+    static const std::set<std::string> kSteps = {"offer", "answer", "restart-offer", "restart-answer"};
+    if (!isUuid(signal.callId)) throw EngineError("bad_call", "That isn't a call.");
+    if (!kSteps.count(signal.step)) throw EngineError("bad_call", "That isn't a step of a call.");
+    if (signal.kind != "voice" && signal.kind != "video") throw EngineError("bad_call", "A call is a voice or a video call.");
+    if (signal.sdp.empty() || textLength(signal.sdp) > kCallMaxSdp) throw EngineError("bad_call", "The call's setup is too long.");
+    if (signal.to != "*" && !isUuid(signal.to)) throw EngineError("bad_call", "A call goes to one device or to every device.");
+    const Json j{{"v", 1},           {"t", "call"},           {"id", id},         {"c", conversationId}, {"ts", ts},
+                 {"callId", signal.callId}, {"step", signal.step}, {"kind", signal.kind}, {"sdp", signal.sdp}, {"to", signal.to}};
+    return padded(j.dump());
+}
+
+std::string encodeCallKey(const std::string& conversationId, const CallKey& key, const std::string& id, std::int64_t ts) {
+    if (!isUuid(key.callId)) throw EngineError("bad_call", "That isn't a call.");
+    if (key.epoch < 1) throw EngineError("bad_call_key", "A call key's epoch starts at 1.");
+    if (!key.key || key.key->size() != 32) throw EngineError("bad_call_key", "A call key is 32 bytes.");
+    const Json j{{"v", 1},          {"t", "callkey"},       {"id", id},
+                 {"c", conversationId}, {"ts", ts},            {"callId", key.callId},
+                 {"epoch", key.epoch},  {"key", crypto::base64Encode(key.key->view())}};
+    return padded(j.dump());
 }
 
 DecodedEnvelope decodeEnvelope(const std::string& plaintext, const std::string& conversationId, std::int64_t nowMs) {
@@ -145,8 +484,10 @@ DecodedEnvelope decodeEnvelope(const std::string& plaintext, const std::string& 
         d.kind = Kind::Newer;
         return d;
     }
+    static const std::set<std::string> kTypes = {"text", "file", "reaction", "edit", "delete", "poll", "vote", "end", "pin", "receipt",
+                                                 "call", "callkey", "storykey", "storyanswer"};
     const std::string t = stringOr(e, "t");
-    if (t != "text" && t != "file" && t != "reaction" && t != "edit" && t != "delete") return ignore("unknown_type");
+    if (!kTypes.count(t)) return ignore("unknown_type");
     DecodedEnvelope d;
     d.id = stringOr(e, "id");
     if (!isUuid(d.id)) return ignore("bad_id");
@@ -156,27 +497,96 @@ DecodedEnvelope decodeEnvelope(const std::string& plaintext, const std::string& 
     const double ts = claimed != e.end() && claimed->is_number() ? claimed->get<double>() : static_cast<double>(now);
     d.ts = static_cast<std::int64_t>(std::clamp(ts, static_cast<double>(now - kMaxPast), static_cast<double>(now + kMaxFuture)));
 
+    if (t == "call" || t == "callkey") return decodeCallEnvelope(e, t, std::move(d), now);
+    if (t == "storykey" || t == "storyanswer") return decodeStoryEnvelope(e, t, std::move(d), conversationId);
+
     const auto text = [&](const char* key, std::size_t max) -> std::optional<std::string> {
         const auto it = e.find(key);
         if (it == e.end() || !it->is_string() || it->get_ref<const std::string&>().size() > max) return std::nullopt;
         return it->get<std::string>();
     };
+    // reply, fwd and exp on a text, file or poll: any of them malformed and the whole envelope is ignored.
+    const auto extras = [&]() -> bool {
+        if (const auto reply = e.find("reply"); reply != e.end()) {
+            if (!reply->is_object()) return false;
+            const auto target = reply->find("target");
+            if (target == reply->end() || !target->is_string() || !isUuid(target->get<std::string>())) return false;
+            d.extras.replyTo = target->get<std::string>();
+            // The preview is required (it may be empty): a device that never had the original still shows what it answers.
+            const auto preview = reply->find("preview");
+            if (preview == reply->end() || !preview->is_string() || textLength(preview->get_ref<const std::string&>()) > kMaxPreview) return false;
+            d.extras.replyPreview = preview->get<std::string>();
+        }
+        if (const auto fwd = e.find("fwd"); fwd != e.end()) {
+            if (!fwd->is_boolean()) return false;
+            d.extras.forwarded = fwd->get<bool>();
+        }
+        if (const auto exp = e.find("exp"); exp != e.end()) {
+            if (!exp->is_number_integer()) return false;
+            const auto seconds = exp->get<std::int64_t>();
+            if (seconds < 1 || seconds > kMaxExp) return false;
+            d.extras.exp = static_cast<int>(seconds);
+        }
+        return true;
+    };
     if (t == "file") {
         const auto file = e.find("file");
         d.file = fileFrom(file != e.end() ? *file : Json(nullptr));
         if (!d.file) return ignore("bad_file");
+        if (!extras()) return ignore("bad_extras");
         d.kind = Kind::Message;
         return d;
     }
     if (t == "text") {
         const auto body = text("body", kMaxText);
         if (!body) return ignore("bad_body");
+        if (!extras()) return ignore("bad_extras");
+        // Part D: a reply or reaction to a story. Malformed and the whole envelope is ignored, like the other extras.
+        if (const auto story = e.find("storyReply"); story != e.end()) {
+            d.extras.storyReply = storyReplyFrom(*story);
+            if (!d.extras.storyReply) return ignore("bad_story_reply");
+        }
         d.kind = Kind::Message;
         d.text = *body;
         return d;
     }
+    if (t == "poll") {
+        const auto question = e.find("question");
+        const auto options = e.find("options");
+        const auto multi = e.find("multi");
+        if (question == e.end() || !question->is_string() || options == e.end() || !options->is_array() || multi == e.end() ||
+            !multi->is_boolean()) {
+            return ignore("bad_poll");
+        }
+        ChatPoll poll;
+        for (const Json& o : *options) {
+            if (!o.is_string()) return ignore("bad_poll");
+            poll.options.push_back(o.get<std::string>());
+        }
+        if (!validPoll(question->get<std::string>(), poll.options)) return ignore("bad_poll");
+        poll.multi = multi->get<bool>();
+        if (!extras()) return ignore("bad_extras");
+        d.kind = Kind::Message;
+        d.text = question->get<std::string>();
+        d.poll = std::move(poll);
+        return d;
+    }
     ChatOp op;
     op.t = t;
+    if (t == "receipt") {
+        const auto targets = e.find("targets");
+        if (targets == e.end() || !targets->is_array() || targets->empty() || targets->size() > kMaxReceiptIds) return ignore("bad_targets");
+        for (const Json& target : *targets) {
+            if (!target.is_string() || !isUuid(target.get<std::string>())) return ignore("bad_targets");
+            // The same id twice is merged.
+            if (std::find(op.targets.begin(), op.targets.end(), target.get<std::string>()) == op.targets.end()) op.targets.push_back(target.get<std::string>());
+        }
+        op.status = stringOr(e, "status");
+        if (op.status != "delivered" && op.status != "read") return ignore("bad_status");
+        d.kind = Kind::Op;
+        d.op = std::move(op);
+        return d;
+    }
     op.target = stringOr(e, "target");
     if (!isUuid(op.target)) return ignore("bad_target");
     if (t == "edit") {
@@ -187,6 +597,20 @@ DecodedEnvelope decodeEnvelope(const std::string& plaintext, const std::string& 
         const auto emoji = text("emoji", kMaxEmoji);
         if (!emoji) return ignore("bad_emoji");
         op.emoji = *emoji;
+    } else if (t == "vote") {
+        const auto choices = e.find("choices");
+        if (choices == e.end() || !choices->is_array()) return ignore("bad_choices");
+        for (const Json& c : *choices) {
+            if (!c.is_number_integer()) return ignore("bad_choices");
+            const auto value = c.get<std::int64_t>();
+            if (value < 0 || value > 9) return ignore("bad_choices");
+            op.choices.push_back(static_cast<int>(value));
+        }
+        if (!validChoices(op.choices)) return ignore("bad_choices");
+    } else if (t == "pin") {
+        const auto pinned = e.find("pinned");
+        if (pinned == e.end() || !pinned->is_boolean()) return ignore("bad_pinned");
+        op.pinned = pinned->get<bool>();
     }
     d.kind = Kind::Op;
     d.op = std::move(op);
@@ -195,10 +619,18 @@ DecodedEnvelope decodeEnvelope(const std::string& plaintext, const std::string& 
 
 // --- Fold ---
 
-std::vector<ChatRecord> foldChat(const std::vector<ChatRecord>& records) {
+std::optional<std::int64_t> expiryOf(const ChatRecord& record) {
+    if (record.op || record.exp <= 0) return std::nullopt;
+    return record.ts + static_cast<std::int64_t>(record.exp) * 1000;
+}
+
+std::vector<ChatRecord> foldChat(const std::vector<ChatRecord>& records, std::optional<std::int64_t> nowMs) {
     std::map<std::string, ChatRecord> messages;
     for (const ChatRecord& r : records) {
-        if (!r.op) messages.emplace(r.id, r);
+        if (r.op) continue;
+        const auto expires = expiryOf(r);
+        if (nowMs && expires && *expires <= *nowMs) continue;  // gone: left out, and every op on it with it
+        messages.emplace(r.id, r);
     }
     std::set<std::string> deleted;
     for (const ChatRecord& r : records) {
@@ -208,16 +640,38 @@ std::vector<ChatRecord> foldChat(const std::vector<ChatRecord>& records) {
     }
     std::map<std::string, const ChatRecord*> edits;
     std::map<std::pair<std::string, std::string>, const ChatRecord*> reactions;  // (target, user)
+    std::map<std::string, const ChatRecord*> pins;
+    std::map<std::pair<std::string, std::string>, bool> receipts;  // (target, user) -> read
+    std::map<std::string, std::vector<const ChatRecord*>> votes;  // poll -> its votes
+    std::map<std::string, const ChatRecord*> ends;  // poll -> its author's first end
+    const auto latest = [](const ChatRecord*& held, const ChatRecord& r) {
+        if (!held || newer(r, *held)) held = &r;
+    };
     for (const ChatRecord& r : records) {
         if (!r.op) continue;
+        if (r.op->t == "receipt") {
+            for (const std::string& target : r.op->targets) {
+                const auto message = messages.find(target);
+                if (message == messages.end() || deleted.count(target) || message->second.from == r.from) continue;
+                bool& read = receipts[{target, r.from}];
+                read = read || r.op->status == "read";
+            }
+            continue;
+        }
         const auto message = messages.find(r.op->target);
         if (message == messages.end() || deleted.count(r.op->target)) continue;
-        if (r.op->t == "edit" && r.from == message->second.from && !message->second.file) {
-            const ChatRecord*& held = edits[r.op->target];
-            if (!held || newer(r, *held)) held = &r;
+        const ChatRecord& m = message->second;
+        if (r.op->t == "edit" && r.from == m.from && !m.file && !m.poll) {
+            latest(edits[r.op->target], r);
         } else if (r.op->t == "reaction") {
-            const ChatRecord*& held = reactions[{r.op->target, r.from}];
-            if (!held || newer(r, *held)) held = &r;
+            latest(reactions[{r.op->target, r.from}], r);
+        } else if (r.op->t == "pin") {
+            latest(pins[r.op->target], r);
+        } else if (r.op->t == "vote" && m.poll) {
+            votes[r.op->target].push_back(&r);
+        } else if (r.op->t == "end" && m.poll && r.from == m.from) {
+            const ChatRecord*& held = ends[r.op->target];
+            if (!held || before(r, *held)) held = &r;
         }
     }
     for (const auto& [target, record] : edits) {
@@ -228,10 +682,43 @@ std::vector<ChatRecord> foldChat(const std::vector<ChatRecord>& records) {
     for (const auto& [key, record] : reactions) {
         if (!record->op->emoji.empty()) messages.at(key.first).reactions.push_back({key.second, record->op->emoji});
     }
+    for (const auto& [target, record] : pins) messages.at(target).pinned = record->op->pinned;
+    for (const auto& [key, read] : receipts) {
+        messages.at(key.first).receipts.push_back({key.second, read ? "read" : "delivered"});
+    }
+    for (auto& [id, message] : messages) {
+        if (!message.poll) continue;
+        ChatPoll& poll = *message.poll;
+        poll.votes.assign(poll.options.size(), 0);
+        poll.ballots.clear();
+        const auto end = ends.find(id);
+        poll.ended = end != ends.end();
+        // Each voter's latest valid vote from before the end; an invalid one leaves the one before it standing.
+        std::map<std::string, const ChatRecord*> counted;
+        for (const ChatRecord* vote : votes[id]) {
+            if (poll.ended && !before(*vote, *end->second)) continue;
+            const auto& choices = vote->op->choices;
+            const bool fits = std::all_of(choices.begin(), choices.end(), [&](int c) { return c >= 0 && static_cast<std::size_t>(c) < poll.options.size(); });
+            if (!fits || (!poll.multi && choices.size() > 1)) continue;
+            latest(counted[vote->from], *vote);
+        }
+        for (const auto& [user, vote] : counted) {
+            if (vote->op->choices.empty()) continue;
+            for (const int c : vote->op->choices) ++poll.votes[static_cast<std::size_t>(c)];
+            poll.ballots.emplace_back(user, vote->op->choices);
+        }
+    }
+    for (auto& [id, message] : messages) message.expiresAt = expiryOf(message);
     for (const std::string& id : deleted) {
+        // Nothing of what it said is shown: no text, file, poll, quote or pin.
         ChatRecord& message = messages.at(id);
         message.text.clear();
         message.file.reset();
+        message.poll.reset();
+        message.replyTo.clear();
+        message.replyPreview.clear();
+        message.forwarded = false;
+        message.pinned = false;
         message.deleted = true;
     }
     std::vector<ChatRecord> out;
@@ -266,12 +753,20 @@ void ChatHistory::load() {
     for (const Json& p : j.value("pins", Json::array())) {
         if (p.is_string()) pins_.push_back(p.get<std::string>());
     }
+    const Json joined = j.value("joined", Json::object());
+    if (joined.is_object()) {
+        for (auto it = joined.begin(); it != joined.end(); ++it) {
+            if (it.value().is_number_integer()) joined_[it.key()] = it.value().get<std::int64_t>();
+        }
+    }
 }
 
 void ChatHistory::save() const {
     Json records = Json::array();
     for (const ChatRecord& r : records_) records.push_back(recordJson(r));
-    const std::string plain = Json{{"records", records}, {"pins", pins_}}.dump();
+    Json j{{"records", records}, {"pins", pins_}};
+    if (!joined_.empty()) j["joined"] = joined_;
+    const std::string plain = j.dump();
     const std::size_t nonceLen = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
     std::string blob(nonceLen + plain.size() + crypto_aead_xchacha20poly1305_ietf_ABYTES, '\0');
     randombytes_buf(blob.data(), nonceLen);
@@ -289,28 +784,100 @@ bool ChatHistory::add(const ChatRecord& record) {
         if (r.conversationId == record.conversationId && r.id == record.id) return false;
     }
     records_.push_back(record);
-    eraseDeleted(record.conversationId);  // before the write, so a deleted message's text is never put on disk again
+    eraseGone(record.conversationId);  // before the write, so a deleted or expired message's text is never put on disk again
     save();
     return true;
 }
 
-void ChatHistory::eraseDeleted(const std::string& conversationId) {
+void ChatHistory::setClock(std::function<std::int64_t()> clock) {
+    std::lock_guard lock(mutex_);
+    clock_ = std::move(clock);
+}
+
+std::int64_t ChatHistory::now() const {
+    return clock_ ? clock_() : util::nowMillis();
+}
+
+bool ChatHistory::eraseGone(const std::string& conversationId) {
+    const std::int64_t at = now();
     std::set<std::string> gone;
+    std::set<std::string> expired;
+    for (const ChatRecord& r : records_) {
+        if (r.conversationId != conversationId || r.op) continue;
+        const auto expires = expiryOf(r);
+        if (at > 0 && expires && *expires <= at) {
+            gone.insert(r.id);
+            expired.insert(r.id);
+        }
+    }
     for (const ChatRecord& r : records_) {
         if (r.conversationId != conversationId || !r.op || r.op->t != "delete") continue;
         for (const ChatRecord& message : records_) {
             if (message.conversationId == conversationId && !message.op && message.id == r.op->target && message.from == r.from) gone.insert(message.id);
         }
     }
-    if (gone.empty()) return;
+    if (gone.empty()) return false;
+    const std::size_t before = records_.size();
+    // An own message that disappeared before it could leave never goes: nothing was sent, nothing to keep.
     std::erase_if(records_, [&](const ChatRecord& r) {
-        return r.conversationId == conversationId && r.op && r.op->t != "delete" && gone.count(r.op->target) > 0;
+        return r.conversationId == conversationId && !r.op && r.status == "queued" && expired.count(r.id) > 0;
     });
+    // The ops that refer to them go too; a receipt keeps only the messages that are still there.
+    for (ChatRecord& r : records_) {
+        if (r.conversationId != conversationId || !r.op || r.op->t != "receipt") continue;
+        std::erase_if(r.op->targets, [&](const std::string& target) { return gone.count(target) > 0; });
+    }
+    std::erase_if(records_, [&](const ChatRecord& r) {
+        if (r.conversationId != conversationId || !r.op) return false;
+        if (r.op->t == "receipt") return r.op->targets.empty();
+        return r.op->t != "delete" && gone.count(r.op->target) > 0;
+    });
+    bool changed = records_.size() != before;
     for (ChatRecord& r : records_) {
         if (r.conversationId != conversationId || r.op || !gone.count(r.id)) continue;
+        if (r.text.empty() && !r.file && !r.poll && r.replyPreview.empty()) continue;
         r.text.clear();
         r.file.reset();
+        r.poll.reset();
+        r.replyPreview.clear();
+        changed = true;
     }
+    return changed;
+}
+
+bool ChatHistory::eraseExpired() {
+    std::lock_guard lock(mutex_);
+    std::set<std::string> conversations;
+    for (const ChatRecord& r : records_) conversations.insert(r.conversationId);
+    bool changed = false;
+    for (const std::string& c : conversations) changed = eraseGone(c) || changed;
+    if (changed) save();
+    return changed;
+}
+
+std::optional<std::int64_t> ChatHistory::nextExpiry() const {
+    std::lock_guard lock(mutex_);
+    const std::int64_t at = now();
+    std::optional<std::int64_t> next;
+    for (const ChatRecord& r : records_) {
+        const auto expires = expiryOf(r);
+        if (!expires) continue;
+        const bool erased = r.text.empty() && !r.file && !r.poll;
+        if (erased && *expires <= at) continue;
+        if (!next || *expires < *next) next = expires;
+    }
+    return next;
+}
+
+bool ChatHistory::receiptSent(const std::string& conversationId, const std::string& messageId, const std::string& selfUserId,
+                              const std::string& status) const {
+    std::lock_guard lock(mutex_);
+    for (const ChatRecord& r : records_) {
+        if (r.conversationId != conversationId || !r.op || r.op->t != "receipt" || r.from != selfUserId) continue;
+        if (status == "read" && r.op->status != "read") continue;
+        if (std::find(r.op->targets.begin(), r.op->targets.end(), messageId) != r.op->targets.end()) return true;
+    }
+    return false;
 }
 
 bool ChatHistory::setStatus(const std::string& conversationId, const std::string& id, const std::string& status) {
@@ -359,7 +926,26 @@ std::vector<ChatRecord> ChatHistory::queued() const {
 }
 
 std::vector<ChatRecord> ChatHistory::list(const std::string& conversationId) const {
-    return foldChat(records(conversationId));
+    std::int64_t at = 0;
+    {
+        std::lock_guard lock(mutex_);
+        at = now();
+    }
+    return foldChat(records(conversationId), at > 0 ? std::optional<std::int64_t>(at) : std::nullopt);
+}
+
+void ChatHistory::markJoined(const std::string& conversationId, std::int64_t atMs) {
+    std::lock_guard lock(mutex_);
+    if (joined_.count(conversationId)) return;
+    joined_[conversationId] = atMs;
+    save();
+}
+
+std::optional<std::int64_t> ChatHistory::joinedAt(const std::string& conversationId) const {
+    std::lock_guard lock(mutex_);
+    const auto it = joined_.find(conversationId);
+    if (it == joined_.end()) return std::nullopt;
+    return it->second;
 }
 
 bool ChatHistory::pinned(const std::string& conversationId) const {
@@ -446,7 +1032,21 @@ namespace {
 Json verifyRosters(V3Device& device, const std::string& conversationId) {
     const Json chain = device.server().rosters(conversationId, 0);
     if (!chain.is_array() || chain.empty()) return nullptr;
-    return device.must("rosterVerify", Json{{"groupId", conversationId}, {"chain", chain}});
+    const Json fields = {{"groupId", conversationId}, {"chain", chain}};
+    Json answer = device.op("rosterVerify", fields);
+    if (!answer.value("ok", false) && answer.value("error", std::string()) == "unknown_issuer") {
+        // A roster signed by someone whose list this device hasn't checked yet (a community's owner or staff, who
+        // may never have written here): verify each issuer's list, then the chain once more.
+        std::set<std::string> issuers;
+        for (const Json& r : chain) {
+            if (r.is_object() && r.contains("issuer") && r.at("issuer").is_string()) issuers.insert(r.at("issuer").get<std::string>());
+        }
+        for (const std::string& issuer : issuers) {
+            if (issuer != device.userId()) verifiedDevices(device, issuer, conversationId);
+        }
+        answer = device.op("rosterVerify", fields);
+    }
+    return requireOk(std::move(answer), "rosterVerify");
 }
 
 /// Makes the roster match the conversation's active members, signing the first or the next epoch
@@ -515,7 +1115,7 @@ int sendToSignalGroup(V3Device& device, const std::string& conversationId, const
     }
     Json results = shared.at("results");
     if (!need.empty()) {
-        const Json claimed = device.server().signalClaim(conversationId, ask);
+        const Json claimed = detail::claimInBatches(ask, [&](const Json& b) { return device.server().signalClaim(conversationId, b); });
         Json retry = Json::array();
         for (std::size_t k = 0; k < need.size(); ++k) {
             const Json& c = claimed.at(k);
@@ -532,17 +1132,29 @@ int sendToSignalGroup(V3Device& device, const std::string& conversationId, const
             keyMessages.push_back({{"userId", others[i].at("userId")}, {"deviceId", others[i].at("deviceId")}, {"body", r.at("message").dump()}});
         }
     }
-    if (!keyMessages.empty()) device.server().sendMessages(device.deviceId(), conversationId, keyMessages);
+    // Part C2: at most 100 devices per request, in order (sender keys first, then the one message).
+    if (!keyMessages.empty()) {
+        detail::sendInBatches(keyMessages, [&](const Json& b) { device.server().sendMessages(device.deviceId(), conversationId, b); });
+    }
     const Json sealed = device.must("groupSignalEncrypt", Json{{"groupId", conversationId}, {"plaintext", plaintext}});
     Json fanout = Json::array();
     for (const Json& d : others) fanout.push_back({{"userId", d.at("userId")}, {"deviceId", d.at("deviceId")}});
-    if (fanout.size() > 100) throw EngineError("group_too_large", "Device-key groups are limited to 100 member devices for now.");
-    device.server().sendGroupMessage(device.deviceId(), conversationId, sealed.at("message").dump(), fanout);
+    const std::string body = sealed.at("message").dump();
+    detail::sendInBatches(fanout, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, body, b); });
     return static_cast<int>(fanout.size());
+}
+
+/// Whether an envelope is a reaction, edit, delete, vote, end, pin or receipt (not a text, file or poll).
+bool isOpEnvelope(const std::string& plaintext) {
+    const Json j = Json::parse(plaintext, nullptr, false);
+    const std::string t = j.is_object() ? stringOr(j, "t") : std::string();
+    return t != "text" && t != "file" && t != "poll";
 }
 
 /// One group send: membership from verified lists, room keys to devices that lack them, then one fan-out.
 int sendToGroup(V3Device& device, const std::string& conversationId, const std::string& plaintext) {
+    // Part C2: a community has its own rules (who is in the roster, who gets each message, who issues rosters).
+    if (const auto community = communityOf(device, conversationId)) return sendToCommunity(device, *community, plaintext, isOpEnvelope(plaintext));
     const Json members = verifiedMemberDevices(device, conversationId);
     if (groupUsesSignal(device, members)) return sendToSignalGroup(device, conversationId, plaintext, members);
     device.must("groupSetMembers", Json{{"groupId", conversationId}, {"members", members}});
@@ -553,7 +1165,9 @@ int sendToGroup(V3Device& device, const std::string& conversationId, const std::
         const Json shared = shareKey(device, conversationId, recipient);
         keyMessages.push_back({{"userId", recipient.at("userId")}, {"deviceId", recipient.at("deviceId")}, {"body", shared.at("message").dump()}});
     }
-    if (!keyMessages.empty()) device.server().sendMessages(device.deviceId(), conversationId, keyMessages);
+    if (!keyMessages.empty()) {
+        detail::sendInBatches(keyMessages, [&](const Json& b) { device.server().sendMessages(device.deviceId(), conversationId, b); });
+    }
     const Json sealed = device.must("groupEncrypt", Json{{"groupId", conversationId}, {"plaintext", plaintext}});
     const Json body = {{"v", 1}, {"kind", "group"}, {"groupId", conversationId}, {"sessionId", sealed.at("sessionId")}, {"ciphertext", sealed.at("ciphertext")}};
     Json recipients = Json::array();
@@ -561,8 +1175,8 @@ int sendToGroup(V3Device& device, const std::string& conversationId, const std::
         if (d.value("deviceId", std::string()) == device.deviceId()) continue;
         recipients.push_back({{"userId", d.at("userId")}, {"deviceId", d.at("deviceId")}});
     }
-    if (recipients.size() > 100) throw EngineError("group_too_large", "Device-key groups are limited to 100 member devices for now.");
-    device.server().sendGroupMessage(device.deviceId(), conversationId, body.dump(), recipients);
+    const std::string sealedBody = body.dump();
+    detail::sendInBatches(recipients, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, sealedBody, b); });
     return static_cast<int>(recipients.size());
 }
 
@@ -641,8 +1255,35 @@ SendOutcome deliver(V3Device& device, ChatHistory& history, ChatRecord record, c
 /// What a record says, as the envelope it travels in (the same id and time as when it was made).
 std::string plaintextOf(const ChatRecord& record) {
     if (record.op) return encodeOp(record.conversationId, *record.op, record.id, record.ts);
-    if (record.file) return encodeFile(record.conversationId, *record.file, record.id, record.ts);
-    return encodeEnvelope(newEnvelope(record, record.text));
+    if (record.poll) {
+        return encodePoll(record.conversationId, record.text, record.poll->options, record.poll->multi, record.id, record.ts, extrasOf(record));
+    }
+    if (record.file) return encodeFile(record.conversationId, *record.file, record.id, record.ts, extrasOf(record));
+    Envelope e = newEnvelope(record, record.text);
+    e.extras = extrasOf(record);
+    return encodeEnvelope(e);
+}
+
+ChatRecord messageRecord(const V3Device& device, const std::string& conversationId, std::int64_t now, const OutgoingMessage& message) {
+    ChatRecord record = outgoing(device, conversationId, now);
+    record.text = message.text;
+    record.file = message.file;
+    if (message.poll) record.poll = ChatPoll{message.poll->options, message.poll->multi, {}, false, {}};
+    record.replyTo = message.extras.replyTo;
+    record.replyPreview = message.extras.replyPreview;
+    record.forwarded = message.extras.forwarded;
+    record.exp = message.extras.exp;
+    // Part D: only a text replies to a story.
+    if (!message.file && !message.poll) record.storyReply = message.extras.storyReply;
+    return record;
+}
+
+ChatOp receiptOp(const std::vector<std::string>& messageIds, const std::string& status) {
+    ChatOp op;
+    op.t = "receipt";
+    op.targets = messageIds;
+    op.status = status;
+    return op;
 }
 
 ChatRecord queueRecord(ChatHistory& history, ChatRecord record, const std::string& contactUserId) {
@@ -683,7 +1324,112 @@ SendOutcome sendChatOp(V3Device& device, ChatHistory& history, const std::string
     return deliver(device, history, record, encodeOp(conversationId, op, record.id, record.ts), contactUserId, false);
 }
 
+SendOutcome sendChatMessage(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                            const OutgoingMessage& message, std::int64_t nowMs) {
+    const ChatRecord record = messageRecord(device, conversationId, resolveNow(nowMs), message);
+    return deliver(device, history, record, plaintextOf(record), contactUserId);
+}
+
+SendOutcome forwardChatFile(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                            const model::FileDescriptor& original,
+                            const std::function<model::FileDescriptor(const model::FileDescriptor&)>& reupload, int exp, bool queue,
+                            std::int64_t nowMs) {
+    const model::FileDescriptor fresh = reupload(original);
+    // A descriptor names its object and holds its key: one in another chat would hand that chat the original.
+    if (fresh.objectId == original.objectId || fresh.fileKey == original.fileKey) {
+        throw EngineError("descriptor_reused", "A forwarded file has to be encrypted and uploaded again.");
+    }
+    OutgoingMessage message;
+    message.file = fresh;
+    message.extras.forwarded = true;
+    message.extras.exp = exp;
+    if (queue) {
+        const ChatRecord record = queueChatMessage(device, history, conversationId, contactUserId, message, nowMs);
+        return SendOutcome{record.id, 0, 0, true};
+    }
+    return sendChatMessage(device, history, conversationId, contactUserId, message, nowMs);
+}
+
+SendOutcome sendReceipt(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& authorUserId,
+                        const std::vector<std::string>& messageIds, const std::string& status, std::int64_t nowMs) {
+    if (authorUserId.empty() || authorUserId == device.userId()) throw EngineError("bad_receipt", "A receipt goes to the person who wrote the message.");
+    // Pairwise to the author (and this account's other devices), in a group too: nobody else learns who read what.
+    return sendChatOp(device, history, conversationId, authorUserId, receiptOp(messageIds, status), nowMs);
+}
+
+ChatRecord queueReceipt(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& authorUserId,
+                        const std::vector<std::string>& messageIds, const std::string& status, std::int64_t nowMs) {
+    if (authorUserId.empty() || authorUserId == device.userId()) throw EngineError("bad_receipt", "A receipt goes to the person who wrote the message.");
+    return queueChatOp(device, history, conversationId, authorUserId, receiptOp(messageIds, status), nowMs);
+}
+
+// --- Receipts ---
+
+void ReceiptBatcher::add(const std::string& conversationId, const std::string& authorUserId, const std::string& messageId,
+                         const std::string& status) {
+    if (status != "delivered" && status != "read") return;
+    auto& list = pending_[conversationId];
+    for (Pending& p : list) {
+        if (p.messageId != messageId) continue;
+        if (status == "read") p.status = "read";  // read covers delivered
+        return;
+    }
+    list.push_back(Pending{messageId, authorUserId, status});
+}
+
+std::vector<ReceiptBatcher::Batch> ReceiptBatcher::due(std::int64_t nowMs) {
+    std::vector<Batch> out;
+    for (auto it = pending_.begin(); it != pending_.end();) {
+        const auto last = lastSent_.find(it->first);
+        if (last != lastSent_.end() && nowMs - last->second < kIntervalMs) {
+            ++it;
+            continue;
+        }
+        std::vector<Batch> batches;
+        std::vector<Pending> left;
+        for (const char* status : {"read", "delivered"}) {
+            for (const Pending& p : it->second) {
+                if (p.status != status) continue;
+                auto batch = std::find_if(batches.begin(), batches.end(), [&](const Batch& b) { return b.authorUserId == p.authorUserId && b.status == status; });
+                if (batch == batches.end()) {
+                    batches.push_back(Batch{it->first, p.authorUserId, status, {}});
+                    batch = std::prev(batches.end());
+                }
+                if (batch->ids.size() < kMaxIds) {
+                    batch->ids.push_back(p.messageId);
+                } else {
+                    left.push_back(p);
+                }
+            }
+        }
+        lastSent_[it->first] = nowMs;
+        for (Batch& b : batches) out.push_back(std::move(b));
+        if (left.empty()) {
+            it = pending_.erase(it);
+        } else {
+            it->second = std::move(left);
+            ++it;
+        }
+    }
+    return out;
+}
+
+std::optional<std::int64_t> ReceiptBatcher::nextDue() const {
+    std::optional<std::int64_t> next;
+    for (const auto& [conversation, list] : pending_) {
+        const auto last = lastSent_.find(conversation);
+        const std::int64_t at = last == lastSent_.end() ? 0 : last->second + kIntervalMs;
+        if (!next || at < *next) next = at;
+    }
+    return next;
+}
+
 // --- Waiting for Tor ---
+
+ChatRecord queueChatMessage(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
+                            const OutgoingMessage& message, std::int64_t nowMs) {
+    return queueRecord(history, messageRecord(device, conversationId, resolveNow(nowMs), message), contactUserId);
+}
 
 ChatRecord queueChat(V3Device& device, ChatHistory& history, const std::string& conversationId, const std::string& contactUserId,
                      const std::string& text, std::int64_t nowMs) {
@@ -767,7 +1513,8 @@ QueueDrain sendQueuedChat(V3Device& device, ChatHistory& history, QueueingV3Serv
 
 // --- Receiving ---
 
-std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std::int64_t nowMs, ReceiveStats* stats) {
+std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std::int64_t nowMs, ReceiveStats* stats,
+                                    std::vector<CallMessage>* calls, StoryStore* stories) {
     // Errors about the sender's list, not the message: the item waits until the person accepts the change.
     // rv-signal-v1: a device's Signal identity changed or doesn't match its signed list. Held, never dropped,
     // so the person can compare safety numbers first (docs/signal-integration/, M5).
@@ -789,7 +1536,13 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
         if (found != lists.end()) return found->second;
         Known known;
         try {
-            known.devices = verifiedDevices(device, userId, conversationId).devices;
+            try {
+                known.devices = verifiedDevices(device, userId, conversationId).devices;
+            } catch (const api::ApiError& error) {
+                // Part D: an item addressed with a story id (no conversation shares it): the sender's list as a friend's.
+                if (error.status() != 404 || conversationId.empty()) throw;
+                known.devices = verifiedDevices(device, userId).devices;
+            }
         } catch (const EngineError& error) {
             known.error = error.code();
         } catch (const api::ApiError& error) {
@@ -910,6 +1663,55 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
             handled.push_back(id);  // another chat's message moved here, or a type this version doesn't show
             continue;
         }
+        if (envelope.kind == DecodedEnvelope::Kind::StoryKey || envelope.kind == DecodedEnvelope::Kind::StoryAnswer) {
+            // Part D: pairwise only (never a group fan-out). Kept in the story-key store before the item is acknowledged;
+            // whether the sender really wrote the story is checked when the feed names its author.
+            if (stories && !isGroupBody) {
+                if (envelope.storyKey) {
+                    stories->putKey(envelope.storyKey->storyId, senderUserId, *envelope.storyKey->key, envelope.storyKey->expiresAt,
+                                    senderUserId == device.userId());
+                } else if (envelope.storyAnswer) {
+                    StoryStore::Answer a;
+                    a.storyId = envelope.storyAnswer->storyId;
+                    a.stickerId = envelope.storyAnswer->stickerId;
+                    a.userId = senderUserId;
+                    a.rev = envelope.storyAnswer->rev;
+                    a.final = envelope.storyAnswer->final;
+                    a.payload = envelope.storyAnswer->payload.dump();
+                    a.at = envelope.ts;
+                    stories->putAnswer(a);
+                }
+            }
+            handled.push_back(id);
+            continue;
+        }
+        if (envelope.kind == DecodedEnvelope::Kind::Call || envelope.kind == DecodedEnvelope::Kind::CallKey) {
+            // Part B: acknowledged and handed out, never stored or folded. Only pairwise (never a group fan-out),
+            // only from another account, and only when meant for this device or for every device.
+            handled.push_back(id);
+            if (!calls || isGroupBody || senderUserId == device.userId()) continue;
+            if (envelope.call && envelope.call->to != "*" && envelope.call->to != device.deviceId()) continue;
+            CallMessage message;
+            message.conversationId = conversationId;
+            message.fromUserId = senderUserId;
+            message.fromDeviceId = senderDeviceId;
+            message.ts = envelope.ts;
+            message.signal = std::move(envelope.call);
+            message.key = std::move(envelope.callKey);
+            calls->push_back(std::move(message));
+            continue;
+        }
+        // Part C2: in a community a text, file or poll is taken only from a Signal group message (the engine checked
+        // its sender against the roster); pairwise items carry sender keys, call keys and ops. In a channel, the ops
+        // that come pairwise from another account are a reader's reactions, votes and receipts, nothing else.
+        if (const auto community = communityOf(device, conversationId); community && senderUserId != device.userId() && !isGroupBody) {
+            const std::string t = envelope.op ? envelope.op->t : std::string();
+            const bool readerOp = t == "reaction" || t == "vote" || t == "receipt";
+            if (envelope.kind == DecodedEnvelope::Kind::Message || (community->channel() && !readerOp)) {
+                handled.push_back(id);
+                continue;
+            }
+        }
         ChatRecord record;
         record.conversationId = conversationId;
         record.id = envelope.id;
@@ -920,6 +1722,12 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
         record.text = std::move(envelope.text);
         record.file = std::move(envelope.file);
         record.op = std::move(envelope.op);
+        record.replyTo = envelope.extras.replyTo;
+        record.replyPreview = envelope.extras.replyPreview;
+        record.forwarded = envelope.extras.forwarded;
+        record.exp = envelope.extras.exp;
+        record.poll = std::move(envelope.poll);
+        record.storyReply = std::move(envelope.extras.storyReply);
         const bool mine = senderUserId == device.userId();
         record.direction = mine ? "out" : "in";
         record.status = mine ? "sent" : "received";
@@ -931,8 +1739,159 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
         handled.push_back(id);
     }
     if (!handled.empty()) device.server().ack(device.deviceId(), handled);
+    if (stories) stories->dropStaleDeliveries();
     std::stable_sort(fresh.begin(), fresh.end(), [](const ChatRecord& a, const ChatRecord& b) { return a.ts < b.ts; });
     return fresh;
+}
+
+// --- Calls over device keys (part B) ---
+
+namespace {
+
+/// One send that is never queued: a stale device list is fetched again once, like a chat send.
+template <typename F>
+int sendUnqueued(F&& attempt) {
+    NoQueueScope unqueued;
+    try {
+        return attempt();
+    } catch (const api::ApiError& error) {
+        if (!isStale(error)) throw;
+        return attempt();
+    }
+}
+
+}  // namespace
+
+int sendCallSignal(V3Device& device, const std::string& conversationId, const std::string& contactUserId, const CallSignal& signal,
+                   std::int64_t nowMs) {
+    if (contactUserId.empty() || contactUserId == device.userId()) throw EngineError("bad_call", "A call goes to the other person.");
+    const std::string plaintext = encodeCall(conversationId, signal, util::randomUuid(), resolveNow(nowMs));
+    return sendUnqueued([&] {
+        std::vector<Json> recipients;
+        for (const Json& d : verifiedDevices(device, contactUserId, conversationId).devices) {
+            if (signal.to == "*" || d.value("deviceId", std::string()) == signal.to) recipients.push_back(d);
+        }
+        if (recipients.empty()) {
+            throw EngineError(signal.to == "*" ? "contact_has_no_device_keys" : "unknown_device",
+                              signal.to == "*" ? "They haven't set up device keys yet." : "The device that called isn't in their list any more.");
+        }
+        const int delivered = sendToDevices(device, conversationId, recipients, plaintext);
+        if (delivered == 0) throw EngineError("unreachable", "None of their devices could be reached.");
+        return delivered;
+    });
+}
+
+int sendCallKey(V3Device& device, const std::string& conversationId, const CallKey& key, const std::vector<std::string>& userIds,
+                std::int64_t nowMs) {
+    const std::string plaintext = encodeCallKey(conversationId, key, util::randomUuid(), resolveNow(nowMs));
+    return sendUnqueued([&] {
+        std::vector<Json> recipients;
+        std::set<std::string> seen;
+        for (const std::string& user : userIds) {
+            if (user.empty() || user == device.userId() || !seen.insert(user).second) continue;
+            for (const Json& d : verifiedDevices(device, user, conversationId).devices) recipients.push_back(d);
+        }
+        return sendToDevices(device, conversationId, recipients, plaintext);
+    });
+}
+
+void CallGate::expectCall(const std::string& callId, const std::string& conversationId, const std::string& peerUserId, Role role) {
+    Entry entry;
+    entry.conversationId = conversationId;
+    entry.peerUserId = peerUserId;
+    entry.role = role;
+    calls_[callId] = std::move(entry);
+}
+
+void CallGate::expectGroupCall(const std::string& callId, const std::string& conversationId, std::vector<std::string> members) {
+    auto& entry = calls_[callId];
+    const std::int64_t newest = entry.group && entry.conversationId == conversationId ? entry.newestEpoch : 0;
+    entry = Entry{};
+    entry.conversationId = conversationId;
+    entry.group = true;
+    entry.members = std::move(members);
+    entry.newestEpoch = newest;
+}
+
+void CallGate::setMembers(const std::string& callId, std::vector<std::string> members) {
+    const auto it = calls_.find(callId);
+    if (it != calls_.end() && it->second.group) it->second.members = std::move(members);
+}
+
+void CallGate::forget(const std::string& callId) {
+    calls_.erase(callId);
+    std::erase_if(held_, [&](const auto& h) {
+        const CallMessage& m = h.second;
+        return (m.signal && m.signal->callId == callId) || (m.key && m.key->callId == callId);
+    });
+}
+
+std::string CallGate::peerDevice(const std::string& callId) const {
+    const auto it = calls_.find(callId);
+    return it == calls_.end() ? std::string() : it->second.peerDeviceId;
+}
+
+std::int64_t CallGate::newestEpoch(const std::string& callId) const {
+    const auto it = calls_.find(callId);
+    return it == calls_.end() ? 0 : it->second.newestEpoch;
+}
+
+std::string CallGate::check(const CallMessage& m, std::int64_t now) {
+    const std::string& callId = m.signal ? m.signal->callId : m.key ? m.key->callId : std::string();
+    if (callId.empty()) return "malformed";
+    const auto it = calls_.find(callId);
+    if (it == calls_.end()) return "unknown_call";
+    Entry& entry = it->second;
+    if (m.conversationId != entry.conversationId) return "wrong_conversation";
+    if (m.signal) {
+        if (entry.group) return "unknown_call";
+        if (now - m.ts > kCallMaxAgeMs) return "stale_call";
+        if (m.fromUserId != entry.peerUserId) return "wrong_sender";
+        const std::string& step = m.signal->step;
+        if (step == "offer" || step == "answer") {
+            // The callee takes an offer, the caller an answer: each once, from one device.
+            if (step != (entry.role == Role::Callee ? "offer" : "answer")) return "wrong_step";
+            if (!entry.peerDeviceId.empty()) return "already_set_up";
+            entry.peerDeviceId = m.fromDeviceId;
+            return {};
+        }
+        // A restart only from the device the call was set up with.
+        if (entry.peerDeviceId.empty() || m.fromDeviceId != entry.peerDeviceId) return "wrong_device";
+        return {};
+    }
+    if (!entry.group) return "unknown_call";
+    if (std::find(entry.members.begin(), entry.members.end(), m.fromUserId) == entry.members.end()) return "not_a_member";
+    if (m.key->epoch < entry.newestEpoch) return "old_epoch";
+    entry.newestEpoch = m.key->epoch;
+    return {};
+}
+
+std::vector<CallMessage> CallGate::admit(std::vector<CallMessage> messages, std::int64_t nowMs, std::vector<std::string>* refused) {
+    const std::int64_t now = resolveNow(nowMs);
+    std::vector<std::pair<std::int64_t, CallMessage>> queue;
+    // What was held goes first (it arrived first); what's too old by now is dropped.
+    for (auto& h : held_) {
+        if (now - h.first <= kHoldMs) {
+            queue.push_back(std::move(h));
+        } else if (refused) {
+            refused->push_back("unknown_call");
+        }
+    }
+    held_.clear();
+    for (auto& m : messages) queue.emplace_back(now, std::move(m));
+    std::vector<CallMessage> out;
+    for (auto& [arrived, m] : queue) {
+        const std::string why = check(m, now);
+        if (why.empty()) {
+            out.push_back(std::move(m));
+        } else if (why == "unknown_call" && !calls_.count(m.signal ? m.signal->callId : m.key ? m.key->callId : std::string()) &&
+                   held_.size() < kMaxHeld) {
+            held_.emplace_back(arrived, std::move(m));  // may beat the live event that names its call
+        } else if (refused) {
+            refused->push_back(why);
+        }
+    }
+    return out;
 }
 
 }  // namespace redvault::e2ev3

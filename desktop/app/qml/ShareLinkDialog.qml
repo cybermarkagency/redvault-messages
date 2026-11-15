@@ -27,7 +27,7 @@ RvDialog {
     readonly property string contributorText: "Anyone with this link can view and download files, and upload new files. They cannot delete or replace your files."
     readonly property string passwordNote: "The password isn't part of the link. Send it separately (another app, or in person) so one leaked message isn't enough."
 
-    title: madeUrl.length > 0 ? "Link ready" : "Share “" + itemName + "”"
+    title: madeUrl.length > 0 ? qsTr("Link ready") : qsTr("Share “") + itemName + "”"
     width: 560
 
     function openFor(id, name, folder) {
@@ -109,14 +109,14 @@ RvDialog {
                     RvButton {
                         secondary: true
                         iconName: "copy"
-                        text: copiedTimer.running ? "Copied" : "Copy link"
+                        text: copiedTimer.running ? qsTr("Copied") : qsTr("Copy link")
                         onClicked: {
                             urlField.selectAll()
                             urlField.copy()
                             copiedTimer.restart()
                         }
                     }
-                    RvButton { text: "Done"; onClicked: dialog.close() }
+                    RvButton { text: qsTr("Done"); onClicked: dialog.close() }
                 }
                 Timer { id: copiedTimer; interval: 2000 }
             }
@@ -133,7 +133,7 @@ RvDialog {
                     id: existingBox
                     visible: existing.length > 0
                     spacing: 6
-                    Text { text: "Links you made"; color: Theme.text2; font.weight: Font.DemiBold }
+                    Text { text: qsTr("Links you made"); color: Theme.text2; font.weight: Font.DemiBold }
                     Repeater {
                         model: existingBox.existing
                         delegate: RowLayout {
@@ -144,12 +144,12 @@ RvDialog {
                             Icon { name: "link"; size: 14; color: Theme.accent }
                             Text { textFormat: Text.PlainText; Layout.fillWidth: true; elide: Text.ElideRight; text: existingRow.modelData.label; color: Theme.text }
                             Pill { text: existingRow.modelData.permission === "contributor" ? "Contributor" : "Viewer" }
-                            Pill { text: existingRow.modelData.statusText; tone: existingRow.modelData.active ? "accent" : "danger" }
+                            Pill { text: existingRow.modelData.statusText; tone: existingRow.modelData.active ? "ok" : "danger" }
                             IconButton {
                                 visible: existingRow.modelData.active && existingRow.modelData.url.length > 0
                                 implicitWidth: 30; implicitHeight: 30; iconSize: 14
                                 iconName: "copy"
-                                tip: "Copy link"
+                                tip: qsTr("Copy link")
                                 onClicked: dialog.shares.copyLink(existingRow.modelData.id)
                             }
                         }
@@ -157,15 +157,15 @@ RvDialog {
                     Rectangle { Layout.fillWidth: true; Layout.topMargin: 6; implicitHeight: 1; color: Theme.border }
                 }
 
-                Text { text: "New link"; color: Theme.text2; font.weight: Font.DemiBold }
+                Text { text: qsTr("New link"); color: Theme.text2; font.weight: Font.DemiBold }
                 RvTextField {
                     id: labelField
                     Layout.fillWidth: true
-                    placeholderText: "Name (only you see it): " + dialog.itemName
+                    placeholderText: qsTr("Name (only you see it): ") + dialog.itemName
                     maximumLength: 120
                 }
 
-                Text { text: "Recipients can"; color: Theme.text2; font.pixelSize: 13 }
+                Text { text: qsTr("Recipients can"); color: Theme.text2; font.pixelSize: 13 }
                 Repeater {
                     model: [
                         { key: "viewer", title: "View and download", text: dialog.viewerText },
@@ -218,29 +218,29 @@ RvDialog {
                     Layout.fillWidth: true
                     visible: dialog.permission === "contributor"
                     tone: "warn"
-                    text: "Anyone who receives or is forwarded this link can upload files until you change its permissions, revoke it, or it expires."
+                    text: qsTr("Anyone who receives or is forwarded this link can upload files until you change its permissions, revoke it, or it expires.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     visible: dialog.permission === "contributor"
                     spacing: 8
-                    RvTextField { id: sizeField; Layout.fillWidth: true; placeholderText: "Largest file (MB)"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-                    RvTextField { id: allowanceField; Layout.fillWidth: true; placeholderText: "Total uploads (MB)"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-                    RvTextField { id: filesField; Layout.fillWidth: true; placeholderText: "Most files"; inputMethodHints: Qt.ImhDigitsOnly }
+                    RvTextField { id: sizeField; Layout.fillWidth: true; placeholderText: qsTr("Largest file (MB)"); inputMethodHints: Qt.ImhFormattedNumbersOnly }
+                    RvTextField { id: allowanceField; Layout.fillWidth: true; placeholderText: qsTr("Total uploads (MB)"); inputMethodHints: Qt.ImhFormattedNumbersOnly }
+                    RvTextField { id: filesField; Layout.fillWidth: true; placeholderText: qsTr("Most files"); inputMethodHints: Qt.ImhDigitsOnly }
                 }
 
                 RvSwitch {
                     id: passwordSwitch
                     Layout.fillWidth: true
-                    label: "Password"
-                    description: "Needed to open the link, on top of the link itself."
+                    label: qsTr("Password")
+                    description: qsTr("Needed to open the link, on top of the link itself.")
                 }
                 RvTextField {
                     id: passwordField
                     objectName: "shareLinkPassword"
                     Layout.fillWidth: true
                     visible: passwordSwitch.checked
-                    placeholderText: "At least 8 characters"
+                    placeholderText: qsTr("At least 8 characters")
                     echoMode: TextInput.Password
                 }
                 InfoCard { Layout.fillWidth: true; visible: passwordSwitch.checked; tone: "neutral"; text: dialog.passwordNote }
@@ -248,7 +248,7 @@ RvDialog {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Text { text: "Expires"; color: Theme.text2 }
+                    Text { text: qsTr("Expires"); color: Theme.text2 }
                     RvChoice {
                         id: expiry
                         Layout.fillWidth: true
@@ -260,13 +260,13 @@ RvDialog {
                     id: customDate
                     Layout.fillWidth: true
                     visible: expiry.currentIndex === 5
-                    label: "Expires at"
+                    label: qsTr("Expires at")
                     Component.onCompleted: reset()
                 }
                 RvTextField {
                     id: downloadsField
                     Layout.fillWidth: true
-                    placeholderText: "Download limit (empty: no limit)"
+                    placeholderText: qsTr("Download limit (empty: no limit)")
                     inputMethodHints: Qt.ImhDigitsOnly
                 }
 
@@ -274,11 +274,11 @@ RvDialog {
                 RowLayout {
                     Layout.fillWidth: true
                     Item { Layout.fillWidth: true }
-                    RvButton { primary: false; text: "Cancel"; onClicked: dialog.close() }
+                    RvButton { primary: false; text: qsTr("Cancel"); onClicked: dialog.close() }
                     RvButton {
                         objectName: "createShareLink"
                         iconName: "link"
-                        text: dialog.shares.busy ? "Encrypting…" : "Create link"
+                        text: dialog.shares.busy ? qsTr("Encrypting…") : qsTr("Create link")
                         enabled: !dialog.shares.busy && (!passwordSwitch.checked || passwordField.text.length >= 8)
                                  && (expiry.currentIndex !== 5 || customDate.iso.length > 0)
                         onClicked: dialog.shares.createLink(dialog.itemId, {

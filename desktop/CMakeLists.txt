@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-project(RedvaultDesktop VERSION 0.7.0 LANGUAGES CXX)
+project(RedvaultDesktop VERSION 0.8.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -30,6 +30,10 @@ option(REDVAULT_RELEASE_BUILD "A build to publish: Tor-only at the official onio
 # the app. It is used when the server enables protocol 3 (/api/e2e/v3/config); messages
 # then use device keys by default (docs/signal-integration/07-step1-default-path.md).
 option(REDVAULT_E2E_V3 "Build per-device encryption keys (protocol 3): needs Rust/cargo" ON)
+# Communities (paid channels and groups) and creator earnings: turned off for now. The code stays built; with these
+# off the app shows no way into them. The server also needs COMMUNITIES_ENABLED / CREATOR_EARNINGS_ENABLED.
+option(REDVAULT_COMMUNITIES "Show Communities in the app" OFF)
+option(REDVAULT_EARNINGS "Show creator Earnings in the app" OFF)
 # rv-signal-v1 (docs/signal-integration/): links libsignal (AGPL-3.0-only, like this app).
 # Release builds carry it; turn it off only for a test build.
 option(REDVAULT_E2E_SIGNAL "Build Signal sessions (libsignal, AGPL-3.0-only) into the device keys" ON)
@@ -98,6 +102,9 @@ if(REDVAULT_BUILD_TOOLS)
     endif()
     if(REDVAULT_TOR)
         add_subdirectory(tools/tor_routing_check)
+        if(REDVAULT_E2E_V3)
+            add_subdirectory(tools/sealed_route_check)
+        endif()
     endif()
     if(REDVAULT_BUILD_CALLS)
         add_subdirectory(tools/rtc_interop)

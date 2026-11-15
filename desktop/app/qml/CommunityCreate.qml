@@ -32,7 +32,7 @@ ColumnLayout {
 
     Text {
         visible: !form.communities.creatorLoaded
-        text: "Loading…"
+        text: qsTr("Loading…")
         color: Theme.text3
     }
 
@@ -41,19 +41,19 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: form.communities.creatorLoaded && !form.creator
         Text {
-            text: "Set up a creator profile first"
+            text: qsTr("Set up a creator profile first")
             color: Theme.text
             font.weight: Font.DemiBold
         }
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "Communities are published under a public creator handle, separate from your private RedVault username."
+            text: qsTr("Communities are published under a public creator handle, separate from your private RedVault username.")
             color: Theme.text2
             font.pixelSize: 13
         }
         RvButton {
-            text: "Become a creator"
+            text: qsTr("Become a creator")
             onClicked: form.communities.open("creator")
         }
     }
@@ -63,33 +63,33 @@ ColumnLayout {
         visible: form.communities.creatorLoaded && !!form.creator
         spacing: 12
 
-        Caption { text: "TYPE" }
+        Caption { text: qsTr("TYPE") }
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
             Option {
                 Layout.fillWidth: true
-                title: "Channel"
+                title: qsTr("Channel")
                 body: "You and your staff post; members read and receive."
                 selected: form.kind === "channel"
                 onClicked: form.kind = "channel"
             }
             Option {
                 Layout.fillWidth: true
-                title: "Group"
+                title: qsTr("Group")
                 body: "Members talk together, with moderators."
                 selected: form.kind === "group"
                 onClicked: form.kind = "group"
             }
         }
 
-        Caption { text: "ACCESS" }
+        Caption { text: qsTr("ACCESS") }
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
             Option {
                 Layout.fillWidth: true
-                title: "Paid, monthly"
+                title: qsTr("Paid, monthly")
                 body: form.paidPossible ? "Members subscribe through Stripe." : "Turn on paid memberships and set up payouts in the Creator dashboard first."
                 selected: form.accessType === "paid"
                 enabled: form.paidPossible
@@ -97,21 +97,21 @@ ColumnLayout {
             }
             Option {
                 Layout.fillWidth: true
-                title: "Free"
+                title: qsTr("Free")
                 body: "Anyone you let in joins at no cost."
                 selected: form.accessType === "free"
                 onClicked: form.accessType = "free"
             }
         }
 
-        FieldLabel { text: "Name" }
+        FieldLabel { text: qsTr("Name") }
         RvTextField {
             id: name
             Layout.fillWidth: true
             maximumLength: 80
             Accessible.name: "Name"
         }
-        FieldLabel { text: "Description (public)" }
+        FieldLabel { text: qsTr("Description (public)") }
         PostField {
             id: description
             Layout.fillWidth: true
@@ -123,9 +123,9 @@ ColumnLayout {
             columns: form.accessType === "paid" ? 3 : 2
             columnSpacing: 10
             rowSpacing: 6
-            FieldLabel { text: "Category" }
-            FieldLabel { text: "Who can find it" }
-            FieldLabel { visible: form.accessType === "paid"; text: "Monthly price (USD)" }
+            FieldLabel { text: qsTr("Category") }
+            FieldLabel { text: qsTr("Who can find it") }
+            FieldLabel { visible: form.accessType === "paid"; text: qsTr("Monthly price (USD)") }
             RvComboBox {
                 id: category
                 Layout.fillWidth: true
@@ -155,20 +155,20 @@ ColumnLayout {
             tone: form.priceProblem.length > 0 ? "error" : "neutral"
             text: form.priceProblem.length > 0 ? form.priceProblem
                 : form.cents > 0 && form.config.commissionBps !== undefined
-                  ? "Of each " + form.communities.formatMoney(form.cents, form.config.currency) + " payment, RedVault keeps "
+                  ? qsTr("Of each ") + form.communities.formatMoney(form.cents, form.config.currency) + qsTr(" payment, RedVault keeps ")
                     + form.communities.formatRate(form.config.commissionBps) + " (" + form.communities.formatMoney(form.commission, form.config.currency)
-                    + ") and you earn " + form.communities.formatMoney(form.cents - form.commission, form.config.currency)
-                    + ". RedVault pays Stripe's processing fees. Taxes, refunds and disputes can change what you receive; see the creator terms."
+                    + qsTr(") and you earn ") + form.communities.formatMoney(form.cents - form.commission, form.config.currency)
+                    + qsTr(". RedVault pays Stripe's processing fees. Taxes, refunds and disputes can change what you receive; see the creator terms.")
                   : ""
         }
-        FieldLabel { text: "Rules" }
+        FieldLabel { text: qsTr("Rules") }
         PostField {
             id: rules
             Layout.fillWidth: true
             limit: 4000
             Accessible.name: "Rules"
         }
-        FieldLabel { text: "Preview (public: what people see before joining)" }
+        FieldLabel { text: qsTr("Preview (public: what people see before joining)") }
         PostField {
             id: preview
             Layout.fillWidth: true
@@ -180,8 +180,8 @@ ColumnLayout {
             columns: 2
             columnSpacing: 10
             rowSpacing: 6
-            FieldLabel { text: "Member limit (optional)" }
-            FieldLabel { text: "Slow mode" }
+            FieldLabel { text: qsTr("Member limit (optional)") }
+            FieldLabel { text: qsTr("Slow mode") }
             RvTextField {
                 id: memberLimit
                 Layout.fillWidth: true
@@ -200,17 +200,17 @@ ColumnLayout {
             id: joinApproval
             Layout.fillWidth: true
             visible: form.accessType === "free"
-            label: "A moderator approves each person who asks to join."
+            label: qsTr("A moderator approves each person who asks to join.")
         }
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             color: Theme.text3
             font.pixelSize: Theme.fontSmall + 1
-            text: "The name, description, rules, preview and price are public listing information RedVault can see. Everything posted inside is end-to-end encrypted."
+            text: qsTr("The name, description, rules, preview and price are public listing information RedVault can see. Everything posted inside is end-to-end encrypted.")
         }
         RvButton {
-            text: form.communities.busy ? "Creating…" : "Create as draft"
+            text: form.communities.busy ? qsTr("Creating…") : qsTr("Create as draft")
             enabled: !form.communities.busy && name.text.trim().length > 0 && form.priceProblem.length === 0
                      && !description.tooLong && !rules.tooLong && !preview.tooLong
             onClicked: form.communities.create({

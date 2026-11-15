@@ -36,6 +36,9 @@ namespace redvault::lk {
  *   - Being removed from the group ends the call at once.
  *   - Once the starter is connected (and only then), its app posts the call's
  *     link in the group chat.
+ *   - In a group on device keys (docs/signal-integration/09-part-b-calls.md),
+ *     room keys go to each participant's devices as device-key messages
+ *     (sendDeviceKey) and come back through onDeviceKey, never through /keys.
  *   - Blocking work (HTTP, connecting, publishing) runs on a serial background
  *     worker, in order, and reports back through `post`; the view is only ever
  *     touched on the owner thread.
@@ -55,6 +58,9 @@ public:
     struct GroupInfo {
         std::string label;
         std::vector<Member> members;
+        /// Part C2: a community, whose members this app doesn't list (a channel's readers never see each other). Its
+        /// room keys are taken from the call's own roster (the keyholder the server names), not from `members`.
+        bool community = false;
     };
 
     struct Environment {
@@ -77,6 +83,21 @@ public:
         /// Connects to LiveKit. Defaults to connectLiveKitRoom.
         RoomFactory roomFactory;
         std::function<std::int64_t()> now;
+        /// Part B: this group's call keys travel as device-key messages (the group is on device keys). Owner thread.
+        std::function<bool(const std::string& conversationId)> deviceKeys;
+        /**
+         * Part B: sends the room key for `epoch` pairwise to every device of `userIds`. Called on the owner thread and
+         * doesn't block; `done` (any thread) gets "" once it went, or why it didn't.
+         */
+        std::function<void(const std::string& callId, const std::string& conversationId, std::int64_t epoch,
+                           std::shared_ptr<const crypto::SecretBytes> key, std::vector<std::string> userIds,
+                           std::function<void(std::string error)> done)>
+            sendDeviceKey;
+        /// Part B: this app is now in `callId` on device keys (`on`), or isn't any more, so its keys can be taken. Owner thread.
+        std::function<void(const std::string& callId, const std::string& conversationId, bool on)> deviceKeyCall;
+        /// Part C2: the call's roster changed (who may hand out its room keys, for a community). Owner thread.
+        std::function<void(const std::string& callId, const std::string& conversationId, const std::vector<std::string>& members)>
+            deviceKeyMembers;
     };
 
     /// One picture on the call screen: a person's camera (or avatar when it is off) or a shared screen.
@@ -161,6 +182,9 @@ public:
     /// Closes the "call ended" banner.
     void dismiss();
     void onLiveEvent(const api::live::LiveEvent& event);
+    /// Part B: a room key that came as a device-key message from a device in its sender's signed list.
+    void onDeviceKey(const std::string& callId, const std::string& conversationId, std::int64_t epoch, const std::string& fromUserId,
+                     std::shared_ptr<const crypto::SecretBytes> key);
     /// Asks the server which of your groups have a call going on.
     void refreshActive();
     void clearActive();

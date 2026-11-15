@@ -1,0 +1,346 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+ * Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems */
+
+/* The website around the kept pages: a header, the page, and a footer with
+   the legal links and the source offer. Same tokens as the apps. */
+
+.site {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+
+.brand {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 1.15rem;
+  color: var(--text);
+  text-align: left;
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.who {
+  font-size: 0.8rem;
+  color: var(--text-3);
+}
+
+.headerLink {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 6px 8px;
+  text-decoration: none;
+}
+
+.headerButton {
+  padding: 8px 16px;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.headerButtonQuiet {
+  padding: 8px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.narrow {
+  max-width: 420px;
+}
+
+.title {
+  margin: 0;
+}
+
+.lead {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.downloads {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.download {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.download:hover,
+.download:focus-visible {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.downloadPlatform {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.downloadLabel {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.downloadFile {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary {
+  padding: 11px 20px;
+  border-radius: var(--radius-control);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondary {
+  padding: 11px 20px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: inherit;
+  text-decoration: none;
+}
+
+/* --- Sign in --- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-card);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.notice {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  border-radius: var(--radius-card);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* --- Signed in --- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tabActive {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.wide {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* --- Footer --- */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 18px 20px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 0.78rem;
+  color: var(--text-3);
+}
+
+.footerLink {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-2);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 28px 16px 36px;
+  }
+  .header {
+    padding: 12px 16px;
+  }
+  .tabs {
+    padding: 0 8px;
+  }
+}

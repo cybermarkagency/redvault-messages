@@ -46,7 +46,7 @@ Rectangle {
                 color: Theme.text
                 font.pixelSize: Theme.fontSmall + 1
                 text: {
-                    if (bar.quote.paid) return "Paid. Your next message to " + bar.name + " goes through."
+                    if (bar.quote.paid) return qsTr("Paid. Your next message to ") + bar.name + qsTr(" goes through.")
                     if (bar.earnings && bar.earnings.safety)
                         return "Safety contact: for something urgent about " + bar.name + "'s safety or account. Free once every 30 days; misuse can be reported."
                     const what = bar.quote.mode === "first_contact"
@@ -63,26 +63,26 @@ Rectangle {
             spacing: 8
             RvButton {
                 visible: !(bar.earnings && bar.earnings.safety) && bar.quote.purchasable === true
-                text: bar.payingHere ? "Waiting for payment..." : "Pay " + bar.quote.price
+                text: bar.payingHere ? qsTr("Waiting for payment...") : qsTr("Pay ") + bar.quote.price
                 enabled: bar.earnings !== null && !bar.earnings.paying
                 onClicked: bar.earnings.payForMessage()
             }
             Text {
                 visible: !(bar.earnings && bar.earnings.safety) && bar.quote.purchasable !== true
-                text: "Payments aren't available in this app right now."
+                text: qsTr("Payments aren't available in this app right now.")
                 color: Theme.text2
                 font.pixelSize: Theme.fontSmall
             }
             RvButton {
                 visible: bar.payingHere
                 secondary: true
-                text: "Stop waiting"
+                text: qsTr("Stop waiting")
                 onClicked: bar.earnings.cancelPayment()
             }
             RvButton {
                 visible: bar.quote.safetyAvailable === true && !bar.payingHere
                 primary: false
-                text: bar.earnings && bar.earnings.safety ? "Cancel safety contact" : "Safety contact (free)"
+                text: bar.earnings && bar.earnings.safety ? qsTr("Cancel safety contact") : qsTr("Safety contact (free)")
                 onClicked: bar.earnings.safety = !bar.earnings.safety
             }
             Item { Layout.fillWidth: true }

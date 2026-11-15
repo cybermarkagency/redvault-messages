@@ -30,7 +30,7 @@ Item {
 
     FileDialog {
         id: exportDialog
-        title: "Export the log"
+        title: qsTr("Export the log")
         fileMode: FileDialog.SaveFile
         nameFilters: ["JSON (*.json)"]
         currentFolder: StandardPaths.writableLocation(StandardPaths.DocumentsLocation)
@@ -112,7 +112,7 @@ Item {
                     Layout.fillWidth: true
                     Text {
                         Layout.fillWidth: true
-                        text: "Transparency log"
+                        text: qsTr("Transparency log")
                         color: Theme.text
                         font.family: Theme.displayFamily
                         font.pixelSize: 26
@@ -124,7 +124,7 @@ Item {
                         implicitHeight: 32
                         implicitWidth: liveRow.implicitWidth + 24
                         hoverEnabled: true
-                        Accessible.name: root.log && root.log.live ? "Pause live updates" : "Resume live updates"
+                        Accessible.name: root.log && root.log.live ? qsTr("Pause live updates") : qsTr("Resume live updates")
                         onClicked: root.log.live = !root.log.live
                         background: Rectangle {
                             radius: 16
@@ -142,7 +142,7 @@ Item {
                             }
                             Text {
                                 Layout.rightMargin: 12
-                                text: root.log && root.log.live ? "Live · pause" : "Paused · resume"
+                                text: root.log && root.log.live ? qsTr("Live · pause") : qsTr("Paused · resume")
                                 textFormat: Text.PlainText
                                 color: Theme.text2
                                 font.pixelSize: 13
@@ -155,8 +155,8 @@ Item {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     text: root.log && root.log.disabled
-                          ? "The verifiable transparency log isn't set up on this server yet."
-                          : "A public, append-only record of every message this network relays. Each entry is a commitment to a sealed message, logged in signed batches, so anyone can check nothing was altered or removed on the way through."
+                          ? qsTr("The verifiable transparency log isn't set up on this server yet.")
+                          : qsTr("A public, append-only record of every message this network relays. Each entry is a commitment to a sealed message, logged in signed batches, so anyone can check nothing was altered or removed on the way through.")
                     textFormat: Text.PlainText
                     color: Theme.text2
                     font.pixelSize: 14
@@ -177,7 +177,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "The log never contains message content, senders or recipients. Only this computer can tell which entries are yours."
+                            text: qsTr("The log never contains message content, senders or recipients. Only this computer can tell which entries are yours.")
                             color: Theme.text3
                             font.pixelSize: 13
                         }
@@ -199,8 +199,8 @@ Item {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
                                 text: root.log.error.length > 0 ? root.log.error
-                                    : root.keyChanged ? "The log's signing key changed since this computer first saw it. Only accept the new key if the operator has announced it."
-                                    : "This checkpoint doesn't extend the one this computer verified before: the log may have been rewritten. Treat it as untrusted."
+                                    : root.keyChanged ? qsTr("The log's signing key changed since this computer first saw it. Only accept the new key if the operator has announced it.")
+                                    : qsTr("This checkpoint doesn't extend the one this computer verified before: the log may have been rewritten. Treat it as untrusted.")
                                 textFormat: Text.PlainText
                                 color: Theme.danger
                                 font.pixelSize: 13
@@ -209,7 +209,7 @@ Item {
                                 visible: root.keyChanged
                                 primary: false
                                 danger: true
-                                text: "Trust new key " + (root.cp.keyFingerprint || "")
+                                text: qsTr("Trust new key ") + (root.cp.keyFingerprint || "")
                                 onClicked: root.log.acceptNewKey()
                             }
                         }
@@ -219,11 +219,11 @@ Item {
                         Layout.fillWidth: true
                         spacing: 12
                         Stat {
-                            label: "Entries logged"
+                            label: qsTr("Entries logged")
                             value: root.hasCheckpoint ? Number(root.cp.treeSize).toLocaleString(Qt.locale(), "f", 0) : "0"
                         }
                         Stat {
-                            label: "Latest signed checkpoint"
+                            label: qsTr("Latest signed checkpoint")
                             value: root.hasCheckpoint ? root.cp.rootShort : "none yet"
                             mono: true
                             detail: !root.hasCheckpoint ? ""
@@ -232,7 +232,7 @@ Item {
                                     + " · key " + root.cp.keyFingerprint
                         }
                         Stat {
-                            label: "Your messages checked here"
+                            label: qsTr("Your messages checked here")
                             value: root.log.checkingMine ? "Checking…"
                                  : root.log.mineMismatches > 0 ? root.log.mineMismatches + (root.log.mineMismatches > 1 ? " mismatches" : " mismatch")
                                  : root.log.mineMatched > 0 ? "All match" : "Nothing yet"
@@ -248,7 +248,7 @@ Item {
                         SearchField {
                             id: logSearch
                             Layout.fillWidth: true
-                            placeholderText: "Search by entry number or commitment"
+                            placeholderText: qsTr("Search by entry number or commitment")
                             onAccepted: root.log.search = text
                             onTextChanged: searchDelay.restart()
                             Timer {
@@ -258,19 +258,19 @@ Item {
                             }
                         }
                         Chip {
-                            text: "All entries"
+                            text: qsTr("All entries")
                             checked: !root.log.onlyMine
                             onClicked: root.log.onlyMine = false
                         }
                         Chip {
-                            text: "Only mine"
+                            text: qsTr("Only mine")
                             checked: root.log.onlyMine
                             onClicked: root.log.onlyMine = true
                         }
                         RvButton {
                             secondary: true
                             iconName: "download"
-                            text: "Export"
+                            text: qsTr("Export")
                             onClicked: {
                                 App.lock.expectExternalReturn()
                                 exportDialog.open()
@@ -281,9 +281,9 @@ Item {
                     Banner {
                         Layout.fillWidth: true
                         text: root.log.failedRows > 0
-                              ? root.log.failedRows + (root.log.failedRows === 1 ? " listed entry doesn't" : " listed entries don't")
-                                + " prove to be in the signed checkpoint. The log is not behaving honestly for "
-                                + (root.log.failedRows === 1 ? "it." : "them.")
+                              ? root.log.failedRows + (root.log.failedRows === 1 ? qsTr(" listed entry doesn't") : qsTr(" listed entries don't"))
+                                + qsTr(" prove to be in the signed checkpoint. The log is not behaving honestly for ")
+                                + (root.log.failedRows === 1 ? qsTr("it.") : qsTr("them."))
                               : ""
                     }
 
@@ -347,7 +347,7 @@ Item {
                                         Layout.preferredWidth: 130
                                         spacing: 5
                                         Icon { name: "clock"; size: 14; color: Theme.warn }
-                                        Text { text: "Pending"; color: Theme.warn; font.pixelSize: 13 }
+                                        Text { text: qsTr("Pending"); color: Theme.warn; font.pixelSize: 13 }
                                     }
                                 }
                             }
@@ -357,7 +357,7 @@ Item {
                                 Layout.margins: 20
                                 visible: root.log.entries.length === 0 && (!root.log.onlyMine || root.log.pendingMine.length === 0)
                                 horizontalAlignment: Text.AlignHCenter
-                                text: root.log.onlyMine ? "None of your recent messages are in the log yet." : "No entries yet."
+                                text: root.log.onlyMine ? qsTr("None of your recent messages are in the log yet.") : qsTr("No entries yet.")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                             }
@@ -407,7 +407,7 @@ Item {
                                                 Text {
                                                     id: yours
                                                     anchors.centerIn: parent
-                                                    text: "Yours"
+                                                    text: qsTr("Yours")
                                                     color: Theme.yoursText
                                                     font.pixelSize: 11
                                                     font.weight: Font.DemiBold
@@ -421,14 +421,14 @@ Item {
                                             Icon {
                                                 name: parent.s === "verified" ? "check" : parent.s === "checking" ? "clock" : "close"
                                                 size: 14
-                                                color: parent.s === "verified" ? Theme.accent : parent.s === "checking" ? Theme.text3 : Theme.danger
+                                                color: parent.s === "verified" ? Theme.ok : parent.s === "checking" ? Theme.text3 : Theme.danger
                                             }
                                             Text {
-                                                text: parent.s === "verified" ? "Verified here"
-                                                    : parent.s === "checking" ? "Checking…"
-                                                    : parent.s === "mismatch" ? "Mismatch" : "Proof failed"
+                                                text: parent.s === "verified" ? qsTr("Verified here")
+                                                    : parent.s === "checking" ? qsTr("Checking…")
+                                                    : parent.s === "mismatch" ? qsTr("Mismatch") : qsTr("Proof failed")
                                                 textFormat: Text.PlainText
-                                                color: parent.s === "verified" ? Theme.accent : parent.s === "checking" ? Theme.text3 : Theme.danger
+                                                color: parent.s === "verified" ? Theme.ok : parent.s === "checking" ? Theme.text3 : Theme.danger
                                                 font.pixelSize: 13
                                             }
                                         }
@@ -459,7 +459,7 @@ Item {
                 visible: root.log.selected.index === undefined
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: "Select an entry to check its inclusion proof on this computer."
+                text: qsTr("Select an entry to check its inclusion proof on this computer.")
                 color: Theme.text3
             }
 
@@ -483,7 +483,7 @@ Item {
                     readonly property var e: root.log.selected
 
                     Text {
-                        text: "ENTRY"
+                        text: qsTr("ENTRY")
                         color: Theme.text3
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
@@ -508,9 +508,9 @@ Item {
                             anchors.fill: parent
                             anchors.margins: 12
                             wrapMode: Text.Wrap
-                            text: panelColumn.e.checking ? "Checking the inclusion proof…"
-                                : panelColumn.e.ok ? "Included in the latest signed checkpoint. The inclusion proof below checks out."
-                                : "The inclusion proof doesn't check out against the signed checkpoint."
+                            text: panelColumn.e.checking ? qsTr("Checking the inclusion proof…")
+                                : panelColumn.e.ok ? qsTr("Included in the latest signed checkpoint. The inclusion proof below checks out.")
+                                : qsTr("The inclusion proof doesn't check out against the signed checkpoint.")
                             textFormat: Text.PlainText
                             color: panelColumn.e.checking || panelColumn.e.ok ? Theme.accent : Theme.danger
                             font.pixelSize: 13
@@ -527,15 +527,15 @@ Item {
                             anchors.fill: parent
                             anchors.margins: 12
                             wrapMode: Text.Wrap
-                            text: panelColumn.e.mine === "mismatch" ? "Your message. The commitment this computer computed doesn't match the log."
-                                                                     : "Your message. The commitment this computer computed matches the log."
+                            text: panelColumn.e.mine === "mismatch" ? qsTr("Your message. The commitment this computer computed doesn't match the log.")
+                                                                     : qsTr("Your message. The commitment this computer computed matches the log.")
                             textFormat: Text.PlainText
                             color: Theme.yoursText
                             font.pixelSize: 13
                         }
                     }
 
-                    Text { text: "Commitment"; color: Theme.text3; font.pixelSize: 12 }
+                    Text { text: qsTr("Commitment"); color: Theme.text3; font.pixelSize: 12 }
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: commitText.implicitHeight + 20
@@ -560,26 +560,26 @@ Item {
                         columns: 2
                         columnSpacing: 12
                         rowSpacing: 8
-                        Text { text: "In checkpoint"; color: Theme.text3; font.pixelSize: 13 }
+                        Text { text: qsTr("In checkpoint"); color: Theme.text3; font.pixelSize: 13 }
                         Text {
-                            text: panelColumn.e.checkpointSize ? "#" + panelColumn.e.checkpointSize + " entries" : "—"
+                            text: panelColumn.e.checkpointSize ? "#" + panelColumn.e.checkpointSize + qsTr(" entries") : "—"
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.family: Theme.monoFamily
                             font.pixelSize: 13
                         }
-                        Text { text: "Scheme"; color: Theme.text3; font.pixelSize: 13 }
+                        Text { text: qsTr("Scheme"); color: Theme.text3; font.pixelSize: 13 }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "SHA-256 commitment v1 · RFC 9162 tree · Ed25519"
+                            text: qsTr("SHA-256 commitment v1 · RFC 9162 tree · Ed25519")
                             color: Theme.text
                             font.family: Theme.monoFamily
                             font.pixelSize: 12
                         }
                     }
 
-                    Text { text: "Inclusion proof"; color: Theme.text3; font.pixelSize: 12 }
+                    Text { text: qsTr("Inclusion proof"); color: Theme.text3; font.pixelSize: 12 }
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: pathColumn.implicitHeight + 20
@@ -606,7 +606,7 @@ Item {
                             }
                             Text {
                                 visible: !panelColumn.e.path || panelColumn.e.path.length === 0
-                                text: panelColumn.e.checking ? "…" : "(single entry: no path)"
+                                text: panelColumn.e.checking ? "…" : qsTr("(single entry: no path)")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.family: Theme.monoFamily
@@ -619,7 +619,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.topMargin: 8
                         iconName: "shield-check"
-                        text: "Re-check on this computer"
+                        text: qsTr("Re-check on this computer")
                         enabled: !panelColumn.e.checking
                         onClicked: root.log.recheckSelected()
                     }
@@ -629,7 +629,7 @@ Item {
                             Layout.fillWidth: true
                             secondary: true
                             iconName: root.copied ? "check" : "copy"
-                            text: root.copied ? "Copied" : "Copy proof"
+                            text: root.copied ? qsTr("Copied") : qsTr("Copy proof")
                             onClicked: {
                                 root.log.copySelectedProof()
                                 root.copied = true

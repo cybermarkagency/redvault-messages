@@ -16,7 +16,7 @@ RvDialog {
     readonly property string joinState: invites ? invites.joinState : ""
     property string pasteError: ""
 
-    title: joinState === "paste" ? "Join a group with a link" : "Group invite"
+    title: joinState === "paste" ? qsTr("Join a group with a link") : qsTr("Group invite")
     width: 460
 
     onOpened: {
@@ -47,7 +47,7 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Paste an invite link someone shared with you."
+                text: qsTr("Paste an invite link someone shared with you.")
                 color: Theme.text2
             }
             RowLayout {
@@ -56,7 +56,7 @@ RvDialog {
                 RvTextField {
                     id: pasteField
                     Layout.fillWidth: true
-                    placeholderText: "Paste the invite link"
+                    placeholderText: qsTr("Paste the invite link")
                     font.family: Theme.monoFamily
                     Accessible.name: "Group invite link"
                     onTextChanged: dialog.pasteError = ""
@@ -64,7 +64,7 @@ RvDialog {
                 }
                 RvButton {
                     id: openButton
-                    text: "Open"
+                    text: qsTr("Open")
                     enabled: pasteField.text.trim().length > 0
                     onClicked: dialog.pasteError = dialog.invites.openInvite(pasteField.text)
                 }
@@ -78,7 +78,7 @@ RvDialog {
         // --- Opening, or a link that doesn't work ---
         Text {
             visible: dialog.joinState === "opening"
-            text: "Opening the link…"
+            text: qsTr("Opening the link…")
             color: Theme.text2
         }
         Banner {
@@ -119,7 +119,7 @@ RvDialog {
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: dialog.invites ? "Group · " + dialog.invites.joinMemberCount + (dialog.invites.joinMemberCount === 1 ? " member" : " members") : ""
+                text: dialog.invites ? qsTr("Group · ") + dialog.invites.joinMemberCount + (dialog.invites.joinMemberCount === 1 ? qsTr(" member") : qsTr(" members")) : ""
                 textFormat: Text.PlainText
                 color: Theme.text3
             }
@@ -136,8 +136,8 @@ RvDialog {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Messages in this group are end-to-end encrypted. You'll only see messages sent after you join."
-                          + (dialog.invites && dialog.invites.joinApproval ? " An admin of the group has to approve you first." : "")
+                    text: qsTr("Messages in this group are end-to-end encrypted. You'll only see messages sent after you join.")
+                          + (dialog.invites && dialog.invites.joinApproval ? qsTr(" An admin of the group has to approve you first.") : "")
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall + 1
                 }
@@ -150,28 +150,28 @@ RvDialog {
             RvButton {
                 Layout.fillWidth: true
                 visible: dialog.invites.joinMember
-                text: "Open group"
+                text: qsTr("Open group")
                 onClicked: dialog.invites.openGroup()
             }
             Text {
                 Layout.fillWidth: true
                 visible: !dialog.invites.joinMember && dialog.invites.joinRequested
                 wrapMode: Text.Wrap
-                text: "Request sent. The group will appear in your chats once an admin approves it."
+                text: qsTr("Request sent. The group will appear in your chats once an admin approves it.")
                 color: Theme.text2
             }
             RvButton {
                 Layout.fillWidth: true
                 visible: !dialog.invites.joinMember && dialog.invites.joinRequested
                 secondary: true
-                text: "Cancel request"
+                text: qsTr("Cancel request")
                 enabled: !dialog.invites.joinBusy
                 onClicked: dialog.invites.cancelRequest()
             }
             RvButton {
                 Layout.fillWidth: true
                 visible: !dialog.invites.joinMember && !dialog.invites.joinRequested
-                text: dialog.invites.joinBusy ? "Joining…" : dialog.invites.joinApproval ? "Ask to join" : "Join group"
+                text: dialog.invites.joinBusy ? qsTr("Joining…") : dialog.invites.joinApproval ? qsTr("Ask to join") : qsTr("Join group")
                 enabled: !dialog.invites.joinBusy
                 onClicked: dialog.invites.join()
             }

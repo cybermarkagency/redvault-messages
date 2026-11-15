@@ -15,6 +15,11 @@ import android.util.LruCache
 import com.redvaultsystems.redvaultmessage.data.api.ACCESS_HEADER
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
 import com.redvaultsystems.redvaultmessage.data.api.ApiException
+import com.redvaultsystems.redvaultmessage.data.api.ChannelMediaDto
+import com.redvaultsystems.redvaultmessage.data.api.SealedMedia
+import com.redvaultsystems.redvaultmessage.crypto.FileCrypto
+import com.redvaultsystems.redvaultmessage.crypto.FileDecryptException
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -28,6 +33,9 @@ import okio.BufferedSink
 import okio.source
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.io.RandomAccessFile
+import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
@@ -35,7 +43,7 @@ import kotlin.coroutines.coroutineContext
 /**
  * The bytes of channel media: uploads (signed in, streamed from the phone
  * with progress), and photos, files, videos and recordings to show or play.
- * Channels are plain text by design, so media is stored as uploaded; reading
+ * A public channel's media is stored as uploaded; reading
  * it goes out on the cookie-less public client (signed, expiring same-server
  * links), so the server can't tell which account looks at what, and video
  * and audio play through our own client by byte ranges ([RangeSource]), so
@@ -43,6 +51,12 @@ import kotlin.coroutines.coroutineContext
  *
  * Only same-server "/api/…" paths are ever fetched. Everything downloaded
  * lives in the app's private cache and goes when the session ends.
+ *
+ * A private channel's media (Part C1) is encrypted on the phone before it's
+ * uploaded and the server only ever holds the ciphertext: its key comes from
+ * the opened post ([ChannelMediaDto.sealed]), and it's opened into the same
+ * private cache, never anywhere shared. It can't be read by byte ranges, so
+ * it plays from the opened copy.
  */
 class ChannelMediaClient(
     private val publicClient: OkHttpClient,
@@ -50,7 +64,8 @@ class ChannelMediaClient(
     private val apiBase: String,
     private val contentResolver: ContentResolver,
     cacheDir: File,
-) {
+    private val fileCrypto: FileCrypto,
+) : ChannelMediaTransfer {
     // Uploads can be gigabytes: the server answers only once the last byte is stored.
     private val uploadClient = signedInClient.newBuilder().writeTimeout(2, TimeUnit.MINUTES).readTimeout(2, TimeUnit.MINUTES).build()
     private val root = File(cacheDir, "channel-media")
@@ -60,6 +75,16 @@ class ChannelMediaClient(
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     private val avatars = LruCache<String, Bitmap>(48)
+    /** Private channels' media keys, by media id, from the posts opened on screen. */
+    private val sealedKeys = ConcurrentHashMap<String, SealedMedia>()
+
+    /** Scratch space for media being sealed or opened (app-private, cleared with the session). */
+    val workDir: File get() = File(root, "work")
+
+    /** Remembers how to open each encrypted item of an opened post, so [download] and [photo] can. */
+    fun rememberSealed(media: List<ChannelMediaDto>) {
+        for (m in media) m.sealed?.let { sealedKeys[m.id] = it }
+    }
 
     /** A same-server API path as a full address on our own server, or null for anything else. */
     fun resolve(path: String): String? = if (path.startsWith("/api/")) apiBase + path.removePrefix("/api/") else null
@@ -140,6 +165,25 @@ class ChannelMediaClient(
         file?.delete()
     }
 
+    /** A picked file's bytes, for sealing before upload. */
+    fun open(file: File?, uri: Uri?): InputStream =
+        file?.inputStream() ?: uri?.let(contentResolver::openInputStream) ?: throw UserFacingException("Couldn't read that file.")
+
+    // --- ChannelMediaTransfer (converting posts after a visibility switch) ---
+
+    override suspend fun fetch(url: String, into: File): Unit = withContext(Dispatchers.IO) {
+        val address = resolve(url) ?: throw UserFacingException("This file's link isn't one this app opens.")
+        publicClient.newBuilder().readTimeout(60, TimeUnit.SECONDS).build().newCall(Request.Builder().url(address).build()).execute().use { response ->
+            if (!response.isSuccessful) throw ApiException(response.code, "download_failed", "Couldn't download it. Try again.")
+            val body = response.body ?: throw UserFacingException("Couldn't download it. Try again.")
+            body.byteStream().use { input -> into.outputStream().use { input.copyTo(it, 256 * 1024) } }
+        }
+    }
+
+    override suspend fun send(uploadUrl: String, file: File, onProgress: (Float) -> Unit) {
+        upload(uploadUrl, file, null, file.length(), onProgress)
+    }
+
     // --- Reading ---
 
     /** A channel's photo, fetched without the cookie (with the private link's token when it's private). */
@@ -165,10 +209,12 @@ class ChannelMediaClient(
      */
     suspend fun download(mediaId: String, url: String, onProgress: (Float) -> Unit = {}): File = withContext(Dispatchers.IO) {
         val target = File(downloads, safeName(mediaId))
-        if (target.exists() && target.length() > 0) return@withContext target
+        val sealed = sealedKeys[mediaId]
+        if (target.exists() && (target.length() > 0 || sealed?.plainSize == 0L)) return@withContext target
         val address = resolve(url) ?: throw UserFacingException("This file's link isn't one this app opens.")
         downloads.mkdirs()
         val partial = File(downloads, "${safeName(mediaId)}.part")
+        val opened = File(downloads, "${safeName(mediaId)}.open")
         try {
             publicClient.newBuilder().readTimeout(60, TimeUnit.SECONDS).build()
                 .newCall(Request.Builder().url(address).build()).execute().use { response ->
@@ -192,12 +238,27 @@ class ChannelMediaClient(
                         }
                     }
                 }
-            if (!partial.renameTo(target)) throw UserFacingException("Couldn't save it. Try again.")
+            if (sealed != null) {
+                // Opened here, in the private cache: a changed or cut-short file fails as a whole.
+                try {
+                    partial.inputStream().buffered().use { input ->
+                        opened.outputStream().buffered().use { out ->
+                            fileCrypto.decrypt(input, out, sealed.fileKey, sealed.header, sealed.encryptedSize, sealed.ciphertextSha256)
+                        }
+                    }
+                } catch (e: FileDecryptException) {
+                    throw UserFacingException("This file can't be opened. It may have been changed.")
+                }
+                if (!opened.renameTo(target)) throw UserFacingException("Couldn't save it. Try again.")
+            } else if (!partial.renameTo(target)) {
+                throw UserFacingException("Couldn't save it. Try again.")
+            }
             target
         } catch (e: IOException) {
             throw UserFacingException("Couldn't download it. Check your connection and try again.")
         } finally {
             partial.delete()
+            opened.delete()
         }
     }
 
@@ -215,9 +276,17 @@ class ChannelMediaClient(
         return RangeSource(publicClient, address, size)
     }
 
+    /** What plays [media]: by byte ranges, or (encrypted) from the opened copy, fetched on first read. */
+    fun sourceFor(media: ChannelMediaDto): MediaDataSource? {
+        val sealed = media.sealed ?: return rangeSource(media.url, media.size)
+        sealedKeys[media.id] = sealed
+        return OpenedFileSource(sealed.plainSize) { runBlocking { download(media.id, media.url) } }
+    }
+
     fun clear() {
         photos.evictAll()
         avatars.evictAll()
+        sealedKeys.clear()
         root.deleteRecursively()
     }
 
@@ -275,6 +344,27 @@ class ChannelMediaClient(
             ExifInterface.TAG_GPS_MEASURE_MODE, ExifInterface.TAG_GPS_DOP, ExifInterface.TAG_GPS_DIFFERENTIAL,
             ExifInterface.TAG_GPS_VERSION_ID,
         )
+    }
+}
+
+/** An encrypted item played from its opened copy in the private cache (MediaPlayer reads on its own thread). */
+private class OpenedFileSource(private val total: Long, private val fetch: () -> File) : MediaDataSource() {
+    private var file: RandomAccessFile? = null
+
+    override fun getSize(): Long = total
+
+    @Synchronized
+    override fun readAt(position: Long, buffer: ByteArray, offset: Int, length: Int): Int {
+        if (position >= total) return -1
+        val f = file ?: RandomAccessFile(fetch(), "r").also { file = it }
+        f.seek(position)
+        return f.read(buffer, offset, length)
+    }
+
+    @Synchronized
+    override fun close() {
+        file?.close()
+        file = null
     }
 }
 
@@ -351,3 +441,12 @@ private class RangeSource(private val client: OkHttpClient, private val url: Str
         const val KEEP = 8
     }
 }
+
+/** One picked or recorded file on its way into a post or suggestion: its details, and where its bytes are. */
+class OutgoingMedia(
+    val meta: com.redvaultsystems.redvaultmessage.data.api.ChannelMediaStartRequest,
+    val file: File?,
+    val uri: Uri?,
+    val size: Long,
+    val onProgress: (Float) -> Unit,
+)

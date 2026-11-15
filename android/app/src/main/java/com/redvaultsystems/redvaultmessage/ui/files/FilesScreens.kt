@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.files
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.ActionSheet
+import com.redvaultsystems.redvaultmessage.ui.components.SheetAction
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import android.content.ClipData
@@ -144,21 +147,21 @@ fun FilesTab(
     val uploads = if (filter == FilesFilter.All && q.isEmpty()) state.uploads.filter { it.parent == folderId } else emptyList()
 
     Column(Modifier.fillMaxSize()) {
-        TabHeader("Files") {
+        TabHeader(stringResource(R.string.ui_files)) {
             RoundButton(R.drawable.ui_key, "Encryption keys", onClick = onOpenKeys)
             Box {
                 RoundButton(R.drawable.ui_dots, "More", onClick = { overflow = true })
                 DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }, containerColor = colors.surface) {
-                    DropdownMenuItem(text = { Text("New folder", color = colors.text) }, onClick = { overflow = false; naming = "folder" to "" })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.ui_new_folder), color = colors.text) }, onClick = { overflow = false; naming = "folder" to "" })
                     DropdownMenuItem(text = { Text(if (activeLinks > 0) "Shared links · $activeLinks" else "Shared links", color = colors.text) }, onClick = { overflow = false; onOpenLinks() })
                     DropdownMenuItem(text = { Text(if (incomingCount > 0) "Incoming · $incomingCount" else "Incoming", color = colors.text) }, onClick = { overflow = false; onOpenIncoming() })
                     if (filter == FilesFilter.All && folderId.isNotEmpty() && folder != null) {
-                        DropdownMenuItem(text = { Text("Share this folder", color = colors.text) }, onClick = { overflow = false; onShareLink(folderId) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.ui_share_this_folder), color = colors.text) }, onClick = { overflow = false; onShareLink(folderId) })
                     }
-                    if (filter == FilesFilter.Trash) DropdownMenuItem(text = { Text("Empty Trash", color = colors.danger) }, onClick = { overflow = false; files.emptyTrash() })
+                    if (filter == FilesFilter.Trash) DropdownMenuItem(text = { Text(stringResource(R.string.ui_empty_trash), color = colors.danger) }, onClick = { overflow = false; files.emptyTrash() })
                 }
             }
-            RoundButton(R.drawable.ui_upload, "Upload", onClick = { picker.launch(arrayOf("*/*")) }, container = colors.accent, tint = colors.accentContrast)
+            RoundButton(R.drawable.ui_upload, "Upload", onClick = { picker.launch(arrayOf("*/*")) }, container = colors.accentFill, tint = colors.accentContrast)
         }
         LazyColumn(Modifier.fillMaxSize()) {
             item { StorageCard(state) }
@@ -199,13 +202,13 @@ fun FilesTab(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        DsIcon(R.drawable.ui_chevron_left, colors.accent, 18.dp, description = "Up one folder")
+                        DsIcon(R.drawable.ui_chevron_left, colors.accent, 18.dp, description = stringResource(R.string.ui_up_one_folder))
                         Text(folder.name, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
             if (folders.isNotEmpty()) {
-                item { SectionCaps("Folders") }
+                item { SectionCaps(stringResource(R.string.ui_folders)) }
                 items(folders, key = { it.id }) { f ->
                     FileRow(f, unlocked = false, subtitle = folderSubtitle(state, f), onClick = { folderId = f.id }, onLongClick = { menuFor = f })
                 }
@@ -286,7 +289,7 @@ fun FilesTab(
         AlertDialog(
             onDismissRequest = { moving = null },
             containerColor = colors.surface,
-            title = { Text("Move to", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_move_to), color = colors.text) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     targets.forEach { (id, name) ->
@@ -299,7 +302,7 @@ fun FilesTab(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { moving = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { moving = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -340,7 +343,7 @@ private fun StorageCard(state: FilesState) {
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text("Encrypted and hashed on this phone", color = colors.text2, fontSize = 13.sp)
+                Text(stringResource(R.string.ui_encrypted_and_hashed_on_this_phone), color = colors.text2, fontSize = 13.sp)
             }
             Text(usage?.let { sizeText(it.used) } ?: "", color = colors.text, fontFamily = MonoFamily, fontSize = 13.sp)
         }
@@ -356,6 +359,23 @@ private fun StorageCard(state: FilesState) {
                 color = colors.text2,
                 fontSize = 12.sp,
             )
+            // More space: Pro 50 GB, Premium 100 GB. Offered once storage is getting full.
+            if (nearlyFull && usage.tier != "premium") {
+                Text(
+                    if (usage.tier == "pro") "Get 100 GB with Premium" else "Get more space",
+                    color = colors.accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                            com.redvaultsystems.redvaultmessage.ui.components.PlanGate.ask(
+                                if (usage.tier == "pro") "premium" else "pro",
+                                "More Files storage",
+                            )
+                        }
+                        .padding(vertical = 4.dp),
+                )
+            }
         }
     }
 }
@@ -379,7 +399,7 @@ private fun KeysCard(count: Int, onClick: () -> Unit) {
             DsIcon(R.drawable.ui_key, colors.lockText2, 18.dp)
         }
         Column(Modifier.weight(1f)) {
-            Text("Encryption keys", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ui_encryption_keys), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 (if (count == 1) "1 key" else "$count keys") + " · lock files with your own key",
                 color = colors.lockText2,
@@ -449,7 +469,7 @@ private fun UploadRow(upload: UploadItem, onCancel: () -> Unit) {
         if (upload.stage != "failed") {
             Icon(
                 painterResource(R.drawable.ui_close),
-                contentDescription = "Cancel upload",
+                contentDescription = stringResource(R.string.ui_cancel_upload),
                 tint = colors.text3,
                 modifier = Modifier.size(20.dp).clickable(onClickLabel = "Cancel upload", onClick = onCancel),
             )
@@ -475,46 +495,29 @@ private fun EntryActions(
         AlertDialog(
             onDismissRequest = onDismiss,
             containerColor = colors.surface,
-            title = { Text("Delete for good?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_delete_for_good), color = colors.text) },
             text = { Text(if (entry.isFile) "Every version of “${entry.name}” is deleted from storage. This can't be undone." else "“${entry.name}” and everything in it is deleted from storage. This can't be undone.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { onDelete(); onDismiss() }) { Text("Delete", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { onDelete(); onDismiss() }) { Text(stringResource(R.string.ui_delete), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
         return
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surface,
-        title = { Text(entry.name, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        text = {
-            Column {
-                val actions = buildList {
-                    if (entry.incoming) return@buildList
-                    if (entry.trashed) {
-                        add("Restore" to { onRestore(); onDismiss() })
-                        add("Delete for good" to { confirmDelete = true })
-                    } else {
-                        if (!entry.locked) add("Share link…" to { onShareLink(); onDismiss() })
-                        add("Rename" to { onRename(); onDismiss() })
-                        add("Move to…" to { onMove(); onDismiss() })
-                        if (entry.isFile) add("Upload a new version…" to { onNewVersion(); onDismiss() })
-                        add("Move to Trash" to { onTrash(); onDismiss() })
-                    }
-                }
-                if (actions.isEmpty()) Text("Shared with you: read-only.", color = colors.text2)
-                actions.forEach { (label, action) ->
-                    Text(
-                        label,
-                        color = if (label.startsWith("Delete")) colors.danger else colors.text,
-                        fontSize = 16.sp,
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = action).padding(vertical = 12.dp),
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close", color = colors.text2) } },
-    )
+    val actions = buildList {
+        if (entry.incoming) return@buildList
+        if (entry.trashed) {
+            add(SheetAction("Restore", R.drawable.ui_refresh) { onRestore(); onDismiss() })
+            add(SheetAction("Delete for good", R.drawable.ui_trash, danger = true) { confirmDelete = true })
+        } else {
+            if (!entry.locked) add(SheetAction("Share link…", R.drawable.ui_link) { onShareLink(); onDismiss() })
+            add(SheetAction("Rename", R.drawable.ui_pen) { onRename(); onDismiss() })
+            add(SheetAction("Move to…", R.drawable.ui_folder) { onMove(); onDismiss() })
+            if (entry.isFile) add(SheetAction("Upload a new version…", R.drawable.ui_upload) { onNewVersion(); onDismiss() })
+            add(SheetAction("Move to Trash", R.drawable.ui_trash, danger = true) { onTrash(); onDismiss() })
+        }
+    }
+    ActionSheet(onDismiss = onDismiss, actions = actions, title = entry.name) {
+        if (actions.isEmpty()) Text(stringResource(R.string.ui_shared_with_you_read_only), color = colors.text2, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+    }
 }
 
 @Composable
@@ -527,7 +530,7 @@ internal fun NameDialog(title: String, initial: String, confirm: String, onDismi
         title = { Text(title, color = colors.text) },
         text = { DsTextField(name, { name = it }, "Name") },
         confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text(confirm, color = colors.accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -603,13 +606,13 @@ fun FileDetailScreen(
                 when {
                     lockedNow -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         DsIcon(R.drawable.ui_lock, colors.lockText2, 26.dp)
-                        Text("Locked · no preview until unlocked", color = colors.lockText, fontSize = 13.sp)
+                        Text(stringResource(R.string.ui_locked_no_preview_until_unlocked), color = colors.lockText, fontSize = 13.sp)
                     }
                     image != null -> Image(image, contentDescription = "Preview of ${entry.name}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         val (label, tint) = typeOf(entry.name, false)
                         Text(label, color = tint, fontFamily = MonoFamily, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-                        Text("Tap to open, decrypted on this phone", color = colors.text3, fontFamily = MonoFamily, fontSize = 11.sp)
+                        Text(stringResource(R.string.ui_tap_to_open_decrypted_on_this), color = colors.text3, fontFamily = MonoFamily, fontSize = 11.sp)
                     }
                 }
             }
@@ -626,13 +629,13 @@ fun FileDetailScreen(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DsIcon(R.drawable.ui_shield_check, colors.accent, 14.dp)
-                    Text("Encrypted on this phone · hash checked on download", color = colors.accent, fontSize = 12.sp)
+                    Text(stringResource(R.string.ui_encrypted_on_this_phone_hash_checked), color = colors.accent, fontSize = 12.sp)
                 }
             }
 
             if (!entry.incoming && !entry.trashed) {
                 LockCard(entry, unlocked, lockKind, lockKey?.name, lockKey?.passwordProtected == true, lockKey != null, onUnlock, onChangeLock, onAddLock) { files.lockNow(entry.id) }
-                if (lockedNow) Callout("Unlock this file to save it, share it or create a link.", CalloutTone.Neutral, R.drawable.ui_info)
+                if (lockedNow) Callout(stringResource(R.string.ui_unlock_this_file_to_save_it), CalloutTone.Neutral, R.drawable.ui_info)
                 if (unlocked) Callout("Sharing gives the other person a copy they can open without your ${if (lockKind == "password") "password" else "key"}.", CalloutTone.Warn, R.drawable.ui_alert_circle)
             }
 
@@ -643,7 +646,7 @@ fun FileDetailScreen(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Avatar(person?.avatarUrl, person?.handle ?: userId, size = 36.dp)
                         Text(person?.handle ?: "Someone", color = colors.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        Text("Can view", color = colors.text3, fontSize = 13.sp)
+                        Text(stringResource(R.string.ui_can_view), color = colors.text3, fontSize = 13.sp)
                         RoundButton(R.drawable.ui_close, "Stop sharing with ${person?.handle ?: "them"}", onClick = { files.unshare(entry.id, userId) }, size = 36.dp, iconSize = 16.dp)
                     }
                 }
@@ -657,7 +660,7 @@ fun FileDetailScreen(
                 "Save", { saver.launch(entry.name) }, Modifier.weight(1f), style = PillStyle.Secondary, enabled = !lockedNow, icon = R.drawable.ui_download,
             )
             if (!entry.incoming && !entry.trashed) {
-                PillButton("Share", onShare, Modifier.weight(1f), style = PillStyle.Primary, enabled = !lockedNow, icon = R.drawable.ui_share)
+                PillButton(stringResource(R.string.ui_share), onShare, Modifier.weight(1f), style = PillStyle.Primary, enabled = !lockedNow, icon = R.drawable.ui_share)
             }
         }
     }
@@ -724,17 +727,17 @@ private fun LockCard(
         )
         when {
             unlocked -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PillButton("Lock now", onLockNow, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
-                PillButton("Change lock", onChangeLock, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
+                PillButton(stringResource(R.string.ui_lock_now), onLockNow, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
+                PillButton(stringResource(R.string.ui_change_lock), onChangeLock, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
             }
             locked -> {
-                PillButton("Unlock for this session", { onUnlock("") }, Modifier.fillMaxWidth(), height = 50.dp)
+                PillButton(stringResource(R.string.ui_unlock_for_this_session), { onUnlock("") }, Modifier.fillMaxWidth(), height = 50.dp)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PillButton("Change lock", { onUnlock("changeLock") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
-                    PillButton("Remove lock", { onUnlock("removeLock") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
+                    PillButton(stringResource(R.string.ui_change_lock), { onUnlock("changeLock") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
+                    PillButton(stringResource(R.string.ui_remove_lock), { onUnlock("removeLock") }, Modifier.weight(1f), style = PillStyle.Secondary, height = 46.dp)
                 }
             }
-            else -> PillButton("Add a lock", onAddLock, Modifier.fillMaxWidth(), style = PillStyle.Secondary, height = 46.dp, icon = R.drawable.ui_lock)
+            else -> PillButton(stringResource(R.string.ui_add_a_lock), onAddLock, Modifier.fillMaxWidth(), style = PillStyle.Secondary, height = 46.dp, icon = R.drawable.ui_lock)
         }
     }
 }
@@ -753,7 +756,7 @@ fun ShareFileScreen(files: FilesSession, state: FilesState, id: String, contacts
     val links = state.snapshot.links.filter { it.backupId == entry.id }
 
     FullSheet(
-        title = "Share",
+        title = stringResource(R.string.ui_share),
         onCancel = onBack,
         primary = "Share link…",
         primaryEnabled = !entry.locked,
@@ -761,9 +764,9 @@ fun ShareFileScreen(files: FilesSession, state: FilesState, id: String, contacts
         onPrimary = onPublicLink,
     ) {
         Text(entry.name, color = colors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        Callout("Sharing gives the other person a copy they can open. They only ever get the key inside their own encrypted copy.", CalloutTone.Neutral, R.drawable.ui_info)
+        Callout(stringResource(R.string.ui_sharing_gives_the_other_person_a), CalloutTone.Neutral, R.drawable.ui_info)
         SectionTitle("With a person")
-        if (contacts.isEmpty()) Text("Chat with someone first to share with them.", color = colors.text3, fontSize = 14.sp)
+        if (contacts.isEmpty()) Text(stringResource(R.string.ui_chat_with_someone_first_to_share), color = colors.text3, fontSize = 14.sp)
         contacts.forEach { person ->
             val shared = person.userId in entry.sharedWith
             Row(
@@ -777,8 +780,8 @@ fun ShareFileScreen(files: FilesSession, state: FilesState, id: String, contacts
             }
         }
         SectionTitle("With a link")
-        Text("A link anyone can open in a browser, without an account: view only, or for folders, taking uploads too. Use Share link below.", color = colors.text2, fontSize = 14.sp)
-        if (links.isNotEmpty()) Text("Older file links (they still work until you remove them):", color = colors.text3, fontSize = 13.sp)
+        Text(stringResource(R.string.ui_a_link_anyone_can_open_in), color = colors.text2, fontSize = 14.sp)
+        if (links.isNotEmpty()) Text(stringResource(R.string.ui_older_file_links_they_still_work), color = colors.text3, fontSize = 13.sp)
         links.forEach { link ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DsIcon(R.drawable.ui_link, colors.accent, 16.dp)

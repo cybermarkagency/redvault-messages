@@ -60,7 +60,7 @@ ColumnLayout {
     }
 
     Note {
-        text: "Stories are photos, videos and text your friends can see for 24 hours. They're end-to-end encrypted: each one has its own key, sealed only to the friends you share it with. Every account, on every plan, can post them."
+        text: qsTr("Stories are photos, videos and text your friends can see for 24 hours. They're end-to-end encrypted: each one has its own key, sealed only to the friends you share it with. Every account, on every plan, can post them.")
         color: Theme.text2
         font.pixelSize: Theme.fontSize
     }
@@ -73,45 +73,45 @@ ColumnLayout {
         color: Theme.danger
     }
 
-    Caption { text: "Who sees your stories" }
+    Caption { text: qsTr("Who sees your stories") }
     PickRow {
-        title: "Close friends"
+        title: qsTr("Close friends")
         detail: section.names("close") + ". Share a story with just them by picking “Close friends” when you post."
         onClicked: picker.openFor("close")
     }
     PickRow {
-        title: "Hide story from"
+        title: qsTr("Hide story from")
         detail: section.names("hidden") + ". They won't get your stories, including ones already up."
         onClicked: picker.openFor("hidden")
     }
     RvSwitch {
         Layout.fillWidth: true
-        label: "Allow replies"
-        description: "Friends can reply and react; replies arrive as messages in your chat with them. You can change it for each story."
+        label: qsTr("Allow replies")
+        description: qsTr("Friends can reply and react; replies arrive as messages in your chat with them. You can change it for each story.")
         checked: section.stories !== null && section.stories.allowReplies
         onToggled: (on) => section.stories.setAllowReplies(on)
     }
 
-    Caption { text: "Viewing" }
+    Caption { text: qsTr("Viewing") }
     RvSwitch {
         Layout.fillWidth: true
-        label: "Share that you viewed stories"
-        description: "When on, friends see you in their story's viewer list (never when you looked). When off, this app never tells the server you saw a story."
+        label: qsTr("Share that you viewed stories")
+        description: qsTr("When on, friends see you in their story's viewer list (never when you looked). When off, this app never tells the server you saw a story.")
         checked: section.stories !== null && section.stories.shareViews
         onToggled: (on) => section.stories.setShareViews(on)
     }
 
-    Caption { text: "Archive and highlights" }
+    Caption { text: qsTr("Archive and highlights") }
     RvSwitch {
         Layout.fillWidth: true
-        label: "Save to archive"
-        description: "Keep your stories, encrypted and visible only to you, after their 24 hours. Off: they're deleted (unless in a highlight)."
+        label: qsTr("Save to archive")
+        description: qsTr("Keep your stories, encrypted and visible only to you, after their 24 hours. Off: they're deleted (unless in a highlight).")
         checked: section.stories !== null && section.stories.archiveEnabled
         onToggled: (on) => section.stories.setArchive(on)
     }
     Note {
         visible: section.stories !== null && section.stories.library.length === 0
-        text: "No stories yet. Your stories from today and the archive show here."
+        text: qsTr("No stories yet. Your stories from today and the archive show here.")
     }
     Flow {
         Layout.fillWidth: true
@@ -141,18 +141,18 @@ ColumnLayout {
             }
             RvButton {
                 secondary: true
-                text: "View"
+                text: qsTr("View")
                 onClicked: section.stories.openHighlight(App.userId, highlightRow.modelData.id)
             }
             RvButton {
                 secondary: true
-                text: "Edit"
+                text: qsTr("Edit")
                 onClicked: editor.openFor(highlightRow.modelData)
             }
             RvButton {
                 primary: false
                 danger: true
-                text: "Delete"
+                text: qsTr("Delete")
                 onClicked: section.stories.deleteHighlight(highlightRow.modelData.id)
             }
         }
@@ -160,15 +160,15 @@ ColumnLayout {
     RvButton {
         secondary: true
         iconName: "plus"
-        text: "New highlight"
+        text: qsTr("New highlight")
         onClicked: editor.openFor(null)
     }
-    Note { text: "Highlights stay on your profile for friends who could see the stories in them." }
+    Note { text: qsTr("Highlights stay on your profile for friends who could see the stories in them.") }
 
-    Caption { text: "Muted" }
+    Caption { text: qsTr("Muted") }
     Note {
         visible: section.stories === null || section.stories.friends.filter(f => f.muted).length === 0
-        text: "Nobody's muted. Mute someone from the ⋯ menu on their story: they won't know."
+        text: qsTr("Nobody's muted. Mute someone from the ⋯ menu on their story: they won't know.")
     }
     Repeater {
         model: section.stories ? section.stories.friends.filter(f => f.muted) : []
@@ -186,15 +186,15 @@ ColumnLayout {
             Text { Layout.fillWidth: true; text: mutedRow.modelData.handle; textFormat: Text.PlainText; color: Theme.text; elide: Text.ElideRight }
             RvButton {
                 secondary: true
-                text: "Unmute"
+                text: qsTr("Unmute")
                 onClicked: section.stories.setMuted(mutedRow.modelData.userId, false)
             }
         }
     }
 
-    Caption { text: "What the server sees" }
+    Caption { text: qsTr("What the server sees") }
     Note {
-        text: "When you posted, how big it is, whether it's a photo, video or text, and which friends got a key. Not what it shows, its text or stickers, your close friends list or who you hide stories from. Anyone who can see a story could still photograph their screen."
+        text: qsTr("When you posted, how big it is, whether it's a photo, video or text, and which friends got a key. Not what it shows, its text or stickers, your close friends list or who you hide stories from. Anyone who can see a story could still photograph their screen.")
     }
 
     // --- Pick close friends, or who to hide stories from ---
@@ -202,7 +202,7 @@ ColumnLayout {
         id: picker
         property string key: "close"
         property var chosen: []
-        title: key === "close" ? "Close friends" : "Hide story from"
+        title: key === "close" ? qsTr("Close friends") : qsTr("Hide story from")
         function openFor(k) {
             picker.key = k
             picker.chosen = section.stories.friends.filter(f => f[k]).map(f => f.userId)
@@ -215,11 +215,11 @@ ColumnLayout {
             SearchField {
                 id: search
                 Layout.fillWidth: true
-                placeholderText: "Search friends"
+                placeholderText: qsTr("Search friends")
             }
             Note {
                 visible: section.stories !== null && section.stories.friends.length === 0
-                text: "Add friends first."
+                text: qsTr("Add friends first.")
             }
             ListView {
                 Layout.fillWidth: true
@@ -248,9 +248,9 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                RvButton { secondary: true; text: "Cancel"; onClicked: picker.close() }
+                RvButton { secondary: true; text: qsTr("Cancel"); onClicked: picker.close() }
                 RvButton {
-                    text: "Save (" + picker.chosen.length + ")"
+                    text: qsTr("Save (") + picker.chosen.length + ")"
                     onClicked: {
                         if (picker.key === "close") section.stories.setCloseFriends(picker.chosen)
                         else section.stories.setHideFrom(picker.chosen)
@@ -267,7 +267,7 @@ ColumnLayout {
         property var highlight: null
         property var picked: []
         width: 560
-        title: editor.highlight ? "Edit highlight" : "New highlight"
+        title: editor.highlight ? qsTr("Edit highlight") : qsTr("New highlight")
         function openFor(h) {
             editor.highlight = h
             editor.picked = h ? [h.coverStoryId].concat(h.stories.map(s => s.id).filter(id => id !== h.coverStoryId)) : []
@@ -281,10 +281,10 @@ ColumnLayout {
             RvTextField {
                 id: nameField
                 Layout.fillWidth: true
-                placeholderText: "Name"
+                placeholderText: qsTr("Name")
                 maximumLength: 40
             }
-            Note { text: "Pick stories from today and your archive. The first one you pick is the cover." }
+            Note { text: qsTr("Pick stories from today and your archive. The first one you pick is the cover.") }
             Flickable {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 300
@@ -311,9 +311,9 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                RvButton { secondary: true; text: "Cancel"; onClicked: editor.close() }
+                RvButton { secondary: true; text: qsTr("Cancel"); onClicked: editor.close() }
                 RvButton {
-                    text: "Save"
+                    text: qsTr("Save")
                     enabled: nameField.text.trim().length > 0 && editor.picked.length > 0
                     onClicked: {
                         section.stories.saveHighlight(editor.highlight ? editor.highlight.id : "", nameField.text, editor.picked)
@@ -332,7 +332,9 @@ ColumnLayout {
         property string image: ""
         width: 84
         height: 150
-        Accessible.name: (thumb.story.kind === "text" ? "Text" : thumb.story.kind === "image" ? "Photo" : "Video") + " story"
+        readonly property bool painted: thumb.story.kind === "text" || thumb.story.kind === "audio"
+        readonly property var pair: Theme.storyBackgrounds[thumb.story.background] || (thumb.story.kind === "audio" ? Theme.storyBackgrounds.night : Theme.storyBackgrounds.sunset)
+        Accessible.name: (thumb.story.kind === "text" ? qsTr("Text") : thumb.story.kind === "image" ? qsTr("Photo") : thumb.story.kind === "audio" ? qsTr("Voice") : qsTr("Video")) + qsTr(" story")
         Component.onCompleted: if (thumb.story.kind === "image") section.stories.loadMedia(thumb.story.id)
         Connections {
             target: section.stories
@@ -346,8 +348,8 @@ ColumnLayout {
             border.width: thumb.selected ? 3 : 0
             border.color: Theme.accent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: thumb.story.kind === "text" ? (Theme.storyBackgrounds[thumb.story.background] || Theme.storyBackgrounds.sunset)[0] : Theme.surface2 }
-                GradientStop { position: 1.0; color: thumb.story.kind === "text" ? (Theme.storyBackgrounds[thumb.story.background] || Theme.storyBackgrounds.sunset)[1] : Theme.surface2 }
+                GradientStop { position: 0.0; color: thumb.painted ? thumb.pair[0] : Theme.surface2 }
+                GradientStop { position: 1.0; color: thumb.painted ? thumb.pair[1] : Theme.surface2 }
             }
         }
         contentItem: Item {
@@ -361,10 +363,10 @@ ColumnLayout {
             }
             Icon {
                 anchors.centerIn: parent
-                visible: thumb.story.kind === "video"
-                name: "play"
+                visible: thumb.story.kind === "video" || thumb.story.kind === "audio"
+                name: thumb.story.kind === "audio" ? "mic" : "play"
                 size: 24
-                color: Theme.text2
+                color: thumb.story.kind === "audio" ? Theme.storyColors.white : Theme.text2
             }
             Text {
                 anchors.fill: parent

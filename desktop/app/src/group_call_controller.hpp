@@ -37,6 +37,7 @@ namespace redvault::app {
 class AudioIo;
 class CallController;
 class ChatSession;
+class DeviceKeysSession;
 class LiveSession;
 class VideoIo;
 
@@ -55,6 +56,8 @@ class VideoIo;
  *   - Links: the starter's app posts the call's link in the chat once it is
  *     connected; members paste it into Calls -> Join a call link, or click it
  *     in the chat, and join here.
+ *   - Device keys (part B): in a group on them, the room key goes to each
+ *     participant's devices as a device-key message, never through /keys.
  */
 class GroupCallController : public QObject {
     Q_OBJECT
@@ -148,6 +151,11 @@ public:
     Q_INVOKABLE void setTileSink(const QString& key, QObject* sink);
     /// Forgets the tile's sink, but only if it is still `sink` (another tile may have taken the key over).
     Q_INVOKABLE void clearTileSink(const QString& key, QObject* sink);
+    /// Device keys (part B): room keys of calls in groups on them travel as device-key messages.
+    void setDeviceKeys(DeviceKeysSession* keys) { deviceKeys_ = keys; }
+    /// A checked room key from a device-key message (DeviceKeysSession hands them out, UI thread).
+    void onDeviceCallKey(const std::string& callId, const std::string& conversationId, std::int64_t epoch, const std::string& fromUserId,
+                         std::shared_ptr<const crypto::SecretBytes> key);
 
 signals:
     void availableChanged();
@@ -170,6 +178,7 @@ private:
     QPointer<LiveSession> live_;
     QPointer<ChatSession> chats_;
     QPointer<CallController> calls_;
+    QPointer<DeviceKeysSession> deviceKeys_;
     TierProvider tier_;
     std::unique_ptr<lk::GroupCallSession> session_;
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);

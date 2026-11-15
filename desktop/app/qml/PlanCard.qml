@@ -25,7 +25,7 @@ Rectangle {
     border.width: card.current ? 2 : 1
 
     Accessible.role: Accessible.Grouping
-    Accessible.name: card.choice.name + (card.current ? ", your plan" : "")
+    Accessible.name: card.choice.name + (card.current ? qsTr(", your plan") : "")
 
     ColumnLayout {
         id: content
@@ -47,13 +47,13 @@ Rectangle {
             Rectangle {
                 visible: card.current
                 radius: height / 2
-                color: Theme.accent
+                color: Theme.accentFill
                 implicitHeight: badge.implicitHeight + 6
                 implicitWidth: badge.implicitWidth + 16
                 Text {
                     id: badge
                     anchors.centerIn: parent
-                    text: "Current"
+                    text: qsTr("Current")
                     color: Theme.accentContrast
                     font.pixelSize: Theme.fontSmall
                     font.weight: Font.DemiBold

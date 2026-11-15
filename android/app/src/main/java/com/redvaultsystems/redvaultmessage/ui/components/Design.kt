@@ -204,7 +204,7 @@ fun PillButton(
 ) {
     val colors = RedvaultTheme.colors
     val container = when (style) {
-        PillStyle.Primary -> colors.accent
+        PillStyle.Primary -> colors.accentFill
         PillStyle.Secondary -> colors.surface2
         PillStyle.Danger -> colors.dangerSoft
         PillStyle.Quiet -> Color.Transparent
@@ -246,7 +246,7 @@ fun DsSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, description: 
             .size(width = 50.dp, height = 30.dp)
             .alpha(if (enabled) 1f else 0.4f)
             .clip(RoundedCornerShape(15.dp))
-            .background(if (checked) colors.accent else colors.surface3)
+            .background(if (checked) colors.accentFill else colors.surface3)
             .clickable(enabled = enabled, role = Role.Switch) { onCheckedChange(!checked) }
             .semantics {
                 contentDescription = description
@@ -300,8 +300,8 @@ fun Callout(text: String, tone: CalloutTone, @DrawableRes icon: Int, modifier: M
     val colors = RedvaultTheme.colors
     val (container, border, ink) = when (tone) {
         CalloutTone.Ok -> Triple(colors.accentSoft, colors.accentBorder, colors.accent)
-        CalloutTone.Error -> Triple(colors.dangerSoft, Color(0xFF5A2D28), colors.danger)
-        CalloutTone.Warn -> Triple(colors.warnSoft, Color(0xFF4A3F28), colors.warn)
+        CalloutTone.Error -> Triple(colors.dangerSoft, colors.dangerBorder, colors.danger)
+        CalloutTone.Warn -> Triple(colors.warnSoft, colors.warnBorder, colors.warn)
         CalloutTone.Neutral -> Triple(colors.surface, colors.border, colors.text3)
         CalloutTone.Lock -> Triple(colors.lockBg, colors.lockBorder, colors.lockText)
     }
@@ -328,11 +328,11 @@ fun Callout(text: String, tone: CalloutTone, @DrawableRes icon: Int, modifier: M
 /** One destination in the bottom tab bar. */
 data class TabItem(val key: String, val label: String, @DrawableRes val icon: Int, val badge: Int = 0)
 
-/** The bottom tab bar: equal tabs, accent when selected, 1px top border. */
+/** The bottom tab bar: equal tabs, accent and a pill when selected, 1px top border. */
 @Composable
 fun BottomTabBar(tabs: List<TabItem>, selected: String, onSelect: (String) -> Unit) {
     val colors = RedvaultTheme.colors
-    Column(Modifier.fillMaxWidth().background(colors.bg)) {
+    Column(Modifier.fillMaxWidth().background(colors.bar)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             tabs.forEach { tab ->
@@ -347,11 +347,17 @@ fun BottomTabBar(tabs: List<TabItem>, selected: String, onSelect: (String) -> Un
                         .padding(vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box {
+                    // The selected tab: a soft burgundy pill behind its icon as well as the colour.
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (on) colors.accentSoft else Color.Transparent)
+                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                    ) {
                         DsIcon(tab.icon, ink, 24.dp)
                         if (tab.badge > 0) {
                             Box(
-                                Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-4).dp).size(16.dp).background(colors.accent, CircleShape),
+                                Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp).size(16.dp).background(colors.accentFill, CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(if (tab.badge > 9) "9+" else tab.badge.toString(), color = colors.accentContrast, fontSize = 9.sp, fontWeight = FontWeight.Bold)
@@ -359,15 +365,23 @@ fun BottomTabBar(tabs: List<TabItem>, selected: String, onSelect: (String) -> Un
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    // Six tabs fit a narrow phone at 10sp on one line.
-                    Text(
+                    // Six tabs fit a narrow phone at 10sp on one line. With a large system font a label that would
+                    // run into its neighbour steps down just enough to fit (never below 7sp), instead of being cut.
+                    androidx.compose.foundation.text.BasicText(
                         tab.label,
-                        color = ink,
-                        fontSize = if (tabs.size > 5) 10.sp else 11.sp,
-                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
-                        fontFamily = RedvaultFonts.sans,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = ink,
+                            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                            fontFamily = RedvaultFonts.sans,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        ),
                         maxLines = 1,
                         softWrap = false,
+                        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                            minFontSize = 7.sp,
+                            maxFontSize = if (tabs.size > 5) 10.sp else 11.sp,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 1.dp),
                     )
                 }
             }

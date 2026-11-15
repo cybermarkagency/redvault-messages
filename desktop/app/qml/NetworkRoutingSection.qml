@@ -56,7 +56,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "Network routing"
+        text: qsTr("Network routing")
         color: Theme.text
         font.family: Theme.displayFamily
         font.pixelSize: 26
@@ -66,14 +66,14 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         text: root.torOn
-              ? "Everything this app sends, except calls, travels through Tor to Redvault's onion service. If Tor can't connect, messages wait, encrypted on this computer, until it's back: there is no direct connection to fall back to."
-              : "This copy was built for testing and isn't connected through Tor: it talks to its server directly. Messages are still end-to-end encrypted."
+              ? qsTr("Everything this app sends, except calls, travels through Tor to RedVault's onion service. If Tor can't connect, messages wait, encrypted on this computer, until it's back: there is no direct connection to fall back to.")
+              : qsTr("This copy was built for testing and isn't connected through Tor: it talks to its server directly. Messages are still end-to-end encrypted.")
         textFormat: Text.PlainText
         color: Theme.text2
         font.pixelSize: 14
     }
 
-    Caption { text: "ROUTING" }
+    Caption { text: qsTr("ROUTING") }
     Card {
         Layout.fillWidth: true
         ColumnLayout {
@@ -88,7 +88,7 @@ ColumnLayout {
         }
     }
 
-    Caption { text: "TOR" }
+    Caption { text: qsTr("TOR") }
     Card {
         Layout.fillWidth: true
         RowLayout {
@@ -99,17 +99,18 @@ ColumnLayout {
                 height: 10
                 radius: 5
                 color: !root.torOn ? Theme.text3
-                       : root.tor.state === "connected" ? Theme.accent
+                       : root.tor.state === "connected" ? Theme.ok
                        : root.tor.state === "connecting" ? Theme.warn : Theme.danger
             }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
                 Text {
-                    text: !root.torOn ? "Not in use"
-                          : root.tor.state === "connected" ? "Connected through Tor"
-                          : root.tor.state === "connecting" ? "Connecting through Tor… " + root.tor.progress + "%"
-                          : "Can't reach Tor"
+                    text: !root.torOn ? qsTr("Not in use")
+                          : root.tor.state === "connected" && root.tor.backupRoute ? qsTr("Connected through Tor (backup route)")
+                          : root.tor.state === "connected" ? qsTr("Connected through Tor")
+                          : root.tor.state === "connecting" ? qsTr("Connecting through Tor… ") + root.tor.progress + "%"
+                          : qsTr("Can't reach Tor")
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 14
@@ -127,7 +128,7 @@ ColumnLayout {
                 Text {
                     Layout.fillWidth: true
                     visible: root.torOn
-                    text: root.torOn ? "Onion service: " + root.tor.onionHost : ""
+                    text: root.torOn ? qsTr("Onion service: ") + root.tor.onionHost : ""
                     textFormat: Text.PlainText
                     elide: Text.ElideMiddle
                     color: Theme.text3
@@ -136,44 +137,71 @@ ColumnLayout {
             }
         }
     }
+    // The sealed backup route (docs/tor-sealed-fallback.md): only in builds that carry the gateway's key.
+    Caption { visible: root.torOn && root.tor.backupRouteAvailable; text: qsTr("BACKUP ROUTE") }
+    Card {
+        Layout.fillWidth: true
+        visible: root.torOn && root.tor.backupRouteAvailable
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            RvSwitch {
+                Layout.fillWidth: true
+                label: qsTr("Only use the onion address")
+                description: qsTr("When the onion address can't be reached, the app normally switches to a backup route: still through Tor, to the website, with every request sealed so only RedVault's server can read it. Cloudflare, which runs in front of the website, can then see that someone uses the backup route, when and how much, but not who or what. Turn this on to wait for the onion address instead.")
+                checked: root.torOn && root.tor.onionOnly
+                onToggled: (on) => root.tor.onionOnly = on
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: root.torOn && root.tor.backupRoute
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("In use now: the onion address isn't answering. The app checks it every minute and moves back as soon as it does.")
+                color: Theme.text2
+                font.pixelSize: 12
+            }
+        }
+    }
+
     Banner {
         Layout.fillWidth: true
         error: true
         text: root.torOn && root.tor.state === "unavailable"
-              ? "Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored."
+              ? qsTr("Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored.")
               : ""
     }
     Text {
         Layout.fillWidth: true
         visible: root.torOn && (root.tor.queued > 0)
-        text: root.torOn ? root.tor.queued + (root.tor.queued === 1 ? " message waiting" : " messages waiting")
-                           + (root.tor.pausedUploads > 0 ? " (" + root.tor.pausedUploads + (root.tor.pausedUploads === 1 ? " upload paused)" : " uploads paused)") : "")
+        text: root.torOn ? root.tor.queued + (root.tor.queued === 1 ? qsTr(" message waiting") : qsTr(" messages waiting"))
+                           + (root.tor.pausedUploads > 0 ? " (" + root.tor.pausedUploads + (root.tor.pausedUploads === 1 ? qsTr(" upload paused)") : qsTr(" uploads paused)")) : "")
                          : ""
         textFormat: Text.PlainText
         color: Theme.text2
         font.pixelSize: 13
     }
 
-    Caption { text: "IN DETAIL" }
+    Caption { text: qsTr("IN DETAIL") }
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
-        text: "Through Tor: messages (including device keys), photos, files and voice messages, Files backups and share links, Stories, profile pictures, your account and sign-in, contacts, groups, channels and communities, the live connection, and update checks.\n"
-              + "Not through Tor: the sound and picture of voice and video calls, one-to-one and in groups. They go through an encrypted relay (TURN), never directly to the other person. Setting up a call still goes through Tor."
+        text: qsTr("Through Tor: messages (including device keys), photos, files and voice messages, Files backups and share links, Stories, profile pictures, your account and sign-in, contacts, groups, channels and communities, the live connection, and update checks.\n")
+              + qsTr("Not through Tor: the sound and picture of voice and video calls, one-to-one and in groups. They go through an encrypted relay (TURN), never directly to the other person. Setting up a call still goes through Tor.")
         color: Theme.text2
         font.pixelSize: 13
     }
 
-    Caption { text: "WHAT OTHERS CAN STILL SEE" }
+    Caption { text: qsTr("WHAT OTHERS CAN STILL SEE") }
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
-        text: "• Redvault's server never receives your IP address for messages and media, but it still sees your account, who you talk to, when, and how big the (encrypted) messages are.\n"
-              + "• Your internet provider can see that you use Tor (not what for).\n"
-              + "• Calls are not anonymous: they go through a relay (TURN) that sees your IP address and the call's timing, never its content. A call doesn't start without a relay; it never falls back to a direct connection.\n"
-              + "• No system makes you completely anonymous."
+        text: qsTr("• RedVault's server never receives your IP address for messages and media, but it still sees your account, who you talk to, when, and how big the (encrypted) messages are.\n")
+              + qsTr("• Your internet provider can see that you use Tor (not what for).\n")
+              + qsTr("• Calls are not anonymous: they go through a relay (TURN) that sees your IP address and the call's timing, never its content. A call doesn't start without a relay; it never falls back to a direct connection.\n")
+              + qsTr("• No system makes you completely anonymous.")
         color: Theme.text2
         font.pixelSize: 13
     }

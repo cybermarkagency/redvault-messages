@@ -10,7 +10,7 @@ Item {
     property int period: 30
     implicitWidth: 36
     implicitHeight: 36
-    Accessible.name: seconds + " seconds left"
+    Accessible.name: seconds + qsTr(" seconds left")
 
     onSecondsChanged: canvas.requestPaint()
 

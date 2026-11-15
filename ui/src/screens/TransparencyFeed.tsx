@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { TopBar } from "../components/TopBar.js";
 import { API_BASE } from "../lib/apiBase.js";
 import { getTransparencyFeed, type PublicTransparencyEventDto } from "../lib/api.js";
-import { useAppState } from "../state/AppStateContext.js";
 import styles from "./TransparencyFeed.module.css";
 
 const MAX_EVENTS = 50;
@@ -20,14 +19,13 @@ function shortLabel(publicTransactionId: string): string {
  * The public live transparency feed — see notification.md and
  * server/src/services/transparencyService.ts. Reachable with no account:
  * a fixed sandbox conversation always appears here, and any signed-in user
- * can additionally opt their own messages in via Settings > Transparency
- * Mode. Never shows plaintext, a sender/recipient identity, or which
+ * can additionally opt their own messages in from the apps' settings
+ * (Transparency Mode). Never shows plaintext, a sender/recipient identity, or which
  * conversation a message belongs to — only a public transaction id, a
  * cryptographic commitment, and (only for the sandbox or an opted-in
  * sender) the raw ciphertext itself.
  */
-export function TransparencyFeed({ returnTo }: { returnTo: "onboarding" | "settings" }) {
-  const { dispatch } = useAppState();
+export function TransparencyFeed({ onBack }: { onBack: () => void }) {
   const [events, setEvents] = useState<PublicTransparencyEventDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,12 +75,7 @@ export function TransparencyFeed({ returnTo }: { returnTo: "onboarding" | "setti
 
   return (
     <div className={styles.screen}>
-      <TopBar
-        title="Live Encrypted Network"
-        onBack={() =>
-          returnTo === "settings" ? dispatch({ type: "OPEN_SETTINGS" }) : dispatch({ type: "GO_ONBOARDING" })
-        }
-      />
+      <TopBar title="Live Encrypted Network" onBack={onBack} />
       <div className={styles.body}>
         <p className={`${styles.intro} type-secondary`}>
           A live, public record of messages actually relayed by this server. Each entry shows a cryptographic

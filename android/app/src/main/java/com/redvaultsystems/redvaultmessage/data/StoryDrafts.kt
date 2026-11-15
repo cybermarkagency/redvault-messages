@@ -34,7 +34,8 @@ import java.security.SecureRandom
 // from the account's private key, bound to the account and the draft's id, and each slide's photo or video is encrypted like any story media
 // with its own key, which lives inside the sealed details. A draft never reaches the server. Ten per account, thirty days.
 
-enum class SlideMode(val wire: String) { Media("media"), Text("text") }
+/** A slide is a photo or video, a voice recording, or words on a background. */
+enum class SlideMode(val wire: String) { Media("media"), Text("text"), Audio("audio") }
 
 /** One slide: a photo or video, or words on a background, and what's on it. */
 class DraftSlide(
@@ -119,6 +120,7 @@ class StoryDraftStore(
                         put("width", media.width)
                         put("height", media.height)
                         if (media.durationMs != null) put("durationMs", media.durationMs)
+                        if (media.waveform != null) put("waveform", JsonArray(media.waveform.map { JsonPrimitive(it) }))
                     }
                 } finally {
                     encrypted.key.fill(0)
@@ -142,7 +144,11 @@ class StoryDraftStore(
         }
         val first = slides[0]
         val preview = when {
-            first.media != null -> if (first.media.kind == StoryKind.Video) "Video" else "Photo"
+            first.media != null -> when (first.media.kind) {
+                StoryKind.Video -> "Video"
+                StoryKind.Audio -> jsTrim(first.text).take(60).ifEmpty { "Voice" }
+                else -> "Photo"
+            }
             else -> jsTrim(first.text).take(60)
         }
         val sealedJson = buildJsonObject {
@@ -193,11 +199,16 @@ class StoryDraftStore(
             if (ref != null) {
                 media = openMedia(dir, id, i, ref) ?: continue // a slide whose media can't be opened (or is a kind this app can't show) is left out
             }
-            val wantsMedia = c["mode"]?.string() == "media"
+            val modeName = c["mode"]?.string()
+            val wantsMedia = modeName == "media" || modeName == "audio"
             if (wantsMedia && media == null) continue
             slides.add(
                 DraftSlide(
-                    mode = if (wantsMedia) SlideMode.Media else SlideMode.Text,
+                    mode = when {
+                        wantsMedia && modeName == "audio" -> SlideMode.Audio
+                        wantsMedia -> SlideMode.Media
+                        else -> SlideMode.Text
+                    },
                     text = c["text"]?.string().orEmpty(),
                     background = StoryBackground.fromWire(c["background"]?.string()) ?: StoryBackground.Sunset,
                     font = StoryFont.fromWire(c["font"]?.string()) ?: StoryFont.Classic,
@@ -249,6 +260,7 @@ class StoryDraftStore(
                 ref["height"]?.number()?.toInt() ?: 1,
                 ref["durationMs"]?.number()?.toLong(),
                 target.length(),
+                StoryMetaParser.parseWaveform(ref["waveform"]),
             ) { FileInputStream(target) }
         } catch (e: Exception) {
             null

@@ -49,20 +49,20 @@ RowLayout {
     RvTextField {
         id: dateField
         Layout.preferredWidth: 130
-        placeholderText: "YYYY-MM-DD"
-        Accessible.name: field.label + ", date"
+        placeholderText: qsTr("YYYY-MM-DD")
+        Accessible.name: field.label + qsTr(", date")
     }
     RvTextField {
         id: timeField
         Layout.preferredWidth: 80
-        placeholderText: "HH:MM"
-        Accessible.name: field.label + ", time"
+        placeholderText: qsTr("HH:MM")
+        Accessible.name: field.label + qsTr(", time")
     }
     Text {
         Layout.fillWidth: true
         visible: field.filled && field.iso.length === 0
         wrapMode: Text.Wrap
-        text: "A date and time from now on, like 2026-12-24 and 18:30."
+        text: qsTr("A date and time from now on, like 2026-12-24 and 18:30.")
         color: Theme.warn
         font.pixelSize: Theme.fontSmall
     }

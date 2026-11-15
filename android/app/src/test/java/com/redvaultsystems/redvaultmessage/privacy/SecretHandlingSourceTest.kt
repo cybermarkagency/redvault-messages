@@ -87,19 +87,25 @@ class SecretHandlingSourceTest {
     @Test
     fun whatDeviceKeysCantCarryIsRefusedInAChatOnThem() {
         val chat = file("ChatSession.kt")
+        // Part A: replies, polls, votes, forwards and pins go on device keys, and since part D story replies; what's left
+        // is a change to a message sent before the chat moved to device keys.
         mapOf(
-            "send" to "OlderProtocolOnly.Reply",
-            "createPoll" to "OlderProtocolOnly.Poll",
-            "vote" to "OlderProtocolOnly.Vote",
-            "endPoll" to "OlderProtocolOnly.Vote",
-            "forwardMany" to "OlderProtocolOnly.Forward",
-            "forwardChannelPost" to "OlderProtocolOnly.Forward",
-            "sendStoryReply" to "OlderProtocolOnly.StoryReply",
-            "togglePin" to "OlderProtocolOnly.Pin",
-            "unpin" to "OlderProtocolOnly.Pin",
+            "vote" to "OlderProtocolOnly.OlderMessageChange",
+            "endPoll" to "OlderProtocolOnly.OlderMessageChange",
+            "togglePin" to "OlderProtocolOnly.OlderMessageChange",
+            "unpin" to "OlderProtocolOnly.OlderMessageChange",
             "toggleReaction" to "OlderProtocolOnly.OlderMessageChange",
             "edit" to "OlderProtocolOnly.OlderMessageChange",
         ).forEach { (function, refusal) -> assertTrue("$function must refuse with $refusal", refusal in body(chat, function)) }
+        // Part D: story replies and reactions go on device keys too.
+        assertTrue("OlderProtocolOnly.StoryReply" !in body(chat, "sendStoryReply"))
+        for (gone in listOf("Reply", "Poll", "Vote", "Forward", "Pin", "StoryReply")) {
+            assertTrue("OlderProtocolOnly.$gone is gone", filesContaining("OlderProtocolOnly.$gone)").isEmpty() && filesContaining("OlderProtocolOnly.$gone,").isEmpty())
+        }
+        // Each goes on device keys first when the chat is on them.
+        assertTrue("pollV3(meta, question, options, multiple)" in body(chat, "createPoll"))
+        assertTrue("forwardsOnDeviceKeys(" in body(chat, "forwardMany"))
+        assertTrue("forwardsOnDeviceKeys(meta)" in body(chat, "forwardChannelPost"))
     }
 
     @Test
@@ -126,18 +132,21 @@ class SecretHandlingSourceTest {
     }
 
     @Test
-    fun aChatOnDeviceKeysHidesWhatTheyCantCarryYet() {
+    fun aChatOnDeviceKeysOffersEverythingAgain() {
+        // Part A (docs/signal-integration/08-part-a-chat-features.md): what step 1 hid is back.
         val thread = file("ThreadScreen.kt")
-        for (hidden in listOf(
+        for (gone in listOf(
             "onStartPoll = if (deviceKeyChat) null",
             "onSelect = if (deviceKeyChat) null",
             "onForward = if (!deviceKeyChat &&",
             "onSelect = if (!deviceKeyChat &&",
             "!deviceKeyChat || conversation.disappearing != Disappearing.Off",
-            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onReply)",
-            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onTogglePin)",
-        )) assertTrue("ThreadScreen must hide: $hidden", hidden in thread)
-        assertTrue("deviceKeyChat = session.chats.onDeviceKeys(conversation.id)" in file("SignedInApp.kt"))
+            "!message.v3 && !deviceKeyChat",
+        )) assertTrue("ThreadScreen must not hide: $gone", gone !in thread)
+        val app = file("SignedInApp.kt")
+        assertTrue("deviceKeyChat = session.chats.onDeviceKeys(conversation.id)" in app)
+        assertTrue("!session.chats.onDeviceKeys(it.id)" !in app)
+        assertTrue("session.chats.messagesOnScreen(conversation.id, ids)" in app)
     }
 
     @Test
@@ -155,5 +164,16 @@ class SecretHandlingSourceTest {
         assertTrue("if (!encryptionOn(s, room)) return endForEncryption(s)" in body(calls, "maybePublish"))
         assertTrue("if (!rekeySenders(s)) return endForEncryption(s)" in body(calls, "applyKey"))
         assertTrue("if (!installOrSilence({ s.keys.installKey(key, epoch) }, publishedSenders(s))) return endForEncryption(s)" in body(calls, "applyKey"))
+    }
+
+    @Test
+    fun anonymousStoryAnswersNeverReadKeysOutOfTheEngineState() {
+        // Part D: RVSD copies are sealed and opened by the engine (storySeal, storyUnseal); the app never decrypts its
+        // own engine state to get at a private key.
+        assertTrue(filesContaining("diffie_hellman_key").isEmpty())
+        assertTrue(filesContaining("withIdentityKeyPair").isEmpty())
+        val stories = file("V3Stories.kt")
+        assertTrue("\"storySeal\"" in stories && "\"storyUnseal\"" in stories)
+        assertTrue("cryptoBoxSealOpen" !in stories && "cryptoBoxSeal(" !in stories)
     }
 }

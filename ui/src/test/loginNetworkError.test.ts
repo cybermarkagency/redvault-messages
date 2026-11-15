@@ -8,13 +8,14 @@ import { loginIdentity } from "../state/actions.js";
 // Sign-in used to say "Wrong handle or password." for everything, including a server that was never reached.
 // Over Tor a dropped circuit is routine, so that wording sent people chasing the wrong problem.
 
-vi.mock("../lib/api.js", async () => {
-  const backend = await import("./fakeApiBackend.js");
+vi.mock("../lib/api.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../lib/api.js")>();
   return {
-    ...backend.fakeApiModule,
+    ...real,
+    preLogin: vi.fn(async () => ({ kdfSalt: "AAAAAAAAAAAAAAAAAAAAAA==", authVersion: 2, upgrade: false })),
     login: vi.fn(async (handle: string) => {
       if (handle === "offline") throw new TypeError("NetworkError when attempting to fetch resource.");
-      return backend.fakeApiModule.login(handle);
+      throw new real.ApiError(401, "invalid_credentials", "Invalid credentials");
     }),
   };
 });

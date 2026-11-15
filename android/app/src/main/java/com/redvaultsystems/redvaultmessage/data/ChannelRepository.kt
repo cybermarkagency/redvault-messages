@@ -9,6 +9,11 @@ import com.redvaultsystems.redvaultmessage.data.api.ChannelApproveRequest
 import com.redvaultsystems.redvaultmessage.data.api.ChannelAvatarRequest
 import com.redvaultsystems.redvaultmessage.data.api.ChannelCheckRequest
 import com.redvaultsystems.redvaultmessage.data.api.ChannelChecklistDto
+import com.redvaultsystems.redvaultmessage.data.api.ChannelConversionDto
+import com.redvaultsystems.redvaultmessage.data.api.ChannelEncryptedApproveRequest
+import com.redvaultsystems.redvaultmessage.data.api.ChannelEncryptedPostRequest
+import com.redvaultsystems.redvaultmessage.data.api.ChannelEncryptedSuggestionRequest
+import com.redvaultsystems.redvaultmessage.data.api.ChannelKeysDto
 import com.redvaultsystems.redvaultmessage.data.api.ChannelDetailsRequest
 import com.redvaultsystems.redvaultmessage.data.api.ChannelDto
 import com.redvaultsystems.redvaultmessage.data.api.ChannelMediaStartRequest
@@ -27,9 +32,10 @@ import com.redvaultsystems.redvaultmessage.data.api.PublicChannelApi
 import com.redvaultsystems.redvaultmessage.data.api.apiCall
 
 /**
- * Channels (server/src/services/channelService.ts): one-way and plain text
- * by design. Reads go through [public], which carries no session cookie, so
- * the server can't tell which account reads which channel; a private
+ * Channels (server/src/services/channelService.ts): one-way. Public channels
+ * are plain text by design; a private channel's posts are sealed on the
+ * phones with keys from its link (Part C1, see PrivateChannels). Reads go
+ * through [public], which carries no session cookie, so the server can't tell which account reads which channel; a private
  * channel's reads (and votes, ticks and suggestions) carry its link's access
  * token ([access]). The rest is signed in. Each call throws ApiException on
  * failure.
@@ -99,8 +105,34 @@ class ChannelRepository(private val public: PublicChannelApi, private val api: C
 
     suspend fun report(id: String, reason: String) = apiCall(ApiClient.json) { api.report(id, ChannelReportRequest(reason)) }
 
+    // --- Part C1: private channels encrypted with the link ---
+
+    /** A reader's copy of a private channel's wrapped keys: no cookie, only the link's token. */
+    suspend fun publicKeys(id: String, access: String?): ChannelKeysDto = apiCall(ApiClient.json) { public.keys(id, access) }
+
+    /** The owner's copy (also while public), signed in. */
+    suspend fun ownerKeys(id: String): ChannelKeysDto = apiCall(ApiClient.json) { api.keys(id, null) }
+
+    suspend fun conversion(id: String, limit: Int = CONVERSION_PAGE): ChannelConversionDto = apiCall(ApiClient.json) { api.conversion(id, limit) }
+
+    suspend fun postEncrypted(id: String, post: ChannelEncryptedPostRequest): ChannelPostDto = apiCall(ApiClient.json) { api.postEncrypted(id, post) }
+
+    suspend fun replacePost(id: String, postId: String, post: ChannelPostRequest): ChannelPostDto =
+        apiCall(ApiClient.json) { api.replacePost(id, postId, post) }
+
+    suspend fun replacePostEncrypted(id: String, postId: String, post: ChannelEncryptedPostRequest): ChannelPostDto =
+        apiCall(ApiClient.json) { api.replacePostEncrypted(id, postId, post) }
+
+    suspend fun suggestEncrypted(id: String, body: ChannelEncryptedSuggestionRequest, access: String?): ChannelSuggestionDto =
+        apiCall(ApiClient.json) { api.suggestEncrypted(id, body, access) }
+
+    suspend fun approveSuggestionEncrypted(id: String, suggestionId: String, body: ChannelEncryptedApproveRequest): ChannelPostDto =
+        apiCall(ApiClient.json) { api.approveSuggestionEncrypted(id, suggestionId, body) }
+
     companion object {
         /** A page of the directory or of a channel's posts, as the web asks for. */
         const val PAGE = 30
+        /** Posts converted per round after a visibility switch (the server's most). */
+        const val CONVERSION_PAGE = 50
     }
 }

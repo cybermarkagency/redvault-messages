@@ -97,7 +97,7 @@ Item {
                 }
                 Text {
                     Layout.maximumWidth: Math.max(60, tile.width - 80)
-                    text: tile.screen ? (tile.isSelf ? "Your screen" : tile.handle + "'s screen") : tile.handle
+                    text: tile.screen ? (tile.isSelf ? qsTr("Your screen") : tile.handle + qsTr("'s screen")) : tile.handle
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: Theme.text

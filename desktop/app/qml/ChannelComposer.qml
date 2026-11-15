@@ -112,7 +112,7 @@ Rectangle {
 
     FileDialog {
         id: mediaDialog
-        title: "Add photos, videos or audio"
+        title: qsTr("Add photos, videos or audio")
         fileMode: FileDialog.OpenFiles
         nameFilters: ["Photos, videos and audio (*.jpg *.jpeg *.png *.gif *.webp *.avif *.heic *.heif *.bmp *.mp4 *.m4v *.mov *.webm *.mkv *.avi *.mp3 *.m4a *.aac *.ogg *.oga *.opus *.wav *.flac)", "All files (*)"]
         currentFolder: StandardPaths.writableLocation(StandardPaths.PicturesLocation)
@@ -120,7 +120,7 @@ Rectangle {
     }
     FileDialog {
         id: fileDialog
-        title: "Add files"
+        title: qsTr("Add files")
         fileMode: FileDialog.OpenFiles
         currentFolder: StandardPaths.writableLocation(StandardPaths.DocumentsLocation)
         onAccepted: composer.uploads.addFiles(selectedFiles, "file")
@@ -145,51 +145,51 @@ Rectangle {
     Menu {
         id: attachMenu
         MenuItem {
-            text: "Photo, video or audio…"
+            text: qsTr("Photo, video or audio…")
             icon.source: "image://icon/image/" + menuIcon.hex(Theme.text)
             enabled: composer.canAttach
             onTriggered: mediaDialog.open()
         }
         MenuItem {
-            text: "File…"
+            text: qsTr("File…")
             icon.source: "image://icon/file/" + menuIcon.hex(Theme.text)
             enabled: composer.canAttach
             onTriggered: fileDialog.open()
         }
         MenuItem {
-            text: "Voice clip"
+            text: qsTr("Voice clip")
             icon.source: "image://icon/mic/" + menuIcon.hex(Theme.text)
             enabled: composer.canAttach && composer.recording.length === 0
             onTriggered: composer.startRecording("voice")
         }
         MenuItem {
-            text: "Round video"
+            text: qsTr("Round video")
             icon.source: "image://icon/video/" + menuIcon.hex(Theme.text)
             enabled: composer.canAttach && composer.recording.length === 0
             onTriggered: composer.startRecording("round")
         }
         MenuSeparator {}
         MenuItem {
-            text: "Poll"
+            text: qsTr("Poll")
             icon.source: "image://icon/chart-bar/" + menuIcon.hex(Theme.text)
             enabled: !composer.hasMedia
             onTriggered: composer.chooseExtra("poll")
         }
         MenuItem {
-            text: "Quiz"
+            text: qsTr("Quiz")
             icon.source: "image://icon/info/" + menuIcon.hex(Theme.text)
             enabled: !composer.hasMedia
             onTriggered: composer.chooseExtra("quiz")
         }
         MenuItem {
-            text: "Checklist"
+            text: qsTr("Checklist")
             icon.source: "image://icon/check/" + menuIcon.hex(Theme.text)
             enabled: !composer.hasMedia
             onTriggered: composer.chooseExtra("checklist")
         }
         MenuSeparator {}
         MenuItem {
-            text: composer.scheduling ? "Post now instead" : "Schedule…"
+            text: composer.scheduling ? qsTr("Post now instead") : qsTr("Schedule…")
             icon.source: "image://icon/clock/" + menuIcon.hex(Theme.text)
             onTriggered: composer.toggleSchedule()
         }
@@ -268,19 +268,19 @@ Rectangle {
                                 text: recorder.error.length > 0 ? recorder.error
                                     : composer.recording === "round"
                                       ? composer.channels.formatDuration(recorder.seconds) + " / " + composer.channels.formatDuration(recorder.maxSeconds)
-                                      : "Recording " + composer.channels.formatDuration(recorder.seconds)
+                                      : qsTr("Recording ") + composer.channels.formatDuration(recorder.seconds)
                                 textFormat: Text.PlainText
                                 color: recorder.error.length > 0 ? Theme.danger : Theme.text
                             }
                             RvButton {
                                 visible: recorder.error.length === 0
-                                text: "Stop and attach"
+                                text: qsTr("Stop and attach")
                                 enabled: recorder.recording
                                 onClicked: recorder.stop()
                             }
                             RvButton {
                                 secondary: true
-                                text: "Cancel"
+                                text: qsTr("Cancel")
                                 onClicked: {
                                     recorder.cancel()
                                     composer.recording = ""
@@ -302,7 +302,7 @@ Rectangle {
                     spacing: 8
                     Text {
                         Layout.fillWidth: true
-                        text: composer.extra === "poll" ? "New poll" : composer.extra === "quiz" ? "New quiz" : "New checklist"
+                        text: composer.extra === "poll" ? qsTr("New poll") : composer.extra === "quiz" ? qsTr("New quiz") : qsTr("New checklist")
                         textFormat: Text.PlainText
                         color: Theme.text2
                         font.pixelSize: Theme.fontSmall + 1
@@ -314,7 +314,7 @@ Rectangle {
                         implicitHeight: 28
                         Accessible.name: "Remove"
                         ToolTip.visible: hovered
-                        ToolTip.text: "Remove"
+                        ToolTip.text: qsTr("Remove")
                         onClicked: composer.extra = ""
                     }
                 }
@@ -327,7 +327,7 @@ Rectangle {
                     RvTextField {
                         id: question
                         Layout.fillWidth: true
-                        placeholderText: composer.extra === "quiz" ? "Quiz question" : "Poll question"
+                        placeholderText: composer.extra === "quiz" ? qsTr("Quiz question") : qsTr("Poll question")
                         maximumLength: 300
                         Accessible.name: "Question"
                     }
@@ -343,11 +343,11 @@ Rectangle {
                                 visible: composer.extra === "quiz"
                                 checked: composer.correct === optionRow.index
                                 onClicked: composer.correct = optionRow.index
-                                Accessible.name: "Option " + (optionRow.index + 1) + " is the right answer"
+                                Accessible.name: "Option " + (optionRow.index + 1) + qsTr(" is the right answer")
                             }
                             RvTextField {
                                 Layout.fillWidth: true
-                                placeholderText: "Option " + (optionRow.index + 1)
+                                placeholderText: qsTr("Option ") + (optionRow.index + 1)
                                 maximumLength: 100
                                 text: composer.options[optionRow.index]
                                 Accessible.name: "Option " + (optionRow.index + 1)
@@ -357,7 +357,7 @@ Rectangle {
                                 visible: composer.options.length > 2
                                 primary: false
                                 implicitHeight: 32
-                                text: "Remove"
+                                text: qsTr("Remove")
                                 onClicked: {
                                     const next = composer.options.slice()
                                     next.splice(optionRow.index, 1)
@@ -371,12 +371,12 @@ Rectangle {
                         visible: composer.options.length < composer.channels.maxPollOptions
                         primary: false
                         implicitHeight: 32
-                        text: "Add an option"
+                        text: qsTr("Add an option")
                         onClicked: composer.options = composer.options.concat([""])
                     }
                     CheckBox {
                         visible: composer.extra === "poll"
-                        text: "Let people pick more than one"
+                        text: qsTr("Let people pick more than one")
                         checked: composer.multiple
                         onToggled: composer.multiple = checked
                     }
@@ -384,7 +384,7 @@ Rectangle {
                         id: explanation
                         Layout.fillWidth: true
                         visible: composer.extra === "quiz"
-                        placeholderText: "Why it's right (optional, shown after answering)"
+                        placeholderText: qsTr("Why it's right (optional, shown after answering)")
                         maximumLength: 200
                         Accessible.name: "Explanation"
                     }
@@ -398,7 +398,7 @@ Rectangle {
                     RvTextField {
                         id: listTitle
                         Layout.fillWidth: true
-                        placeholderText: "Checklist title"
+                        placeholderText: qsTr("Checklist title")
                         maximumLength: 200
                         Accessible.name: "Checklist title"
                     }
@@ -411,7 +411,7 @@ Rectangle {
                             spacing: 6
                             RvTextField {
                                 Layout.fillWidth: true
-                                placeholderText: "Item " + (itemRow.index + 1)
+                                placeholderText: qsTr("Item ") + (itemRow.index + 1)
                                 maximumLength: 200
                                 text: composer.items[itemRow.index]
                                 Accessible.name: "Item " + (itemRow.index + 1)
@@ -421,7 +421,7 @@ Rectangle {
                                 visible: composer.items.length > 1
                                 primary: false
                                 implicitHeight: 32
-                                text: "Remove"
+                                text: qsTr("Remove")
                                 onClicked: {
                                     const next = composer.items.slice()
                                     next.splice(itemRow.index, 1)
@@ -434,11 +434,11 @@ Rectangle {
                         visible: composer.items.length < composer.channels.maxChecklistItems
                         primary: false
                         implicitHeight: 32
-                        text: "Add an item"
+                        text: qsTr("Add an item")
                         onClicked: composer.items = composer.items.concat([""])
                     }
                     CheckBox {
-                        text: "Followers can tick items too"
+                        text: qsTr("Followers can tick items too")
                         checked: composer.collaborative
                         onToggled: composer.collaborative = checked
                     }
@@ -490,7 +490,7 @@ Rectangle {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 leftPadding: 8
-                text: "Links are made automatically"
+                text: qsTr("Links are made automatically")
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
             }
@@ -507,14 +507,14 @@ Rectangle {
                 Layout.alignment: Qt.AlignBottom
                 implicitHeight: 42
                 iconName: "paperclip"
-                tip: "Attach, poll, quiz, checklist or schedule"
+                tip: qsTr("Attach, poll, quiz, checklist or schedule")
                 onClicked: attachMenu.popup(attachButton, 0, -attachMenu.implicitHeight - 6)
             }
             IconButton {
                 Layout.alignment: Qt.AlignBottom
                 implicitHeight: 42
                 iconName: "pen"
-                tip: composer.formatting ? "Hide formatting" : "Formatting"
+                tip: composer.formatting ? qsTr("Hide formatting") : qsTr("Formatting")
                 toggled: composer.formatting
                 onClicked: composer.formatting = !composer.formatting
             }
@@ -526,14 +526,14 @@ Rectangle {
                 TextArea {
                     id: body
                     objectName: "channelPostInput"
-                    placeholderText: "Write a post for everyone following this channel"
+                    placeholderText: qsTr("Write a post for everyone following this channel")
                     Accessible.name: "New post"
                     persistentSelection: true
                     wrapMode: TextArea.Wrap
                     textFormat: TextEdit.PlainText
                     color: Theme.text
                     placeholderTextColor: Theme.placeholder
-                    selectionColor: Theme.accent
+                    selectionColor: Theme.accentFill
                     selectedTextColor: Theme.accentContrast
                     font.pixelSize: Theme.fontSize + 1
                     leftPadding: 14
@@ -549,7 +549,7 @@ Rectangle {
 
                     ToolTip.visible: hovered && body.length === 0
                     ToolTip.delay: 1200
-                    ToolTip.text: "*bold*  _italic_  ~strike~  `code`  ||spoiler||   (Ctrl+B, Ctrl+I, Ctrl+Shift+X, Ctrl+E, Ctrl+Shift+B)"
+                    ToolTip.text: qsTr("*bold*  _italic_  ~strike~  `code`  ||spoiler||   (Ctrl+B, Ctrl+I, Ctrl+Shift+X, Ctrl+E, Ctrl+Shift+B)")
 
                     // Enter posts; Shift+Enter starts a new line.
                     Keys.onPressed: (event) => {
@@ -577,7 +577,7 @@ Rectangle {
                 objectName: "channelSendButton"
                 Layout.alignment: Qt.AlignBottom
                 iconName: composer.scheduling && schedule.iso.length > 0 ? "clock" : "send"
-                tip: composer.channels.posting ? "Posting…" : composer.scheduling && schedule.iso.length > 0 ? "Schedule post" : "Post"
+                tip: composer.channels.posting ? qsTr("Posting…") : composer.scheduling && schedule.iso.length > 0 ? qsTr("Schedule post") : qsTr("Post")
                 round: true
                 implicitWidth: 42
                 implicitHeight: 42
@@ -587,7 +587,7 @@ Rectangle {
                 onClicked: composer.submit()
                 background: Rectangle {
                     radius: 21
-                    color: Theme.accent
+                    color: Theme.accentFill
                     opacity: parent.enabled ? 1 : 0.4
                 }
             }
@@ -599,8 +599,8 @@ Rectangle {
             Layout.leftMargin: 4
             visible: body.text.length > 0 || (composer.uploads !== null && composer.uploads.busy)
             elide: Text.ElideRight
-            text: body.text.length + "/" + composer.channels.maxPostLength + " · posted as "
-                  + (composer.channels.channel.name || "") + (composer.uploads && composer.uploads.busy ? " · uploading…" : "")
+            text: body.text.length + "/" + composer.channels.maxPostLength + qsTr(" · posted as ")
+                  + (composer.channels.channel.name || "") + (composer.uploads && composer.uploads.busy ? qsTr(" · uploading…") : "")
             textFormat: Text.PlainText
             color: composer.tooLong ? Theme.danger : Theme.text3
             font.pixelSize: Theme.fontSmall

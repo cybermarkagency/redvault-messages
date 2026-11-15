@@ -27,7 +27,7 @@ RvDialog {
     property bool busy: false
     /// Everything was forwarded.
     signal forwarded()
-    title: channelPost ? "Forward post" : messageIds.length > 1 ? "Forward " + messageIds.length + " messages" : "Forward message"
+    title: channelPost ? qsTr("Forward post") : messageIds.length > 1 ? qsTr("Forward ") + messageIds.length + qsTr(" messages") : qsTr("Forward message")
     width: 460
 
     function openFor(ids, containsFile) {
@@ -78,7 +78,7 @@ RvDialog {
         SearchField {
             id: filter
             Layout.fillWidth: true
-            placeholderText: "Search chats"
+            placeholderText: qsTr("Search chats")
         }
 
         ListView {
@@ -124,8 +124,8 @@ RvDialog {
                         implicitWidth: 20
                         implicitHeight: 20
                         radius: 10
-                        color: row.on ? Theme.accent : "transparent"
-                        border.color: row.on ? Theme.accent : Theme.borderStrong
+                        color: row.on ? Theme.accentFill : "transparent"
+                        border.color: row.on ? Theme.accentFill : Theme.borderStrong
                         border.width: 2
                         Icon {
                             anchors.centerIn: parent
@@ -140,7 +140,7 @@ RvDialog {
             Text {
                 anchors.centerIn: parent
                 visible: list.count === 0
-                text: dialog.targets.length === 0 ? "You don't have a chat to forward to yet." : "No chats match."
+                text: dialog.targets.length === 0 ? qsTr("You don't have a chat to forward to yet.") : qsTr("No chats match.")
                 textFormat: Text.PlainText
                 color: Theme.text3
             }
@@ -150,8 +150,8 @@ RvDialog {
             Layout.fillWidth: true
             visible: dialog.channelPost !== null
             wrapMode: Text.Wrap
-            text: dialog.channelPost ? "It's sent end-to-end encrypted, as a post from " + dialog.channelPost.channelName
-                                       + ". Each copy that's seen counts as a view." : ""
+            text: dialog.channelPost ? qsTr("It's sent end-to-end encrypted, as a post from ") + dialog.channelPost.channelName
+                                       + qsTr(". Each copy that's seen counts as a view.") : ""
             textFormat: Text.PlainText
             color: Theme.text3
             font.pixelSize: 12
@@ -160,11 +160,19 @@ RvDialog {
             Layout.fillWidth: true
             visible: dialog.hasFile
             wrapMode: Text.Wrap
-            text: dialog.canSendFiles ? "Files are encrypted again on this computer and uploaded once for each chat."
-                                      : "Forwarding a file means sending it again, which needs Pro."
+            text: dialog.canSendFiles ? qsTr("Files are encrypted again on this computer and uploaded once for each chat.")
+                                      : qsTr("Forwarding a file means sending it again, which needs Pro.")
             textFormat: Text.PlainText
             color: dialog.canSendFiles ? Theme.text3 : Theme.warn
             font.pixelSize: 12
+        }
+        RvButton {
+            visible: dialog.hasFile && !dialog.canSendFiles
+            primary: false
+            implicitHeight: 30
+            iconName: "lock"
+            text: qsTr("See plans")
+            onClicked: { dialog.close(); PlanGate.openPlans() }
         }
         Banner {
             Layout.fillWidth: true
@@ -175,12 +183,12 @@ RvDialog {
             spacing: 8
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.close()
             }
             RvButton {
-                text: dialog.busy ? "Forwarding…"
-                    : dialog.pickedCount > 1 ? "Forward to " + dialog.pickedCount + " chats" : "Forward"
+                text: dialog.busy ? qsTr("Forwarding…")
+                    : dialog.pickedCount > 1 ? qsTr("Forward to ") + dialog.pickedCount + qsTr(" chats") : qsTr("Forward")
                 enabled: !dialog.busy && dialog.pickedCount > 0 && (!dialog.hasFile || dialog.canSendFiles)
                 onClicked: {
                     dialog.busy = true

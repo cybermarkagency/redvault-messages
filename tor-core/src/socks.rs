@@ -11,7 +11,9 @@
 //! - CONNECT only (no BIND, no UDP ASSOCIATE);
 //! - hostnames only: an IPv4/IPv6 literal means the app resolved the name
 //!   itself, outside Tor, so it is refused;
-//! - only the exact onion `host:port` pairs on the allowlist.
+//! - only the exact onion `host:port` pairs on the allowlist, plus the one
+//!   HTTPS website of the sealed backup route when the app lists it (see
+//!   `policy`); that one is reached through a Tor exit relay, still inside Tor.
 //!
 //! Streams are opened with Arti, so there is no code path here that opens a
 //! direct connection to anything.
@@ -246,7 +248,10 @@ mod tests {
             self.calls.fetch_add(1, Ordering::SeqCst);
             let fail = self.fail;
             async move {
-                assert_eq!((host.as_str(), port), (ONION, 80), "only allowed targets reach the connector");
+                assert!(
+                    matches!((host.as_str(), port), (ONION, 80) | ("www.redvaultsystems.com", 443)),
+                    "only allowed targets reach the connector"
+                );
                 if fail {
                     return Err(io::Error::other("tor unavailable"));
                 }
@@ -271,6 +276,10 @@ mod tests {
     }
 
     async fn start(fail: bool) -> Harness {
+        start_with(fail, TargetPolicy::parse(&[format!("{ONION}:80")]).unwrap()).await
+    }
+
+    async fn start_with(fail: bool, policy: TargetPolicy) -> Harness {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let calls = Arc::new(AtomicUsize::new(0));
@@ -278,7 +287,7 @@ mod tests {
         status.on_bootstrap(1.0, true, "ready".into(), None);
         let ctx = Arc::new(SocksContext {
             connector: FakeConnector { calls: Arc::clone(&calls), fail },
-            policy: TargetPolicy::parse(&[format!("{ONION}:80")]).unwrap(),
+            policy,
             username: "u".repeat(32),
             password: "p".repeat(32),
             status: Arc::clone(&status),
@@ -361,6 +370,21 @@ mod tests {
         }
         assert_eq!(h.calls.load(Ordering::SeqCst), 0, "nothing reached the connector");
         assert_eq!(h.status.snapshot().stats.refused_target, 4);
+    }
+
+    #[tokio::test]
+    async fn the_listed_website_is_proxied_and_nothing_else_on_the_clearnet() {
+        let policy =
+            TargetPolicy::parse_with_exits(&[format!("{ONION}:80")], &["www.redvaultsystems.com:443"]).unwrap();
+        let h = start_with(false, policy).await;
+        let (mut s, _) = authed(h.port, &"p".repeat(32)).await;
+        assert_eq!(connect_domain(&mut s, "www.redvaultsystems.com", 443).await, REP_SUCCEEDED);
+        assert_eq!(h.calls.load(Ordering::SeqCst), 1);
+        for (host, port) in [("www.redvaultsystems.com", 80), ("redvaultsystems.com", 443), ("example.com", 443)] {
+            let (mut s, _) = authed(h.port, &"p".repeat(32)).await;
+            assert_eq!(connect_domain(&mut s, host, port).await, REP_NOT_ALLOWED, "{host}:{port}");
+        }
+        assert_eq!(h.calls.load(Ordering::SeqCst), 1, "only the listed website reached the connector");
     }
 
     #[tokio::test]

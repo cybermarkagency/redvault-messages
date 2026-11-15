@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -92,6 +93,8 @@ fun ChatsScreen(
     typingIn: Set<String> = emptySet(),
     /** Chat id -> unsent text, shown as "Draft:". */
     drafts: Map<String, String> = emptyMap(),
+    /** Unread Inbox messages from the RedVault team: a badge on your avatar, which leads to Settings › Inbox. */
+    inboxUnread: Int = 0,
 ) {
     val colors = RedvaultTheme.colors
     var choosing by remember { mutableStateOf(false) }
@@ -102,16 +105,16 @@ fun ChatsScreen(
         AlertDialog(
             onDismissRequest = { choosing = false },
             containerColor = colors.surface,
-            title = { Text("New chat", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_new_chat), color = colors.text) },
             text = {
                 Column {
-                    TextButton(onClick = { choosing = false; onAddFriend() }) { Text("Add a friend", color = colors.accent) }
-                    TextButton(onClick = { choosing = false; onNewGroup() }) { Text("New group", color = colors.accent) }
-                    TextButton(onClick = { choosing = false; pastingInvite = true }) { Text("Join a group with a link", color = colors.accent) }
+                    TextButton(onClick = { choosing = false; onAddFriend() }) { Text(stringResource(R.string.ui_add_a_friend), color = colors.accent) }
+                    TextButton(onClick = { choosing = false; onNewGroup() }) { Text(stringResource(R.string.ui_new_group), color = colors.accent) }
+                    TextButton(onClick = { choosing = false; pastingInvite = true }) { Text(stringResource(R.string.ui_join_a_group_with_a_link), color = colors.accent) }
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { choosing = false }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
@@ -124,12 +127,24 @@ fun ChatsScreen(
     val shown = state.conversations.filter { c -> ChatList.matches(c, filter, query, favorites) }
 
     Column(Modifier.fillMaxSize().background(colors.bg)) {
-        TabHeader("Chats") {
+        TabHeader(stringResource(R.string.ui_chats)) {
             onOpenCommunities?.let { RoundButton(R.drawable.ui_globe, "Communities", onClick = it) }
             RoundButton(R.drawable.ui_plus, "New chat", onClick = { choosing = true })
-            Box(
-                Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onOpenSettings).semantics { contentDescription = "Your profile and settings" },
-            ) { Avatar(avatarUrl = selfAvatarUrl, seed = selfHandle, size = 44.dp) }
+            Box {
+                Box(
+                    Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onOpenSettings).semantics {
+                        contentDescription = if (inboxUnread > 0) "Your profile and settings, $inboxUnread unread in Inbox" else "Your profile and settings"
+                    },
+                ) { Avatar(avatarUrl = selfAvatarUrl, seed = selfHandle, size = 44.dp) }
+                if (inboxUnread > 0) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).size(18.dp).clip(CircleShape).background(colors.accentFill),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(if (inboxUnread > 9) "9+" else "$inboxUnread", color = colors.accentContrast, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
         SecurityLine("End-to-end encrypted · keys stay on this device", R.drawable.ui_lock)
         banner()
@@ -216,13 +231,13 @@ private fun ConversationRow(conversation: Conversation, online: Boolean, muted: 
                     color = colors.text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // The name takes the free space (a long one is cut only where it must be).
+                    modifier = Modifier.weight(1f),
                 )
                 if (!conversation.isGroup && conversation.verified) {
-                    DsIcon(R.drawable.ui_shield_check, colors.accent, 15.dp, description = "Verified")
+                    DsIcon(R.drawable.ui_shield_check, colors.ok, 15.dp, description = stringResource(R.string.ui_verified))
                 }
-                if (muted) DsIcon(R.drawable.ui_bell_off, colors.text3, 14.dp, description = "Muted")
-                Box(Modifier.weight(1f))
+                if (muted) DsIcon(R.drawable.ui_bell_off, colors.text3, 14.dp, description = stringResource(R.string.ui_muted))
                 if (last != null) {
                     Text(TimeFormat.listLabel(last.createdAtMs), fontSize = 12.sp, color = if (conversation.unread > 0) colors.accent else colors.text3)
                 }
@@ -231,7 +246,7 @@ private fun ConversationRow(conversation: Conversation, online: Boolean, muted: 
                 // Like the desktop: someone typing, else your unsent draft, else the last message.
                 val showDraft = !typing && draft.isNotBlank()
                 if (showDraft) {
-                    Text("Draft:", color = colors.warn, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ui_draft), color = colors.warn, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 } else if (!typing && previewIcon != null) {
                     DsIcon(previewIcon, colors.text3, 14.dp)
                 }
@@ -251,7 +266,7 @@ private fun ConversationRow(conversation: Conversation, online: Boolean, muted: 
                 )
                 if (conversation.unread > 0) {
                     Box(
-                        modifier = Modifier.size(22.dp).background(if (muted) colors.surface3 else colors.accent, CircleShape),
+                        modifier = Modifier.size(22.dp).background(if (muted) colors.surface3 else colors.accentFill, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -288,7 +303,7 @@ private fun RequestsBanner(count: Int, onClick: () -> Unit) {
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
-        Text("Review", color = colors.accent)
+        Text(stringResource(R.string.ui_review), color = colors.accent)
     }
 }
 
@@ -314,7 +329,7 @@ private fun MessageRequestsBanner(count: Int, onClick: () -> Unit) {
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
-        Text("Review", color = colors.accent)
+        Text(stringResource(R.string.ui_review), color = colors.accent)
     }
 }
 
@@ -327,7 +342,7 @@ private fun JoinGroupLinkDialog(onDismiss: () -> Unit, onOpen: (linkId: String, 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
-        title = { Text("Join a group with a link", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_join_a_group_with_a_link), color = colors.text) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
@@ -345,9 +360,9 @@ private fun JoinGroupLinkDialog(onDismiss: () -> Unit, onOpen: (linkId: String, 
                 val invite = GroupInviteLink.parse(text)
                 if (invite == null) error = "That doesn't look like a group invite link. Paste the whole link, including the part after #."
                 else onOpen(invite.linkId, invite.secret)
-            }) { Text("Open", color = colors.accent) }
+            }) { Text(stringResource(R.string.ui_open), color = colors.accent) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -359,14 +374,14 @@ private fun EmptyChats(onAddFriend: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("No chats yet", fontFamily = RedvaultFonts.display, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.text)
+        Text(stringResource(R.string.ui_no_chats_yet), fontFamily = RedvaultFonts.display, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.text)
         Text(
-            "Add a friend by their handle. Your chat appears here once they accept.",
+            stringResource(R.string.ui_add_a_friend_by_their_handle),
             textAlign = TextAlign.Center,
             color = colors.text2,
             fontSize = 14.sp,
         )
-        PillButton("Add a friend", onAddFriend, style = PillStyle.Primary, height = 46.dp, icon = R.drawable.ui_user_plus)
+        PillButton(stringResource(R.string.ui_add_a_friend), onAddFriend, style = PillStyle.Primary, height = 46.dp, icon = R.drawable.ui_user_plus)
     }
 }
 

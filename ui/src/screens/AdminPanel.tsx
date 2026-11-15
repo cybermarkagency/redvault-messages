@@ -12,7 +12,6 @@ import {
   adminResolveReport,
   adminSetSubscriptionTier,
 } from "../state/actions.js";
-import { useAppState } from "../state/AppStateContext.js";
 import { type SubscriptionTier, TIER_LABELS } from "../types.js";
 import { MessagesTab } from "./AdminMessages.js";
 import styles from "./AdminPanel.module.css";
@@ -20,14 +19,13 @@ import { AdminCommunities } from "./AdminCommunities.js";
 
 type Tab = "users" | "reports" | "messages" | "communities";
 
-/** Self-contained admin screen — Users/Reports as internal tabs (local state), matching how Settings.tsx already handles many concerns in one file. Reachable only from Sidebar's Admin tab, itself only rendered when identity.role === "super_admin". */
+/** The site admin's tools, as internal tabs (local state): users, reports, admin messages and polls, communities. Shown only when identity.role === "super_admin" (the server checks every request anyway). */
 export function AdminPanel() {
-  const { dispatch } = useAppState();
   const [tab, setTab] = useState<Tab>("users");
 
   return (
     <div className={styles.screen}>
-      <TopBar title="Admin panel" onBack={() => dispatch({ type: "OPEN_SETTINGS" })} />
+      <TopBar title="Admin panel" />
       <div className={styles.tabs}>
         <button
           type="button"

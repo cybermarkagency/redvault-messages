@@ -166,11 +166,12 @@ std::string expectedOnDeviceKeys(Action action) {
         case Action::Send: return refusal::kMessage;
         case Action::React:
         case Action::Edit: return refusal::kChange;
+        // Part A: these go through the device-key chat itself; here they're only kept off the older protocol.
         case Action::Pin:
-        case Action::Unpin: return refusal::kPin;
-        case Action::Poll: return refusal::kPoll;
+        case Action::Unpin:
+        case Action::Poll:
         case Action::Vote:
-        case Action::EndPoll: return refusal::kVote;
+        case Action::EndPoll: return refusal::kMessage;
     }
     return {};
 }
@@ -228,7 +229,7 @@ TEST_CASE("a vote refused on device keys doesn't look as if it counted", "[app][
     s.chats->setDeviceKeyCheck([](const std::string& chatId) { return chatId == kGroupId; });
     s.chats->vote(s.id(s.pollId), {QVariant(0)});
     settle();
-    CHECK(s.shown.toStdString() == refusal::kVote);
+    CHECK(s.shown.toStdString() == refusal::kMessage);
     CHECK(s.posted(kGroupId) == 0);
 }
 
@@ -242,23 +243,75 @@ TEST_CASE("a file into a pinned chat stops before anything is uploaded", "[app][
     CHECK(s.requests("v1/files") == 0);
 }
 
-TEST_CASE("forwarding into a pinned chat is refused before anything goes out", "[app][chatguard]") {
+TEST_CASE("forwarding into a pinned chat is refused before anything goes out when nothing can send there", "[app][chatguard]") {
     Session s;
     s.open(s.w.dm);
     s.chats->setDeviceKeyCheck([](const std::string& chatId) { return chatId == kGroupId; });
     const int intoGroup = s.posted(kGroupId);
     const int intoDm = s.posted(kDmId);
-    SECTION("messages: one good target and one pinned one") {
+    std::string expected;
+    SECTION("messages, with no device-key forwarder") {
+        expected = refusal::kMessage;
+        s.chats->forwardMessages({s.id(s.bobsMessage)}, {s.id(kDmId), s.id(kGroupId)});
+    }
+    SECTION("messages, while the chat is held back") {
+        expected = "This computer isn't linked to your devices yet, so nothing was sent.";
+        s.chats->setDeviceKeyReason([](const std::string& chatId) {
+            return chatId == kGroupId ? QStringLiteral("This computer isn't linked to your devices yet, so nothing was sent.") : QString();
+        });
+        s.chats->setDeviceKeyForward([](const std::string&) { return std::nullopt; }, [](const std::string&, auto) { FAIL("nothing goes"); });
         s.chats->forwardMessages({s.id(s.bobsMessage)}, {s.id(kDmId), s.id(kGroupId)});
     }
     SECTION("a channel post") {
+        expected = refusal::kChannelPost;
         s.chats->forwardChannelPost(QStringLiteral("a post"), s.id(kDmId), s.id(kDmId), QStringLiteral("News"), {s.id(kDmId), s.id(kGroupId)});
     }
     REQUIRE(waitFor([&] { return s.answered; }, 5000));
-    CHECK(s.forwardError.toStdString() == refusal::kForward);
+    CHECK(s.forwardError.toStdString() == expected);
     settle();
     CHECK(s.posted(kGroupId) == intoGroup);
     CHECK(s.posted(kDmId) == intoDm);
+}
+
+TEST_CASE("part A: forwarding into a pinned chat goes through device keys, the others on the older protocol", "[app][chatguard]") {
+    Session s;
+    s.open(s.w.dm);
+    s.chats->setDeviceKeyCheck([](const std::string& chatId) { return chatId == kGroupId; });
+    std::vector<std::pair<std::string, std::vector<ChatSession::DeviceKeyForward>>> handed;
+    s.chats->setDeviceKeyForward([](const std::string&) { return std::nullopt; },
+                                 [&handed](const std::string& chatId, std::vector<ChatSession::DeviceKeyForward> items) {
+                                     handed.emplace_back(chatId, std::move(items));
+                                 });
+    const int intoGroup = s.posted(kGroupId);
+    const int intoDm = s.posted(kDmId);
+    s.chats->forwardMessages({s.id(s.bobsMessage)}, {s.id(kDmId), s.id(kGroupId)});
+    REQUIRE(waitFor([&] { return s.answered; }, 5000));
+    CHECK(s.forwardError.isEmpty());
+    REQUIRE(handed.size() == 1);
+    CHECK(handed[0].first == kGroupId);
+    REQUIRE(handed[0].second.size() == 1);
+    CHECK(handed[0].second[0].text == "hello");
+    CHECK_FALSE(handed[0].second[0].file.has_value());
+    settle();
+    CHECK(s.posted(kGroupId) == intoGroup);  // never on the older protocol
+    CHECK(waitFor([&] { return s.posted(kDmId) > intoDm; }, 5000));
+}
+
+TEST_CASE("part A: a device-key chat's message forwards into an older-protocol chat", "[app][chatguard]") {
+    Session s;
+    s.open(s.w.dm);
+    const std::string v3Id = "dddddddd-0000-4000-8000-000000000001";
+    s.chats->setDeviceKeyForward(
+        [v3Id](const std::string& id) -> std::optional<ChatSession::DeviceKeyForward> {
+            if (id != v3Id) return std::nullopt;
+            return ChatSession::DeviceKeyForward{"from device keys", std::nullopt, 1};
+        },
+        [](const std::string&, auto) { FAIL("no chat here is pinned"); });
+    const int before = s.posted(kGroupId);
+    s.chats->forwardMessages({QString::fromStdString(v3Id)}, {s.id(kGroupId)});
+    REQUIRE(waitFor([&] { return s.answered; }, 5000));
+    CHECK(s.forwardError.isEmpty());
+    CHECK(s.posted(kGroupId) == before + 1);
 }
 
 TEST_CASE("control: forwarding reaches a chat that isn't pinned", "[app][chatguard]") {
@@ -345,7 +398,7 @@ TEST_CASE("forwarding into a chat whose key was refused is refused before anythi
         s.w.dm.seal(s.w.alice, 1, crypto::generateConversationKey());
     }
     s.chats->refreshNow();
-    REQUIRE(waitFor([&] { return s.chats->sendRefusal(kDmId, refusal::kForward).toStdString() == KeyTrust::kDirectKeyChanged; }));
+    REQUIRE(waitFor([&] { return s.chats->sendRefusal(kDmId, refusal::kMessage).toStdString() == KeyTrust::kDirectKeyChanged; }));
     const int intoGroup = s.posted(kGroupId);
     s.chats->forwardMessages({s.id(s.bobsMessage)}, {s.id(kGroupId), s.id(kDmId)});
     REQUIRE(waitFor([&] { return s.answered; }, 5000));

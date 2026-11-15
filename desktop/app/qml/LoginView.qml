@@ -86,10 +86,10 @@ Item {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: root.needsCode ? "Two-factor code"
-                        : root.mode === "register" ? "Create your account"
-                        : root.mode === "recover" ? "Recover your account"
-                        : "Sign in to redvaultmessages"
+                    text: root.needsCode ? qsTr("Two-factor code")
+                        : root.mode === "register" ? qsTr("Create your account")
+                        : root.mode === "recover" ? qsTr("Recover your account")
+                        : qsTr("Sign in to RedVaultMessages")
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 20
@@ -100,10 +100,10 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
-                    text: root.needsCode ? "Enter the 6-digit code from your authenticator app."
-                        : root.mode === "register" ? "Your keys are created on this computer. Nobody can reset your password for you, so keep your recovery key safe."
-                        : root.mode === "recover" ? "Use the recovery key you saved when you created your account, and choose a new password. Your other devices will be signed out."
-                        : "Your messages are decrypted on this computer only. Nothing is saved when you quit."
+                    text: root.needsCode ? qsTr("Enter the 6-digit code from your authenticator app.")
+                        : root.mode === "register" ? qsTr("Your keys are created on this computer. Nobody can reset your password for you, so keep your recovery key safe.")
+                        : root.mode === "recover" ? qsTr("Use the recovery key you saved when you created your account, and choose a new password. Your other devices will be signed out.")
+                        : qsTr("Your messages are decrypted on this computer only. Nothing is saved when you quit.")
                     textFormat: Text.PlainText
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall + 1
@@ -115,7 +115,7 @@ Item {
                     id: handleField
                     visible: !root.needsCode
                     Layout.fillWidth: true
-                    placeholderText: "Handle"
+                    placeholderText: qsTr("Handle")
                     text: App.lastHandle
                     maximumLength: 64
                     enabled: !App.busy
@@ -127,7 +127,7 @@ Item {
                     id: recoveryKeyField
                     visible: !root.needsCode && root.mode === "recover"
                     Layout.fillWidth: true
-                    placeholderText: "Recovery key (XXXX-XXXX-…)"
+                    placeholderText: qsTr("Recovery key (XXXX-XXXX-…)")
                     enabled: !App.busy
                     inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhSensitiveData
                     onAccepted: root.submit()
@@ -137,7 +137,7 @@ Item {
                     id: passwordField
                     visible: !root.needsCode
                     Layout.fillWidth: true
-                    placeholderText: root.mode === "signin" ? "Password" : root.mode === "recover" ? "New password (at least 8 characters)" : "Password (at least 8 characters)"
+                    placeholderText: root.mode === "signin" ? qsTr("Password") : root.mode === "recover" ? qsTr("New password (at least 8 characters)") : qsTr("Password (at least 8 characters)")
                     echoMode: TextInput.Password
                     enabled: !App.busy
                     onAccepted: root.submit()
@@ -147,7 +147,7 @@ Item {
                     id: confirmField
                     visible: !root.needsCode && root.mode !== "signin"
                     Layout.fillWidth: true
-                    placeholderText: "Repeat the password"
+                    placeholderText: qsTr("Repeat the password")
                     echoMode: TextInput.Password
                     enabled: !App.busy
                     onAccepted: root.submit()
@@ -158,28 +158,28 @@ Item {
                     id: termsBox
                     visible: !root.needsCode && root.mode === "register"
                     Layout.fillWidth: true
-                    label: "I agree to the RedVault Messages <a href=\"terms\">Terms of Service</a>"
+                    label: qsTr("I agree to the RedVaultMessages <a href=\"terms\">Terms of Service</a>")
                     onLinkActivated: (link) => legalDialog.show(link)
                 }
                 ConsentBox {
                     id: privacyBox
                     visible: !root.needsCode && root.mode === "register"
                     Layout.fillWidth: true
-                    label: "I acknowledge the RedVault Messages <a href=\"privacy\">Privacy Policy</a>"
+                    label: qsTr("I acknowledge the RedVaultMessages <a href=\"privacy\">Privacy Policy</a>")
                     onLinkActivated: (link) => legalDialog.show(link)
                 }
                 ConsentBox {
                     id: ageBox
                     visible: !root.needsCode && root.mode === "register"
                     Layout.fillWidth: true
-                    label: "I confirm I am 18 or older"
+                    label: qsTr("I confirm I am 18 or older")
                 }
 
                 RvTextField {
                     id: recoveryCodeField
                     visible: !root.needsCode && root.mode === "recover" && App.recoveryNeedsCode
                     Layout.fillWidth: true
-                    placeholderText: "6-digit code from your authenticator app"
+                    placeholderText: qsTr("6-digit code from your authenticator app")
                     inputMethodHints: Qt.ImhDigitsOnly
                     maximumLength: 10
                     enabled: !App.busy
@@ -205,11 +205,11 @@ Item {
                 RvButton {
                     Layout.fillWidth: true
                     enabled: !App.busy && (root.needsCode || root.mode !== "register" || root.consentComplete)
-                    text: App.busy ? (root.needsCode ? "Checking…" : root.mode === "register" ? "Creating your keys…" : "Unlocking…")
-                        : root.needsCode ? "Verify"
-                        : root.mode === "register" ? "Create Account"
-                        : root.mode === "recover" ? "Recover account"
-                        : "Sign in"
+                    text: App.busy ? (root.needsCode ? qsTr("Checking…") : root.mode === "register" ? qsTr("Creating your keys…") : qsTr("Unlocking…"))
+                        : root.needsCode ? qsTr("Verify")
+                        : root.mode === "register" ? qsTr("Create Account")
+                        : root.mode === "recover" ? qsTr("Recover account")
+                        : qsTr("Sign in")
                     onClicked: root.submit()
 
                     BusyIndicator {
@@ -228,7 +228,7 @@ Item {
                     Layout.fillWidth: true
                     visible: root.needsCode
                     primary: false
-                    text: "Back"
+                    text: qsTr("Back")
                     enabled: !App.busy
                     onClicked: {
                         codeField.text = ""
@@ -239,7 +239,7 @@ Item {
                     Layout.fillWidth: true
                     visible: !root.needsCode && root.mode === "signin"
                     primary: false
-                    text: "Create an account"
+                    text: qsTr("Create an account")
                     enabled: !App.busy
                     onClicked: root.setMode("register")
                 }
@@ -247,7 +247,7 @@ Item {
                     Layout.fillWidth: true
                     visible: !root.needsCode && root.mode === "signin"
                     primary: false
-                    text: "Forgot your password?"
+                    text: qsTr("Forgot your password?")
                     enabled: !App.busy
                     onClicked: root.setMode("recover")
                 }
@@ -255,7 +255,7 @@ Item {
                     Layout.fillWidth: true
                     visible: !root.needsCode && root.mode !== "signin"
                     primary: false
-                    text: "Back to sign in"
+                    text: qsTr("Back to sign in")
                     enabled: !App.busy
                     onClicked: root.setMode("signin")
                 }
@@ -267,7 +267,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
-        text: "End-to-end encrypted · same account as the web and Android apps"
+        text: qsTr("End-to-end encrypted · same account as the web and Android apps")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
     }

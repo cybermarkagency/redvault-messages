@@ -66,7 +66,7 @@ it("the web app opens every story the Android code made", async () => {
   expect(decodeStory(dtoFor(close, close.wrappedKeyForCarol), alice.publicKey, carol.privateKey)?.meta.closeFriends).toBe(true);
 
   // Photo and video: the key and header in the sealed details open the encrypted file the Android code made.
-  for (const [name, length, mime] of [["photo", data.photoLength, "image/jpeg"], ["video", data.videoLength, "video/mp4"]] as const) {
+  for (const [name, length, mime] of [["photo", data.photoLength, "image/jpeg"], ["video", data.videoLength, "video/mp4"], ["voice", data.voiceLength, "audio/wav"]] as const) {
     const s = by(name);
     const story = decodeStory(dtoFor(s, s.wrappedKeyForBob), alice.publicKey, bob.privateKey);
     expect(story, name).not.toBeNull();
@@ -79,7 +79,7 @@ it("the web app opens every story the Android code made", async () => {
       await decryptFile([cipher], { key: crypto.fromBase64(media.key), header: crypto.fromBase64(media.header), chunkSize: media.chunkSize, encryptedSize: media.encryptedSize, ciphertextSha256: media.sha256 }, media.mime)
     );
     expect(plain.length).toBe(length);
-    const rule = name === "photo" ? (i: number) => (i * 7 + 3) & 0xff : (i: number) => (i * 11 + 1) & 0xff;
+    const rule = name === "photo" ? (i: number) => (i * 7 + 3) & 0xff : name === "video" ? (i: number) => (i * 11 + 1) & 0xff : (i: number) => (i * 13 + 5) & 0xff;
     expect(plain.every((b, i) => b === rule(i))).toBe(true);
   }
   expect(decodeStory(dtoFor(by("video"), by("video").wrappedKeyForBob), alice.publicKey, bob.privateKey)?.meta.media?.durationMs).toBe(9000);
@@ -106,6 +106,14 @@ it("the web app opens every story the Android code made", async () => {
   expect(picked.recipients).toEqual([data.ids.alice, data.ids.bob]);
   expect(picked.wrappedKeyForCarol).toBeNull();
   expect(decodeStory(dtoFor(picked, picked.wrappedKeyForBob), alice.publicKey, bob.privateKey)?.meta.closeFriends).toBe(false);
+
+  // A voice story: the web opens it with its title, look, length, bars and subtitles, and its file decrypted above.
+  const voice = by("voice");
+  const voiceStory = decodeStory(dtoFor(voice, voice.wrappedKeyForBob), alice.publicKey, bob.privateKey)!;
+  expect(voiceStory.meta).toMatchObject({ kind: "audio", text: "Morning note", background: "ocean", font: "typewriter" });
+  expect(voiceStory.meta.media).toMatchObject({ mime: "audio/wav", width: 1, height: 1, durationMs: 12000 });
+  expect(voiceStory.meta.waveform).toEqual(Array.from({ length: 48 }, (_, i) => (i * 2 + 3) % 101));
+  expect(voiceStory.meta.captions).toEqual([{ startMs: 500, endMs: 2500, text: "good morning" }]);
 
   // A video keeps the subtitles it was posted with.
   const captioned = by("captioned");

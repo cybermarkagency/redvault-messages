@@ -142,6 +142,16 @@ Json V3Server::postRoster(const std::string&, const Json&) {
     throw api::ApiError(503, "e2e_signal_disabled", "Signal sessions aren't available here.");
 }
 
+Json V3Server::signalCertificates(const std::string&, const std::string&) {
+    throw api::ApiError(503, "e2e_signal_disabled", "Signal sessions aren't available here.");
+}
+
+Json HttpV3Server::signalCertificates(const std::string& userId, const std::string& conversationId) {
+    std::string path = "e2e/v3/users/" + percentEncode(userId) + "/signal-certificates";
+    if (!conversationId.empty()) path += "?conversationId=" + percentEncode(conversationId);
+    return api_->call("GET", path);
+}
+
 Json HttpV3Server::rosters(const std::string& conversationId, int afterEpoch) {
     return api_->call("GET", "e2e/v3/conversations/" + percentEncode(conversationId) + "/rosters?after=" + std::to_string(afterEpoch));
 }

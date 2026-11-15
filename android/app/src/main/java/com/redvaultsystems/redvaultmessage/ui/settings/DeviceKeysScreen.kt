@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -171,16 +172,16 @@ fun DeviceKeysScreen(session: DeviceKeysSession, onBack: () -> Unit) {
     DisposableEffect(Unit) { onDispose { session.clearRecoveryKey() } }
 
     DsPage("Devices & encryption", onBack) {
-        Text("Your messages use the Signal protocol.", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.ui_your_messages_use_the_signal_protocol), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "Each of your devices has its own encryption keys, and a new device is trusted only when one of your trusted devices (or your recovery key) approves it. Your password alone can't add a device.",
+            stringResource(R.string.ui_each_of_your_devices_has_its),
             color = colors.text2,
             fontSize = 14.sp,
         )
         // Only this phone knows: an older copy of its keys was put back (a restore) and was refused.
         if (state.localEvents.any { it.kind == DeviceStorage.RESTORED_OLDER_COPY }) {
             Callout(
-                "This device's keys were restored from an older copy and were turned off. Link this phone again below.",
+                stringResource(R.string.ui_this_device_s_keys_were_restored),
                 CalloutTone.Warn,
                 R.drawable.ui_alert_circle,
             ) {
@@ -189,8 +190,8 @@ fun DeviceKeysScreen(session: DeviceKeysSession, onBack: () -> Unit) {
         }
         state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
         when (state.available) {
-            null -> Text("Checking…", color = colors.text3, fontSize = 14.sp)
-            false -> Callout("Device keys aren't available: this server hasn't turned them on, or this build doesn't include the engine.", CalloutTone.Neutral, R.drawable.ui_shield)
+            null -> Text(stringResource(R.string.ui_checking), color = colors.text3, fontSize = 14.sp)
+            false -> Callout(stringResource(R.string.ui_device_keys_aren_t_available_this), CalloutTone.Neutral, R.drawable.ui_shield)
             true -> Content(session, state, recoveryInput) { recoveryInput = it }
         }
     }
@@ -207,7 +208,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
             CalloutTone.Warn,
             R.drawable.ui_alert_circle,
         )
-        if (state.hasDevice && state.trusted) PillButton("Cancel reset", session::cancelReset, Modifier.fillMaxWidth(), style = PillStyle.Danger, enabled = !state.busy)
+        if (state.hasDevice && state.trusted) PillButton(stringResource(R.string.ui_cancel_reset), session::cancelReset, Modifier.fillMaxWidth(), style = PillStyle.Danger, enabled = !state.busy)
     }
 
     // No device keys yet on this account: this phone can be the first.
@@ -239,9 +240,9 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                 extra = {
                     if (state.joiningCodes != null) {
                         Codes(state.joiningCodes)
-                        Text("Do these match the numbers on your trusted device?", color = colors.text3, fontSize = 12.5.sp)
+                        Text(stringResource(R.string.ui_do_these_match_the_numbers_on), color = colors.text3, fontSize = 12.5.sp)
                     } else if (state.joining) {
-                        Text("Waiting for a trusted device to answer…", color = colors.text3, fontSize = 12.5.sp)
+                        Text(stringResource(R.string.ui_waiting_for_a_trusted_device_to), color = colors.text3, fontSize = 12.5.sp)
                     }
                 },
                 actions = {
@@ -263,36 +264,36 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                 Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Image(
                         bitmap = code,
-                        contentDescription = "Device-link QR code",
+                        contentDescription = stringResource(R.string.ui_device_link_qr_code),
                         modifier = Modifier.size(240.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(8.dp),
                     )
                     Text(
-                        "On your trusted phone, open Devices & encryption and tap Scan a QR code. Only show this code to your own phone, and only in person.",
+                        stringResource(R.string.ui_on_your_trusted_phone_open_devices),
                         color = colors.text3,
                         fontSize = 12.5.sp,
                     )
-                    PillButton("Cancel", session::cancelQrLink, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
+                    PillButton(stringResource(R.string.ui_cancel), session::cancelQrLink, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
                 }
             }
             if (state.joiningCodes != null) {
                 Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PillButton("They match", session::confirmJoin, Modifier.weight(1f), enabled = !state.busy, busy = state.busy)
-                    PillButton("They don't", session::rejectJoin, Modifier.weight(1f), style = PillStyle.Danger)
+                    PillButton(stringResource(R.string.ui_they_match), session::confirmJoin, Modifier.weight(1f), enabled = !state.busy, busy = state.busy)
+                    PillButton(stringResource(R.string.ui_they_don_t), session::rejectJoin, Modifier.weight(1f), style = PillStyle.Danger)
                 }
             }
             Divider()
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("No trusted device left? Use your recovery key", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                DsTextField(recoveryInput, onRecoveryInput, "XXXX-XXXX-…", mono = true, label = "Recovery key")
-                PillButton("Restore", { session.restore(recoveryInput); onRecoveryInput("") }, Modifier.fillMaxWidth(), style = PillStyle.Secondary, enabled = !state.busy && recoveryInput.isNotBlank())
+                Text(stringResource(R.string.ui_no_trusted_device_left_use_your), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                DsTextField(recoveryInput, onRecoveryInput, "XXXX-XXXX-…", mono = true, label = stringResource(R.string.ui_recovery_key))
+                PillButton(stringResource(R.string.ui_restore), { session.restore(recoveryInput); onRecoveryInput("") }, Modifier.fillMaxWidth(), style = PillStyle.Secondary, enabled = !state.busy && recoveryInput.isNotBlank())
             }
         }
     }
 
     // This phone was removed from the account's list.
     if (state.hasDevice && state.linked && !state.listedHere) {
-        Callout("This phone was removed from your trusted devices.", CalloutTone.Warn, R.drawable.ui_alert_circle)
-        PillButton("Delete its keys", session::forgetThisPhone, Modifier.fillMaxWidth(), style = PillStyle.Danger, enabled = !state.busy)
+        Callout(stringResource(R.string.ui_this_phone_was_removed_from_your), CalloutTone.Warn, R.drawable.ui_alert_circle)
+        PillButton(stringResource(R.string.ui_delete_its_keys), session::forgetThisPhone, Modifier.fillMaxWidth(), style = PillStyle.Danger, enabled = !state.busy)
     }
 
     if (state.hasDevice && state.linked && state.listedHere) {
@@ -318,7 +319,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                     extra = {
                         if (answering && state.answeringCodes != null) {
                             Codes(state.answeringCodes)
-                            Text("Do these match the numbers on the new device?", color = colors.text3, fontSize = 12.5.sp)
+                            Text(stringResource(R.string.ui_do_these_match_the_numbers_on_2), color = colors.text3, fontSize = 12.5.sp)
                         }
                     },
                     actions = {
@@ -332,8 +333,8 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                 )
                 if (answering && state.answeringCodes != null) {
                     Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillButton("They match", session::confirmAnswer, Modifier.weight(1f), enabled = !state.busy, busy = state.busy)
-                        PillButton("They don't", session::rejectAnswer, Modifier.weight(1f), style = PillStyle.Danger)
+                        PillButton(stringResource(R.string.ui_they_match), session::confirmAnswer, Modifier.weight(1f), enabled = !state.busy, busy = state.busy)
+                        PillButton(stringResource(R.string.ui_they_don_t), session::rejectAnswer, Modifier.weight(1f), style = PillStyle.Danger)
                     }
                 }
             }
@@ -371,7 +372,7 @@ private fun ColumnScope.Content(session: DeviceKeysSession, state: DeviceKeysSta
                     },
                 )
             }
-            if (state.qrLinked) Callout("Linked. The new phone is now trusted.", CalloutTone.Ok, R.drawable.ui_shield_check)
+            if (state.qrLinked) Callout(stringResource(R.string.ui_linked_the_new_phone_is_now), CalloutTone.Ok, R.drawable.ui_shield_check)
         }
 
         Text(protectionText(state.protection), color = colors.text3, fontSize = 12.5.sp)
@@ -403,7 +404,7 @@ class DeviceKeySafetyState {
 fun DeviceKeyChangedNotice(state: DeviceKeySafetyState) {
     if (state.safety?.keyChanged != true) return
     Callout(
-        "Their device keys changed. Scroll down to Device keys and compare the new number before you trust them.",
+        stringResource(R.string.ui_their_device_keys_changed_scroll_down),
         CalloutTone.Warn,
         R.drawable.ui_alert_circle,
     )
@@ -499,7 +500,7 @@ fun DeviceKeySafetyContent(
 ) {
     val colors = RedvaultTheme.colors
 
-    Text("Device keys", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+    Text(stringResource(R.string.ui_device_keys), color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
     if (current.keyChanged) {
         Callout(
             "Their device keys changed: they started over on a new device, or someone is in the middle. " +
@@ -509,7 +510,7 @@ fun DeviceKeySafetyContent(
         )
     }
     Text(
-        "This number covers the keys on every device you both use. Scan their code, let them scan yours, or compare the digits.",
+        stringResource(R.string.ui_this_number_covers_the_keys_on),
         color = colors.text2,
         fontSize = 14.sp,
     )
@@ -519,7 +520,7 @@ fun DeviceKeySafetyContent(
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Image(
             bitmap = qr,
-            contentDescription = "Your device-key safety number code for this chat",
+            contentDescription = stringResource(R.string.ui_your_device_key_safety_number_code),
             modifier = Modifier.size(220.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(8.dp),
         )
     }
@@ -532,10 +533,10 @@ fun DeviceKeySafetyContent(
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
     )
     if (current.verified) {
-        Callout("You've verified their device keys on this phone.", CalloutTone.Ok, R.drawable.ui_shield_check)
+        Callout(stringResource(R.string.ui_you_ve_verified_their_device_keys), CalloutTone.Ok, R.drawable.ui_shield_check)
     }
     PillButton(
-        "Scan their device-key code",
+        stringResource(R.string.ui_scan_their_device_key_code),
         onScan,
         Modifier.fillMaxWidth(),
         enabled = !busy,
@@ -543,14 +544,14 @@ fun DeviceKeySafetyContent(
     when {
         current.keyChanged -> {
             PillButton(
-                "The new numbers match, trust the new keys",
+                stringResource(R.string.ui_the_new_numbers_match_trust_the),
                 { onAcceptNewKeys(true) },
                 Modifier.fillMaxWidth(),
                 style = PillStyle.Secondary,
                 enabled = !busy,
             )
             PillButton(
-                "Trust the new keys without comparing",
+                stringResource(R.string.ui_trust_the_new_keys_without_comparing),
                 { onAcceptNewKeys(false) },
                 Modifier.fillMaxWidth(),
                 style = PillStyle.Secondary,
@@ -558,14 +559,14 @@ fun DeviceKeySafetyContent(
             )
         }
         current.verified -> PillButton(
-            "Mark device keys as not verified",
+            stringResource(R.string.ui_mark_device_keys_as_not_verified),
             { onMarkVerified(false) },
             Modifier.fillMaxWidth(),
             style = PillStyle.Secondary,
             enabled = !busy,
         )
         else -> PillButton(
-            "The digits match, mark device keys as verified",
+            stringResource(R.string.ui_the_digits_match_mark_device_keys),
             { onMarkVerified(true) },
             Modifier.fillMaxWidth(),
             style = PillStyle.Secondary,

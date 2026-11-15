@@ -828,6 +828,10 @@ fn run(request: &Value) -> Result<Value> {
         "signalDecrypt" => crate::signal::decrypt(&mut state, &account, request)?,
         #[cfg(feature = "signal")]
         "signalStatus" => crate::signal::status(&state)?,
+        #[cfg(feature = "signal")]
+        "storySeal" => crate::signal::story_seal(&state, request)?,
+        #[cfg(feature = "signal")]
+        "storyUnseal" => crate::signal::story_unseal(&state, request)?,
         _ => return Err(bad_request(format!("unknown op {op}"))),
     };
     state.account = account.pickle();

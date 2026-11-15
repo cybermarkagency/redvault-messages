@@ -63,15 +63,6 @@ class CommunityWireTest {
 
     @Test
     fun keyRequestsAreWhatTheServersStrictSchemasAccept() {
-        // enrollSchema and rotateSchema are .strict(): no extra fields.
-        assertEquals(
-            """{"userId":"u2","epoch":1,"wrappedKey":"AA=="}""",
-            json.encodeToString(EnrollRequest.serializer(), EnrollRequest("u2", 1, "AA==")),
-        )
-        assertEquals(
-            """{"fromEpoch":1,"keys":[{"userId":"u1","wrappedKey":"AA=="}]}""",
-            json.encodeToString(RotateRequest.serializer(), RotateRequest(1, listOf(MemberKeyDto("u1", "AA==")))),
-        )
         // A report without disclosure sends no evidence at all.
         assertEquals(
             """{"targetType":"content","targetUserId":"u3","category":"spam","details":""}""",
@@ -87,16 +78,28 @@ class CommunityWireTest {
     }
 
     @Test
-    fun keyStateRosterAndTasks() {
+    fun oldKeysAndPartC2MembershipRoutes() {
         val keys = json.decodeFromString<CommunityKeysDto>(
             """{"conversationId":"c1","keyEpoch":1,"rekeyRequired":false,"keys":[{"epoch":0,"wrappedKey":"AA=="},{"epoch":1,"wrappedKey":"BB=="}]}""",
         )
         assertEquals(listOf(0L, 1L), keys.keys.map { it.epoch })
-        val roster = json.decodeFromString<RosterDto>("""{"keyEpoch":1,"rekeyRequired":true,"members":[{"userId":"u1","publicKey":"AA=="}]}""")
-        assertEquals("u1", roster.members.single().userId)
-        val task = json.decodeFromString<List<KeyTaskDto>>(
-            """[{"communityId":"x","conversationId":"c1","keyEpoch":1,"rekeyRequired":false,"pendingEnrollments":2,"canPost":true}]""",
+        val summary = json.decodeFromString<List<MembershipTaskSummaryDto>>(
+            """[{"communityId":"x","conversationId":"c1","kind":"channel","latestSeq":42,"waiting":1}]""",
         ).single()
-        assertEquals(2, task.pendingEnrollments)
+        assertEquals(42L, summary.latestSeq)
+        assertEquals("channel", summary.kind)
+        val tasks = json.decodeFromString<MembershipTasksDto>(
+            """{"communityId":"x","conversationId":"c1","kind":"group","cursor":42,"hasMore":false,
+               "events":[{"seq":41,"kind":"join","userId":"u2","at":"2026-11-08T12:00:00.000Z"}],"waiting":["u3"],"lapsed":["u4"]}""",
+        )
+        assertEquals(41L, tasks.events.single().seq)
+        assertEquals(listOf("u3"), tasks.waiting)
+        assertEquals(listOf("u4"), tasks.lapsed)
+        val recipients = json.decodeFromString<CommunityRecipientsDto>("""{"communityId":"x","conversationId":"c1","userIds":["a","b"]}""")
+        assertEquals(listOf("a", "b"), recipients.userIds)
+        val member = json.decodeFromString<List<CommunityMemberRowDto>>(
+            """[{"userId":"u1","username":"owner","status":"active","role":"owner","canPost":true,"source":"owner","enrolledAt":null,"statusReason":null,"entitlement":null}]""",
+        ).single()
+        assertEquals("owner", member.role)
     }
 }

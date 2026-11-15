@@ -21,14 +21,14 @@ RvDialog {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "It's encrypted to their key on this computer: only they can open it, and they can't change it."
+            text: qsTr("It's encrypted to their key on this computer: only they can open it, and they can't change it.")
             color: Theme.text2
             font.pixelSize: 13
         }
         SearchField {
             id: filter
             Layout.fillWidth: true
-            placeholderText: "Search contacts"
+            placeholderText: qsTr("Search contacts")
         }
         ListView {
             id: list
@@ -54,13 +54,13 @@ RvDialog {
                     spacing: 12
                     Avatar { size: 34; initial: row.modelData.initial; source: row.modelData.avatarUrl; tintKey: row.modelData.userId }
                     Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: row.modelData.handle; color: Theme.text; elide: Text.ElideRight }
-                    Icon { visible: row.modelData.verified; name: "shield-check"; size: 15; color: Theme.accent }
+                    Icon { visible: row.modelData.verified; name: "shield-check"; size: 15; color: Theme.ok }
                 }
             }
             Text {
                 anchors.centerIn: parent
                 visible: list.count === 0
-                text: "No contacts yet. Add a friend first."
+                text: qsTr("No contacts yet. Add a friend first.")
                 color: Theme.text3
             }
         }

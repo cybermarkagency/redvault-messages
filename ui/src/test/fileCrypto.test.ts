@@ -12,7 +12,6 @@ import {
   FILE_CHUNK_BYTES,
   type EncryptedFileResult,
 } from "../lib/fileCrypto.js";
-import { isFileMessage, parseFileDescriptor, sanitizeFilename, serializeFileDescriptor, type FileDescriptor } from "../lib/fileMessage.js";
 
 beforeAll(() => crypto.ready());
 
@@ -144,58 +143,3 @@ async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", bytes));
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
-
-describe("file descriptor (travels only inside the E2EE message)", () => {
-  const base: FileDescriptor = {
-    type: "file",
-    version: 1,
-    objectId: "0199cc25-8214-4cf2-a88d-32c890aabbcc",
-    fileKey: "a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2U=",
-    filename: "photo.jpg",
-    mimeType: "image/jpeg",
-    originalSize: 2819231,
-    encryptedSize: 2819300,
-    ciphertextSha256: "ab".repeat(32),
-    encryption: { algorithm: FILE_ALGORITHM, version: 1, header: "aGVhZGVyaGVhZGVyaGVhZGVyaGVhZGVy", chunkSize: FILE_CHUNK_BYTES },
-  };
-
-  it("round-trips, and is distinguishable from any typeable text message", () => {
-    const text = serializeFileDescriptor(base);
-    expect(isFileMessage(text)).toBe(true);
-    expect(parseFileDescriptor(text)).toEqual(base);
-    expect(isFileMessage(JSON.stringify(base))).toBe(false);
-  });
-
-  it("rejects malformed or unexpected descriptors", () => {
-    const bad = [
-      { ...base, version: 2 },
-      { ...base, objectId: "../../etc/passwd" },
-      { ...base, originalSize: -1 },
-      { ...base, ciphertextSha256: "zz" },
-      { ...base, encryption: { ...base.encryption, algorithm: "rot13" } },
-      { ...base, encryption: { ...base.encryption, chunkSize: 1 } },
-    ];
-    for (const d of bad) expect(parseFileDescriptor(serializeFileDescriptor(d as FileDescriptor))).toBeNull();
-    expect(parseFileDescriptor(serializeFileDescriptor(base).slice(0, 30))).toBeNull();
-  });
-
-  it("sanitizes hostile filenames from the sender", () => {
-    expect(sanitizeFilename("../../../etc/passwd")).toBe("passwd");
-    for (const name of ["CONIN$", "conout$.txt", "COM¹.txt", "LPT²", "NUL .txt"]) {
-      expect(sanitizeFilename(name)).toBe(`_${name}`);
-    }
-    expect(sanitizeFilename("console.txt")).toBe("console.txt");
-    expect(sanitizeFilename("C:\\Windows\\System32\\evil.dll")).toBe("evil.dll");
-    expect(sanitizeFilename("invoice\u202Egpj.exe")).toBe("invoicegpj.exe"); // no RTL-override disguise
-    expect(sanitizeFilename("<img src=x onerror=alert(1)>.png")).not.toMatch(/[<>]/);
-    expect(sanitizeFilename("CON.txt")).toBe("_CON.txt");
-    expect(sanitizeFilename("...")).toBe("file");
-    expect(sanitizeFilename("a".repeat(500) + ".pdf")).toMatch(/^a+\.pdf$/);
-    expect(sanitizeFilename("a".repeat(500) + ".pdf").length).toBeLessThanOrEqual(150);
-  });
-
-  it("falls back to a neutral MIME type when the declared one is junk", () => {
-    const parsed = parseFileDescriptor(serializeFileDescriptor({ ...base, mimeType: "text/html; <script>" }));
-    expect(parsed?.mimeType).toBe("application/octet-stream");
-  });
-});

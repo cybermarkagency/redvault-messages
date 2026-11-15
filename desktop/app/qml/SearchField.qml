@@ -13,7 +13,7 @@ TextField {
     font.pixelSize: Theme.fontSize
     color: Theme.text
     placeholderTextColor: Theme.placeholder
-    selectionColor: Theme.accent
+    selectionColor: Theme.accentFill
     selectedTextColor: Theme.accentContrast
     Accessible.name: placeholderText
 

@@ -266,7 +266,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     visible: root.hasMine
-                    text: "Sent ✓" + (root.sticker.anonymous ? " · your name isn't shown to the author" : "")
+                    text: qsTr("Sent ✓") + (root.sticker.anonymous ? qsTr(" · your name isn't shown to the author") : "")
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: root.quiet
@@ -275,7 +275,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     visible: !root.hasMine && root.own
-                    text: root.totals ? root.plural(root.totals.total) : "Answers appear in Activity"
+                    text: root.totals ? root.plural(root.totals.total) : qsTr("Answers appear in Activity")
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: root.quiet
@@ -291,7 +291,7 @@ Item {
                         implicitHeight: Math.round(root.fs * 2.6)
                         enabled: root.interactive
                         maximumLength: 500
-                        placeholderText: "Type your answer"
+                        placeholderText: qsTr("Type your answer")
                         placeholderTextColor: "#71717A"
                         color: root.ink
                         font.pixelSize: root.fs
@@ -312,7 +312,7 @@ Item {
                         id: sendButton
                         implicitHeight: Math.round(root.fs * 2.6)
                         enabled: root.interactive && !root.busy && field.text.trim().length > 0
-                        text: "Send"
+                        text: qsTr("Send")
                         Accessible.name: "Send answer"
                         onClicked: card.send()
                         background: Rectangle { radius: 12; color: root.ink; opacity: sendButton.enabled ? 1 : 0.45 }
@@ -330,7 +330,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     visible: !root.hasMine && !root.own && root.sticker.anonymous
-                    text: "Sent without your name. RedVault's server can still tell it was you."
+                    text: qsTr("Sent without your name. RedVault's server can still tell it was you.")
                     wrapMode: Text.Wrap
                     color: root.quiet
                     font.pixelSize: root.fs * 0.85
@@ -467,7 +467,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     readonly property string remaining: root.timeLeft(root.sticker.when)
-                    text: remaining.length > 0 ? remaining : "It's time!"
+                    text: remaining.length > 0 ? remaining : qsTr("It's time!")
                     textFormat: Text.PlainText
                     color: root.ink
                     font.pixelSize: root.fs * 1.6

@@ -4,8 +4,11 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "redvault/crypto/bytes.hpp"
 #include "redvault/model/story_stickers.hpp"
@@ -94,6 +97,42 @@ Bytes sealAnonymousAnswer(std::string_view storyId, const model::stories::Sticke
                           ByteView authorPublicKey);
 model::stories::Answer openAnonymousAnswer(std::string_view storyId, const model::stories::Sticker& sticker, ByteView envelope,
                                            ByteView authorPublicKey, ByteView authorPrivateKey);
+
+// --- Anonymous answers over device keys: RVSD (Part D, docs/signal-integration/12-part-d-stories.md) -------------------
+//
+// A device-keys story's author has no account key to seal to: an answer "without my name" is sealed once to each listed
+// device of the author (its Curve25519 identity key, from the author's verified device list):
+//   "RVSD" | 1 | count (1 byte, 1..10) | count x (device id (16) | length (2 bytes, big-endian, >= 48) | crypto_box_seal(payload))
+// payload is exactly an RVSA payload (magic "RVSA" | 1 | story id | sticker id length | sticker id | answer JSON), so a copy
+// says nothing about who sent it. At most 8,192 bytes in all; no device id twice; nothing left over.
+
+inline constexpr std::size_t kRvsdMaxDevices = 10;
+inline constexpr std::size_t kRvsdMaxBytes = 8192;
+inline constexpr std::size_t kRvsdMinCopy = 48;  // crypto_box_SEALBYTES: the smallest sealed box
+
+/// One device's copy inside an RVSD container: the device id (lowercase uuid) and its sealed box.
+struct RvsdCopy {
+    std::string deviceId;
+    Bytes sealed;
+};
+
+/// The container's copies, or nothing when it doesn't follow the format exactly (the shared vectors' rules).
+std::optional<std::vector<RvsdCopy>> parseRvsd(ByteView envelope);
+/// The container for `copies` (1..10, distinct ids, each >= 48 bytes). Throws CryptoError otherwise, or past 8,192 bytes.
+Bytes encodeRvsd(const std::vector<RvsdCopy>& copies);
+/**
+ * An anonymous answer sealed to each of the author's devices: `devices` is (device id, Curve25519 public key) from the
+ * author's verified list, at most 10. Throws CryptoError on a bad key, a sticker it doesn't fit, or too much.
+ */
+Bytes sealAnonymousForDevices(std::string_view storyId, const model::stories::Sticker& sticker, const model::stories::Answer& answer,
+                              const std::vector<std::pair<std::string, Bytes>>& devices);
+/// The RVSA payload an RVSD copy seals (magic "RVSA", story id, sticker id, answer JSON). Throws CryptoError if it doesn't fit.
+Bytes anonymousAnswerPayload(std::string_view storyId, const model::stories::Sticker& sticker, const model::stories::Answer& answer);
+/// A copy one author device opened (the RVSA payload): checked against the story and sticker. Throws CryptoError.
+model::stories::Answer openAnonymousPayload(std::string_view storyId, const model::stories::Sticker& sticker, ByteView payload);
+/// For tests and tools that hold a Curve25519 key pair themselves: opens that device's copy. Throws CryptoError.
+model::stories::Answer openRvsdCopy(std::string_view storyId, const model::stories::Sticker& sticker, ByteView envelope, std::string_view deviceId,
+                                    ByteView devicePublicKey, ByteView devicePrivateKey);
 
 // --- Totals (author -> everyone who can see the story) ---------------------------------------------------------
 //

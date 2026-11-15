@@ -15,6 +15,7 @@
 #include <QImage>
 #include <QMimeData>
 #include <QStandardPaths>
+#include <QUuid>
 
 #include <algorithm>
 #include <system_error>
@@ -148,6 +149,14 @@ const data::ConversationMeta* ChatSession::currentMeta() const {
 std::shared_ptr<const data::ConversationMeta> ChatSession::currentMetaShared() const {
     const auto it = metas_.find(currentChatId_);
     return it == metas_.end() ? nullptr : it->second;
+}
+
+std::vector<std::shared_ptr<const data::ConversationMeta>> ChatSession::communityMetas() const {
+    std::vector<std::shared_ptr<const data::ConversationMeta>> out;
+    for (const auto& [id, meta] : metas_) {
+        if (meta && meta->community) out.push_back(meta);
+    }
+    return out;
 }
 
 std::shared_ptr<const data::ConversationMeta> ChatSession::metaFor(const std::string& chatId) const {
@@ -336,6 +345,21 @@ QString ChatSession::currentSafetyQr() const {
     const auto* meta = currentMeta();
     if (!meta || meta->isGroup || meta->safetyNumber.empty()) return {};
     return QString::fromStdString(crypto::safety_qr::encode(meta->safetyNumber));
+}
+
+QString ChatSession::checkSafetyQr(const QString& scanned) {
+    const auto* meta = currentMeta();
+    if (!meta || meta->isGroup || meta->safetyNumber.empty()) return QStringLiteral("invalid");
+    switch (crypto::safety_qr::compare(scanned.toStdString(), meta->safetyNumber)) {
+        case crypto::safety_qr::Result::Match:
+            setCurrentVerified(true);
+            return QStringLiteral("match");
+        case crypto::safety_qr::Result::Mismatch:
+            return QStringLiteral("mismatch");
+        case crypto::safety_qr::Result::NotASafetyCode:
+            break;
+    }
+    return QStringLiteral("invalid");
 }
 
 QString ChatSession::currentAvatarUrl() const {
@@ -749,6 +773,46 @@ QVariantMap ChatSession::imageInfo(const QString& messageId) const {
     return {{"state", state}, {"width", size.width()}, {"height", size.height()}};
 }
 
+QVariantMap ChatSession::audioInfo(const QString& messageId) const {
+    const auto* message = messages_.find(messageId.toStdString());
+    if (!message || !isAudioFile(*message)) return {};
+    const auto it = audioStates_.find(message->id);
+    if (it == audioStates_.end()) return {{"state", QString()}, {"url", QUrl()}};
+    return {{"state", it->second.first}, {"url", it->second.second}};
+}
+
+void ChatSession::loadAudio(const QString& messageId) {
+    const auto* message = messages_.find(messageId.toStdString());
+    if (!message || !isAudioFile(*message)) return;
+    const std::string id = message->id;
+    if (const auto it = audioStates_.find(id); it != audioStates_.end() && it->second.first != QStringLiteral("failed")) return;
+    audioStates_[id] = {QStringLiteral("loading"), QUrl()};
+    ++audioRevision_;
+    emit audioChanged();
+    auto files = files_;
+    const auto descriptor = *message->file;
+    runInBackground(
+        pool_, this, [files, descriptor]() { return files->download(descriptor); },
+        [this, id](fs::path path) {
+            audioStates_[id] = {QStringLiteral("ready"), QUrl::fromLocalFile(QString::fromStdWString(path.wstring()))};
+            ++audioRevision_;
+            emit audioChanged();
+        },
+        [this, id](const Failure& failure) {
+            audioStates_[id] = {QStringLiteral("failed"), QUrl()};
+            ++audioRevision_;
+            emit audioChanged();
+            if (failure.status == 401) emit sessionExpired();
+        });
+}
+
+QUrl ChatSession::newVoiceFile() {
+    const fs::path dir = cacheDir_ / "voice" / QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+    std::error_code ignored;
+    fs::create_directories(dir, ignored);
+    return QUrl::fromLocalFile(QString::fromStdWString((dir / L"Voice message.m4a").wstring()));
+}
+
 void ChatSession::loadImage(const QString& messageId, bool force) {
     constexpr std::int64_t kAutoLoadBytes = 20LL * 1024 * 1024;
     const auto* message = messages_.find(messageId.toStdString());
@@ -839,18 +903,18 @@ void ChatSession::pin(const QString& messageId) {
     const std::string preview = message->kind == data::MessageKind::File ? kPaperclip + message->text
                               : message->kind == data::MessageKind::Poll ? "\xF0\x9F\x93\x8A " + message->text
                                                                          : message->text;
-    sendControl(device_key_refusal::kPin, [id, preview](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendPin(meta, id, preview); });
+    sendControl(device_key_refusal::kMessage, [id, preview](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendPin(meta, id, preview); });
 }
 
 void ChatSession::unpin(const QString& messageId) {
     const std::string id = messageId.toStdString();
-    sendControl(device_key_refusal::kPin, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendUnpin(meta, id); });
+    sendControl(device_key_refusal::kMessage, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendUnpin(meta, id); });
 }
 
 void ChatSession::createPoll(const QString& question, const QStringList& options, bool multiple) {
     const auto meta = currentMetaShared();
     if (!meta) return;
-    if (const QString why = sendRefusal(meta->id, device_key_refusal::kPoll); !why.isEmpty()) {
+    if (const QString why = sendRefusal(meta->id, device_key_refusal::kMessage); !why.isEmpty()) {
         emit pollDone(why);
         return;
     }
@@ -880,7 +944,7 @@ void ChatSession::vote(const QString& pollId, const QVariantList& options) {
     const auto* message = messages_.find(pollId.toStdString());
     if (!message || !message->poll || message->poll->closed) return;
     // Before the count on screen moves: a vote that can't go out mustn't look as if it did.
-    if (const QString why = sendRefusal(currentChatId_, device_key_refusal::kVote); !why.isEmpty()) return setError(why);
+    if (const QString why = sendRefusal(currentChatId_, device_key_refusal::kMessage); !why.isEmpty()) return setError(why);
     std::vector<int> picked;
     for (const auto& option : options) picked.push_back(option.toInt());
     const data::Message poll = *message;
@@ -896,14 +960,14 @@ void ChatSession::vote(const QString& pollId, const QVariantList& options) {
         }
         showThread(chat->meta, chat->messages);
     }
-    sendControl(device_key_refusal::kVote, [poll, picked](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendVote(meta, poll, picked); });
+    sendControl(device_key_refusal::kMessage, [poll, picked](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendVote(meta, poll, picked); });
 }
 
 void ChatSession::endPoll(const QString& pollId) {
     const auto* message = messages_.find(pollId.toStdString());
     if (!message || !message->poll || !message->fromMe || message->poll->closed) return;
     const std::string id = message->id;
-    sendControl(device_key_refusal::kVote, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendEndPoll(meta, id); });
+    sendControl(device_key_refusal::kMessage, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendEndPoll(meta, id); });
 }
 
 QVariantList ChatSession::messageRequests() const {
@@ -944,6 +1008,11 @@ void ChatSession::respondToRequest(const QString& chatId, bool accept) {
             refreshAll();
         },
         [this](const Failure& failure) { fail(failure); });
+}
+
+int ChatSession::disappearingFor(const std::string& chatId) const {
+    const auto* chat = chatList_.find(chatId);
+    return chat ? data::Disappearing::fromSeconds(chat->disappearingSeconds).seconds.value_or(0) : 0;
 }
 
 int ChatSession::currentDisappearing() const {
@@ -1010,25 +1079,56 @@ void ChatSession::forwardMessages(const QStringList& messageIds, const QStringLi
     std::vector<Item> items;
     for (const auto& id : messageIds) {
         const auto* message = messages_.find(id.toStdString());
-        if (!message || message->kind == data::MessageKind::Undecryptable) continue;
+        if (!message) {
+            // A message of the open device-key chat (part A): it can go anywhere, each target by its own protocol.
+            if (deviceKeyLookup_) {
+                if (auto item = deviceKeyLookup_(id.toStdString())) items.push_back(Item{std::move(item->text), std::move(item->file), item->at, std::nullopt});
+            }
+            continue;
+        }
+        if (message->kind == data::MessageKind::Undecryptable) continue;
         if (message->kind == data::MessageKind::File && !message->file) continue;
         items.push_back(Item{message->text, message->file, message->createdAtMs, message->channelPost});
     }
     std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.at < b.at; });
-    std::vector<std::shared_ptr<const data::ConversationMeta>> targets;
+    std::vector<std::shared_ptr<const data::ConversationMeta>> chosen;
     for (const auto& chatId : chatIds) {
-        if (auto meta = metaFor(chatId.toStdString())) targets.push_back(std::move(meta));
+        if (auto meta = metaFor(chatId.toStdString())) chosen.push_back(std::move(meta));
     }
-    if (items.empty() || targets.empty()) {
+    if (items.empty() || chosen.empty()) {
         emit forwardDone(0, {});
         return;
     }
-    // Before anything goes out, so a chat that can't take it doesn't leave the rest half done.
-    for (const auto& meta : targets) {
-        if (const QString why = sendRefusal(meta->id, device_key_refusal::kForward); !why.isEmpty()) {
+    // Each target by its own rule (step 1): a chat pinned to device keys gets the forward there, the others on the
+    // older protocol. Checked before anything goes out, so a chat that can't take it doesn't leave the rest half done.
+    std::vector<std::shared_ptr<const data::ConversationMeta>> targets;
+    std::vector<std::string> deviceKeyTargets;
+    for (const auto& meta : chosen) {
+        if (chatPinnedToDeviceKeys_ && chatPinnedToDeviceKeys_(meta->id)) {
+            const QString reason = deviceKeyReason_ ? deviceKeyReason_(meta->id) : QString();
+            if (!reason.isEmpty() || !deviceKeyForward_) {
+                emit forwardDone(0, reason.isEmpty() ? QString::fromUtf8(device_key_refusal::kMessage) : reason);
+                return;
+            }
+            deviceKeyTargets.push_back(meta->id);
+            continue;
+        }
+        if (const QString why = sendRefusal(meta->id, device_key_refusal::kMessage); !why.isEmpty()) {
             emit forwardDone(0, why);
             return;
         }
+        targets.push_back(meta);
+    }
+    // Into device-key chats: their files are uploaded again there, with new keys (DeviceKeysSession::forwardInto).
+    for (const std::string& chatId : deviceKeyTargets) {
+        std::vector<DeviceKeyForward> forwarded;
+        for (const auto& item : items) forwarded.push_back(DeviceKeyForward{item.text, item.file, item.at});
+        deviceKeyForward_(chatId, std::move(forwarded));
+    }
+    const int handedOver = static_cast<int>(items.size() * deviceKeyTargets.size());
+    if (targets.empty()) {
+        emit forwardDone(handedOver, {});
+        return;
     }
     auto repository = repository_;
     auto files = files_;
@@ -1059,8 +1159,8 @@ void ChatSession::forwardMessages(const QStringList& messageIds, const QStringLi
             }
             return sent;
         },
-        [this](int sent) {
-            emit forwardDone(sent, {});
+        [this, handedOver](int sent) {
+            emit forwardDone(sent + handedOver, {});
             refreshAll();
         },
         [this](const Failure& failure) {
@@ -1084,7 +1184,7 @@ void ChatSession::forwardChannelPost(const QString& text, const QString& channel
         return;
     }
     for (const auto& meta : targets) {
-        if (const QString why = sendRefusal(meta->id, device_key_refusal::kForward); !why.isEmpty()) {
+        if (const QString why = sendRefusal(meta->id, device_key_refusal::kChannelPost); !why.isEmpty()) {
             emit forwardDone(0, why);
             return;
         }
@@ -1328,7 +1428,8 @@ void ChatSession::attachFile(const QUrl& file) {
             Qt::QueuedConnection);
     };
     // A pasted picture's temporary copy goes once it's sent (or failed to).
-    const bool pastedCopy = path.parent_path() == cacheDir_ / "pasted";
+    // A voice recording (newVoiceFile: voice/<random>/Voice message.m4a) goes the same way.
+    const bool pastedCopy = path.parent_path() == cacheDir_ / "pasted" || path.parent_path().parent_path() == cacheDir_ / "voice";
     if (outbox_) {
         // Tor routing: a sealed copy goes into the outbox (the original may
         // change or move), then it's sent over Tor when Tor is connected.

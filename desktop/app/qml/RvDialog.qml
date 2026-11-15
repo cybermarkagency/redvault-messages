@@ -16,7 +16,7 @@ Dialog {
     closePolicy: Popup.CloseOnEscape
 
     Overlay.modal: Rectangle {
-        color: Theme.dark ? "#B0000000" : "#66101817"
+        color: Theme.dark ? "#B0000000" : "#66101114"
     }
 
     background: Rectangle {
@@ -44,7 +44,7 @@ Dialog {
             primary: false
             iconName: "x"
             ToolTip.visible: hovered
-            ToolTip.text: "Close"
+            ToolTip.text: qsTr("Close")
             implicitHeight: 32
             leftPadding: 10
             rightPadding: 10

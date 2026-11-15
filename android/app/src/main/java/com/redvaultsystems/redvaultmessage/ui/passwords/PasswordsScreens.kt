@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.passwords
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,11 +120,11 @@ fun PasswordsTab(vault: VaultSession, state: VaultState, onOpen: (String) -> Uni
     var picking by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().touchesVault(vault)) {
-        TabHeader("Passwords") {
+        TabHeader(stringResource(R.string.ui_passwords)) {
             if (!state.locked) Box {
                 RoundButton(
                     R.drawable.ui_plus, "New item", onClick = { picking = true },
-                    container = colors.accent, tint = colors.accentContrast,
+                    container = colors.accentFill, tint = colors.accentContrast,
                 )
                 DropdownMenu(expanded = picking, onDismissRequest = { picking = false }, containerColor = colors.surface2) {
                     ITEM_TYPES.forEach { (type, label) ->
@@ -158,7 +159,7 @@ fun PasswordsTab(vault: VaultSession, state: VaultState, onOpen: (String) -> Uni
             }
             .sortedBy { titleOf(it.entry).lowercase() }
         when {
-            !state.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Opening your vault…", color = colors.text3) }
+            !state.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.ui_opening_your_vault), color = colors.text3) }
             shown.isEmpty() -> EmptyVault(
                 if (search.isNotBlank()) "Nothing matches that." else if (state.rows.isEmpty()) "Your vault is empty. Tap + to save a login, card, note or Wi-Fi password." else "Nothing here.",
             )
@@ -193,8 +194,8 @@ private fun LockBar(locked: Boolean, onLock: () -> Unit) {
             .padding(horizontal = 20.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (locked) colors.surface2 else Color(0xFF16271F))
-            .border(1.dp, if (locked) colors.borderStrong else Color(0xFF244536), RoundedCornerShape(14.dp))
+            .background(if (locked) colors.surface2 else colors.accentSoft)
+            .border(1.dp, if (locked) colors.borderStrong else colors.accentBorder, RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -207,7 +208,7 @@ private fun LockBar(locked: Boolean, onLock: () -> Unit) {
         }
         if (!locked) {
             Text(
-                "Lock now",
+                stringResource(R.string.ui_lock_now),
                 color = colors.text,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -250,18 +251,18 @@ private fun LockedVault(vault: VaultSession, state: VaultState) {
             Modifier.size(84.dp).clip(CircleShape).background(colors.surface2).border(1.dp, colors.borderStrong, CircleShape),
             contentAlignment = Alignment.Center,
         ) { DsIcon(R.drawable.ui_lock, colors.accent, 36.dp) }
-        Text("Vault locked", fontFamily = RedvaultFonts.display, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Text(stringResource(R.string.ui_vault_locked), fontFamily = RedvaultFonts.display, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colors.text)
         Text(
-            "Unlock to see your passwords. Nothing in the vault can be read until you do — not even by us.",
+            stringResource(R.string.ui_unlock_to_see_your_passwords_nothing),
             color = colors.text3,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
         )
         if (!usePassword) {
-            PillButton("Unlock with face or fingerprint", ::promptBiometrics, Modifier.fillMaxWidth(), icon = R.drawable.ui_fingerprint)
+            PillButton(stringResource(R.string.ui_unlock_with_face_or_fingerprint), ::promptBiometrics, Modifier.fillMaxWidth(), icon = R.drawable.ui_fingerprint)
             biometricError?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
             Text(
-                "Use master password",
+                stringResource(R.string.ui_use_master_password),
                 color = colors.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
@@ -271,7 +272,7 @@ private fun LockedVault(vault: VaultSession, state: VaultState) {
             DsTextField(password, { password = it; vault.clearMessages() }, "Your account password", password = true)
             state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
             PillButton(
-                "Unlock",
+                stringResource(R.string.ui_unlock),
                 { scope.launch { if (vault.unlockWithPassword(password)) password = "" } },
                 Modifier.fillMaxWidth(),
                 enabled = password.isNotEmpty(),
@@ -279,7 +280,7 @@ private fun LockedVault(vault: VaultSession, state: VaultState) {
             )
             if (biometrics) {
                 Text(
-                    "Use face or fingerprint",
+                    stringResource(R.string.ui_use_face_or_fingerprint),
                     color = colors.accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -300,7 +301,7 @@ private fun SecurityCheck(state: VaultState, filter: VaultFilter, onPick: (Vault
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Security check", color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.ui_security_check), color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text(
                 when {
                     state.breachChecked -> "Checked privately"
@@ -382,7 +383,7 @@ private fun VaultRowItem(row: VaultRow, onClick: () -> Unit) {
 private fun StatusBadge(status: ItemStatus) {
     val colors = RedvaultTheme.colors
     val (text, fill, ink) = when (status) {
-        ItemStatus.Exposed -> Triple("Exposed", Color(0xFF3A1F1C), colors.danger)
+        ItemStatus.Exposed -> Triple("Exposed", colors.dangerSoft, colors.danger)
         ItemStatus.Reused -> Triple("Reused", colors.warnSoft, colors.warn)
         ItemStatus.Weak -> Triple("Weak", colors.warnSoft, colors.warn)
         ItemStatus.None -> return
@@ -446,7 +447,7 @@ fun PasswordItemScreen(
             Spacer(Modifier.weight(1f))
             if (!entry.incoming) {
                 Text(
-                    "Edit",
+                    stringResource(R.string.ui_edit),
                     color = colors.accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -472,7 +473,7 @@ fun PasswordItemScreen(
             }
             if (row.status == ItemStatus.Exposed) {
                 Callout(
-                    "This password has appeared in a data breach. Change it on the site, then save the new one here.",
+                    stringResource(R.string.ui_this_password_has_appeared_in_a),
                     CalloutTone.Error, R.drawable.ui_alert_circle,
                 )
             } else if (row.status == ItemStatus.Reused) {
@@ -515,7 +516,7 @@ fun PasswordItemScreen(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         DsIcon(R.drawable.ui_key, colors.accent, 20.dp)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Passkey saved", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.ui_passkey_saved), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Text("For $rpId · sign in without a password", color = colors.text3, fontSize = 12.5.sp)
                         }
                     }
@@ -525,7 +526,7 @@ fun PasswordItemScreen(
                 val notes = d.strField("notes")
                 if (notes.isNotEmpty()) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Notes", fontSize = 12.sp, color = colors.text3)
+                        Text(stringResource(R.string.ui_notes), fontSize = 12.sp, color = colors.text3)
                         Text(notes, fontSize = 14.sp, color = colors.text)
                     }
                 }
@@ -576,7 +577,7 @@ fun PasswordItemScreen(
             Spacer(Modifier.height(4.dp))
         }
         if (!entry.incoming) {
-            PillButton("Share securely", onShare, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), icon = R.drawable.ui_share)
+            PillButton(stringResource(R.string.ui_share_securely), onShare, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), icon = R.drawable.ui_share)
         }
     }
     DisposableEffect(id) { onDispose { vault.clearMessages() } }
@@ -660,7 +661,7 @@ private fun TotpRow(vault: VaultSession, id: String, onCopy: (String) -> Unit) {
     val (code, left, period) = vault.totp(id, now) ?: return
     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("One-time code", fontSize = 12.sp, color = colors.text3)
+            Text(stringResource(R.string.ui_one_time_code), fontSize = 12.sp, color = colors.text3)
             Text(code, fontFamily = MonoFamily, fontSize = 22.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.7.sp, color = colors.accent)
         }
         Box(Modifier.size(36.dp).semantics { contentDescription = "$left seconds left" }, contentAlignment = Alignment.Center) {
@@ -696,7 +697,7 @@ private fun GeneratorCard(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Generate a new password", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.ui_generate_a_new_password), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             SquareButton(R.drawable.ui_refresh, "Generate another", onClick = onRegenerate)
         }
         Text(
@@ -709,21 +710,21 @@ private fun GeneratorCard(
         )
         GeneratorOptionsRow(options, onOptions)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Copy", onCopy, Modifier.weight(1f), style = PillStyle.Secondary, height = 42.dp, icon = R.drawable.ui_copy)
-            PillButton("Use this one", { confirming = true }, Modifier.weight(1f), style = PillStyle.Secondary, height = 42.dp)
+            PillButton(stringResource(R.string.ui_copy), onCopy, Modifier.weight(1f), style = PillStyle.Secondary, height = 42.dp, icon = R.drawable.ui_copy)
+            PillButton(stringResource(R.string.ui_use_this_one), { confirming = true }, Modifier.weight(1f), style = PillStyle.Secondary, height = 42.dp)
         }
     }
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
             containerColor = colors.surface2,
-            title = { Text("Replace the saved password?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_replace_the_saved_password), color = colors.text) },
             text = {
                 TouchGuard()
-                Text("Change it on the site too, or you won't be able to sign in with the new one.", color = colors.text2)
+                Text(stringResource(R.string.ui_change_it_on_the_site_too), color = colors.text2)
             },
-            confirmButton = { TextButton(onClick = { confirming = false; onUse() }) { Text("Replace", color = colors.accent) } },
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { confirming = false; onUse() }) { Text(stringResource(R.string.ui_replace), color = colors.accent) } },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -761,7 +762,7 @@ private fun OptionToggle(label: String, on: Boolean, onChange: (Boolean) -> Unit
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(if (on) colors.accent else colors.surface2)
+            .background(if (on) colors.accentFill else colors.surface2)
             .clickable(role = Role.Checkbox) { onChange(!on) }
             .semantics { contentDescription = "$label ${if (on) "on" else "off"}" }
             .padding(horizontal = 12.dp, vertical = 7.dp),
@@ -834,9 +835,9 @@ fun PasswordEditSheet(vault: VaultSession, state: VaultState, id: String?, newTy
             }
             Field("Notes") { DsTextField(f.notes, { f = f.copy(notes = it) }, if (f.type == "note") "Write your note" else "Optional", singleLine = false, minHeight = 110.dp) }
             state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
-            Callout("Encrypted on this phone before it's saved. It syncs to your other devices; we can't read it.", CalloutTone.Neutral, R.drawable.ui_shield)
+            Callout(stringResource(R.string.ui_encrypted_on_this_phone_before_it), CalloutTone.Neutral, R.drawable.ui_shield)
             if (id != null) {
-                PillButton("Delete", { deleting = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, icon = R.drawable.ui_trash)
+                PillButton(stringResource(R.string.ui_delete), { deleting = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, icon = R.drawable.ui_trash)
             }
         }
     }
@@ -847,10 +848,10 @@ fun PasswordEditSheet(vault: VaultSession, state: VaultState, id: String?, newTy
             title = { Text("Delete “${f.title.ifBlank { "this item" }}”?", color = colors.text) },
             text = {
                 TouchGuard()
-                Text("It's removed from all your devices, and from anyone you shared it with.", color = colors.text2)
+                Text(stringResource(R.string.ui_it_s_removed_from_all_your), color = colors.text2)
             },
-            confirmButton = { TextButton(onClick = { deleting = false; vault.delete(id); onDone("") }) { Text("Delete", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { deleting = false; vault.delete(id); onDone("") }) { Text(stringResource(R.string.ui_delete), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -889,14 +890,14 @@ fun PasswordShareSheet(vault: VaultSession, state: VaultState, id: String, conta
         LaunchedEffect(Unit) { onDone() }
         return
     }
-    FullSheet(title = "Share securely", onCancel = onDone, primary = "Done", primaryEnabled = true, busy = state.busy, onPrimary = onDone) {
+    FullSheet(title = stringResource(R.string.ui_share_securely), onCancel = onDone, primary = "Done", primaryEnabled = true, busy = state.busy, onPrimary = onDone) {
         Text(titleOf(row.entry), color = colors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Callout(
-            "They get their own copy, sealed to them on this phone, and it stays in step when you edit it. They can see the password, so share only with people you trust.",
+            stringResource(R.string.ui_they_get_their_own_copy_sealed),
             CalloutTone.Neutral, R.drawable.ui_info,
         )
         if (contacts.isEmpty()) {
-            Text("Chat with someone first to share with them.", color = colors.text3, fontSize = 14.sp)
+            Text(stringResource(R.string.ui_chat_with_someone_first_to_share), color = colors.text3, fontSize = 14.sp)
         }
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
             contacts.forEach { contact ->

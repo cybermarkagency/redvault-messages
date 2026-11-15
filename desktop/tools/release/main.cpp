@@ -8,7 +8,10 @@
 //   redvault_release keygen [--key FILE] [--embed desktop/app/src/update_key.hpp]
 //   redvault_release sign --installer FILE --version X.Y.Z --out latest.json [--notes TEXT] [--key FILE]
 //                         [--base-url URL] [--valid-days N]
-//   redvault_release verify --manifest latest.json --public-key BASE64 [--current X.Y.Z]
+//   redvault_release sign-linux --appimage FILE --deb FILE --version X.Y.Z --out-dir DIR [--notes TEXT] [--key FILE]
+//                         [--base-url URL] [--valid-days N]
+//       Writes linux-appimage-latest.json and linux-deb-latest.json into DIR (one passphrase for both).
+//   redvault_release verify --manifest latest.json --public-key BASE64 [--current X.Y.Z] [--product NAME]
 //
 // The key file defaults to %USERPROFILE%\.redvault\release-signing-key.json
 // and is encrypted with a passphrase you choose (asked for, never on the
@@ -202,6 +205,105 @@ int sign(const std::map<std::string, std::string>& opts) {
     return 0;
 }
 
+/// The Android app's manifest (android-latest.json), signed with the same release key as the desktop's.
+int signAndroid(const std::map<std::string, std::string>& opts) {
+    for (const char* required : {"apk", "version", "version-code", "out"}) {
+        if (!opts.contains(required)) throw update::UpdateError(std::string("sign-android needs --") + required);
+    }
+    const fs::path apk = opts.at("apk");
+    if (apk.extension() != ".apk") throw update::UpdateError("--apk must be an .apk file");
+    const fs::path keyPath = opts.contains("key") ? fs::path(opts.at("key")) : defaultKeyPath();
+    if (!update::parseVersion(opts.at("version"))) throw update::UpdateError("Version must look like 1.2.3");
+    if (!std::regex_match(opts.at("version-code"), std::regex("[1-9][0-9]{0,9}"))) throw update::UpdateError("--version-code must be a positive number");
+    if (!fs::exists(keyPath)) throw update::UpdateError("No release key at " + keyPath.string() + " (run keygen first)");
+    const std::string validDays = opts.contains("valid-days") ? opts.at("valid-days") : std::to_string(kDefaultValidDays);
+    if (!std::regex_match(validDays, std::regex("[1-9][0-9]{0,3}"))) throw update::UpdateError("--valid-days must be a number of days, 1 to 9999");
+
+    update::Release release;
+    release.product = std::string(update::kAndroidProduct);
+    release.version = opts.at("version");
+    release.versionCode = std::stoll(opts.at("version-code"));
+    // The name it's published under on the website (the file itself may still be app-release.apk).
+    release.url = std::string(kDefaultBaseUrl) + (opts.contains("published-name") ? opts.at("published-name") : apk.filename().string());
+    release.sha256 = sha256Hex(apk);
+    release.size = fs::file_size(apk);
+    release.notes = opts.contains("notes") ? opts.at("notes") : "";
+    release.published = nowIso();
+    release.expires = isoAfterDays(std::stoi(validDays));
+
+    const auto keys = update::openSigningKey(readFile(keyPath), readHidden("Release key passphrase: "));
+    const std::string manifest = update::signManifest(release, keys.secretKey);
+    const auto checked = update::verifyAndroidManifest(manifest, keys.publicKey, kDefaultBaseUrl);
+    if (checked.versionCode != release.versionCode || checked.sha256 != release.sha256) {
+        throw update::UpdateError("The signed Android manifest didn't verify");
+    }
+    writeFile(opts.at("out"), manifest);
+    std::cout << "Signed Android " << release.version << " (versionCode " << release.versionCode << ") -> " << opts.at("out") << "\n"
+              << "  apk:     " << release.url << "\n"
+              << "  sha256:  " << release.sha256 << "\n"
+              << "  size:    " << release.size << " bytes\n"
+              << "  expires: " << release.expires << " (sign again before then)\n";
+    return 0;
+}
+
+/// The Linux desktop app's two manifests, one per way it's installed, both signed with the same release key.
+int signLinux(const std::map<std::string, std::string>& opts) {
+    for (const char* required : {"appimage", "deb", "version", "out-dir"}) {
+        if (!opts.contains(required)) throw update::UpdateError(std::string("sign-linux needs --") + required);
+    }
+    const fs::path appImage = opts.at("appimage");
+    const fs::path deb = opts.at("deb");
+    if (appImage.extension() != ".AppImage") throw update::UpdateError("--appimage must be an .AppImage file");
+    if (deb.extension() != ".deb") throw update::UpdateError("--deb must be a .deb file");
+    const std::string version = opts.at("version");
+    if (!update::parseVersion(version)) throw update::UpdateError("Version must look like 1.2.3");
+    // Both files carry the version in their names: a mismatch means the wrong file was picked.
+    for (const fs::path& file : {appImage, deb}) {
+        if (file.filename().string().find(version) == std::string::npos) {
+            throw update::UpdateError(file.filename().string() + " doesn't look like version " + version);
+        }
+    }
+    const fs::path keyPath = opts.contains("key") ? fs::path(opts.at("key")) : defaultKeyPath();
+    if (!fs::exists(keyPath)) throw update::UpdateError("No release key at " + keyPath.string() + " (run keygen first)");
+    const std::string validDays = opts.contains("valid-days") ? opts.at("valid-days") : std::to_string(kDefaultValidDays);
+    if (!std::regex_match(validDays, std::regex("[1-9][0-9]{0,3}"))) throw update::UpdateError("--valid-days must be a number of days, 1 to 9999");
+    const fs::path outDir = opts.at("out-dir");
+    fs::create_directories(outDir);
+    std::string baseUrl = opts.contains("base-url") ? opts.at("base-url") : kDefaultBaseUrl;
+    if (!baseUrl.ends_with('/')) baseUrl += '/';
+
+    const auto keys = update::openSigningKey(readFile(keyPath), readHidden("Release key passphrase: "));
+    struct Item {
+        fs::path file;
+        std::string_view product;
+        const char* manifestName;
+    };
+    for (const Item& item : {Item{appImage, update::kLinuxAppImageProduct, "linux-appimage-latest.json"},
+                             Item{deb, update::kLinuxDebProduct, "linux-deb-latest.json"}}) {
+        update::Release release;
+        release.product = std::string(item.product);
+        release.version = version;
+        release.url = baseUrl + item.file.filename().string();
+        release.sha256 = sha256Hex(item.file);
+        release.size = fs::file_size(item.file);
+        release.notes = opts.contains("notes") ? opts.at("notes") : "";
+        release.published = nowIso();
+        release.expires = isoAfterDays(std::stoi(validDays));
+        const std::string manifest = update::signManifest(release, keys.secretKey);
+        // Checked exactly the way the app will.
+        const auto checked = update::verifyManifest(manifest, keys.publicKey, "0.0.0", baseUrl, item.product);
+        if (!checked || checked->sha256 != release.sha256) throw update::UpdateError("The signed manifest didn't verify");
+        const fs::path out = outDir / item.manifestName;
+        writeFile(out, manifest);
+        std::cout << "Signed Linux " << version << " -> " << out.string() << "\n"
+                  << "  file:    " << release.url << "\n"
+                  << "  sha256:  " << release.sha256 << "\n"
+                  << "  size:    " << release.size << " bytes\n"
+                  << "  expires: " << release.expires << " (sign again before then)\n";
+    }
+    return 0;
+}
+
 int verify(const std::map<std::string, std::string>& opts) {
     for (const char* required : {"manifest", "public-key"}) {
         if (!opts.contains(required)) throw update::UpdateError(std::string("verify needs --") + required);
@@ -209,7 +311,8 @@ int verify(const std::map<std::string, std::string>& opts) {
     const auto publicKey = crypto::base64Decode(opts.at("public-key"));
     const std::string current = opts.contains("current") ? opts.at("current") : "0.0.0";
     const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    const auto check = update::checkManifest(readFile(opts.at("manifest")), publicKey, current, kDefaultBaseUrl, now);
+    const std::string product = opts.contains("product") ? opts.at("product") : std::string(update::kProduct);
+    const auto check = update::checkManifest(readFile(opts.at("manifest")), publicKey, current, kDefaultBaseUrl, now, product);
     if (check.freshness == update::Freshness::Expired) std::cout << "EXPIRED: the app will warn that a newer version may exist.\n";
     if (check.freshness == update::Freshness::NoExpiry) std::cout << "NO EXPIRY: signed before manifests carried a date; the app warns about this too.\n";
     const auto& release = check.release;
@@ -225,7 +328,11 @@ void usage() {
     std::cerr << "Usage:\n"
                  "  redvault_release keygen [--key FILE] [--embed desktop/app/src/update_key.hpp]\n"
                  "  redvault_release sign --installer FILE --version X.Y.Z --out latest.json [--notes TEXT] [--key FILE] [--valid-days N]\n"
-                 "  redvault_release verify --manifest latest.json --public-key BASE64 [--current X.Y.Z]\n";
+                 "  redvault_release sign-android --apk FILE --version X.Y.Z --version-code N --out android-latest.json\n"
+                 "                   [--published-name RedVault-Messages-X.Y.Z.apk] [--notes TEXT] [--key FILE] [--valid-days N]\n"
+                 "  redvault_release sign-linux --appimage FILE --deb FILE --version X.Y.Z --out-dir DIR\n"
+                 "                   [--notes TEXT] [--key FILE] [--base-url URL] [--valid-days N]\n"
+                 "  redvault_release verify --manifest latest.json --public-key BASE64 [--current X.Y.Z] [--product NAME]\n";
 }
 
 }  // namespace
@@ -240,6 +347,8 @@ int main(int argc, char** argv) {
         const auto opts = options(args, 1);
         if (args[0] == "keygen") return keygen(opts);
         if (args[0] == "sign") return sign(opts);
+        if (args[0] == "sign-android") return signAndroid(opts);
+        if (args[0] == "sign-linux") return signLinux(opts);
         if (args[0] == "verify") return verify(opts);
         usage();
         return 2;

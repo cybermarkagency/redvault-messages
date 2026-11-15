@@ -3,6 +3,11 @@
 
 package com.redvaultsystems.redvaultmessage.ui.friends
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
+import com.redvaultsystems.redvaultmessage.ui.components.PillStyle
+import com.redvaultsystems.redvaultmessage.ui.components.PillButton
+import com.redvaultsystems.redvaultmessage.ui.files.DsTextField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,44 +81,45 @@ fun AddFriendScreen(account: AccountSession, onBack: () -> Unit, onOpenRequests:
     // A scanned contact code: look it up straight away.
     LaunchedEffect(initialHandle) { if (initialHandle.isNotBlank()) find() }
 
-    SubScreen(title = "Add a friend", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_add_a_friend), onBack = onBack) {
         Text(
-            "Enter their exact handle. They'll get a friend request, and you can chat once they accept.",
+            stringResource(R.string.ui_enter_their_exact_handle_they_ll),
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
-        OutlinedTextField(
-            value = handle,
-            onValueChange = {
+        DsTextField(
+            handle,
+            {
                 handle = it
                 preview = null
                 error = null
             },
-            label = { Text("Handle") },
-            singleLine = true,
+            "Handle",
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
                 imeAction = ImeAction.Search,
             ),
             keyboardActions = KeyboardActions(onSearch = { find() }),
-            modifier = Modifier.fillMaxWidth(),
         )
         PrimaryButton(text = if (busy && preview == null) "Looking up…" else "Find", enabled = handle.isNotBlank(), busy = busy && preview == null, onClick = ::find)
 
         error?.let { Notice(it) }
         sentTo?.let {
             Notice("Friend request sent to $it. The chat appears once they accept.", NoticeTone.Success)
-            TextButton(onClick = onOpenRequests) { Text("See pending requests") }
+            TextButton(onClick = onOpenRequests) { Text(stringResource(R.string.ui_see_pending_requests)) }
         }
 
         preview?.let { contact ->
             ContactCard(contact.handle, contact.avatarUrl) {
                 when {
-                    contact.isSelf -> Text("That's you.", color = RedvaultTheme.colors.text3)
-                    contact.deleted -> Text("This account was deleted.", color = RedvaultTheme.colors.text3)
-                    sentTo == contact.handle -> Text("Request sent", color = RedvaultTheme.colors.accent)
-                    else -> OutlinedButton(
+                    contact.isSelf -> Text(stringResource(R.string.ui_that_s_you), color = RedvaultTheme.colors.text3)
+                    contact.deleted -> Text(stringResource(R.string.ui_this_account_was_deleted), color = RedvaultTheme.colors.text3)
+                    sentTo == contact.handle -> Text(stringResource(R.string.ui_request_sent), color = RedvaultTheme.colors.accent)
+                    else -> PillButton(
+                        stringResource(R.string.ui_send_request),
+                        style = PillStyle.Secondary,
+                        height = 40.dp,
                         enabled = !busy,
                         onClick = {
                             busy = true
@@ -129,7 +135,7 @@ fun AddFriendScreen(account: AccountSession, onBack: () -> Unit, onOpenRequests:
                                 }
                             }
                         },
-                    ) { Text("Send request") }
+                    )
                 }
             }
         }
@@ -163,41 +169,45 @@ fun FriendRequestsScreen(
         }
     }
 
-    SubScreen(title = "Friend requests", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_friend_requests), onBack = onBack) {
         error?.let { Notice(it) }
 
-        SectionLabel("Received")
+        SectionLabel(stringResource(R.string.ui_received))
         if (requests.incoming.isEmpty()) {
-            Text("No pending requests.", color = RedvaultTheme.colors.text3, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.ui_no_pending_requests), color = RedvaultTheme.colors.text3, style = MaterialTheme.typography.bodyMedium)
         }
         requests.incoming.forEach { request ->
             ContactCard(request.handle, request.avatarUrl) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(enabled = busyId == null, onClick = {
                         act(request, "Couldn't deny that request.") { account.deny(request) }
-                    }) { Text("Deny", color = RedvaultTheme.colors.text2) }
-                    OutlinedButton(enabled = busyId == null, onClick = {
-                        act(request, "Couldn't accept that request.") { onChatCreated(account.accept(request)) }
-                    }) { Text(if (busyId == request.id) "Accepting…" else "Accept") }
+                    }) { Text(stringResource(R.string.ui_deny), color = RedvaultTheme.colors.text2) }
+                    PillButton(
+                        if (busyId == request.id) "Accepting…" else "Accept",
+                        style = PillStyle.Secondary,
+                        height = 40.dp,
+                        enabled = busyId == null,
+                        onClick = { act(request, "Couldn't accept that request.") { onChatCreated(account.accept(request)) } },
+                    )
                 }
             }
         }
 
-        SectionLabel("Sent")
+        SectionLabel(stringResource(R.string.ui_sent))
         if (requests.outgoing.isEmpty()) {
-            Text("You haven't sent any pending requests.", color = RedvaultTheme.colors.text3, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.ui_you_haven_t_sent_any_pending), color = RedvaultTheme.colors.text3, style = MaterialTheme.typography.bodyMedium)
         }
         requests.outgoing.forEach { request ->
             ContactCard(request.handle, request.avatarUrl) {
                 TextButton(enabled = busyId == null, onClick = {
                     act(request, "Couldn't cancel that request.") { account.cancel(request) }
-                }) { Text("Cancel") }
+                }) { Text(stringResource(R.string.ui_cancel)) }
             }
         }
 
-        TextButton(onClick = onAddFriend) { Text("Add a friend") }
+        TextButton(onClick = onAddFriend) { Text(stringResource(R.string.ui_add_a_friend)) }
         Text(
-            "Denying doesn't tell the other person.",
+            stringResource(R.string.ui_denying_doesn_t_tell_the_other),
             color = RedvaultTheme.colors.text3,
             style = MaterialTheme.typography.bodySmall,
         )

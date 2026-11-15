@@ -34,7 +34,7 @@ Popup {
     padding: 0
     closePolicy: Popup.CloseOnEscape
     background: Rectangle {
-        color: "#F20A0D0C"
+        color: "#F20B0C0F"
     }
     onClosed: messageId = ""
 
@@ -88,18 +88,18 @@ Popup {
             }
             IconButton {
                 iconName: "download"
-                tip: "Save as…"
+                tip: qsTr("Save as…")
                 onClicked: viewer.saveRequested(viewer.messageId)
             }
             IconButton {
                 iconName: "external-link"
-                tip: "Open in another app"
+                tip: qsTr("Open in another app")
                 enabled: viewer.canOpen
                 onClicked: viewer.openRequested(viewer.messageId)
             }
             IconButton {
                 iconName: "x"
-                tip: "Close (Esc)"
+                tip: qsTr("Close (Esc)")
                 onClicked: viewer.close()
             }
         }

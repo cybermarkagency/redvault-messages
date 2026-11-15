@@ -8,8 +8,11 @@ import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import java.io.IOException
 
-/** A failed API call, with the server's machine-readable error code where there is one. */
-class ApiException(val status: Int, val code: String, message: String) : Exception(message)
+/**
+ * A failed API call, with the server's machine-readable error code where there is one, and its `details`
+ * (for example the accounts a 409 `recipient_not_entitled` names).
+ */
+class ApiException(val status: Int, val code: String, message: String, val details: kotlinx.serialization.json.JsonObject? = null) : Exception(message)
 
 /** Runs [block], turning Retrofit's HTTP and network failures into [ApiException]. */
 suspend fun <T> apiCall(json: Json, block: suspend () -> T): T {
@@ -22,6 +25,7 @@ suspend fun <T> apiCall(json: Json, block: suspend () -> T): T {
             status = e.code(),
             code = parsed?.error ?: "unknown_error",
             message = parsed?.message ?: e.message(),
+            details = parsed?.details,
         )
     } catch (e: TorUnavailableException) {
         // Nothing left the phone: Tor routing and Tor is down (tor/TorRouting.kt).

@@ -4,6 +4,7 @@
 #include "device_keys_session.hpp"
 
 #include <QDateTime>
+#include <QFile>
 #include <QDesktopServices>
 #include <QDir>
 #include <QLocale>
@@ -15,7 +16,11 @@
 #include <map>
 #include <mutex>
 
+#include "chat_images.hpp"
+#include "chat_models.hpp"
 #include "file_safety.hpp"
+#include "local_store.hpp"
+#include "redvault/model/text_format.hpp"
 #include "redvault/e2ev3/key_vault.hpp"
 #include "redvault/e2ev3/v3_server.hpp"
 #include "redvault/util/text.hpp"
@@ -24,16 +29,32 @@
 
 namespace redvault::app {
 
+const QList<QByteArray>& V3ChatModel::names() {
+    // MessageDelegate's roles (chat_models.cpp), then this list's own.
+    static const QList<QByteArray> kNames = {
+        "messageId",   "text",        "fromMe",      "sender",           "showSender",    "timeText",   "dayHeader",
+        "kind",        "fileSize",    "fileStatus",  "status",           "queueError",    "queueHeld",  "canDiscard",
+        "replyPreview", "replyFromMe", "replyTo",    "reactions",        "verification",  "edited",     "forwarded",
+        "unverifiedSender", "storyReply", "richText", "richTextRevealed", "isImage",      "isVoice",    "poll",
+        "noticeText",  "channelId",   "channelName", "channelPostId",    "deleted",       "hasFile",    "fileName",
+        "canOpen",     "canReact",    "canEdit",     "canDelete",        "canPin",        "pinned",     "time",
+        // MessageDelegate requires it (other chats' audio player); device-key voice uses `isVoice`.
+        "isAudio",
+    };
+    return kNames;
+}
+
 QVariant V3ChatModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || index.row() < 0 || index.row() >= rows_.size()) return {};
-    return rows_.at(index.row()).toMap().value(QString::fromLatin1(roleNames().value(role)));
+    const int at = role - (Qt::UserRole + 1);
+    if (at < 0 || at >= names().size()) return {};
+    return rows_.at(index.row()).toMap().value(QString::fromLatin1(names().at(at)));
 }
 
 QHash<int, QByteArray> V3ChatModel::roleNames() const {
-    return {{IdRole, "messageId"},       {TextRole, "text"},         {FromMeRole, "fromMe"},     {TimeRole, "time"},
-            {StatusRole, "status"},      {SenderRole, "sender"},     {DeletedRole, "deleted"},   {EditedRole, "edited"},
-            {ReactionsRole, "reactions"}, {HasFileRole, "hasFile"},  {FileNameRole, "fileName"}, {FileSizeRole, "fileSize"},
-            {CanOpenRole, "canOpen"},    {CanReactRole, "canReact"}, {CanEditRole, "canEdit"},   {CanDeleteRole, "canDelete"}};
+    QHash<int, QByteArray> out;
+    for (int i = 0; i < names().size(); ++i) out.insert(Qt::UserRole + 1 + i, names().at(i));
+    return out;
 }
 
 void V3ChatModel::setRows(QVariantList rows) {
@@ -41,6 +62,33 @@ void V3ChatModel::setRows(QVariantList rows) {
     rows_ = std::move(rows);
     endResetModel();
     emit countChanged();
+}
+
+int V3ChatModel::indexOf(const QString& messageId) const {
+    for (int i = 0; i < rows_.size(); ++i) {
+        if (rows_.at(i).toMap().value(QStringLiteral("messageId")).toString() == messageId) return i;
+    }
+    return -1;
+}
+
+int DeviceKeysSession::chatTimer() const {
+    return chatId_.isEmpty() ? 0 : openInfo().timerSeconds;
+}
+
+DeviceKeysSession::ChatInfo DeviceKeysSession::openInfo() const {
+    return chatInfo_ && !chatId_.isEmpty() ? chatInfo_(chatId_.toStdString()) : ChatInfo{};
+}
+
+qint64 DeviceKeysSession::voicePosition() const {
+    return voicePlayer_ ? voicePlayer_->position() : 0;
+}
+
+qint64 DeviceKeysSession::voiceDuration() const {
+    return voicePlayer_ ? voicePlayer_->duration() : 0;
+}
+
+bool DeviceKeysSession::voicePlaying() const {
+    return voicePlayer_ && voicePlayer_->playbackState() == QMediaPlayer::PlayingState;
 }
 
 #ifdef REDVAULT_HAS_E2E_V3
@@ -131,40 +179,174 @@ e2ev3::WaitOptions waitFor(const std::shared_ptr<std::atomic<bool>>& stop) {
     return wait;
 }
 
-/// One chat row, as the web's toMessage: {emoji, count, mine} per emoji, and only the actions that message allows.
-QVariantMap chatRow(const e2ev3::ChatRecord& r, const std::string& selfUserId, std::int64_t now) {
+bool isImageMime(const std::string& mime) {
+    const QString m = qs(mime).toLower();
+    // The decoder checks the bytes themselves; this only picks what to try (as protocol-1 chats do).
+    return m == QStringLiteral("image/jpeg") || m == QStringLiteral("image/png") || m == QStringLiteral("image/gif") ||
+           m == QStringLiteral("image/webp") || m == QStringLiteral("image/bmp");
+}
+
+bool isAudioMime(const std::string& mime) {
+    return qs(mime).toLower().startsWith(QStringLiteral("audio/"));
+}
+
+/// What a reply quotes, or a pin bar shows, for a message: its text without markers, a file's name, a poll's question.
+std::string previewFor(const e2ev3::ChatRecord& r) {
+    if (r.deleted) return {};
+    if (r.file) return "\xF0\x9F\x93\x8E " + r.file->filename;  // paperclip
+    if (r.poll) return "\xF0\x9F\x93\x8A " + r.text;  // bar chart
+    return model::text_format::toPlain(r.text);
+}
+
+/// What a row needs besides its own record.
+struct RowContext {
+    const e2ev3::ChatRecord* previous = nullptr;
+    const std::map<std::string, const e2ev3::ChatRecord*>* byId = nullptr;
+    const DeviceKeysSession::ChatInfo* info = nullptr;
+    std::string selfUserId;
+    std::int64_t now = 0;
+};
+
+/**
+ * One chat row with the roles MessageDelegate reads for a protocol-1 message (chat_models.cpp), so a
+ * device-key chat looks and works like the others: formatting, quotes, polls, ticks, pictures. Only
+ * the actions that message allows are offered.
+ */
+QVariantMap chatRow(const e2ev3::ChatRecord& r, const RowContext& c) {
     constexpr std::int64_t kEditWindow = 24LL * 3600 * 1000;  // Signal's window, like the other chats
+    const DeviceKeysSession::ChatInfo& info = *c.info;
     const bool mine = r.direction == "out";
     // A queued one (waiting for Tor) hasn't reached anyone yet either.
-    const bool failed = r.status == "failed" || r.status == "queued";
+    const bool failed = r.status == "failed";
+    const bool waiting = r.status == "queued";
     std::map<QString, std::pair<int, bool>> grouped;
     for (const e2ev3::ChatReaction& reaction : r.reactions) {
         auto& held = grouped[qs(reaction.emoji)];
         ++held.first;
-        held.second = held.second || reaction.userId == selfUserId;
+        held.second = held.second || reaction.userId == c.selfUserId;
     }
     QVariantList reactions;
     for (const auto& [emoji, held] : grouped) {
         reactions.append(QVariantMap{{"emoji", emoji}, {"count", held.first}, {"mine", held.second}});
     }
+    // Part D: a reply or reaction to a story, worded as in the other chats.
+    QString storyReplyText;
+    if (r.storyReply) {
+        const auto& sr = *r.storyReply;
+        const QString what = mine ? (sr.reaction ? QStringLiteral("You reacted to their story") : QStringLiteral("You replied to their story"))
+                                  : (sr.reaction ? QStringLiteral("Reacted to your story") : QStringLiteral("Replied to your story"));
+        storyReplyText = what + QStringLiteral(" ") + QChar(0x00B7) + QStringLiteral(" ") + qs(sr.preview);
+    }
+    const auto handleOf = [&](const std::string& userId) -> QString {
+        if (userId == c.selfUserId) return QStringLiteral("You");
+        const auto it = info.handles.find(userId);
+        return it != info.handles.end() && !it->second.empty() ? qs(it->second) : QStringLiteral("Someone");
+    };
+    // Ticks on your own messages, from the receipts: delivered or read by everyone else in the chat.
+    QString status;
+    if (mine) {
+        if (failed || waiting) {
+            status = QStringLiteral("queued");
+        } else {
+            // Delivered once anyone has a receipt, read once anyone has read it (the same rule on every client).
+            const bool read = std::any_of(r.receipts.begin(), r.receipts.end(), [](const e2ev3::ChatReceipt& x) { return x.status == "read"; });
+            status = read ? QStringLiteral("seen") : !r.receipts.empty() ? QStringLiteral("delivered") : QStringLiteral("sent");
+        }
+    }
     const QString fileName = r.file ? qs(r.file->filename) : QString();
+    const QString kind = r.poll ? QStringLiteral("poll") : r.file ? QStringLiteral("file") : QStringLiteral("text");
+    QString text = r.deleted ? QStringLiteral("This message was deleted.") : r.file ? fileName : qs(r.text);
+    QString richText;
+    QString richRevealed;
+    if (!r.deleted && !r.file && !r.poll) {
+        model::text_format::Options options;
+        if (info.isGroup) {
+            for (const auto& [user, handle] : info.handles) options.mentions.push_back(handle);
+            options.selfHandle = info.selfHandle;
+        }
+        richText = qs(model::text_format::toHtml(r.text, options));
+        options.revealSpoilers = true;
+        richRevealed = qs(model::text_format::toHtml(r.text, options));
+    }
+    QVariantMap poll;
+    if (r.poll && !r.deleted) {
+        std::vector<int> picked;
+        int voters = 0;
+        for (const auto& [user, choices] : r.poll->ballots) {
+            ++voters;
+            if (user == c.selfUserId) picked = choices;
+        }
+        QVariantList options;
+        for (std::size_t i = 0; i < r.poll->options.size(); ++i) {
+            options.append(QVariantMap{{"label", qs(r.poll->options[i])},
+                                       {"count", i < r.poll->votes.size() ? r.poll->votes[i] : 0},
+                                       {"mine", std::find(picked.begin(), picked.end(), static_cast<int>(i)) != picked.end()}});
+        }
+        poll = QVariantMap{{"question", qs(r.text)}, {"multiple", r.poll->multi}, {"closed", r.poll->ended},
+                           {"voters", voters},       {"voted", !picked.empty()}, {"options", options}};
+    }
+    bool replyFromMe = false;
+    QString replyPreview = qs(r.replyPreview);
+    if (!r.replyTo.empty()) {
+        if (const auto it = c.byId->find(r.replyTo); it != c.byId->end()) {
+            replyFromMe = it->second->from == c.selfUserId;
+            if (it->second->deleted) replyPreview = QStringLiteral("Deleted message");
+            else if (replyPreview.isEmpty()) replyPreview = qs(previewFor(*it->second));
+        } else if (replyPreview.isEmpty()) {
+            replyPreview = QStringLiteral("A message that isn't on this computer");
+        }
+    }
+    const auto local = [](std::int64_t ms) { return QDateTime::fromMSecsSinceEpoch(ms).toLocalTime(); };
+    const bool sameDay = c.previous != nullptr && local(c.previous->ts).date() == local(r.ts).date();
+    const bool showSender = info.isGroup && !mine && (c.previous == nullptr || c.previous->from != r.from || !sameDay);
+    QString timeText = formatClock(r.ts);
+    if (r.expiresAt) timeText = QStringLiteral("\u23F2 ") + timeText;  // it disappears
+    const bool usable = !failed && !waiting && !r.deleted;
     return QVariantMap{{"messageId", qs(r.id)},
-                       {"text", r.deleted ? QStringLiteral("This message was deleted.") : qs(r.text)},
+                       {"text", text},
                        {"fromMe", mine},
-                       {"time", QLocale().toString(QDateTime::fromMSecsSinceEpoch(r.ts).toLocalTime(), QLocale::ShortFormat)},
-                       {"status", qs(r.status)},
-                       {"sender", qs(r.from)},
-                       {"deleted", r.deleted},
-                       {"edited", r.edited},
+                       {"sender", handleOf(r.from)},
+                       {"showSender", showSender},
+                       {"timeText", timeText},
+                       {"dayHeader", sameDay ? QString() : formatDay(r.ts)},
+                       {"kind", kind},
+                       {"fileSize", r.file ? qs(model::file_message::formatBytes(r.file->originalSize)) : QString()},
+                       {"fileStatus", QString()},
+                       {"status", status},
+                       {"queueError", failed ? QStringLiteral("It couldn't be sent. Retry it, or discard it.")
+                                             : waiting ? QStringLiteral("Waiting for Tor. It's kept encrypted on this computer.") : QString()},
+                       {"queueHeld", failed},
+                       {"canDiscard", failed},
+                       {"replyPreview", replyPreview},
+                       {"replyFromMe", replyFromMe},
+                       {"replyTo", qs(r.replyTo)},
                        {"reactions", reactions},
+                       {"verification", QString()},
+                       {"edited", r.edited},
+                       {"forwarded", r.forwarded},
+                       {"unverifiedSender", false},
+                       {"storyReply", storyReplyText},
+                       {"isAudio", false},
+                       {"richText", richText},
+                       {"richTextRevealed", richRevealed},
+                       {"isImage", usable && r.file && isImageMime(r.file->mimeType)},
+                       {"isVoice", usable && r.file && isAudioMime(r.file->mimeType)},
+                       {"poll", poll},
+                       {"noticeText", QString()},
+                       {"channelId", QString()},
+                       {"channelName", QString()},
+                       {"channelPostId", QString()},
+                       {"deleted", r.deleted},
                        {"hasFile", r.file.has_value()},
                        {"fileName", fileName},
-                       {"fileSize", r.file ? qs(model::file_message::formatBytes(r.file->originalSize)) : QString()},
                        {"canOpen", r.file.has_value() && file_safety::isSafeToOpen(fileName)},
-                       // A failed send never reached anyone, so nothing can react to it or edit it.
-                       {"canReact", !failed && !r.deleted},
-                       {"canEdit", mine && !failed && !r.deleted && !r.file && now - r.ts < kEditWindow},
-                       {"canDelete", mine && !failed && !r.deleted}};
+                       // A failed send never reached anyone, so nothing can react to it, pin it or edit it.
+                       {"canReact", usable},
+                       {"canEdit", mine && usable && !r.file && !r.poll && c.now - r.ts < kEditWindow},
+                       {"canDelete", mine && !failed && !waiting && !r.deleted},
+                       {"canPin", usable},
+                       {"pinned", r.pinned},
+                       {"time", QLocale().toString(local(r.ts), QLocale::ShortFormat)}};
 }
 
 }  // namespace
@@ -188,7 +370,28 @@ std::mutex& storeMutex() {
     return m;
 }
 
+/// A call envelope has this long to go out before the call fails (docs/signal-integration/09-part-b-calls.md).
+constexpr int kCallSendTimeoutMs = 30000;
+
 }  // namespace
+
+/// Call envelopes the chat thread received (any receive pass), until the UI thread checks and hands them out.
+struct DeviceKeysSession::CallInbox {
+    std::mutex mutex;
+    std::vector<e2ev3::CallMessage> items;
+    std::function<void()> notify;  // asks the UI thread to dispatch
+    // Part D: story keys and named answers go into this device's story store on every receive pass.
+    std::shared_ptr<e2ev3::StoryStore> stories;
+    std::vector<std::string> storyKeys;  // stories whose key just arrived, for the UI thread
+    std::function<void()> notifyStories;
+};
+
+/// The device and its story store, for the stories thread (the UI thread replaces them).
+struct DeviceKeysSession::StoryPart {
+    std::mutex mutex;
+    std::shared_ptr<e2ev3::V3Device> device;
+    std::shared_ptr<e2ev3::StoryStore> store;
+};
 
 #endif
 
@@ -197,8 +400,20 @@ DeviceKeysSession::DeviceKeysSession(std::shared_ptr<api::ApiClient> api, std::s
     pool_.setMaxThreadCount(1);
     waitPool_.setMaxThreadCount(2);
     chatPool_.setMaxThreadCount(1);
+    callPool_.setMaxThreadCount(2);
     receiveTimer_.setInterval(30000);
     connect(&receiveTimer_, &QTimer::timeout, this, &DeviceKeysSession::receiveNow);
+#ifdef REDVAULT_HAS_E2E_V3
+    callInbox_ = std::make_shared<CallInbox>();
+    callInbox_->notify = [this] { QMetaObject::invokeMethod(this, [this] { dispatchCalls(); }, Qt::QueuedConnection); };
+    callInbox_->notifyStories = [this] { QMetaObject::invokeMethod(this, [this] { announceStoryKeys(); }, Qt::QueuedConnection); };
+    storyPart_ = std::make_shared<StoryPart>();
+    // Receipts go in batches (part A), and disappearing messages are erased when their time comes.
+    receiptTimer_.setSingleShot(true);
+    connect(&receiptTimer_, &QTimer::timeout, this, &DeviceKeysSession::flushReceipts);
+    expiryTimer_.setSingleShot(true);
+    connect(&expiryTimer_, &QTimer::timeout, this, &DeviceKeysSession::eraseExpiredNow);
+#endif
     // The background "ensure device keys" check, every 6 hours while the app runs (and after sign-in and unlock).
     ensureTimer_.setInterval(6 * 60 * 60 * 1000);
     connect(&ensureTimer_, &QTimer::timeout, this, &DeviceKeysSession::ensureDeviceKeys);
@@ -207,6 +422,11 @@ DeviceKeysSession::DeviceKeysSession(std::shared_ptr<api::ApiClient> api, std::s
     // The app's signed-in ApiClient: its one transport goes only to our server, and only through Tor in a Tor build.
     queueing_ = std::make_shared<e2ev3::QueueingV3Server>(std::make_shared<e2ev3::HttpV3Server>(api_));
     server_ = queueing_;
+    // Part C2: communities over device keys; their routes use the same ApiClient (the Tor transport).
+    communities_ = std::make_shared<e2ev3::Communities>(std::make_shared<e2ev3::HttpCommunityDirectory>(api_));
+    // Owner and staff devices look after membership (admit, rosters, sender-key rotation) every 30 s.
+    membershipTimer_.setInterval(30000);
+    connect(&membershipTimer_, &QTimer::timeout, this, &DeviceKeysSession::runMembershipTasks);
     // Decrypted files go in a folder of their own for this session, removed at sign-out. No conversation
     // repository: nothing here goes through a protocol-1 message.
     const QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -223,6 +443,8 @@ DeviceKeysSession::~DeviceKeysSession() {
     ensureTimer_.stop();
     chatPool_.clear();
     chatPool_.waitForDone();
+    callPool_.clear();
+    callPool_.waitForDone();
     pool_.clear();
     waitPool_.clear();
     pool_.waitForDone();
@@ -269,6 +491,21 @@ void DeviceKeysSession::setChatMode(const QString& mode) {
     if (active && !wasActive) chatError_.clear();
     emit chatChanged();
     if (active && !wasActive) receiveNow();
+}
+
+bool DeviceKeysSession::callsOverDeviceKeys(const QString& chatId, QString* refusal) {
+    if (!ready() || chatId.isEmpty() || !chatPinned(chatId)) return false;
+    // The chat is on device keys (or not decided yet): never the older protocol for its calls.
+    QString why = chatRefusal(chatId);
+    if (why.isEmpty() && !trusted()) {
+        why = QStringLiteral("This computer isn't linked to your devices yet, so the call can't be set up. Link it in Settings > Devices & encryption.");
+    }
+    if (!why.isEmpty()) {
+        why.replace(QStringLiteral("so nothing was sent"), QStringLiteral("so the call wasn't started"));
+        if (refusal) *refusal = why;
+        return false;
+    }
+    return true;
 }
 
 QString DeviceKeysSession::chatRefusal(const QString& chatId) const {
@@ -319,7 +556,7 @@ bool DeviceKeysSession::chatPinned(const QString&) {
 void DeviceKeysSession::openChat(const QString&, const QString&, bool, bool) {}
 void DeviceKeysSession::closeChat() {}
 void DeviceKeysSession::useOlderProtocol() {}
-void DeviceKeysSession::sendChat(const QString&) {}
+void DeviceKeysSession::sendChat(const QString&, const QString&) {}
 void DeviceKeysSession::retryChat(const QString&) {}
 void DeviceKeysSession::reactChat(const QString&, const QString&) {}
 void DeviceKeysSession::editChat(const QString&, const QString&) {}
@@ -329,8 +566,86 @@ void DeviceKeysSession::openFile(const QString&) {}
 void DeviceKeysSession::saveFile(const QString&, const QUrl&) {}
 void DeviceKeysSession::receiveNow() {}
 void DeviceKeysSession::clearChatError() {}
+QString DeviceKeysSession::previewOf(const QString&) {
+    return {};
+}
+void DeviceKeysSession::createPoll(const QString&, const QStringList&, bool) {}
+void DeviceKeysSession::vote(const QString&, const QVariantList&) {}
+void DeviceKeysSession::endPoll(const QString&) {}
+void DeviceKeysSession::pinChat(const QString&, bool) {}
+void DeviceKeysSession::markShown(const QString&) {}
+QStringList DeviceKeysSession::forwardable(const QStringList&) {
+    return {};
+}
+bool DeviceKeysSession::anyFile(const QStringList&) {
+    return false;
+}
+bool DeviceKeysSession::allFromMe(const QStringList&) {
+    return false;
+}
+void DeviceKeysSession::deleteMany(const QStringList&) {}
+void DeviceKeysSession::discardChat(const QString&) {}
+QVariantMap DeviceKeysSession::imageInfo(const QString&) const {
+    return {};
+}
+void DeviceKeysSession::loadImage(const QString&, bool) {}
+void DeviceKeysSession::toggleVoice(const QString&) {}
+std::optional<DeviceKeysSession::ForwardItem> DeviceKeysSession::forwardItem(const QString&) {
+    return std::nullopt;
+}
+void DeviceKeysSession::forwardInto(const QString&, std::vector<ForwardItem>) {}
 void DeviceKeysSession::setTor(TorController* tor) {
     tor_ = tor;
+}
+void DeviceKeysSession::expectCall(const std::string&, const std::string&, const std::string&, bool) {}
+void DeviceKeysSession::expectGroupCall(const std::string&, const std::string&) {}
+void DeviceKeysSession::forgetCall(const std::string&) {}
+void DeviceKeysSession::setGroupCallMembers(const std::string&, const std::string&, const std::vector<std::string>&) {}
+void DeviceKeysSession::setCommunities(const std::vector<CommunityChat>&) {}
+void DeviceKeysSession::membershipNow() {}
+std::string DeviceKeysSession::callPeerDevice(const std::string&) const {
+    return {};
+}
+void DeviceKeysSession::sendCallSignal(const std::string&, const std::string&, const std::string&, const std::string&, const std::string&,
+                                       const std::string&, const std::string&, std::function<void(const QString&)> done) {
+    if (done) done(QStringLiteral("Device keys aren't part of this build."));
+}
+void DeviceKeysSession::sendCallKey(const std::string&, const std::string&, std::int64_t, std::shared_ptr<const crypto::SecretBytes>,
+                                    std::vector<std::string>, std::function<void(const QString&)> done) {
+    if (done) done(QStringLiteral("Device keys aren't part of this build."));
+}
+bool DeviceKeysSession::storiesOnDeviceKeys() const {
+    return false;
+}
+std::shared_ptr<const crypto::SecretBytes> DeviceKeysSession::storyKey(const std::string&, const std::string&) {
+    return nullptr;
+}
+void DeviceKeysSession::forgetStory(const std::string&) {}
+std::vector<StoryDeviceKeys::HeldKey> DeviceKeysSession::heldStoryKeys() {
+    return {};
+}
+std::vector<StoryDeviceKeys::NamedAnswer> DeviceKeysSession::storyAnswers(const std::string&) {
+    return {};
+}
+void DeviceKeysSession::sendStoryKey(const std::string&, std::shared_ptr<const crypto::SecretBytes>, std::int64_t, std::vector<std::string>,
+                                     std::function<void(const QString&)> done) {
+    if (done) done(QStringLiteral("Device keys aren't part of this build."));
+}
+void DeviceKeysSession::sendStoryAnswer(const std::string&, const std::string&, const std::string&, bool, std::string, std::int64_t,
+                                        std::function<void(const QString&)> done) {
+    if (done) done(QStringLiteral("Device keys aren't part of this build."));
+}
+void DeviceKeysSession::fillStoryGaps(std::vector<std::pair<std::string, std::vector<std::string>>>,
+                                      std::function<void(const std::string&, const std::vector<std::string>&)>) {}
+crypto::Bytes DeviceKeysSession::sealStoryAnswer(const std::string&, const std::string&, const model::stories::Sticker&, const model::stories::Answer&) {
+    throw std::runtime_error("Device keys aren't part of this build.");
+}
+std::optional<model::stories::Answer> DeviceKeysSession::openStoryAnswer(const std::string&, const model::stories::Sticker&, const crypto::Bytes&) {
+    return std::nullopt;
+}
+void DeviceKeysSession::sendStoryReply(const std::string&, const std::string&, const std::string&, const model::StoryReplyRef&,
+                                       std::function<void(const QString&)> done) {
+    if (done) done(QStringLiteral("Device keys aren't part of this build."));
 }
 
 #else
@@ -343,7 +658,7 @@ e2ev3::Backend DeviceKeysSession::backend() {
         const auto folder = root / "device-keys";
         store_ = std::make_shared<e2ev3::DeviceStore>(folder / "state", std::shared_ptr<e2ev3::KeyVault>(e2ev3::makeDefaultVault(folder / "keys")));
     }
-    return e2ev3::Backend{store_, server_};
+    return e2ev3::Backend{store_, server_, communities_};
 }
 
 void DeviceKeysSession::apply(const Snapshot& s) {
@@ -359,8 +674,13 @@ void DeviceKeysSession::apply(const Snapshot& s) {
     known_ = true;
     if (status_ == QStringLiteral("trusted")) {
         if (!receiveTimer_.isActive()) receiveTimer_.start();
+        if (!membershipTimer_.isActive()) {
+            membershipTimer_.start();
+            QTimer::singleShot(0, this, &DeviceKeysSession::runMembershipTasks);  // on start too
+        }
     } else {
         receiveTimer_.stop();
+        membershipTimer_.stop();
     }
     emit changed();
     decideChat();
@@ -932,6 +1252,26 @@ std::shared_ptr<e2ev3::ChatHistory> DeviceKeysSession::history() {
         const std::filesystem::path queue = std::filesystem::path(root.toStdString()) / "device-keys" / ("sendq-" + device_->deviceId());
         queueing_->attach(std::make_shared<e2ev3::SendQueue>(queue, device_->deriveKey("redvault-v3-send-queue")));
     }
+    if (!storyPart_->store || storyPart_->device != device_) {
+        const QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        // Part D: story keys, named answers and story messages waiting to go, sealed under this device's key.
+        auto store = std::make_shared<e2ev3::StoryStore>(std::filesystem::path(root.toStdString()) / "device-keys" / ("stories-" + device_->deviceId()),
+                                                         device_->deriveKey("redvault-v3-story-keys"));
+        {
+            std::lock_guard lock(storyPart_->mutex);
+            storyPart_->device = device_;
+            storyPart_->store = store;
+        }
+        std::lock_guard lock(callInbox_->mutex);
+        callInbox_->stories = store;
+    }
+    if (communitiesDevice_ != device_->deviceId()) {
+        communitiesDevice_ = device_->deviceId();
+        const QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        // Membership-task cursors and channel audiences: account ids only, sealed under this device's key.
+        communities_->attachFile(std::filesystem::path(root.toStdString()) / "device-keys" / ("communities-" + device_->deviceId()),
+                                 device_->deriveKey("redvault-v3-communities"));
+    }
     return history_;
 }
 
@@ -948,12 +1288,22 @@ void DeviceKeysSession::drainQueued() {
     auto device = device_;
     if (!device || draining_ || torDown() || !trusted()) return;
     auto h = history();
-    if (!h || !e2ev3::hasQueuedChat(*h, *queueing_)) return;
+    auto stories = storyStore();
+    const bool storiesWait = stories && stories->hasDeliveries();
+    if (!h || (!e2ev3::hasQueuedChat(*h, *queueing_) && !storiesWait)) return;
     draining_ = true;
     auto server = queueing_;
     auto drained = std::make_shared<e2ev3::QueueDrain>();
+    const auto fanOut = storyFanOut();
     runInBackground(
-        chatPool_, this, [device, h, server, drained] { translated([&] { *drained = e2ev3::sendQueuedChat(*device, *h, *server); }); },
+        chatPool_, this,
+        [device, h, server, drained, stories, fanOut] {
+            translated([&] {
+                *drained = e2ev3::sendQueuedChat(*device, *h, *server);
+                // Part D: story keys and answers that waited, after what the engine had already encrypted (in order).
+                if (!drained->waiting && stories && stories->hasDeliveries()) e2ev3::sendQueuedStories(*device, *stories, fanOut);
+            });
+        },
         [this, drained] {
             draining_ = false;
             if (drained->failed > 0 && !chatId_.isEmpty()) {
@@ -974,14 +1324,41 @@ void DeviceKeysSession::drainQueued() {
 
 void DeviceKeysSession::reloadChat() {
     QVariantList rows;
+    QVariantList pins;
+    readable_.clear();
     if (const auto h = history(); h && !chatId_.isEmpty()) {
         const std::int64_t now = QDateTime::currentMSecsSinceEpoch();
-        for (const e2ev3::ChatRecord& r : h->list(chatId_.toStdString())) rows.append(chatRow(r, identity_->userId, now));
+        const std::string chat = chatId_.toStdString();
+        const auto records = h->records(chat);
+        const auto shown = e2ev3::foldChat(records, now);
+        // What this account already said it read (here or on another of its devices).
+        std::set<std::string> read;
+        for (const e2ev3::ChatRecord& r : records) {
+            if (!r.op || r.op->t != "receipt" || r.from != identity_->userId || r.op->status != "read") continue;
+            read.insert(r.op->targets.begin(), r.op->targets.end());
+        }
+        std::map<std::string, const e2ev3::ChatRecord*> byId;
+        for (const e2ev3::ChatRecord& r : shown) byId.emplace(r.id, &r);
+        const ChatInfo info = openInfo();
+        RowContext context{nullptr, &byId, &info, identity_->userId, now};
+        for (const e2ev3::ChatRecord& r : shown) {
+            rows.append(chatRow(r, context));
+            context.previous = &r;
+            if (r.pinned) pins.prepend(QVariantMap{{"messageId", qs(r.id)}, {"preview", qs(previewFor(r))}});
+            // Someone else's message not yet read here: a read receipt once it's on screen.
+            if (r.direction == "in" && !r.deleted && !read.count(r.id)) readable_[qs(r.id)] = r.from;
+        }
     }
+    chatPins_ = pins;
+    chatTopNotice_.clear();
+    if (const auto h = history(); h && chatCommunity_ && !chatId_.isEmpty()) chatTopNotice_ = qs(e2ev3::communityNotice(*h, chatId_.toStdString()));
     chatModel_.setRows(rows);
+    scheduleExpiry();
 }
 
 bool DeviceKeysSession::chatPinned(const QString& chatId) {
+    // Part C2: a community is on device keys only; nothing goes out on the older protocol there.
+    if (!chatId.isEmpty() && communities_->find(chatId.toStdString())) return true;
     const auto h = history();
     if (h && h->pinned(chatId.toStdString())) return true;
     // The open chat on device keys, or not decided yet: never the older protocol meanwhile.
@@ -998,8 +1375,10 @@ void DeviceKeysSession::openChat(const QString& chatId, const QString& contactUs
     chatNotice_.clear();
     unread_.remove(chatId);
     chatIsGroup_ = isGroup;
-    // Communities and channels keep the older protocol until their own step.
-    chatEligible_ = eligible && available();
+    // Part C2: communities and their channels are full Signal groups on device keys.
+    chatCommunity_ = communities_->find(chatId.toStdString()).has_value();
+    chatTopNotice_.clear();
+    chatEligible_ = (eligible || chatCommunity_) && available();
     chatError_.clear();
     chatMode_.clear();
     chatActive_ = false;
@@ -1017,6 +1396,16 @@ void DeviceKeysSession::decideChat() {
         mode = QStringLiteral("checking");
     } else if (status_ == QStringLiteral("off")) {
         mode.clear();
+    } else if (chatCommunity_) {
+        // A community never uses the older protocol: device keys, or nothing until this computer is linked.
+        mode = trusted() ? QStringLiteral("device") : QStringLiteral("link");
+        if (const auto h = history(); h && trusted()) {
+            const std::string chat = chatId_.toStdString();
+            h->pin(chat);
+            // From now on this device gets the community's messages; nothing older is on the server for it.
+            e2ev3::noteCommunityJoined(*h, chat);
+            chatTopNotice_ = qs(e2ev3::communityNotice(*h, chat));
+        }
     } else if (status_ == QStringLiteral("setup")) {
         // This account has no device list yet (it's being set up): not every member has one.
         mode = QStringLiteral("older");
@@ -1101,6 +1490,10 @@ void DeviceKeysSession::checkContact() {
 }
 
 void DeviceKeysSession::closeChat() {
+    if (voicePlayer_) voicePlayer_->stop();
+    voiceId_.clear();
+    readable_.clear();
+    chatPins_.clear();
     chatId_.clear();
     chatActive_ = false;
     chatMode_.clear();
@@ -1137,10 +1530,14 @@ void DeviceKeysSession::setChatFileActivity(const QString& activity) {
     emit chatChanged();
 }
 
-void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fromComposer, ChatWork queue) {
+void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fromComposer, ChatWork queue,
+                                std::function<void(const QString& error)> finished) {
     auto device = device_;
     auto h = history();
-    if (!device || !h) return;
+    if (!device || !h) {
+        if (finished) finished(fallback);
+        return;
+    }
     if (fromComposer) chatSending_ = true;
     chatError_.clear();
     chatNotice_.clear();
@@ -1151,7 +1548,7 @@ void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fro
     auto waited = std::make_shared<std::atomic<bool>>(false);
     runInBackground(
         chatPool_, this,
-        [device, h, server = queueing_, offline, waited, chat = chatId_.toStdString(), contact = chatTarget(), work = std::move(work),
+        [device, h, inbox = callInbox_, server = queueing_, offline, waited, chat = chatId_.toStdString(), contact = chatTarget(), work = std::move(work),
          queue = std::move(queue)] {
             translated([&] {
                 // Earlier sends still waiting go first: this one queues behind them, so nothing overtakes.
@@ -1161,13 +1558,13 @@ void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fro
                     return;
                 }
                 // Anything that arrived first is read before sending (9.6).
-                e2ev3::receiveChat(*device, *h);
+                receiveWithCalls(*device, *h, inbox.get());
                 work(*device, *h, chat, contact);
                 // Tor went down on the way: the send is queued (send_queue.hpp), never lost.
                 if (!h->queued().empty()) waited->store(true);
             });
         },
-        [this, fromComposer, waited] {
+        [this, fromComposer, waited, finished] {
             if (fromComposer) chatSending_ = false;
             const int unreachable = lastUnreachable_->load();
             if (unreachable > 0) {
@@ -1182,31 +1579,42 @@ void DeviceKeysSession::runChat(ChatWork work, const QString& fallback, bool fro
             checkContact();  // the protocol may have changed with the lists this send verified
             emit chatChanged();
             if (fromComposer) emit chatSent(true);
+            if (finished) finished({});
         },
-        [this, fromComposer, fallback](const Failure& failure) {
+        [this, fromComposer, fallback, finished](const Failure& failure) {
             if (fromComposer) chatSending_ = false;
             chatFailed(failure, fallback);
             reloadChat();  // a failed message is listed, with Retry
             emit chatChanged();
             if (fromComposer) emit chatSent(false);
+            if (finished) finished(chatError_.isEmpty() ? fallback : chatError_);
         });
 }
 
-void DeviceKeysSession::sendChat(const QString& text) {
-    if (!chatActive_ || chatSending_ || text.trimmed().isEmpty()) return;
-    const std::string body = text.trimmed().toStdString();
+void DeviceKeysSession::sendMessage(e2ev3::OutgoingMessage message, const QString& fallback, bool fromComposer) {
     runChat(
-        [body, unreachable = lastUnreachable_](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
-            if (contact.empty()) {
-                e2ev3::sendGroupChat(device, h, chat, body);
-            } else {
-                unreachable->store(e2ev3::sendChat(device, h, chat, contact, body).unreachable);
-            }
+        [message, unreachable = lastUnreachable_](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            unreachable->store(e2ev3::sendChatMessage(device, h, chat, contact, message).unreachable);
         },
-        QStringLiteral("The message wasn't sent."), true,
-        [body](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
-            e2ev3::queueChat(device, h, chat, contact, body);
+        fallback, fromComposer,
+        [message](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChatMessage(device, h, chat, contact, message);
         });
+}
+
+void DeviceKeysSession::sendChat(const QString& text, const QString& replyToId) {
+    if (!chatActive_ || chatSending_ || text.trimmed().isEmpty()) return;
+    e2ev3::OutgoingMessage message;
+    message.text = text.trimmed().toStdString();
+    // Your timer in this chat: each message carries it (part A), as in protocol-1 chats.
+    message.extras.exp = chatTimer();
+    if (!replyToId.isEmpty()) {
+        if (const auto target = shownMessage(replyToId); target && !target->deleted) {
+            message.extras.replyTo = target->id;
+            message.extras.replyPreview = e2ev3::previewText(previewFor(*target));
+        }
+    }
+    sendMessage(std::move(message), QStringLiteral("The message wasn't sent."), true);
 }
 
 void DeviceKeysSession::retryChat(const QString& messageId) {
@@ -1215,20 +1623,421 @@ void DeviceKeysSession::retryChat(const QString& messageId) {
     const auto failed = shownMessage(messageId);
     if (!failed || failed->status != "failed") return;
     const std::string chat = chatId_.toStdString();
-    h->remove(chat, failed->id);  // sent again under a fresh id and ciphertext, never reused
+    // Sent again under a fresh id and ciphertext, never reused; what it said (a reply, a poll, its timer) stays.
+    e2ev3::OutgoingMessage message;
+    message.text = failed->text;
+    message.file = failed->file;
+    if (failed->poll) message.poll = e2ev3::ChatPoll{failed->poll->options, failed->poll->multi, {}, false, {}};
+    message.extras = e2ev3::MessageExtras{failed->replyTo, failed->replyPreview, failed->forwarded, failed->exp, failed->storyReply};
+    h->remove(chat, failed->id);
     reloadChat();
-    if (failed->file) {
-        runChat(
-            [file = *failed->file](e2ev3::V3Device& device, e2ev3::ChatHistory& history, const std::string& conversation, const std::string& contact) {
-                e2ev3::sendChatFile(device, history, conversation, contact, file);
-            },
-            QStringLiteral("The file wasn't sent."), true,
-            [file = *failed->file](e2ev3::V3Device& device, e2ev3::ChatHistory& history, const std::string& conversation, const std::string& contact) {
-                e2ev3::queueChatFile(device, history, conversation, contact, file);
-            });
-    } else {
-        sendChat(qs(failed->text));
+    sendMessage(std::move(message), failed->file ? QStringLiteral("The file wasn't sent.") : QStringLiteral("The message wasn't sent."), true);
+}
+
+void DeviceKeysSession::discardChat(const QString& messageId) {
+    const auto h = history();
+    const auto failed = shownMessage(messageId);
+    if (!h || !failed || failed->status != "failed") return;  // a queued one may already be encrypted: it goes as it is
+    h->remove(chatId_.toStdString(), failed->id);
+    reloadChat();
+    emit chatChanged();
+}
+
+QString DeviceKeysSession::previewOf(const QString& messageId) {
+    const auto message = shownMessage(messageId);
+    return message ? qs(previewFor(*message)) : QString();
+}
+
+void DeviceKeysSession::createPoll(const QString& question, const QStringList& options, bool multiple) {
+    if (!chatActive_) {
+        emit pollDone(QStringLiteral("This chat can't take a poll right now."));
+        return;
     }
+    e2ev3::OutgoingMessage message;
+    message.text = question.trimmed().toStdString();
+    e2ev3::ChatPoll poll;
+    for (const QString& option : options) poll.options.push_back(option.trimmed().toStdString());
+    poll.multi = multiple;
+    try {
+        (void)e2ev3::encodePoll(chatId_.toStdString(), message.text, poll.options, poll.multi, util::randomUuid(), 1);
+    } catch (const e2ev3::EngineError&) {
+        emit pollDone(QStringLiteral("Write a question (up to 300 characters) and 2 to 10 different options (up to 100 characters each)."));
+        return;
+    }
+    message.poll = std::move(poll);
+    message.extras.exp = chatTimer();
+    runChat(
+        [message](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::sendChatMessage(device, h, chat, contact, message);
+        },
+        QStringLiteral("The poll wasn't sent."), false,
+        [message](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) {
+            e2ev3::queueChatMessage(device, h, chat, contact, message);
+        },
+        [this](const QString& error) { emit pollDone(error); });
+}
+
+void DeviceKeysSession::vote(const QString& pollId, const QVariantList& options) {
+    const auto poll = shownMessage(pollId);
+    if (!chatActive_ || !poll || !poll->poll || poll->poll->ended || poll->deleted || poll->status == "failed" || poll->status == "queued") return;
+    e2ev3::ChatOp op;
+    op.t = "vote";
+    op.target = poll->id;
+    for (const QVariant& option : options) {
+        const int index = option.toInt();
+        if (index < 0 || static_cast<std::size_t>(index) >= poll->poll->options.size()) return;
+        if (std::find(op.choices.begin(), op.choices.end(), index) == op.choices.end()) op.choices.push_back(index);
+    }
+    if (!poll->poll->multi && op.choices.size() > 1) return;
+    runChat([op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::sendChatOp(device, h, chat, contact, op); },
+            QStringLiteral("Your vote didn't go through. Check your connection and try again."), false,
+            [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::queueChatOp(device, h, chat, contact, op); });
+}
+
+void DeviceKeysSession::endPoll(const QString& pollId) {
+    const auto poll = shownMessage(pollId);
+    if (!chatActive_ || !poll || !poll->poll || poll->poll->ended || poll->direction != "out" || poll->deleted) return;
+    const e2ev3::ChatOp op{"end", poll->id};
+    runChat([op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::sendChatOp(device, h, chat, contact, op); },
+            QStringLiteral("That didn't go through. Check your connection and try again."), false,
+            [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::queueChatOp(device, h, chat, contact, op); });
+}
+
+void DeviceKeysSession::pinChat(const QString& messageId, bool pinned) {
+    const auto message = shownMessage(messageId);
+    if (!chatActive_ || !message || message->deleted || message->status == "failed" || message->status == "queued") return;
+    if (message->pinned == pinned) return;
+    e2ev3::ChatOp op{"pin", message->id};
+    op.pinned = pinned;
+    runChat([op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::sendChatOp(device, h, chat, contact, op); },
+            QStringLiteral("That didn't go through. Check your connection and try again."), false,
+            [op](e2ev3::V3Device& device, e2ev3::ChatHistory& h, const std::string& chat, const std::string& contact) { e2ev3::queueChatOp(device, h, chat, contact, op); });
+}
+
+QStringList DeviceKeysSession::forwardable(const QStringList& messageIds) {
+    QStringList out;
+    for (const QString& id : messageIds) {
+        if (forwardItem(id)) out.append(id);
+    }
+    return out;
+}
+
+bool DeviceKeysSession::anyFile(const QStringList& messageIds) {
+    for (const QString& id : messageIds) {
+        if (const auto item = forwardItem(id); item && item->file) return true;
+    }
+    return false;
+}
+
+bool DeviceKeysSession::allFromMe(const QStringList& messageIds) {
+    if (messageIds.isEmpty()) return false;
+    for (const QString& id : messageIds) {
+        const auto message = shownMessage(id);
+        if (!message || message->direction != "out" || message->deleted || message->status == "failed" || message->status == "queued") return false;
+    }
+    return true;
+}
+
+void DeviceKeysSession::deleteMany(const QStringList& messageIds) {
+    for (const QString& id : messageIds) deleteChat(id);
+}
+
+std::optional<DeviceKeysSession::ForwardItem> DeviceKeysSession::forwardItem(const QString& messageId) {
+    const auto message = shownMessage(messageId);
+    // Something that reached the chat, and isn't a poll (a poll's votes belong to its own chat).
+    if (!message || message->deleted || message->poll || message->status == "failed" || message->status == "queued") return std::nullopt;
+    if (!message->file && message->text.empty()) return std::nullopt;
+    return ForwardItem{message->file ? std::string() : message->text, message->file, message->ts};
+}
+
+void DeviceKeysSession::forwardInto(const QString& chatId, std::vector<ForwardItem> items) {
+    auto device = device_;
+    auto h = history();
+    if (!device || !h || !trusted() || items.empty() || !chatInfo_) return;
+    const ChatInfo info = chatInfo_(chatId.toStdString());
+    if (!info.known || (!info.isGroup && info.contactUserId.empty())) return;
+    const std::string chat = chatId.toStdString();
+    const std::string contact = info.isGroup ? std::string() : info.contactUserId;
+    const int exp = info.timerSeconds;  // the target chat's own timer
+    const bool offline = torDown();
+    if (offline) {
+        // A file has to be uploaded again first, which needs Tor; texts wait in the queue like any send.
+        const auto before = items.size();
+        std::erase_if(items, [](const ForwardItem& item) { return item.file.has_value(); });
+        if (items.size() != before) {
+            chatError_ = QStringLiteral("Can't reach Tor, so the files weren't forwarded. Forward them again once Tor is connected.");
+            emit chatChanged();
+        }
+        if (items.empty()) return;
+    }
+    // Each file: decrypted here, encrypted with a new key and uploaded for that chat (off the chat thread: it can be large).
+    runInBackground(
+        waitPool_, this,
+        [files = files_, items, chat] {
+            std::vector<std::optional<model::FileDescriptor>> fresh(items.size());
+            for (std::size_t i = 0; i < items.size(); ++i) {
+                if (!items[i].file) continue;
+                const auto plain = files->download(*items[i].file);
+                try {
+                    fresh[i] = files->uploadForDeviceKeys(chat, plain);
+                } catch (...) {
+                    std::error_code ignored;
+                    std::filesystem::remove_all(plain.parent_path(), ignored);
+                    throw;
+                }
+                std::error_code ignored;
+                std::filesystem::remove_all(plain.parent_path(), ignored);
+            }
+            return fresh;
+        },
+        [this, device, h, chat, contact, exp, items](std::vector<std::optional<model::FileDescriptor>> fresh) {
+            runInBackground(
+                chatPool_, this,
+                [device, h, inbox = callInbox_, server = queueing_, offline = torDown(), chat, contact, exp, items, fresh] {
+                    translated([&] {
+                        const bool wait = offline || e2ev3::hasQueuedChat(*h, *server);
+                        if (!wait) receiveWithCalls(*device, *h, inbox.get());
+                        for (std::size_t i = 0; i < items.size(); ++i) {
+                            if (items[i].file) {
+                                if (!fresh[i]) continue;
+                                const auto upload = *fresh[i];
+                                e2ev3::forwardChatFile(*device, *h, chat, contact, *items[i].file, [&upload](const model::FileDescriptor&) { return upload; },
+                                                       exp, wait);
+                                continue;
+                            }
+                            e2ev3::OutgoingMessage message;
+                            message.text = items[i].text;
+                            message.extras.forwarded = true;
+                            message.extras.exp = exp;
+                            if (wait) {
+                                e2ev3::queueChatMessage(*device, *h, chat, contact, message);
+                            } else {
+                                e2ev3::sendChatMessage(*device, *h, chat, contact, message);
+                            }
+                        }
+                    });
+                },
+                [this] {
+                    reloadChat();
+                    emit chatChanged();
+                    drainQueued();
+                },
+                [this](const Failure& failure) {
+                    chatFailed(failure, QStringLiteral("The forward didn't go through. Check your connection and try again."));
+                    reloadChat();
+                    emit chatChanged();
+                });
+        },
+        [this](const Failure& failure) {
+            chatFailed(failure, QStringLiteral("The file couldn't be forwarded. Try again."));
+            emit chatChanged();
+        });
+}
+
+// --- Receipts and disappearing messages (part A) ---
+
+void DeviceKeysSession::markShown(const QString& messageId) {
+    if (!chatActive_) return;
+    const auto it = readable_.find(messageId);
+    if (it == readable_.end()) return;
+    const std::string author = it->second;
+    readable_.erase(it);
+    // "read" only when the person allows read receipts; "delivered" went when it was stored.
+    if (!local_store::readReceipts()) return;
+    receipts_->add(chatId_.toStdString(), author, messageId.toStdString(), "read");
+    scheduleReceipts();
+}
+
+void DeviceKeysSession::scheduleReceipts() {
+    const auto next = receipts_->nextDue();
+    if (!next) {
+        receiptTimer_.stop();
+        return;
+    }
+    const std::int64_t wait = std::max<std::int64_t>(0, *next - QDateTime::currentMSecsSinceEpoch());
+    if (!receiptTimer_.isActive() || receiptTimer_.remainingTime() > wait) receiptTimer_.start(static_cast<int>(std::min<std::int64_t>(wait, 60000)));
+}
+
+void DeviceKeysSession::flushReceipts() {
+    auto device = device_;
+    auto h = history();
+    if (!device || !h || !trusted()) return;
+    const auto batches = receipts_->due(QDateTime::currentMSecsSinceEpoch());
+    if (batches.empty()) {
+        scheduleReceipts();
+        return;
+    }
+    auto failed = std::make_shared<std::vector<e2ev3::ReceiptBatcher::Batch>>();
+    runInBackground(
+        chatPool_, this,
+        [device, h, server = queueing_, offline = torDown(), batches, failed, self = identity_->userId] {
+            for (const auto& batch : batches) {
+                std::vector<std::string> ids;
+                for (const std::string& id : batch.ids) {
+                    if (!h->receiptSent(batch.conversationId, id, self, batch.status)) ids.push_back(id);
+                }
+                if (ids.empty() || batch.authorUserId.empty() || batch.authorUserId == self) continue;
+                try {
+                    if (offline || e2ev3::hasQueuedChat(*h, *server)) {
+                        e2ev3::queueReceipt(*device, *h, batch.conversationId, batch.authorUserId, ids, batch.status);
+                    } else {
+                        e2ev3::sendReceipt(*device, *h, batch.conversationId, batch.authorUserId, ids, batch.status);
+                    }
+                } catch (const std::exception&) {
+                    // Never shown: it's tried again on the next pass.
+                    failed->push_back(e2ev3::ReceiptBatcher::Batch{batch.conversationId, batch.authorUserId, batch.status, ids});
+                }
+            }
+        },
+        [this, failed] {
+            // Tried again on the next mailbox pass (receiveNow), not in a tight loop.
+            for (auto& batch : *failed) retryReceipts_.push_back(std::move(batch));
+            scheduleReceipts();
+            drainQueued();
+        },
+        [this, batches](const Failure&) {
+            for (const auto& batch : batches) retryReceipts_.push_back(batch);
+            scheduleReceipts();
+        });
+}
+
+void DeviceKeysSession::scheduleExpiry() {
+    const auto h = history();
+    const auto next = h ? h->nextExpiry() : std::nullopt;
+    if (!next) {
+        expiryTimer_.stop();
+        return;
+    }
+    // At most an hour at a time (a timer can't wait four weeks); a little after, so it's surely due.
+    const std::int64_t wait = std::clamp<std::int64_t>(*next - QDateTime::currentMSecsSinceEpoch() + 50, 0, 3600000);
+    expiryTimer_.start(static_cast<int>(wait));
+}
+
+void DeviceKeysSession::eraseExpiredNow() {
+    auto h = history();
+    if (!h) return;
+    auto changed = std::make_shared<bool>(false);
+    runInBackground(
+        chatPool_, this, [h, changed] { *changed = h->eraseExpired(); },
+        [this, changed] {
+            reloadChat();  // also schedules the next one
+            if (*changed) emit chatChanged();
+        },
+        [this](const Failure&) { scheduleExpiry(); });
+}
+
+// --- Pictures and voice messages: decrypted in memory only, like protocol-1 chats ---
+
+QVariantMap DeviceKeysSession::imageInfo(const QString& messageId) const {
+    const auto it = imageStates_.find(messageId);
+    const QString state = it == imageStates_.end() ? QString() : it->second;
+    const QSize size = ChatImageCache::instance().thumbSize(messageId);
+    return {{"state", state}, {"width", size.width()}, {"height", size.height()}};
+}
+
+void DeviceKeysSession::loadImage(const QString& messageId, bool force) {
+    constexpr std::int64_t kAutoLoadBytes = 20LL * 1024 * 1024;
+    const auto message = shownMessage(messageId);
+    if (!message || !message->file || !isImageMime(message->file->mimeType) || message->deleted) return;
+    if (const auto it = imageStates_.find(messageId); it != imageStates_.end() && it->second != QStringLiteral("failed")) {
+        if (it->second == QStringLiteral("ready") && ChatImageCache::instance().has(messageId)) return;
+        if (it->second == QStringLiteral("loading") || it->second == QStringLiteral("large")) {
+            if (!(force && it->second == QStringLiteral("large"))) return;
+        }
+    }
+    if (!force && message->file->originalSize > kAutoLoadBytes) {
+        imageStates_[messageId] = QStringLiteral("large");
+        ++imagesRevision_;
+        emit imagesChanged();
+        return;
+    }
+    imageStates_[messageId] = QStringLiteral("loading");
+    ++imagesRevision_;
+    emit imagesChanged();
+    struct Decoded {
+        QImage thumb;
+        QByteArray bytes;
+        bool ok = false;
+    };
+    runInBackground(
+        waitPool_, this,
+        [files = files_, descriptor = *message->file] {
+            Decoded out;
+            const auto path = files->download(descriptor);
+            QFile file(QString::fromStdWString(path.wstring()));
+            if (file.open(QIODevice::ReadOnly)) out.bytes = file.readAll();
+            file.close();
+            // The decrypted copy goes straight away: pictures are kept in memory only.
+            std::error_code ignored;
+            std::filesystem::remove_all(path.parent_path(), ignored);
+            if (const auto image = ChatImageCache::decode(out.bytes)) {
+                out.thumb = ChatImageCache::thumbnail(*image);
+                out.ok = true;
+            }
+            return out;
+        },
+        [this, messageId](Decoded decoded) {
+            if (decoded.ok) ChatImageCache::instance().put(messageId, decoded.thumb, decoded.bytes);
+            imageStates_[messageId] = decoded.ok ? QStringLiteral("ready") : QStringLiteral("failed");
+            ++imagesRevision_;
+            emit imagesChanged();
+        },
+        [this, messageId](const Failure& failure) {
+            imageStates_[messageId] = QStringLiteral("failed");
+            ++imagesRevision_;
+            emit imagesChanged();
+            if (failure.status == 401) emit sessionExpired();
+        });
+}
+
+void DeviceKeysSession::toggleVoice(const QString& messageId) {
+    if (voicePlayer_ && voiceId_ == messageId) {
+        voicePlaying() ? voicePlayer_->pause() : voicePlayer_->play();
+        return;
+    }
+    const auto file = shownFile(messageId);
+    if (!file || !isAudioMime(file->mimeType)) return;
+    if (!voicePlayer_) {
+        voicePlayer_ = std::make_unique<QMediaPlayer>();
+        voiceOutput_ = std::make_unique<QAudioOutput>();
+        voicePlayer_->setAudioOutput(voiceOutput_.get());
+        connect(voicePlayer_.get(), &QMediaPlayer::positionChanged, this, &DeviceKeysSession::voiceChanged);
+        connect(voicePlayer_.get(), &QMediaPlayer::durationChanged, this, &DeviceKeysSession::voiceChanged);
+        connect(voicePlayer_.get(), &QMediaPlayer::playbackStateChanged, this, &DeviceKeysSession::voiceChanged);
+    }
+    voicePlayer_->stop();
+    voicePlayer_->setSourceDevice(nullptr);
+    voiceBuffer_.reset();
+    voiceId_ = messageId;
+    emit voiceChanged();
+    const QString name = qs(file->filename);
+    runInBackground(
+        waitPool_, this,
+        [files = files_, descriptor = *file] {
+            const auto path = files->download(descriptor);
+            QFile in(QString::fromStdWString(path.wstring()));
+            QByteArray bytes;
+            if (in.open(QIODevice::ReadOnly)) bytes = in.readAll();
+            in.close();
+            // In memory only: the decrypted copy goes at once.
+            std::error_code ignored;
+            std::filesystem::remove_all(path.parent_path(), ignored);
+            return bytes;
+        },
+        [this, messageId, name](QByteArray bytes) {
+            if (voiceId_ != messageId || !voicePlayer_) return;  // another one was picked meanwhile
+            voiceBuffer_ = std::make_unique<QBuffer>();
+            voiceBuffer_->setData(bytes);
+            voiceBuffer_->open(QIODevice::ReadOnly);
+            voicePlayer_->setSourceDevice(voiceBuffer_.get(), QUrl(QStringLiteral("voice:") + name));
+            voicePlayer_->play();
+        },
+        [this, messageId](const Failure& failure) {
+            if (voiceId_ == messageId) voiceId_.clear();
+            chatFailed(failure, QStringLiteral("That voice message couldn't be played."));
+            emit voiceChanged();
+            emit chatChanged();
+        });
 }
 
 std::optional<e2ev3::ChatRecord> DeviceKeysSession::shownMessage(const QString& messageId) {
@@ -1351,14 +2160,14 @@ void DeviceKeysSession::sendFile(const QUrl& file) {
         [this, device, h, chat, contact, finished](model::FileDescriptor descriptor) {
             runInBackground(
                 chatPool_, this,
-                [device, h, server = queueing_, offline = torDown(), chat, contact, descriptor = std::move(descriptor)] {
+                [device, h, inbox = callInbox_, server = queueing_, offline = torDown(), chat, contact, descriptor = std::move(descriptor)] {
                     translated([&] {
                         // Uploaded, but Tor is down now or earlier sends wait: its message queues behind them.
                         if (offline || e2ev3::hasQueuedChat(*h, *server)) {
                             e2ev3::queueChatFile(*device, *h, chat, contact, descriptor);
                             return;
                         }
-                        e2ev3::receiveChat(*device, *h);
+                        receiveWithCalls(*device, *h, inbox.get());
                         e2ev3::sendChatFile(*device, *h, chat, contact, descriptor);
                     });
                 },
@@ -1431,37 +2240,500 @@ void DeviceKeysSession::saveFile(const QString& messageId, const QUrl& destinati
 void DeviceKeysSession::receiveNow() {
     auto device = device_;
     auto h = history();
-    if (!device || !h || !trusted() || chatReceiving_) return;
+    if (!device || !h || !trusted()) return;
+    if (chatReceiving_) {
+        receiveAgain_ = true;  // a call's offer may have just arrived: read once more when this pass is done
+        return;
+    }
     drainQueued();  // what waited for Tor, if it's back (queued on the same chat thread, so before this receive)
     chatReceiving_ = true;
     auto fresh = std::make_shared<std::vector<e2ev3::ChatRecord>>();
     auto stats = std::make_shared<e2ev3::ReceiveStats>();
     runInBackground(
-        chatPool_, this, [device, h, fresh, stats] { translated([&] { *fresh = e2ev3::receiveChat(*device, *h, 0, stats.get()); }); },
+        chatPool_, this,
+        [device, h, inbox = callInbox_, fresh, stats] { translated([&] { *fresh = receiveWithCalls(*device, *h, inbox.get(), stats.get()); }); },
         [this, fresh, stats] {
             chatReceiving_ = false;
+            if (receiveAgain_) {
+                receiveAgain_ = false;
+                QTimer::singleShot(0, this, &DeviceKeysSession::receiveNow);
+            }
             if (stats->heldForKeys != chatHeld_) {
                 chatHeld_ = stats->heldForKeys;
                 emit chatChanged();
             }
             int elsewhere = 0;
             bool reload = false;
+            // Receipts that couldn't go last time: this pass tries them again.
+            for (const auto& batch : retryReceipts_) {
+                for (const std::string& id : batch.ids) receipts_->add(batch.conversationId, batch.authorUserId, id, batch.status);
+            }
+            retryReceipts_.clear();
             for (const auto& r : *fresh) {
-                if (qs(r.conversationId) == chatId_) {
+                const QString chat = qs(r.conversationId);
+                // Stored on this device: "delivered" to its author (part A). Never for an op (a receipt, vote, pin...).
+                if (r.direction == "in" && !r.op && !r.from.empty()) receipts_->add(r.conversationId, r.from, r.id, "delivered");
+                // Read on another of this account's devices: the unread count here follows.
+                if (r.op && r.op->t == "receipt" && r.op->status == "read" && r.from == identity_->userId && chat != chatId_) {
+                    const int left = std::max(0, unread_.value(chat).toInt() - static_cast<int>(r.op->targets.size()));
+                    if (left == 0) {
+                        unread_.remove(chat);
+                    } else {
+                        unread_[chat] = left;
+                    }
+                }
+                if (chat == chatId_) {
                     reload = true;
-                } else if (r.direction == "in" && !r.op) {  // a reaction, edit or delete isn't a new message
+                } else if (r.direction == "in" && !r.op) {  // a reaction, edit, vote, pin or receipt isn't a new message
                     ++elsewhere;
-                    const QString chat = qs(r.conversationId);
                     unread_[chat] = unread_.value(chat).toInt() + 1;
                 }
             }
-            if (reload) reloadChat();
+            if (reload) {
+                reloadChat();
+            } else if (!fresh->empty()) {
+                scheduleExpiry();  // a disappearing message in another chat
+            }
+            scheduleReceipts();
             if (!fresh->empty()) emit chatChanged();
             if (elsewhere > 0) emit incoming(elsewhere);
         },
         [this](const Failure& failure) {
             chatReceiving_ = false;
+            if (receiveAgain_) {
+                receiveAgain_ = false;
+                QTimer::singleShot(1000, this, &DeviceKeysSession::receiveNow);
+            }
             if (failure.status == 401) emit sessionExpired();
+        });
+}
+
+// --- Calls over device keys (part B, docs/signal-integration/09-part-b-calls.md) ---
+
+std::vector<e2ev3::ChatRecord> DeviceKeysSession::receiveWithCalls(e2ev3::V3Device& device, e2ev3::ChatHistory& history, CallInbox* inbox,
+                                                                   e2ev3::ReceiveStats* stats) {
+    std::vector<e2ev3::CallMessage> calls;
+    std::shared_ptr<e2ev3::StoryStore> stories;
+    if (inbox) {
+        std::lock_guard lock(inbox->mutex);
+        stories = inbox->stories;
+    }
+    std::set<std::string> before;
+    if (stories) {
+        for (const auto& k : stories->keys()) before.insert(k.storyId);
+    }
+    auto fresh = e2ev3::receiveChat(device, history, 0, stats, inbox ? &calls : nullptr, stories.get());
+    if (stories) {
+        std::vector<std::string> arrived;
+        for (const auto& k : stories->keys()) {
+            if (!before.count(k.storyId)) arrived.push_back(k.storyId);
+        }
+        if (!arrived.empty()) {
+            {
+                std::lock_guard lock(inbox->mutex);
+                inbox->storyKeys.insert(inbox->storyKeys.end(), arrived.begin(), arrived.end());
+            }
+            if (inbox->notifyStories) inbox->notifyStories();
+        }
+    }
+    if (inbox && !calls.empty()) {
+        {
+            std::lock_guard lock(inbox->mutex);
+            for (auto& c : calls) inbox->items.push_back(std::move(c));
+        }
+        if (inbox->notify) inbox->notify();
+    }
+    return fresh;
+}
+
+void DeviceKeysSession::dispatchCalls() {
+    std::vector<e2ev3::CallMessage> fresh;
+    {
+        std::lock_guard lock(callInbox_->mutex);
+        fresh.swap(callInbox_->items);
+    }
+    // The checks that need the calls going on: a known call, its other party or a member, the epoch order.
+    for (const auto& m : callGate_.admit(std::move(fresh), QDateTime::currentMSecsSinceEpoch())) {
+        if (m.signal && callSignalHandler_) {
+            callSignalHandler_(IncomingCallSignal{m.signal->callId, m.conversationId, m.fromUserId, m.fromDeviceId, m.signal->step,
+                                                  m.signal->kind, m.signal->sdp});
+        } else if (m.key && callKeyHandler_) {
+            callKeyHandler_(IncomingCallKey{m.key->callId, m.conversationId, m.fromUserId, m.key->epoch, m.key->key});
+        }
+    }
+}
+
+void DeviceKeysSession::expectCall(const std::string& callId, const std::string& conversationId, const std::string& peerUserId, bool caller) {
+    callGate_.expectCall(callId, conversationId, peerUserId, caller ? e2ev3::CallGate::Role::Caller : e2ev3::CallGate::Role::Callee);
+    // What arrived before the live event named the call goes now (queued: never inside the caller's own handler).
+    QTimer::singleShot(0, this, &DeviceKeysSession::dispatchCalls);
+}
+
+void DeviceKeysSession::expectGroupCall(const std::string& callId, const std::string& conversationId) {
+    // Part C2: a community's members don't list each other; its call's roster names who may send keys
+    // (setGroupCallMembers). Until it arrives, keys for the call are held (CallGate holds an unknown call's for 20 s).
+    if (communities_->find(conversationId)) return;
+    std::vector<std::string> members;
+    if (chatInfo_) {
+        for (const auto& [userId, handle] : chatInfo_(conversationId).handles) members.push_back(userId);
+    }
+    callGate_.expectGroupCall(callId, conversationId, std::move(members));
+    QTimer::singleShot(0, this, &DeviceKeysSession::dispatchCalls);
+}
+
+void DeviceKeysSession::forgetCall(const std::string& callId) {
+    callGate_.forget(callId);
+}
+
+void DeviceKeysSession::setGroupCallMembers(const std::string& callId, const std::string& conversationId,
+                                            const std::vector<std::string>& members) {
+    if (!communities_->find(conversationId)) return;  // other groups: the chat's members, as before
+    callGate_.expectGroupCall(callId, conversationId, members);
+    QTimer::singleShot(0, this, &DeviceKeysSession::dispatchCalls);
+}
+
+void DeviceKeysSession::setCommunities(const std::vector<CommunityChat>& communities) {
+    std::vector<e2ev3::CommunityInfo> infos;
+    bool staff = false;
+    for (const CommunityChat& c : communities) {
+        e2ev3::CommunityInfo info;
+        info.communityId = c.communityId;
+        info.conversationId = c.conversationId;
+        info.kind = c.kind == "channel" ? "channel" : "group";
+        info.staff = c.role == "owner" || c.role == "admin" || c.role == "moderator";
+        info.canPost = c.canPost;
+        staff = staff || info.staff;
+        infos.push_back(std::move(info));
+    }
+    communities_->setAll(infos);
+    const bool becameStaff = staff && !hasStaffCommunity_;
+    hasStaffCommunity_ = staff;
+    // The open chat may have just become known as a community.
+    const bool open = !chatId_.isEmpty() && communities_->find(chatId_.toStdString()).has_value();
+    if (open != chatCommunity_) {
+        chatCommunity_ = open;
+        if (open) chatEligible_ = available();
+        decideChat();
+        emit chatChanged();
+    }
+    if (becameStaff) runMembershipTasks();
+}
+
+void DeviceKeysSession::membershipNow() {
+    runMembershipTasks();
+}
+
+void DeviceKeysSession::runMembershipTasks() {
+    auto device = device_;
+    if (!device || !trusted() || !hasStaffCommunity_ || tasksRunning_ || torDown()) return;
+    history();  // the communities file is attached with the history
+    tasksRunning_ = true;
+    auto result = std::make_shared<e2ev3::MembershipRound>();
+    runInBackground(
+        chatPool_, this, [device, result] { translated([&] { *result = e2ev3::runMembershipTasks(*device); }); },
+        [this, result] {
+            tasksRunning_ = false;
+            // Counts only: who joined or left is never logged.
+            if (result->admitted > 0 || result->rosters > 0) receiveNow();
+        },
+        [this](const Failure& failure) {
+            tasksRunning_ = false;
+            if (failure.status == 401) emit sessionExpired();
+        });
+}
+
+std::string DeviceKeysSession::callPeerDevice(const std::string& callId) const {
+    return callGate_.peerDevice(callId);
+}
+
+void DeviceKeysSession::sendCallSignal(const std::string& conversationId, const std::string& peerUserId, const std::string& callId,
+                                       const std::string& step, const std::string& kind, const std::string& sdp, const std::string& to,
+                                       std::function<void(const QString& error)> done) {
+    auto device = device_;
+    if (!device || !trusted()) {
+        done(QStringLiteral("This computer isn't linked to your devices, so the call can't be set up."));
+        return;
+    }
+    // Never queued for Tor: a call that can't be set up now fails, as it would without a connection.
+    if (torDown()) {
+        done(QStringLiteral("Tor isn't connected, so the call can't be set up."));
+        return;
+    }
+    auto settled = std::make_shared<bool>(false);
+    auto finish = [settled, done = std::move(done)](const QString& error) {
+        if (*settled) return;
+        *settled = true;
+        done(error);
+    };
+    QTimer::singleShot(kCallSendTimeoutMs, this, [finish] { finish(QStringLiteral("The call couldn't be set up in time.")); });
+    const e2ev3::CallSignal signal{callId, step, kind, sdp, to};
+    runInBackground(
+        callPool_, this, [device, conversationId, peerUserId, signal] { translated([&] { e2ev3::sendCallSignal(*device, conversationId, peerUserId, signal); }); },
+        [finish] { finish({}); },
+        [this, finish](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            finish(failure.message.isEmpty() ? QStringLiteral("Couldn't set up the call.") : failure.message);
+        });
+}
+
+void DeviceKeysSession::sendCallKey(const std::string& conversationId, const std::string& callId, std::int64_t epoch,
+                                    std::shared_ptr<const crypto::SecretBytes> key, std::vector<std::string> userIds,
+                                    std::function<void(const QString& error)> done) {
+    auto device = device_;
+    if (!device || !trusted() || torDown()) {
+        done(QStringLiteral("The call key couldn't be handed out."));
+        return;
+    }
+    auto settled = std::make_shared<bool>(false);
+    auto finish = [settled, done = std::move(done)](const QString& error) {
+        if (*settled) return;
+        *settled = true;
+        done(error);
+    };
+    QTimer::singleShot(kCallSendTimeoutMs, this, [finish] { finish(QStringLiteral("The call key couldn't be handed out in time.")); });
+    e2ev3::CallKey callKey{callId, epoch, std::move(key)};
+    runInBackground(
+        callPool_, this,
+        [device, conversationId, callKey, userIds = std::move(userIds)] {
+            translated([&] { e2ev3::sendCallKey(*device, conversationId, callKey, userIds); });
+        },
+        [finish] { finish({}); },
+        [this, finish](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            finish(failure.message.isEmpty() ? QStringLiteral("Couldn't hand out the call key.") : failure.message);
+        });
+}
+
+// --- Stories over device keys (Part D, docs/signal-integration/12-part-d-stories.md) ---
+
+std::shared_ptr<e2ev3::StoryStore> DeviceKeysSession::storyStore() {
+    if (!history()) return nullptr;
+    std::lock_guard lock(storyPart_->mutex);
+    return storyPart_->store;
+}
+
+namespace {
+
+/// Where story messages look up device lists, Signal certificates and one-time keys: under the story id itself
+/// (the server's story rule, docs/signal-integration/12-part-d-stories.md). The one place to change it.
+e2ev3::StoryFanOut storyRoutes() {
+    e2ev3::StoryFanOut out;
+    out.listVia = [](const std::string& storyId, const std::string&) { return storyId; };
+    return out;  // claims: the message's own conversation, the story id
+}
+
+}  // namespace
+
+e2ev3::StoryFanOut DeviceKeysSession::storyFanOut() const {
+    return storyRoutes();
+}
+
+void DeviceKeysSession::announceStoryKeys() {
+    std::vector<std::string> ids;
+    {
+        std::lock_guard lock(callInbox_->mutex);
+        ids.swap(callInbox_->storyKeys);
+    }
+    if (ids.empty()) return;
+    QStringList list;
+    for (const auto& id : ids) list.append(qs(id));
+    emit storyKeysArrived(list);
+}
+
+bool DeviceKeysSession::storiesOnDeviceKeys() const {
+    return enabled_ && trusted() && device_ != nullptr;
+}
+
+std::shared_ptr<const crypto::SecretBytes> DeviceKeysSession::storyKey(const std::string& storyId, const std::string& authorId) {
+    std::shared_ptr<e2ev3::StoryStore> store;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        store = storyPart_->store;
+    }
+    if (!store) return nullptr;
+    const auto key = store->key(storyId, authorId);
+    return key ? key->key : nullptr;
+}
+
+void DeviceKeysSession::forgetStory(const std::string& storyId) {
+    std::shared_ptr<e2ev3::StoryStore> store;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        store = storyPart_->store;
+    }
+    if (store) store->forget(storyId);
+}
+
+std::vector<StoryDeviceKeys::HeldKey> DeviceKeysSession::heldStoryKeys() {
+    std::shared_ptr<e2ev3::StoryStore> store;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        store = storyPart_->store;
+    }
+    std::vector<HeldKey> out;
+    if (!store) return out;
+    for (const auto& k : store->keys()) out.push_back(HeldKey{k.storyId, k.authorId, k.own, k.arrivedAt});
+    return out;
+}
+
+std::vector<StoryDeviceKeys::NamedAnswer> DeviceKeysSession::storyAnswers(const std::string& storyId) {
+    std::shared_ptr<e2ev3::StoryStore> store;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        store = storyPart_->store;
+    }
+    std::vector<NamedAnswer> out;
+    if (!store) return out;
+    for (const auto& a : store->answers(storyId)) out.push_back(NamedAnswer{a.stickerId, a.userId, a.rev, a.final, a.payload, a.at});
+    return out;
+}
+
+void DeviceKeysSession::sendStoryKey(const std::string& storyId, std::shared_ptr<const crypto::SecretBytes> key, std::int64_t expiresAt,
+                                     std::vector<std::string> viewers, std::function<void(const QString& error)> done) {
+    auto device = device_;
+    auto store = storyStore();
+    if (!device || !store || !trusted() || !key) {
+        if (done) done(QStringLiteral("This computer isn't linked to your devices, so the story's key couldn't be sent."));
+        return;
+    }
+    const bool offline = torDown();
+    const auto fanOut = storyFanOut();
+    runInBackground(
+        chatPool_, this,
+        [device, store, storyId, key, expiresAt, viewers = std::move(viewers), offline, fanOut] {
+            translated([&] { e2ev3::sendStoryKey(*device, *store, storyId, *key, expiresAt, viewers, fanOut, offline); });
+        },
+        [this, done] {
+            if (done) done({});
+            drainQueued();  // only if Tor came back meanwhile
+        },
+        [this, done](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            if (done) done(failure.message.isEmpty() ? QStringLiteral("The story's key couldn't be sent. It's tried again.") : failure.message);
+        });
+}
+
+void DeviceKeysSession::sendStoryAnswer(const std::string& storyId, const std::string& authorId, const std::string& stickerId, bool final,
+                                        std::string payloadJson, std::int64_t expiresAt, std::function<void(const QString& error)> done) {
+    auto device = device_;
+    auto store = storyStore();
+    if (!device || !store || !trusted()) {
+        if (done) done(QStringLiteral("This computer isn't linked to your devices yet. Link it in Settings > Devices & encryption."));
+        return;
+    }
+    const Json payload = Json::parse(payloadJson, nullptr, false);
+    if (!payload.is_object()) {
+        if (done) done(QStringLiteral("That answer can't be sent."));
+        return;
+    }
+    const bool offline = torDown();
+    const auto fanOut = storyFanOut();
+    runInBackground(
+        chatPool_, this,
+        [device, store, storyId, authorId, stickerId, final, payload, expiresAt, offline, fanOut] {
+            translated([&] { e2ev3::sendStoryAnswer(*device, *store, storyId, authorId, stickerId, final, payload, expiresAt, fanOut, offline); });
+        },
+        [done] {
+            if (done) done({});
+        },
+        [this, done](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            if (done) done(failure.code == QStringLiteral("answer_final") ? QStringLiteral("You already answered that.")
+                           : failure.message.isEmpty()                    ? QStringLiteral("Couldn't send. Try again.")
+                                                                          : failure.message);
+        });
+}
+
+void DeviceKeysSession::fillStoryGaps(std::vector<std::pair<std::string, std::vector<std::string>>> gaps,
+                                      std::function<void(const std::string& storyId, const std::vector<std::string>& userIds)> addAccess) {
+    auto device = device_;
+    auto store = storyStore();
+    if (!device || !store || !trusted() || gaps.empty() || torDown()) return;
+    std::vector<e2ev3::StoryGap> list;
+    for (auto& [storyId, users] : gaps) list.push_back(e2ev3::StoryGap{storyId, users});
+    const auto fanOut = storyFanOut();
+    runInBackground(
+        chatPool_, this,
+        [device, store, list, addAccess = std::move(addAccess), fanOut] { translated([&] { e2ev3::fillStoryGaps(*device, *store, list, addAccess, fanOut); }); },
+        [] {},
+        [this](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            // Tried again with the next list of gaps.
+        });
+}
+
+crypto::Bytes DeviceKeysSession::sealStoryAnswer(const std::string& storyId, const std::string& authorId, const model::stories::Sticker& sticker,
+                                                 const model::stories::Answer& answer) {
+    std::shared_ptr<e2ev3::V3Device> device;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        device = storyPart_->device;
+    }
+    if (!device) throw api::UserFacingError("This computer isn't linked to your devices yet. Link it in Settings > Devices & encryption.");
+    return e2ev3::sealStoryAnswer(storyId, authorId, sticker, answer, e2ev3::engineSealer(*device, storyRoutes()));
+}
+
+std::optional<model::stories::Answer> DeviceKeysSession::openStoryAnswer(const std::string& storyId, const model::stories::Sticker& sticker,
+                                                                         const crypto::Bytes& rvsd) {
+    std::shared_ptr<e2ev3::V3Device> device;
+    {
+        std::lock_guard lock(storyPart_->mutex);
+        device = storyPart_->device;
+    }
+    if (!device) return std::nullopt;
+    return e2ev3::openStoryAnswer(device->deviceId(), storyId, sticker, rvsd, e2ev3::engineOpener(*device));
+}
+
+void DeviceKeysSession::sendStoryReply(const std::string& chatId, const std::string& authorId, const std::string& text, const model::StoryReplyRef& ref,
+                                       std::function<void(const QString& error)> done) {
+    auto device = device_;
+    auto h = history();
+    if (!device || !h || !trusted()) {
+        if (done) done(QStringLiteral("This computer isn't linked to your devices yet, so nothing was sent. Link it in Settings > Devices & encryption."));
+        return;
+    }
+    e2ev3::OutgoingMessage message;
+    message.text = text;
+    message.extras.storyReply = ref;
+    // The 80-character limit on a story's preview (it travels with the reply).
+    std::string preview;
+    for (std::size_t i = 0; i < ref.preview.size();) {
+        const auto c = static_cast<unsigned char>(ref.preview[i]);
+        const std::size_t width = c < 0x80 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : 2;
+        if (e2ev3::textLength(preview + ref.preview.substr(i, width)) > 80) break;
+        preview += ref.preview.substr(i, width);
+        i += width;
+    }
+    message.extras.storyReply->preview = preview;
+    if (chatInfo_) message.extras.exp = chatInfo_(chatId).timerSeconds;  // your timer in that chat, as for any message there
+    const bool offline = torDown();
+    runInBackground(
+        chatPool_, this,
+        [device, h, inbox = callInbox_, server = queueing_, offline, chatId, authorId, message] {
+            translated([&] {
+                if (offline || e2ev3::hasQueuedChat(*h, *server)) {
+                    e2ev3::queueChatMessage(*device, *h, chatId, authorId, message);
+                    return;
+                }
+                receiveWithCalls(*device, *h, inbox.get());
+                e2ev3::sendChatMessage(*device, *h, chatId, authorId, message);
+            });
+        },
+        [this, chatId, done] {
+            if (qs(chatId) == chatId_) {
+                reloadChat();
+                emit chatChanged();
+            }
+            drainQueued();
+            if (done) done({});
+        },
+        [this, chatId, done](const Failure& failure) {
+            if (failure.status == 401) emit sessionExpired();
+            if (qs(chatId) == chatId_) {
+                reloadChat();
+                emit chatChanged();
+            }
+            if (done) done(failure.message.isEmpty() ? QStringLiteral("Couldn't send. Try again.") : failure.message);
         });
 }
 

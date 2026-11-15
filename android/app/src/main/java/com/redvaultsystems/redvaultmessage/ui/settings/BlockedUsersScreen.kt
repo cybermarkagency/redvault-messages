@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -38,14 +40,14 @@ fun BlockedUsersScreen(blocked: List<BlockedUserDto>, onUnblock: suspend (String
     var busyId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    SubScreen(title = "Blocked users", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_blocked_users), onBack = onBack) {
         Text(
-            "Blocked people can't message you or send you friend requests, and you can't message them. They aren't told.",
+            stringResource(R.string.ui_blocked_people_can_t_message_you),
             color = colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
         error?.let { Notice(it) }
-        if (blocked.isEmpty()) Text("You haven't blocked anyone.", color = colors.text3)
+        if (blocked.isEmpty()) Text(stringResource(R.string.ui_you_haven_t_blocked_anyone), color = colors.text3)
         blocked.forEach { user ->
             Row(
                 Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(12.dp),

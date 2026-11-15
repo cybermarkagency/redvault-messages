@@ -28,7 +28,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         Layout.topMargin: 18
-        text: "Open-Source Licenses and Source Code"
+        text: qsTr("Open-Source Licenses and Source Code")
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: Theme.text
@@ -37,11 +37,11 @@ ColumnLayout {
     }
 
     Para {
-        text: "RedVault Messages is free software, licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). It comes with no warranty."
+        text: qsTr("RedVaultMessages is free software, licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). It comes with no warranty.")
     }
 
     Para {
-        text: "Version " + (section.info.version || "")
+        text: qsTr("Version ") + (section.info.version || "")
         color: Theme.text
     }
 
@@ -55,7 +55,7 @@ ColumnLayout {
             primary: false
             leftPadding: 0
             iconName: "external-link"
-            text: "Source code for this version"
+            text: qsTr("Source code for this version")
             onClicked: Qt.openUrlExternally(section.sourceUrl)
         }
         Para {
@@ -66,7 +66,7 @@ ColumnLayout {
     }
     Para {
         visible: section.sourceUrl.length === 0
-        text: "The public source code link will appear here once it is published."
+        text: qsTr("The public source code link will appear here once it is published.")
     }
 
     Flow {
@@ -74,31 +74,31 @@ ColumnLayout {
         spacing: 8
         RvButton {
             secondary: true
-            text: "View the full license"
+            text: qsTr("View the full license")
             onClicked: textDialog.show("license", "GNU Affero General Public License, version 3")
         }
         RvButton {
             secondary: true
-            text: "View third-party notices"
+            text: qsTr("View third-party notices")
             onClicked: textDialog.show("notices", "Third-party notices")
         }
     }
 
     Para {
         text: section.contact.length > 0
-              ? "To report a problem getting the source code, contact " + section.contact + "."
-              : "To report a problem getting the source code, use the contact address in the Terms of Service."
+              ? qsTr("To report a problem getting the source code, contact ") + section.contact + "."
+              : qsTr("To report a problem getting the source code, use the contact address in the Terms of Service.")
     }
     RvButton {
         visible: section.contact.length === 0
         primary: false
         leftPadding: 0
-        text: "View the Terms of Service"
+        text: qsTr("View the Terms of Service")
         onClicked: termsDialog.show("terms")
     }
 
     Para {
-        text: "RedVault Messages is not affiliated with or endorsed by Signal Messenger LLC."
+        text: qsTr("RedVaultMessages is not affiliated with or endorsed by Signal Messenger LLC.")
         color: Theme.text3
     }
 

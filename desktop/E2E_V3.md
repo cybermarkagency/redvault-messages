@@ -26,8 +26,10 @@ them off only for a test build), and inert unless the server answers
   unpinned chat (a forward, a story reply) follows its pin alone.
   Communities, channels, Stories and calls are unchanged.
 * **No way back.** "Use device keys" and "Use the older protocol" are gone, as
-  is "Turn off Signal". In a device-key chat there is no reply, forward, pin,
-  poll, disappearing timer or multi-select (step 2).
+  is "Turn off Signal". Replies, forwards, polls, pins, receipts, the
+  disappearing timer and multi-select work in device-key chats (part A,
+  docs/signal-integration/08-part-a-chat-features.md; notes in
+  docs/signal-integration/08-part-a-desktop-notes.md).
 * **Rollback detection** (`device_store.hpp`): every save stores
   `counter = previous + 1` with the engine state, under an HMAC-SHA256 keyed
   from the storage key, then the same counter in its own vault entry
@@ -83,10 +85,10 @@ them off only for a test build), and inert unless the server answers
   encrypted, uploaded and released by `FileRepository::uploadForDeviceKeys`,
   and only the envelope carries its key. A delete rewrites the history file
   without the text and file key, but that says nothing about old copies an SSD
-  or a backup may keep; those stay encrypted under the history key. Not done:
-  replies, forwards, pins and polls (hidden in device-key mode), and picture
-  previews (a picture is a file row). The QML has been compiled, not driven by
-  hand on screen.
+  or a backup may keep; those stay encrypted under the history key. Part A
+  (replies, forwards, polls, pins, receipts, disappearing messages, picture
+  previews, voice playback) uses the protocol-1 MessageDelegate. The QML has
+  been compiled, not driven by hand on screen.
 * Groups, the group routes and the live event were run against the real server
   code of the web/server session's branch (`claude/v3-web-server-1676c6`,
   extracted with `git archive`; run.mjs with `V3_SERVER_TREE=<dir>`): 49/49.

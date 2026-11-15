@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.calls
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.LockBadge
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
 import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -119,7 +122,7 @@ private fun IncomingGroupCall(call: GroupCallView, onDecline: () -> Unit, onJoin
         Spacer(Modifier.weight(1.4f))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
             BigButton(R.drawable.ui_phone, "Decline", DangerRed, Color.White, rotate = 135f, onClick = onDecline)
-            BigButton(if (call.kind == "video") R.drawable.ui_video else R.drawable.ui_phone, "Join", colors.accent, colors.accentContrast, onClick = onJoin)
+            BigButton(if (call.kind == "video") R.drawable.ui_video else R.drawable.ui_phone, "Join", colors.ok, Color(0xFF0B2016), onClick = onJoin)
         }
         Spacer(Modifier.height(20.dp))
     }
@@ -183,7 +186,7 @@ private fun InGroupCall(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     DsIcon(R.drawable.ui_shield_check, colors.accent, 16.dp)
-                    Text("Everyone in the call should see these same words", color = colors.text2, fontSize = 12.sp)
+                    Text(stringResource(R.string.ui_everyone_in_the_call_should_see), color = colors.text2, fontSize = 12.sp)
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     call.sas.forEach { Text(it, color = colors.accent, fontFamily = MonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
@@ -209,7 +212,15 @@ private fun InGroupCall(
                     if (!call.cameraOff) ToggleButton(R.drawable.ui_refresh, "Flip camera", false, 54.dp, calls::flipCamera, label = false)
                 }
                 ToggleButton(R.drawable.ui_speaker, "Speaker", call.speakerOn, 54.dp, calls::toggleSpeaker, label = false)
-                if (calls.canShareScreen) {
+                if (!calls.canShareScreen) {
+                    // Shown locked (not hidden) on every plan without it, like the desktop app: a tap explains Premium.
+                    Box {
+                        ToggleButton(R.drawable.ui_monitor_up, "Share your screen, locked: part of Premium", false, 54.dp, {
+                            PlanGate.ask("premium", "Screen sharing")
+                        }, label = false)
+                        LockBadge(Modifier.align(Alignment.TopEnd))
+                    }
+                } else {
                     ToggleButton(
                         R.drawable.ui_monitor_up,
                         if (call.sharingScreen) "Stop sharing your screen" else "Share your screen",
@@ -224,7 +235,7 @@ private fun InGroupCall(
             }
             Spacer(Modifier.height(14.dp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = "Leave call", onClick = calls::leave)
+                BigButton(R.drawable.ui_phone, null, DangerRed, Color.White, rotate = 135f, description = stringResource(R.string.ui_leave_call), onClick = calls::leave)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -357,7 +368,7 @@ private fun elapsedText(call: GroupCallView): String {
 fun GroupCallBar(call: GroupCallView, onReturn: () -> Unit) {
     val colors = RedvaultTheme.colors
     Row(
-        Modifier.fillMaxWidth().background(colors.accent).statusBarsPadding().clickable(onClick = onReturn).padding(horizontal = 20.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().background(colors.accentFill).statusBarsPadding().clickable(onClick = onReturn).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -369,6 +380,6 @@ fun GroupCallBar(call: GroupCallView, onReturn: () -> Unit) {
             else -> elapsedText(call)
         }
         Text("${call.groupLabel} · $status", color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
-        Text("Return", color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.ui_return), color = colors.accentContrast, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }

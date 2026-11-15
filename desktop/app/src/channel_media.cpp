@@ -21,12 +21,15 @@
 
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <optional>
 #include <vector>
 
 #include "app_controller.hpp"
+#include "async.hpp"
 #include "channels_session.hpp"
 #include "redvault/api/channel_api.hpp"
+#include "redvault/data/private_channels.hpp"
 #include "redvault/model/channel_posts.hpp"
 
 namespace redvault::app {
@@ -47,7 +50,51 @@ QString positionsJson() {
     return QSettings().value(QLatin1String(kPositionsKey)).toString();
 }
 
+/// The largest private channel video or recording decrypted into memory to play; bigger ones are saved instead.
+constexpr std::int64_t kMaxPlayInMemory = 512LL * 1024 * 1024;
+
+QMutex keysMutex;
+std::map<std::string, channels::Media>& keyStore() {
+    static std::map<std::string, channels::Media> store;
+    return store;
+}
+
+std::string mediaIdOf(const QString& urlOrId) {
+    static const QRegularExpression kId(QStringLiteral("([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"));
+    const auto match = kId.match(urlOrId);
+    return match.hasMatch() ? match.captured(1).toLower().toStdString() : std::string();
+}
+
 }  // namespace
+
+// --- channel_media_keys ---
+
+namespace channel_media_keys {
+
+void remember(const std::vector<channels::Media>& media) {
+    QMutexLocker lock(&keysMutex);
+    for (const auto& m : media) {
+        if (m.secret) keyStore()[QString::fromStdString(m.id).toLower().toStdString()] = m;
+    }
+}
+
+std::optional<channels::Media> find(const QString& urlOrId) {
+    const std::string id = mediaIdOf(urlOrId);
+    if (id.empty()) return std::nullopt;
+    QMutexLocker lock(&keysMutex);
+    const auto it = keyStore().find(id);
+    if (it == keyStore().end()) return std::nullopt;
+    channels::Media out = it->second;
+    if (urlOrId.startsWith(QStringLiteral("/api/"))) out.url = urlOrId.toStdString();
+    return out;
+}
+
+void forget() {
+    QMutexLocker lock(&keysMutex);
+    keyStore().clear();
+}
+
+}  // namespace channel_media_keys
 
 // --- HttpRangeDevice ---
 
@@ -81,6 +128,7 @@ qint64 HttpRangeDevice::readData(char* data, qint64 maxSize) {
 // --- ChannelMediaPlayer ---
 
 ChannelMediaPlayer::ChannelMediaPlayer(QObject* parent) : QObject(parent) {
+    pool_.setMaxThreadCount(1);
     player_.setAudioOutput(&audio_);
     connect(&player_, &QMediaPlayer::positionChanged, this, [this](qint64 ms) {
         if (resume_ && std::abs(ms - lastSavedMs_) >= 5000) {
@@ -129,6 +177,8 @@ ChannelMediaPlayer::~ChannelMediaPlayer() {
     }
     player_.stop();
     player_.setSourceDevice(nullptr);
+    pool_.clear();
+    pool_.waitForDone();
 }
 
 void ChannelMediaPlayer::setSession(ChannelsSession* session) {
@@ -199,7 +249,41 @@ void ChannelMediaPlayer::toggle() {
 }
 
 void ChannelMediaPlayer::play() {
+    if (decrypting_) return;
     if (!device_) {
+        // A private channel's media: fetched whole and decrypted into memory (never to a file), then played from there.
+        if (auto sealed = channel_media_keys::find(url_); sealed && session_ && channels::isMediaUrl(url_.toStdString())) {
+            if (sealed->secret->plainSize > kMaxPlayInMemory) {
+                error_ = QStringLiteral("This is too big to play here. Save it to open it.");
+                emit stateChanged();
+                return;
+            }
+            error_.clear();
+            decrypting_ = true;
+            loading_ = true;
+            emit stateChanged();
+            auto api = session_->api();
+            runInBackground(
+                pool_, this, [api, media = *sealed] { return QByteArray::fromStdString(data::private_channels::fetchDecrypted(*api, media)); },
+                [this](QByteArray bytes) {
+                    decrypting_ = false;
+                    auto* buffer = new QBuffer(this);
+                    buffer->setData(bytes);
+                    buffer->open(QIODevice::ReadOnly);
+                    device_ = buffer;
+                    player_.setSourceDevice(device_, QUrl(QStringLiteral("channel-media:") + mediaId_));
+                    player_.setPlaybackRate(speed_);
+                    emit stateChanged();
+                    player_.play();
+                },
+                [this](const Failure&) {
+                    decrypting_ = false;
+                    loading_ = false;
+                    error_ = QStringLiteral("Couldn't open this. Reload the channel and try again.");
+                    emit stateChanged();
+                });
+            return;
+        }
         if (!session_ || !channels::isMediaUrl(url_.toStdString()) || size_ <= 0) {
             error_ = QStringLiteral("Couldn't play this. Reload the channel and try again.");
             emit stateChanged();
@@ -480,7 +564,10 @@ public:
         }
         if (image.isNull() && !key.isEmpty()) {
             try {
-                const std::string bytes = channels::fetchMedia(*provider_->app_->api(), url.toStdString());
+                // A private channel's photo is decrypted here, in memory.
+                const auto sealed = channel_media_keys::find(url);
+                const std::string bytes = sealed ? data::private_channels::fetchDecrypted(*provider_->app_->api(), *sealed)
+                                                 : channels::fetchMedia(*provider_->app_->api(), url.toStdString());
                 QByteArray data = QByteArray::fromStdString(bytes);
                 QBuffer buffer(&data);
                 buffer.open(QIODevice::ReadOnly);

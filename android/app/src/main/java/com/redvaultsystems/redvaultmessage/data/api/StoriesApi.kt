@@ -56,6 +56,10 @@ interface StoriesApi {
     @POST("stories/{id}/keys")
     suspend fun addKeys(@Path("id") storyId: String, @Body body: StoryKeysRequest)
 
+    /** Part D: access for late friends on a device-keys `friends` story. Always before their `storykey` (the mailbox refuses it otherwise). */
+    @POST("stories/{id}/access")
+    suspend fun addAccess(@Path("id") storyId: String, @Body body: StoryAccessRequest): StoryAccessAdded
+
     @PUT("stories/prefs")
     suspend fun putPrefs(@Body body: JsonObject): StoryPrefsSavedDto
 
@@ -102,12 +106,18 @@ class StoryDto(
     val allowReplies: Boolean = true,
     val createdAt: String,
     val expiresAt: String,
-    val wrappedKey: String,
+    /** This viewer's sealed copy of the key; null on a device-keys story, whose key comes over device keys (Part D). */
+    val wrappedKey: String? = null,
+    /** "account-keys" (a [wrappedKey] per viewer) or "device-keys" (K through `storykey` messages). Older servers leave it out. */
+    val delivery: String = DELIVERY_ACCOUNT_KEYS,
     /** Feed only: already seen by this viewer (shared view). */
     val seen: Boolean = false,
     /** Your own stories: how many friends shared that they saw it. */
     val viewCount: Int = 0,
 )
+
+const val DELIVERY_ACCOUNT_KEYS = "account-keys"
+const val DELIVERY_DEVICE_KEYS = "device-keys"
 
 @Serializable
 class StoryCreatedDto(val id: String, val published: Boolean = false, val expiresAt: String? = null)
@@ -133,7 +143,14 @@ class StoryKeysRequest(val keys: List<StoryWrappedKeyDto>)
 class StoryKeyGapUserDto(val userId: String, val publicKey: String)
 
 @Serializable
-class StoryKeyGapDto(val storyId: String, val users: List<StoryKeyGapUserDto>)
+class StoryKeyGapDto(val storyId: String, val users: List<StoryKeyGapUserDto>, val delivery: String = DELIVERY_ACCOUNT_KEYS)
+
+/** `POST /stories/:id/access` (Part D, device-keys stories): who gets access. Sent before their key. */
+@Serializable
+class StoryAccessRequest(val viewers: List<String>)
+
+@Serializable
+class StoryAccessAdded(val added: Int = 0)
 
 class StoryAuthorGroup(val authorId: String, val stories: List<StoryDto>)
 
@@ -154,6 +171,8 @@ sealed interface StoryAvailability {
         val interactive: Boolean,
         /** How long a story may last, in seconds; just 24 hours when the server doesn't say. */
         val ttlSeconds: List<Int>,
+        /** Voice stories can be posted (a server from before them doesn't say, which means no). */
+        val audio: Boolean = false,
     ) : StoryAvailability
 }
 
@@ -183,6 +202,7 @@ object StoryConfigParser {
             media = r["media"].isTrue(),
             interactive = r["interactive"].isTrue(),
             ttlSeconds = ttl.ifEmpty { listOf(DEFAULT_TTL_SECONDS) },
+            audio = r["audio"].isTrue(),
         )
     }
 

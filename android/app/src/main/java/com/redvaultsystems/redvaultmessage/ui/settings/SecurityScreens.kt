@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -107,12 +108,12 @@ fun LinkedDevicesScreen(security: SecuritySession, onBack: () -> Unit) {
 
     DsPage("Linked devices", onBack) {
         Text(
-            "Everywhere you're signed in. The server keeps no IP address, device details or sign-in time for any of them: only when each sign-in expires. Device names are encrypted by your own devices.",
+            stringResource(R.string.ui_everywhere_you_re_signed_in_the),
             color = colors.text2,
             fontSize = 14.sp,
         )
         state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
-        if (!state.loaded) Text("Loading…", color = colors.text3, fontSize = 14.sp)
+        if (!state.loaded) Text(stringResource(R.string.ui_loading), color = colors.text3, fontSize = 14.sp)
         Card {
             state.devices.forEachIndexed { i, d ->
                 if (i > 0) Divider()
@@ -125,11 +126,11 @@ fun LinkedDevicesScreen(security: SecuritySession, onBack: () -> Unit) {
                             Text(d.name.ifEmpty { "Unnamed device" }, color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                             if (d.current) {
                                 Text(
-                                    "This device",
+                                    stringResource(R.string.ui_this_device),
                                     color = colors.accent,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF16271F)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(colors.accentSoft).padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
                             }
                         }
@@ -140,15 +141,15 @@ fun LinkedDevicesScreen(security: SecuritySession, onBack: () -> Unit) {
                         )
                     }
                     if (d.current) {
-                        Text("Rename", color = colors.accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button) { renaming = d.name }.padding(8.dp))
+                        Text(stringResource(R.string.ui_rename), color = colors.accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button) { renaming = d.name }.padding(8.dp))
                     } else {
-                        Text("Sign out", color = colors.danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button) { signingOut = d }.padding(8.dp))
+                        Text(stringResource(R.string.ui_sign_out), color = colors.danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button) { signingOut = d }.padding(8.dp))
                     }
                 }
             }
         }
         if (state.devices.count { !it.current } > 0) {
-            PillButton("Sign out all other devices", { signingOutOthers = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, icon = R.drawable.ui_log_out)
+            PillButton(stringResource(R.string.ui_sign_out_all_other_devices), { signingOutOthers = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, icon = R.drawable.ui_log_out)
         }
     }
 
@@ -157,15 +158,15 @@ fun LinkedDevicesScreen(security: SecuritySession, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { renaming = null },
             containerColor = colors.surface2,
-            title = { Text("Name this device", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_name_this_device), color = colors.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Only your devices can read it: it's encrypted before it's saved.", color = colors.text2, fontSize = 14.sp)
+                    Text(stringResource(R.string.ui_only_your_devices_can_read_it), color = colors.text2, fontSize = 14.sp)
                     DsTextField(name, { if (it.length <= 60) name = it }, "Device name")
                 }
             },
-            confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { security.rename(name); renaming = null }) { Text("Save", color = colors.accent) } },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { security.rename(name); renaming = null }) { Text(stringResource(R.string.ui_save), color = colors.accent) } },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     signingOut?.let { device ->
@@ -175,23 +176,23 @@ fun LinkedDevicesScreen(security: SecuritySession, onBack: () -> Unit) {
             title = { Text("Sign out “${device.name.ifEmpty { "this device" }}”?", color = colors.text) },
             text = {
                 TouchGuard()
-                Text("That device will need your password (and two-factor code) to sign in again.", color = colors.text2)
+                Text(stringResource(R.string.ui_that_device_will_need_your_password), color = colors.text2)
             },
-            confirmButton = { TextButton(onClick = { security.signOut(device.id); signingOut = null }) { Text("Sign it out", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { signingOut = null }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { security.signOut(device.id); signingOut = null }) { Text(stringResource(R.string.ui_sign_it_out), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { signingOut = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
     if (signingOutOthers) {
         AlertDialog(
             onDismissRequest = { signingOutOthers = false },
             containerColor = colors.surface2,
-            title = { Text("Sign out every other device?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_sign_out_every_other_device), color = colors.text) },
             text = {
                 TouchGuard()
-                Text("Only this phone stays signed in. The others will need your password (and two-factor code) again.", color = colors.text2)
+                Text(stringResource(R.string.ui_only_this_phone_stays_signed_in), color = colors.text2)
             },
-            confirmButton = { TextButton(onClick = { security.signOutOthers(); signingOutOthers = false }) { Text("Sign them out", color = colors.danger) } },
-            dismissButton = { TextButton(onClick = { signingOutOthers = false }) { Text("Cancel", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { security.signOutOthers(); signingOutOthers = false }) { Text(stringResource(R.string.ui_sign_them_out), color = colors.danger) } },
+            dismissButton = { TextButton(onClick = { signingOutOthers = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -206,14 +207,14 @@ fun RelayServersScreen(security: SecuritySession, onBack: () -> Unit) {
 
     DsPage("Relay servers", onBack) {
         Text(
-            "Messages go through the message relay, and calls always go through a call relay, so nobody you talk to ever learns your IP address. Relays only ever carry ciphertext: they can't read messages or listen to calls.",
+            stringResource(R.string.ui_messages_go_through_the_message_relay),
             color = colors.text2,
             fontSize = 14.sp,
         )
-        PillButton("Check connections", security::checkRelays, Modifier.fillMaxWidth(), style = PillStyle.Secondary, icon = R.drawable.ui_refresh)
-        SectionCaps("Message relay", edge = 0.dp)
+        PillButton(stringResource(R.string.ui_check_connections), security::checkRelays, Modifier.fillMaxWidth(), style = PillStyle.Secondary, icon = R.drawable.ui_refresh)
+        SectionCaps(stringResource(R.string.ui_message_relay), edge = 0.dp)
         Card { RelayLine(state.apiHost, "HTTPS", state.apiStatus, toneColor(state.apiTone)) }
-        SectionCaps("Call relays (TURN)", edge = 0.dp)
+        SectionCaps(stringResource(R.string.ui_call_relays_turn), edge = 0.dp)
         state.error?.let { Callout(it, CalloutTone.Neutral, R.drawable.ui_info) }
         if (state.relays.isNotEmpty()) {
             Card {
@@ -224,7 +225,7 @@ fun RelayServersScreen(security: SecuritySession, onBack: () -> Unit) {
             }
         }
         Text(
-            "A check only asks each relay for an address: no media, and nothing that identifies you.",
+            stringResource(R.string.ui_a_check_only_asks_each_relay),
             color = colors.text3,
             fontSize = 13.sp,
         )
@@ -259,23 +260,23 @@ fun TransparencyLogScreen(security: SecuritySession, onBack: () -> Unit, onOpenF
     }
 
     DsPage("Transparency log", onBack, actions = {
-        Text("Live feed", color = colors.accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button, onClick = onOpenFeed).padding(10.dp))
+        Text(stringResource(R.string.ui_live_feed), color = colors.accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(role = Role.Button, onClick = onOpenFeed).padding(10.dp))
     }) {
         Text(
-            "Every relayed message adds a commitment to a public, append-only log. This phone checks the log itself: the signature, that history was never rewritten, and that your own messages are in it. The log never contains message content, senders or recipients. Only this phone can tell which entries are yours.",
+            stringResource(R.string.ui_every_relayed_message_adds_a_commitment),
             color = colors.text2,
             fontSize = 14.sp,
         )
         when {
-            state.disabled -> Callout("This server doesn't run a transparency log.", CalloutTone.Neutral, R.drawable.ui_info)
-            !state.loaded -> Text("Checking the log…", color = colors.text3, fontSize = 14.sp)
+            state.disabled -> Callout(stringResource(R.string.ui_this_server_doesn_t_run_a), CalloutTone.Neutral, R.drawable.ui_info)
+            !state.loaded -> Text(stringResource(R.string.ui_checking_the_log), color = colors.text3, fontSize = 14.sp)
         }
         state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
         state.checkpoint?.let { cp ->
             val ok = cp.keyStatus != "changed" && cp.consistent != false
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (ok) Color(0xFF16271F) else colors.dangerSoft)
-                    .border(1.dp, if (ok) Color(0xFF244536) else colors.danger, RoundedCornerShape(16.dp)).padding(14.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (ok) colors.accentSoft else colors.dangerSoft)
+                    .border(1.dp, if (ok) colors.accentBorder else colors.danger, RoundedCornerShape(16.dp)).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -304,7 +305,7 @@ fun TransparencyLogScreen(security: SecuritySession, onBack: () -> Unit, onOpenF
             }
             Card {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Your messages", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ui_your_messages), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         when {
                             state.checkingMine -> "Checking your recent messages…"
@@ -375,9 +376,9 @@ fun TransparencyLogScreen(security: SecuritySession, onBack: () -> Unit, onOpenF
             confirmButton = {
                 TextButton(enabled = path.isNotEmpty(), onClick = {
                     SecretClipboard.copy(context, "{\"index\":${entry.index},\"treeSize\":${state.checkpoint?.treeSize ?: 0},\"path\":[${path.joinToString(",") { "\"$it\"" }}]}", secret = false)
-                }) { Text("Copy proof", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_copy_proof), color = colors.accent) }
             },
-            dismissButton = { TextButton(onClick = { selected = null }) { Text("Close", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { selected = null }) { Text(stringResource(R.string.ui_close), color = colors.text2) } },
         )
     }
 }
@@ -395,7 +396,7 @@ private fun CheckLine(label: String, value: String, mono: Boolean = false) {
 private fun StatusDot(status: String) {
     val colors = RedvaultTheme.colors
     val (text, color) = when (status) {
-        "verified" -> "Verified" to colors.accent
+        "verified" -> "Verified" to colors.ok
         "failed" -> "Failed" to colors.danger
         "mismatch" -> "Mismatch" to colors.danger
         else -> "Checking" to colors.text3

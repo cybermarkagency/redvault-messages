@@ -200,13 +200,17 @@ void PeopleSession::refreshBlocked() {
     runInBackground(
         pool_, this,
         [api]() {
-            QStringList ids;
-            for (const auto& b : api->listBlocked()) ids.append(qs(b.userId));
-            return ids;
+            QVariantList people;
+            for (const auto& b : api->listBlocked())
+                people.append(QVariantMap{{"userId", qs(b.userId)}, {"handle", qs(b.username)}});
+            return people;
         },
-        [this](QStringList ids) {
-            if (ids == blocked_) return;
+        [this](QVariantList people) {
+            QStringList ids;
+            for (const auto& p : people) ids.append(p.toMap().value("userId").toString());
+            if (ids == blocked_ && people == blockedPeople_) return;
             blocked_ = std::move(ids);
+            blockedPeople_ = std::move(people);
             emit blockedChanged();
         },
         [](const Failure&) {});

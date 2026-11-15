@@ -14,7 +14,7 @@ RvDialog {
     id: dialog
     required property ChatSession chats
     required property PeopleSession people
-    title: "Message requests"
+    title: qsTr("Message requests")
     width: 520
 
     contentItem: ColumnLayout {
@@ -23,7 +23,7 @@ RvDialog {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "These people aren't your friends. Reading a request sends nothing back: they don't learn you've seen it unless you accept. Ignoring hides it without telling them."
+            text: qsTr("These people aren't your friends. Reading a request sends nothing back: they don't learn you've seen it unless you accept. Ignoring hides it without telling them.")
             color: Theme.text3
             font.pixelSize: 13
         }
@@ -34,7 +34,7 @@ RvDialog {
             Layout.topMargin: 8
             Layout.bottomMargin: 8
             horizontalAlignment: Text.AlignHCenter
-            text: "No message requests."
+            text: qsTr("No message requests.")
             color: Theme.text3
         }
 
@@ -113,7 +113,7 @@ RvDialog {
                                 RvButton {
                                     primary: false
                                     danger: true
-                                    text: "Block"
+                                    text: qsTr("Block")
                                     implicitHeight: 34
                                     onClicked: {
                                         dialog.people.block(card.modelData.userId)
@@ -122,12 +122,12 @@ RvDialog {
                                 }
                                 RvButton {
                                     primary: false
-                                    text: "Ignore"
+                                    text: qsTr("Ignore")
                                     implicitHeight: 34
                                     onClicked: dialog.chats.respondToRequest(card.modelData.chatId, false)
                                 }
                                 RvButton {
-                                    text: "Accept"
+                                    text: qsTr("Accept")
                                     implicitHeight: 34
                                     onClicked: {
                                         dialog.chats.respondToRequest(card.modelData.chatId, true)

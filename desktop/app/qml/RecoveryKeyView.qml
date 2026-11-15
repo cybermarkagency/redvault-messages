@@ -22,7 +22,7 @@ Item {
             spacing: 12
 
             Text {
-                text: "Your recovery key"
+                text: qsTr("Your recovery key")
                 color: Theme.text
                 font.pixelSize: 20
                 font.weight: Font.DemiBold

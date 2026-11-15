@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -22,8 +23,18 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.redvaultsystems.redvaultmessage.R
 
-// Design tokens from the mobile UI handoff (the same values as the desktop
-// app and the web redesign). The design is dark only.
+// Design tokens for the RedVaultMessages redesign (the same values as the
+// desktop's Theme.qml): graphite surfaces (#101114, #17191E, #20232A), a
+// restrained burgundy accent (#A72640) and crisp dividers; dark by default,
+// plus a light palette with the same roles. Settings > Appearance picks
+// System, Dark or Light (AppearanceStore).
+//
+// The burgundy is too dark to read as text on graphite, so it has two roles:
+// accentFill (white text on it) for buttons, outgoing bubbles, badges and
+// selections, and accent, a lighter raspberry for text and icons. "ok"
+// (green) is only for confirmed states (Verified, Tor connected); danger is
+// coral so an error never looks like the accent. Every state colour is paired
+// with an icon or words where it's used.
 
 @Immutable
 data class RedvaultColors(
@@ -48,8 +59,20 @@ data class RedvaultColors(
     val accentSoft: Color,
     val accentBorder: Color,
     val accentContrast: Color,
+    /** Burgundy fills: primary buttons, badges, selected marks; accentContrast on top. */
+    val accentFill: Color,
+    /** Keyboard / switch-access focus outline. */
+    val focusRing: Color,
+    /** Charcoal incoming bubble. */
+    val bubbleIn: Color,
     val bubbleOut: Color,
+    /** Text on an outgoing bubble. */
+    val bubbleOutText: Color,
     val bubbleOutTime: Color,
+    /** Confirmed states: Verified, Tor connected. */
+    val ok: Color,
+    val okSoft: Color,
+    val okBorder: Color,
     val warn: Color,
     val warnSoft: Color,
     /** Text: missed calls, Block, Report. */
@@ -57,6 +80,9 @@ data class RedvaultColors(
     /** Fills: end / decline call. */
     val dangerStrong: Color,
     val dangerSoft: Color,
+    /** Borders of error and warning callouts. */
+    val dangerBorder: Color,
+    val warnBorder: Color,
     val toggleOnBg: Color,
     val toggleOnFg: Color,
     /** Extra locks on files. */
@@ -69,35 +95,44 @@ data class RedvaultColors(
 )
 
 private val Tokens = RedvaultColors(
-    bg = Color(0xFF0F1311),
-    bar = Color(0xFF131816),
-    surface = Color(0xFF171C1A),
-    surface2 = Color(0xFF1B211E),
-    surface3 = Color(0xFF1F2623),
-    selected = Color(0xFF1D2421),
-    text = Color(0xFFECEAE3),
-    text2 = Color(0xFFC9CFCA),
-    text3 = Color(0xFF9AA39D),
-    placeholder = Color(0xFF8A938D),
-    border = Color(0xFF232A27),
-    borderStrong = Color(0xFF26302B),
-    accent = Color(0xFF86D9AE),
-    accentSoft = Color(0xFF16271F),
-    accentBorder = Color(0xFF244536),
-    accentContrast = Color(0xFF0B2A1C),
-    bubbleOut = Color(0xFF1E4434),
-    bubbleOutTime = Color(0xFFB5D9C5),
-    warn = Color(0xFFF2C38B),
-    warnSoft = Color(0xFF2A2217),
-    danger = Color(0xFFF29B90),
-    dangerStrong = Color(0xFFC8433B),
-    dangerSoft = Color(0xFF2A1714),
-    toggleOnBg = Color(0xFFECEAE3),
-    toggleOnFg = Color(0xFF0F1311),
-    lockBg = Color(0xFF1B2236),
-    lockText = Color(0xFFC6D4FF),
-    lockText2 = Color(0xFF9FB4FF),
-    lockBorder = Color(0xFF2A3556),
+    bg = Color(0xFF101114),
+    bar = Color(0xFF17191E),
+    surface = Color(0xFF17191E),
+    surface2 = Color(0xFF20232A),
+    surface3 = Color(0xFF282B33),
+    selected = Color(0xFF22252C),
+    text = Color(0xFFEDEEF0),
+    text2 = Color(0xFFC3C6CD),
+    text3 = Color(0xFF9599A3),
+    placeholder = Color(0xFF858A94),
+    border = Color(0xFF25282F),
+    borderStrong = Color(0xFF323640),
+    accent = Color(0xFFE7677F),
+    accentSoft = Color(0xFF2A1820),
+    accentBorder = Color(0xFF5C2635),
+    accentContrast = Color(0xFFFFFFFF),
+    accentFill = Color(0xFFA72640),
+    focusRing = Color(0xFFF08AA0),
+    bubbleIn = Color(0xFF20232A),
+    bubbleOut = Color(0xFF8E2238),
+    bubbleOutText = Color(0xFFFFFFFF),
+    bubbleOutTime = Color(0xFFF0C3CD),
+    ok = Color(0xFF6FCF97),
+    okSoft = Color(0xFF15241C),
+    okBorder = Color(0xFF24432F),
+    warn = Color(0xFFEBBE7A),
+    warnSoft = Color(0xFF29231A),
+    danger = Color(0xFFF68C72),
+    dangerStrong = Color(0xFFC9402B),
+    dangerSoft = Color(0xFF2B1814),
+    dangerBorder = Color(0xFF5E2C22),
+    warnBorder = Color(0xFF4B3F27),
+    toggleOnBg = Color(0xFFEDEEF0),
+    toggleOnFg = Color(0xFF101114),
+    lockBg = Color(0xFF1C2133),
+    lockText = Color(0xFFC6D0F5),
+    lockText2 = Color(0xFF9FB0F0),
+    lockBorder = Color(0xFF2B3352),
     avatarInk = Color(0xFF141413),
     avatarTints = listOf(
         Color(0xFFC9B6E4), Color(0xFF9CC9E8), Color(0xFFF2C38B),
@@ -105,26 +140,72 @@ private val Tokens = RedvaultColors(
     ),
 )
 
-/** Bricolage Grotesque for titles, IBM Plex Sans for text, IBM Plex Mono for anything exact. */
+private val LightTokens = RedvaultColors(
+    bg = Color(0xFFF6F6F8),
+    bar = Color(0xFFFFFFFF),
+    surface = Color(0xFFFFFFFF),
+    surface2 = Color(0xFFEFEFF2),
+    surface3 = Color(0xFFE4E4E9),
+    selected = Color(0xFFECE7EA),
+    text = Color(0xFF15161A),
+    text2 = Color(0xFF3E4049),
+    text3 = Color(0xFF646772),
+    placeholder = Color(0xFF7A7D87),
+    border = Color(0xFFE2E2E7),
+    borderStrong = Color(0xFFCBCBD3),
+    accent = Color(0xFFA72640),
+    accentSoft = Color(0xFFF8E7EB),
+    accentBorder = Color(0xFFEBC1CB),
+    accentContrast = Color(0xFFFFFFFF),
+    accentFill = Color(0xFFA72640),
+    focusRing = Color(0xFFA72640),
+    bubbleIn = Color(0xFFFFFFFF),
+    bubbleOut = Color(0xFFA72640),
+    bubbleOutText = Color(0xFFFFFFFF),
+    bubbleOutTime = Color(0xFFF7D9E0),
+    ok = Color(0xFF1E7A4C),
+    okSoft = Color(0xFFE3F2E9),
+    okBorder = Color(0xFFB7DCC6),
+    warn = Color(0xFF94590A),
+    warnSoft = Color(0xFFFCF1DF),
+    danger = Color(0xFFB3361F),
+    dangerStrong = Color(0xFFC9402B),
+    dangerSoft = Color(0xFFFCEAE5),
+    dangerBorder = Color(0xFFF1C2B6),
+    warnBorder = Color(0xFFEED3A8),
+    toggleOnBg = Color(0xFF15161A),
+    toggleOnFg = Color(0xFFFFFFFF),
+    lockBg = Color(0xFFE8EDFF),
+    lockText = Color(0xFF2F44A8),
+    lockText2 = Color(0xFF4B5FC4),
+    lockBorder = Color(0xFFC4CFF5),
+    avatarInk = Color(0xFF141413),
+    avatarTints = Tokens.avatarTints,
+)
+
+/**
+ * Inter for text and titles (bundled, SIL OFL; licenses/inter-OFL.txt), IBM Plex Mono for anything exact
+ * (keys, codes, safety numbers). Sizes are in sp, so they follow the system font size.
+ */
 object RedvaultFonts {
-    val display = FontFamily(Font(R.font.bricolage_grotesque_bold, FontWeight.Bold))
     val sans = FontFamily(
-        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
-        Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
-        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
-        Font(R.font.ibm_plex_sans_semibold, FontWeight.Bold),
+        Font(R.font.inter_regular, FontWeight.Normal),
+        Font(R.font.inter_medium, FontWeight.Medium),
+        Font(R.font.inter_semibold, FontWeight.SemiBold),
+        Font(R.font.inter_bold, FontWeight.Bold),
     )
+    val display = FontFamily(Font(R.font.inter_bold, FontWeight.Bold), Font(R.font.inter_semibold, FontWeight.SemiBold))
     val mono = FontFamily(
         Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
         Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
     )
 
-    /** Tab titles ("Chats", "Files"): 32px, tight. */
-    val title = TextStyle(fontFamily = display, fontWeight = FontWeight.Bold, fontSize = 32.sp, letterSpacing = (-0.02).em)
+    /** Tab titles ("Chats", "Files"): 26sp, tight. */
+    val title = TextStyle(fontFamily = display, fontWeight = FontWeight.Bold, fontSize = 26.sp, letterSpacing = (-0.02).em)
 }
 
-private val Colors = Tokens.let {
-    darkColorScheme(
+private fun schemeFor(it: RedvaultColors, dark: Boolean) =
+    (if (dark) darkColorScheme() else lightColorScheme()).copy(
         primary = it.accent, onPrimary = it.accentContrast,
         primaryContainer = it.accentSoft, onPrimaryContainer = it.accent,
         secondaryContainer = it.surface2, onSecondaryContainer = it.text,
@@ -137,7 +218,9 @@ private val Colors = Tokens.let {
         error = it.danger, onError = it.accentContrast,
         errorContainer = it.dangerSoft, onErrorContainer = it.danger,
     )
-}
+
+private val DarkScheme = schemeFor(Tokens, dark = true)
+private val LightScheme = schemeFor(LightTokens, dark = false)
 
 private val Type = Typography().let { base ->
     fun TextStyle.sans() = copy(fontFamily = RedvaultFonts.sans)
@@ -162,13 +245,13 @@ private val Type = Typography().let { base ->
 
 private val LocalRedvaultColors = staticCompositionLocalOf { Tokens }
 
-// Inputs 12px, cards 16px, dialogs and sheets 22px.
+// Inputs 10dp, cards 14dp, dialogs and sheets 18dp (the desktop's radii).
 private val RedvaultShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(26.dp),
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(18.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 object RedvaultTheme {
@@ -183,10 +266,17 @@ object RedvaultTheme {
     }
 }
 
+/** The calls screens stay dark in every theme, like the desktop: video and faces read best on black. */
 @Composable
-@Suppress("UNUSED_PARAMETER")
-fun RedvaultTheme(dark: Boolean = true, content: @Composable () -> Unit) {
+fun DarkOnly(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalRedvaultColors provides Tokens) {
-        MaterialTheme(colorScheme = Colors, shapes = RedvaultShapes, typography = Type, content = content)
+        MaterialTheme(colorScheme = DarkScheme, shapes = RedvaultShapes, typography = Type, content = content)
+    }
+}
+
+@Composable
+fun RedvaultTheme(dark: Boolean = true, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalRedvaultColors provides if (dark) Tokens else LightTokens) {
+        MaterialTheme(colorScheme = if (dark) DarkScheme else LightScheme, shapes = RedvaultShapes, typography = Type, content = content)
     }
 }

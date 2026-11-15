@@ -46,6 +46,20 @@ RoomKeyExchange::Outcome RoomKeyExchange::onRoster(std::int64_t epoch, const std
     }
     out.sas = complete ? gc::groupSasWords(config_.callId, known) : std::vector<std::string>{};
 
+    if (keyholder == config_.selfUserId && config_.deviceKeys) {
+        // Our turn, in a group on device keys: a fresh key for this epoch, for each participant's devices.
+        crypto::SecretBytes key = gc::newRoomKey();
+        for (const auto& m : members) {
+            if (m.userId != config_.selfUserId) out.deviceKeyRecipients.push_back(m.userId);
+        }
+        out.deviceKey = std::make_shared<const crypto::SecretBytes>(crypto::SecretBytes::copyOf(key.view()));
+        Outcome applied = applyKey(std::move(key), epoch);
+        out.install = std::move(applied.install);
+        out.clearNotice = applied.clearNotice;
+        out.sendEpoch = epoch;
+        if (out.deviceKeyRecipients.empty()) out.deviceKey.reset();
+        return out;
+    }
     if (keyholder == config_.selfUserId) {
         // Our turn: a fresh key for this epoch, sealed to everyone else.
         crypto::SecretBytes key = gc::newRoomKey();
@@ -71,7 +85,7 @@ RoomKeyExchange::Outcome RoomKeyExchange::onRoster(std::int64_t epoch, const std
     if (early != early_.end()) {
         EarlyKey held = std::move(early->second);
         early_.erase(early);
-        Outcome opened = onKey(epoch, held.from, held.sealed);
+        Outcome opened = held.plain ? onDeviceKey(epoch, held.from, held.plain) : onKey(epoch, held.from, held.sealed);
         out.install = std::move(opened.install);
         out.notice = std::move(opened.notice);
         out.clearNotice = opened.clearNotice;
@@ -81,9 +95,22 @@ RoomKeyExchange::Outcome RoomKeyExchange::onRoster(std::int64_t epoch, const std
     return out;
 }
 
-RoomKeyExchange::Outcome RoomKeyExchange::onKey(std::int64_t epoch, const std::string& from, const crypto::calls::Sealed& sealed) {
+RoomKeyExchange::Outcome RoomKeyExchange::onDeviceKey(std::int64_t epoch, const std::string& from,
+                                                      std::shared_ptr<const crypto::SecretBytes> key) {
+    if (!config_.deviceKeys || !key || key->size() != gc::kRoomKeyBytes) return {};
+    if (epoch < keyEpoch_) return {};  // never back to an older key
     if (epoch > epoch_) {
-        early_[epoch] = EarlyKey{from, sealed};
+        early_[epoch] = EarlyKey{from, {}, std::move(key)};
+        return {};
+    }
+    if (epoch < epoch_ || from != keyholder_) return {};  // a key for an epoch we left, or from someone who isn't the keyholder
+    return applyKey(crypto::SecretBytes::copyOf(key->view()), epoch);
+}
+
+RoomKeyExchange::Outcome RoomKeyExchange::onKey(std::int64_t epoch, const std::string& from, const crypto::calls::Sealed& sealed) {
+    if (config_.deviceKeys) return {};  // a group on device keys never takes a key through the server
+    if (epoch > epoch_) {
+        early_[epoch] = EarlyKey{from, sealed, nullptr};
         return {};
     }
     if (epoch < epoch_ || from != keyholder_) return {};  // a key for an epoch we left, or from someone who isn't the keyholder

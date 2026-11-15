@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.groups
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,7 +60,7 @@ fun JoinGroupScreen(linkId: String, secret: String, chats: ChatSession, onBack: 
     val shown = preview
     SubScreen(title = shown?.name ?: "Group invite", onBack = onBack) {
         if (shown == null) {
-            error?.let { Notice(it) } ?: Text("Opening the link…", color = colors.text3)
+            error?.let { Notice(it) } ?: Text(stringResource(R.string.ui_opening_the_link), color = colors.text3)
             return@SubScreen
         }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -77,16 +78,16 @@ fun JoinGroupScreen(linkId: String, secret: String, chats: ChatSession, onBack: 
         }
         error?.let { Notice(it) }
         when {
-            shown.member -> PrimaryButton(text = "Open group", enabled = true) { onOpenGroup(shown.conversationId) }
+            shown.member -> PrimaryButton(text = stringResource(R.string.ui_open_group), enabled = true) { onOpenGroup(shown.conversationId) }
             requested -> {
                 Text(
-                    "Request sent. The group will appear in your chats once an admin approves it.",
+                    stringResource(R.string.ui_request_sent_the_group_will_appear),
                     color = colors.text3,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                PillButton("Cancel request", {
+                PillButton(stringResource(R.string.ui_cancel_request), {
                     busy = true
                     error = null
                     scope.launch {
