@@ -81,14 +81,17 @@ android {
         applicationId = "com.redvaultsystems.redvaultmessage"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.6.1"
+        // redvaultTestVersionCode: for testing in-app updates only (a "newer" debug APK); never set for a release.
+        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 12
+        versionName = "0.6.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
         buildConfigField("String", "WEB_APP_BASE", javaString(webAppBase))
         buildConfigField("boolean", "TOR_ONLY", torOnly.toString())
         buildConfigField("boolean", "E2E_V3", e2eV3.toString())
+        // A test key for in-app updates (base64 Ed25519 public key). Only a debug build uses it (update/AppUpdates.kt).
+        buildConfigField("String", "UPDATE_TEST_KEY", "\"${((project.findProperty("redvaultUpdateTestKey") as String?) ?: "").trim()}\"")
         buildConfigField("boolean", "E2E_SIGNAL", e2eSignal.toString())
         buildConfigField("boolean", "COMMUNITIES", communities.toString())
         buildConfigField("boolean", "SELL_PLANS", sellPlans.toString())

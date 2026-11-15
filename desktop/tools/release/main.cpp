@@ -202,6 +202,47 @@ int sign(const std::map<std::string, std::string>& opts) {
     return 0;
 }
 
+/// The Android app's manifest (android-latest.json), signed with the same release key as the desktop's.
+int signAndroid(const std::map<std::string, std::string>& opts) {
+    for (const char* required : {"apk", "version", "version-code", "out"}) {
+        if (!opts.contains(required)) throw update::UpdateError(std::string("sign-android needs --") + required);
+    }
+    const fs::path apk = opts.at("apk");
+    if (apk.extension() != ".apk") throw update::UpdateError("--apk must be an .apk file");
+    const fs::path keyPath = opts.contains("key") ? fs::path(opts.at("key")) : defaultKeyPath();
+    if (!update::parseVersion(opts.at("version"))) throw update::UpdateError("Version must look like 1.2.3");
+    if (!std::regex_match(opts.at("version-code"), std::regex("[1-9][0-9]{0,9}"))) throw update::UpdateError("--version-code must be a positive number");
+    if (!fs::exists(keyPath)) throw update::UpdateError("No release key at " + keyPath.string() + " (run keygen first)");
+    const std::string validDays = opts.contains("valid-days") ? opts.at("valid-days") : std::to_string(kDefaultValidDays);
+    if (!std::regex_match(validDays, std::regex("[1-9][0-9]{0,3}"))) throw update::UpdateError("--valid-days must be a number of days, 1 to 9999");
+
+    update::Release release;
+    release.product = std::string(update::kAndroidProduct);
+    release.version = opts.at("version");
+    release.versionCode = std::stoll(opts.at("version-code"));
+    // The name it's published under on the website (the file itself may still be app-release.apk).
+    release.url = std::string(kDefaultBaseUrl) + (opts.contains("published-name") ? opts.at("published-name") : apk.filename().string());
+    release.sha256 = sha256Hex(apk);
+    release.size = fs::file_size(apk);
+    release.notes = opts.contains("notes") ? opts.at("notes") : "";
+    release.published = nowIso();
+    release.expires = isoAfterDays(std::stoi(validDays));
+
+    const auto keys = update::openSigningKey(readFile(keyPath), readHidden("Release key passphrase: "));
+    const std::string manifest = update::signManifest(release, keys.secretKey);
+    const auto checked = update::verifyAndroidManifest(manifest, keys.publicKey, kDefaultBaseUrl);
+    if (checked.versionCode != release.versionCode || checked.sha256 != release.sha256) {
+        throw update::UpdateError("The signed Android manifest didn't verify");
+    }
+    writeFile(opts.at("out"), manifest);
+    std::cout << "Signed Android " << release.version << " (versionCode " << release.versionCode << ") -> " << opts.at("out") << "\n"
+              << "  apk:     " << release.url << "\n"
+              << "  sha256:  " << release.sha256 << "\n"
+              << "  size:    " << release.size << " bytes\n"
+              << "  expires: " << release.expires << " (sign again before then)\n";
+    return 0;
+}
+
 int verify(const std::map<std::string, std::string>& opts) {
     for (const char* required : {"manifest", "public-key"}) {
         if (!opts.contains(required)) throw update::UpdateError(std::string("verify needs --") + required);
@@ -225,6 +266,8 @@ void usage() {
     std::cerr << "Usage:\n"
                  "  redvault_release keygen [--key FILE] [--embed desktop/app/src/update_key.hpp]\n"
                  "  redvault_release sign --installer FILE --version X.Y.Z --out latest.json [--notes TEXT] [--key FILE] [--valid-days N]\n"
+                 "  redvault_release sign-android --apk FILE --version X.Y.Z --version-code N --out android-latest.json\n"
+                 "                   [--published-name RedVault-Messages-X.Y.Z.apk] [--notes TEXT] [--key FILE] [--valid-days N]\n"
                  "  redvault_release verify --manifest latest.json --public-key BASE64 [--current X.Y.Z]\n";
 }
 
@@ -240,6 +283,7 @@ int main(int argc, char** argv) {
         const auto opts = options(args, 1);
         if (args[0] == "keygen") return keygen(opts);
         if (args[0] == "sign") return sign(opts);
+        if (args[0] == "sign-android") return signAndroid(opts);
         if (args[0] == "verify") return verify(opts);
         usage();
         return 2;

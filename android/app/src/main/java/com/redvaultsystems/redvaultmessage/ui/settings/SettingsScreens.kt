@@ -90,6 +90,8 @@ private const val MIN_PASSWORD_LENGTH = 8
 @Composable
 fun SettingsScreen(
     account: AccountSession,
+    /** In-app updates: the Updates section above "Open source" (update/AppUpdates.kt). */
+    updates: com.redvaultsystems.redvaultmessage.update.AppUpdates? = null,
     profile: Profile,
     incomingRequests: Int,
     readReceipts: Boolean,
@@ -139,8 +141,6 @@ fun SettingsScreen(
     onRingtoneChange: (Boolean) -> Unit = {},
     echoCancellation: Boolean = true,
     onEchoCancellationChange: (Boolean) -> Unit = {},
-    /** Story settings; null while the server has Stories off (then there is nothing to show). */
-    onOpenStorySettings: (() -> Unit)? = null,
     /** Settings › Plans: compare plans, buy, switch or cancel. */
     onOpenPlans: () -> Unit = {},
     /** Files (the encrypted drive) in use and its limit, in bytes; null until it has loaded. Every plan has some. */
@@ -387,10 +387,6 @@ fun SettingsScreen(
             icon = R.drawable.ui_bell,
         )
 
-        if (onOpenStorySettings != null) {
-            SettingsRow(title = stringResource(R.string.ui_stories), description = stringResource(R.string.ui_who_sees_your_stories_archive_and), onClick = onOpenStorySettings, icon = R.drawable.ui_image)
-        }
-
         SectionLabel(stringResource(R.string.ui_account))
         SettingsRow(title = stringResource(R.string.ui_handle), description = profile.handle, onClick = onOpenChangeUsername, icon = R.drawable.ui_user)
         PlanRow(account, profile.subscriptionTier, onOpenPlans)
@@ -441,6 +437,8 @@ fun SettingsScreen(
                 )
             },
         )
+
+        UpdateSection(updates)
 
         OpenSourceSection()
 

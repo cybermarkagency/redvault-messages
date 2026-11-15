@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-15T06:05:51+00:00",
- "repository_commit": "76ddeb79ebf5385bb5d2f5fd75bca3c850ebaebe",
+ "generated": "2026-11-15T06:06:02+00:00",
+ "repository_commit": "23a71dfae5d4df458059b27d8822528c02da340c",
  "branch": "HEAD",
  "uncommitted_changes_included": false,
  "app_versions": {
   "desktop": "0.7.1",
-  "android": "0.6.1",
+  "android": "0.6.2",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -74,8 +74,8 @@
   },
   {
    "path": "android/.gitignore",
-   "sha256": "37539836ccd7899e296ccf110d2d3b4bf83eee7373d74750b682f26a5ecae842",
-   "bytes": 249
+   "sha256": "c14171fcb581ddeb01bd52f414f975514532436617905d4bc665bd2a64ff79fb",
+   "bytes": 257
   },
   {
    "path": "android/LICENSE",
@@ -94,8 +94,8 @@
   },
   {
    "path": "android/app/build.gradle.kts",
-   "sha256": "7683cff2e3f2366f70d724b8f5ad70197e0b843dc29f799b1bcc0ff473f7e7b5",
-   "bytes": 22592
+   "sha256": "7112d7e25df570f8030db6bc3241e35da8cd918091e04dfa1303d0693bd1f375",
+   "bytes": 23043
   },
   {
    "path": "android/app/proguard-rules.pro",
@@ -179,8 +179,8 @@
   },
   {
    "path": "android/app/src/main/AndroidManifest.xml",
-   "sha256": "28a384b57b8f472bf2a3fba393ec8391605c251b6aba91f4eb8e580009635076",
-   "bytes": 7833
+   "sha256": "1cf6857eeaba4efec59188942e0c26fbea1ecee7fa1174513795b41ed33e6e3e",
+   "bytes": 8353
   },
   {
    "path": "android/app/src/main/assets/legal/LICENSE.txt",
@@ -224,8 +224,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/RedvaultApp.kt",
-   "sha256": "3bbd57fad39e0f3d290c9a954188395c465173b452100f35f8ea19f5aa303f90",
-   "bytes": 23105
+   "sha256": "68ddd2824d0c8ae34ef1938e1b682a170c62ce7c5f2d7d1944cbdb262f3eed6b",
+   "bytes": 24493
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ShareIntents.kt",
@@ -849,13 +849,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInApp.kt",
-   "sha256": "b9a26c8e25b367541c959a9e0a719efe1a581ecfbfc6f5b7efc6f0b89b41e527",
-   "bytes": 70626
+   "sha256": "f6fb755a074c3734500ed2479bb85687ecbac38b2a190ccc8d62a6e6b91b7bc9",
+   "bytes": 70878
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInSession.kt",
-   "sha256": "34d1767b7555ebefdfc1ac74d9eefa910a28e1b1b8435a37f771bbee2a2aa6ff",
-   "bytes": 3291
+   "sha256": "1015e24a94b6ff9632993abc7db70efa35fe09ad767242ec741366ea5efa52ed",
+   "bytes": 3466
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/TimeFormat.kt",
@@ -1229,8 +1229,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SettingsScreens.kt",
-   "sha256": "d69f24571691319bc56ddd1614631329e63e91404eea861e97383c4ff3a84032",
-   "bytes": 40387
+   "sha256": "5e3d3e722d0a43282fb51e7ed2f3385dc9b1e3e0033e0a304049e388eee038fa",
+   "bytes": 40180
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/UpdateViews.kt",
+   "sha256": "bb9f3eaa70730494653c46de59e2fedf3ee8940052b5a48c7cf59f5648b5406f",
+   "bytes": 7594
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/ComposerParts.kt",
@@ -1296,6 +1301,16 @@
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/verify/VerifyScreens.kt",
    "sha256": "fa3a723cbf0c941b0abf9a8722fff31ef8cfe2684f3c1acc734a4c14d81aee30",
    "bytes": 17001
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/update/AppUpdates.kt",
+   "sha256": "fd0a2c7c5ae192f6a6543b215d717007d0b55e120a37da1621c704a0a318d9ef",
+   "bytes": 12963
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/update/UpdateManifest.kt",
+   "sha256": "31537d1f0d519fc9b41c5d84a60cb3576f05068df52f828a57488d9a28b0bd06",
+   "bytes": 5979
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/tor/NativeTor.java",
@@ -2129,8 +2144,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/PrivacyManifestTest.kt",
-   "sha256": "c1fb93c31150d1db75410faec56baf957d0b447df00932d07e94c2ed9a186ed1",
-   "bytes": 7563
+   "sha256": "2d7a553537ca70c491f8bb28209724a09763a7eb22337a25176d7d3def7b66be",
+   "bytes": 7842
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/PublicChannelReadsTest.kt",
@@ -2273,6 +2288,16 @@
    "bytes": 5012
   },
   {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/update/UpdateManifestTest.kt",
+   "sha256": "7af79f5e7f3645dba03941ed10c68e17b5f2dfed0bf03911a7c7cac450b1ecb8",
+   "bytes": 6264
+  },
+  {
+   "path": "android/app/src/test/resources/android_update_vector.json",
+   "sha256": "1f2fd69996b03fbf316c146707989b3caabd40cccbb053f3f21e7a38d334e112",
+   "bytes": 679
+  },
+  {
    "path": "android/app/src/test/resources/vectors/make_android_draft_vectors.ts",
    "sha256": "4e5815abcaad363e20f4ef3419f9ff933dd876a773d1a78b9d07c5305602df9a",
    "bytes": 6691
@@ -2346,6 +2371,11 @@
    "path": "android/maven-runtime-dependencies.txt",
    "sha256": "84d160083d65603f5d084b79ca68eb81bc998cedb5fcc3226773deff94960468",
    "bytes": 6111
+  },
+  {
+   "path": "android/publish-release.ps1",
+   "sha256": "378386fdcbc083828aa4ca63ca9fcf7e3e6ff08159a8de0363126900f13cd57c",
+   "bytes": 4207
   },
   {
    "path": "android/settings.gradle.kts",
@@ -4814,8 +4844,8 @@
   },
   {
    "path": "desktop/core/include/redvault/update/update.hpp",
-   "sha256": "9e01104b59c0267230e02815d36d1c693efc70a45977b0bd1327f73dc0669e45",
-   "bytes": 6883
+   "sha256": "f4cd26a216583842622f4caa3a3ba77beb7aa5023e08d936b56705c08c43b9a0",
+   "bytes": 7571
   },
   {
    "path": "desktop/core/include/redvault/util/private_files.hpp",
@@ -5129,8 +5159,8 @@
   },
   {
    "path": "desktop/core/src/update/update.cpp",
-   "sha256": "84ef79dd6f8090ada99e2b0ad96bdc58ad5336df09dcfd9271e8096234154676",
-   "bytes": 12654
+   "sha256": "69de9b117c3b5de1ef3ebce741dea30fade5c4fef333fcd4b8b3537e38801cb6",
+   "bytes": 14900
   },
   {
    "path": "desktop/core/src/util/private_files.cpp",
@@ -5554,8 +5584,8 @@
   },
   {
    "path": "desktop/tests/CMakeLists.txt",
-   "sha256": "a4f5424b428b6c3185f3c580c6c4e1b2a06381e8220a75db2e7837aad93dcf39",
-   "bytes": 13777
+   "sha256": "842513579202cb5c9f58fd9f580d7fe505e73b16f4993c554d1a9c1936ff9dec",
+   "bytes": 13907
   },
   {
    "path": "desktop/tests/account_repository_test.cpp",
@@ -5929,8 +5959,8 @@
   },
   {
    "path": "desktop/tests/update_test.cpp",
-   "sha256": "1482f288ddd29e2ea01fcf5617e1df34ce37b920385e2ebc961b7ba112593a6b",
-   "bytes": 17118
+   "sha256": "806262cbdfe280e37d8fcdca7d041c2e26956f2d806cc37bce931df872ba589c",
+   "bytes": 20730
   },
   {
    "path": "desktop/tests/vault_binding_test.cpp",
@@ -6174,8 +6204,8 @@
   },
   {
    "path": "desktop/tools/release/main.cpp",
-   "sha256": "dd9596dd22d8b50995dc70eeb9f67c26f310f359bedca99e4be7f7f4b60c7b76",
-   "bytes": 11210
+   "sha256": "f06176fa5403bee04af9a625127bda2e5dd5fa798ff7567ad2dd0287fc4c6d04",
+   "bytes": 14407
   },
   {
    "path": "desktop/tools/rtc_interop/CMakeLists.txt",

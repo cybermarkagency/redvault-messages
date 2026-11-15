@@ -14,3 +14,4 @@
 *.jks
 *.keystore
 keystore.properties
+/dist/

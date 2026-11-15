@@ -624,12 +624,16 @@ private fun SignedInContent(
             unreadChannels = unreadChannels,
             incomingFiles = sharesState.incoming.size,
             onTab = ::selectTab,
-            status = torStatus?.let { status ->
-                {
-                    TorStatusStrip(
-                        status, queued = chats.queued, pausedUploads = filesState.pausedUploads,
-                        callActive = activeCall != null || groupCall != null,
-                    )
+            status = {
+                androidx.compose.foundation.layout.Column {
+                    // A newer version (update/AppUpdates.kt): shows only when there's something to do.
+                    com.redvaultsystems.redvaultmessage.ui.settings.UpdateBanner(session.updates)
+                    torStatus?.let { status ->
+                        TorStatusStrip(
+                            status, queued = chats.queued, pausedUploads = filesState.pausedUploads,
+                            callActive = activeCall != null || groupCall != null,
+                        )
+                    }
                 }
             },
         ) {
@@ -961,6 +965,7 @@ private fun SignedInContent(
         )
 
         Route.Settings -> SettingsScreen(
+            updates = session.updates,
             account = session.account,
             profile = account.profile,
             incomingRequests = incoming,
@@ -978,7 +983,6 @@ private fun SignedInContent(
             onRingtoneChange = { on -> session.settings.ringtone = on; ringtone = on },
             echoCancellation = echoCancellation,
             onEchoCancellationChange = { on -> session.settings.echoCancellation = on; echoCancellation = on },
-            onOpenStorySettings = if (stories.on) { { push(Route.StorySettings) } } else null,
             hideContent = hideContent,
             onHideContentChange = {
                 session.settings.hideContent = it

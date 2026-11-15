@@ -23,6 +23,9 @@
     <!-- The background connection for new-message notifications when no UnifiedPush app is installed. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- In-app updates of the website APK (update/AppUpdates.kt): Android still asks the user to allow it, and to
+         confirm each install, and only accepts an APK signed with this app's own key. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- The QR scanner's camera, likewise optional. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -133,6 +136,10 @@
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
             android:screenOrientation="fullSensor"
             tools:replace="android:screenOrientation" />
+        <!-- Android's installer reports an update's progress here (update/AppUpdates.kt). Not exported. -->
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

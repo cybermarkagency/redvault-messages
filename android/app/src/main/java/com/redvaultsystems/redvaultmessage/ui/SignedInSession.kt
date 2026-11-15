@@ -52,6 +52,8 @@ class SignedInSession(
     val tor: TorController? = null,
     /** Per-device keys (protocol 3) and Signal sessions: null in a build made with -PredvaultE2eV3=false. */
     val deviceKeys: DeviceKeysSession? = null,
+    /** In-app updates (update/AppUpdates.kt): the banner and Settings › About read it. */
+    val updates: com.redvaultsystems.redvaultmessage.update.AppUpdates? = null,
     private val onClosed: () -> Unit,
 ) {
     fun close() {

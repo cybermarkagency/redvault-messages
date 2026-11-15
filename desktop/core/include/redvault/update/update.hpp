@@ -40,6 +40,8 @@
 namespace redvault::update {
 
 inline constexpr std::string_view kProduct = "redvault-desktop";
+/// The Android app's manifest (android-latest.json): the same format and key, its own product and a versionCode.
+inline constexpr std::string_view kAndroidProduct = "redvault-android";
 inline constexpr std::size_t kPublicKeyBytes = 32;
 inline constexpr std::size_t kSecretKeyBytes = 64;
 
@@ -64,6 +66,10 @@ struct Release {
     std::string published;
     /// ISO-8601 UTC. After this, the manifest may be old news. Empty in manifests from before this field.
     std::string expires;
+    /// Which app this is for: kProduct (desktop) or kAndroidProduct.
+    std::string product{kProduct};
+    /// Android only: the APK's versionCode (Android compares these, never the version text). 0 for desktop.
+    std::int64_t versionCode = 0;
 };
 
 enum class Freshness { Current, Expired, NoExpiry };
@@ -126,6 +132,9 @@ ManifestCheck fetchManifest(net::HttpTransport& transport, const UpdateSource& s
 
 /// Where to download `release` from on `route`: its signed URL moved into `route.downloadPrefix`. Empty if it isn't in `clearDownloadPrefix`.
 std::string installerUrl(const Release& release, const UpdateRoute& route, std::string_view clearDownloadPrefix);
+
+/// Checks an Android manifest's signature and fields (the release tool's own check; the app does the same in Kotlin).
+Release verifyAndroidManifest(std::string_view manifestJson, crypto::ByteView publicKey, std::string_view allowedUrlPrefix);
 
 /// Builds and signs a manifest for `release` (used by the release tool, never by the app).
 std::string signManifest(const Release& release, crypto::ByteView secretKey);

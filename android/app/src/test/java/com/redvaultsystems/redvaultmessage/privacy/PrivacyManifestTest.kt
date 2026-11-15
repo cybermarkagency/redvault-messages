@@ -55,6 +55,9 @@ class PrivacyManifestTest {
                 "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
                 // The background connection for notifications when no UnifiedPush app is installed.
                 "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+                // In-app updates of the website APK (update/AppUpdates.kt): Android asks the user to allow it, then to
+                // confirm each install, and only accepts an APK signed with this app's key.
+                "android.permission.REQUEST_INSTALL_PACKAGES",
             ),
             requested,
         )

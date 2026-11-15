@@ -56,6 +56,7 @@ target_link_libraries(redvault_core_tests PRIVATE redvault_core Catch2::Catch2Wi
 # The web-produced file vector is shared with the Android tests rather than
 # copied, so all clients stay pinned to one source of truth.
 target_compile_definitions(redvault_core_tests PRIVATE
+    REDVAULT_ANDROID_UPDATE_VECTOR="${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/test/resources/android_update_vector.json"
     REDVAULT_TEST_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/androidTest/assets"
     # privacy_test scans the shipped sources.
     REDVAULT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/.."

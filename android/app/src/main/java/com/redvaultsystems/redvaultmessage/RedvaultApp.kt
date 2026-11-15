@@ -17,6 +17,13 @@ import com.redvaultsystems.redvaultmessage.crypto.ShareCrypto
 import com.redvaultsystems.redvaultmessage.data.ShareRepository
 import com.redvaultsystems.redvaultmessage.ui.files.SharesSession
 import android.app.Application
+import com.redvaultsystems.redvaultmessage.update.AppUpdates
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.HttpUrl
 import com.goterl.lazysodium.LazySodiumAndroid
 import com.goterl.lazysodium.SodiumAndroid
 import com.redvaultsystems.redvaultmessage.crypto.CallCrypto
@@ -141,6 +148,29 @@ class AppContainer(app: Application) {
     }
     private val httpClient = ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)
     private val api = ApiClient.create(BuildConfig.API_BASE, httpClient)
+
+    /**
+     * In-app updates of the website APK (update/AppUpdates.kt): the signed manifest and the APK come from the API
+     * server's copy of the download folder, through the same Tor-routed client. Checked once Tor is up, then daily.
+     */
+    val updates: AppUpdates = BuildConfig.API_BASE.toHttpUrl().let { base ->
+        AppUpdates(
+            context = app,
+            client = httpClient,
+            apiOrigin = "${base.scheme}://${base.host}" + if (base.port == HttpUrl.defaultPort(base.scheme)) "" else ":${base.port}",
+            currentVersionCode = BuildConfig.VERSION_CODE.toLong(),
+            verifyEd25519 = { signature, message, publicKey -> sodium.cryptoSignVerifyDetached(signature, message, message.size, publicKey) },
+        )
+    }.also { updates ->
+        if (tor == null) {
+            updates.startPeriodicChecks()
+        } else {
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                tor.becameConnected.first()
+                updates.startPeriodicChecks()
+            }
+        }
+    }
     private val driveApi = ApiClient.createDrive(BuildConfig.API_BASE, httpClient)
     private val shareApi = ApiClient.createShares(BuildConfig.API_BASE, httpClient)
     private val liveApi = ApiClient.createLive(BuildConfig.API_BASE, httpClient)
@@ -358,7 +388,7 @@ class AppContainer(app: Application) {
         )
         val inbox = InboxSession(api, onSessionExpired)
         hasActiveSession = true
-        return SignedInSession(identity, chats, account, files, shares, passwords, live, stories, calls, groupCalls, security, channels, inbox, communities, chatSettings, pushRegistrar, AppLock(appLockStore), avatarLoader, webAppBase, tor, deviceKeys) {
+        return SignedInSession(identity, chats, account, files, shares, passwords, live, stories, calls, groupCalls, security, channels, inbox, communities, chatSettings, pushRegistrar, AppLock(appLockStore), avatarLoader, webAppBase, tor, deviceKeys, updates = updates) {
             hasActiveSession = false
             pushRegistrar.sessionEnded()
             messageKeys.end()

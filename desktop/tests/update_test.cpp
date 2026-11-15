@@ -323,3 +323,80 @@ TEST_CASE("nothing published yet means nothing newer, not an error", "[update][t
     transport.handler = [](const net::HttpRequest&) { return net::HttpResponse{500, {}, ""}; };
     CHECK_THROWS_AS(fetchManifest(transport, sourceFor(keys, kClearApi, false)), UpdateError);
 }
+
+// --- The Android app's manifest (android-latest.json) ---
+
+namespace {
+
+/// A fixed test key (never the release key): its seed is public, so the vector below is reproducible.
+SigningKeyPair androidTestKey() {
+    std::array<unsigned char, crypto_sign_SEEDBYTES> seed{};
+    for (std::size_t i = 0; i < seed.size(); ++i) seed[i] = static_cast<unsigned char>(0xA0 + i);
+    SigningKeyPair keys;
+    keys.publicKey = crypto::Bytes(crypto_sign_PUBLICKEYBYTES);
+    keys.secretKey = crypto::SecretBytes(crypto_sign_SECRETKEYBYTES);
+    crypto_sign_seed_keypair(keys.publicKey.data(), keys.secretKey.data(), seed.data());
+    return keys;
+}
+
+Release androidRelease() {
+    Release r;
+    r.product = std::string(kAndroidProduct);
+    r.version = "0.6.2";
+    r.versionCode = 12;
+    r.url = kPrefix + "RedVault-Messages-0.6.2.apk";
+    r.sha256 = std::string(64, 'b');
+    r.size = 4321;
+    r.notes = "Test release";
+    r.published = "2026-11-13T00:00:00Z";
+    r.expires = "2027-02-11T00:00:00Z";
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("an Android manifest signs and verifies, with its versionCode", "[update]") {
+    const auto keys = androidTestKey();
+    const auto manifest = signManifest(androidRelease(), keys.secretKey);
+    const auto checked = verifyAndroidManifest(manifest, keys.publicKey, kPrefix);
+    CHECK(checked.versionCode == 12);
+    CHECK(checked.version == "0.6.2");
+    CHECK(checked.url == kPrefix + "RedVault-Messages-0.6.2.apk");
+    CHECK(checked.size == 4321);
+}
+
+TEST_CASE("the desktop app never takes an Android manifest, nor the other way round", "[update]") {
+    const auto keys = androidTestKey();
+    CHECK_THROWS_AS(verifyManifest(signManifest(androidRelease(), keys.secretKey), keys.publicKey, "0.0.1", kPrefix), UpdateError);
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(release("9.9.9"), keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+}
+
+TEST_CASE("Android manifests without a versionCode, outside the folder or not an APK are refused", "[update]") {
+    const auto keys = androidTestKey();
+    auto r = androidRelease();
+    r.versionCode = 0;
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+    r = androidRelease();
+    r.url = "https://evil.example/RedVault-Messages-0.6.2.apk";
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+    r = androidRelease();
+    r.url = kPrefix + "RedVault-Messages-0.6.2.exe";
+    CHECK_THROWS_AS(verifyAndroidManifest(signManifest(r, keys.secretKey), keys.publicKey, kPrefix), UpdateError);
+}
+
+#ifdef REDVAULT_ANDROID_UPDATE_VECTOR
+/// The vector the Android app's tests verify (android/app/src/test/resources/android_update_vector.json):
+/// signed here by the release tool's code, checked there by the app's Kotlin. Ed25519 is deterministic, so it's stable.
+TEST_CASE("the shared Android update vector is what the signer produces", "[update]") {
+    const auto keys = androidTestKey();
+    const Json vector = {{"publicKey", crypto::base64Encode(keys.publicKey)}, {"manifest", signManifest(androidRelease(), keys.secretKey)}};
+    const std::filesystem::path path = REDVAULT_ANDROID_UPDATE_VECTOR;
+    if (!std::filesystem::exists(path)) {
+        std::ofstream(path, std::ios::binary) << vector.dump(2) << "\n";
+        FAIL("Wrote " << path.string() << ": run again");
+    }
+    std::ifstream in(path, std::ios::binary);
+    const Json stored = Json::parse(in);
+    CHECK(stored == vector);
+}
+#endif
