@@ -75,7 +75,7 @@ export function driverFor(platform) {
     case "windows":
       return new LineDriver("windows", join(HERE, "build", "windows", "cpp_driver.exe"), []);
     case "linux":
-      return new LineDriver("linux", "wsl.exe", ["-d", "Ubuntu", "--", "/home/winchester/rv-bin/cpp_driver"]);
+      return new LineDriver("linux", "wsl.exe", ["-d", "Ubuntu", "--", "sh", "-c", 'exec "$HOME/rv-bin/cpp_driver"']);
     case "android":
       return new LineDriver("android", ADB, [
         "shell",

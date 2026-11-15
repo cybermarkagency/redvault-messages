@@ -8,6 +8,8 @@
 //   node android_call_peer.mjs --base http://localhost:18081/ --tag a1 --seconds 40 --out peer.jsonl
 //   (web handle: webpeer<tag>; the phone's handle: droidcall<tag>; run the instrumented test with the same tag)
 import { appendFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { launch, sleep } from "./cdp.mjs";
 import { INIT_SCRIPT, acceptRequest, answerCall, callStats, openChat, placeVoiceCall, signUp } from "./app_driver.mjs";
 
@@ -18,7 +20,7 @@ const base = args.base ?? "http://localhost:18081/";
 const tag = args.tag ?? String(Date.now()).slice(-5);
 const seconds = Number(args.seconds ?? 40);
 const out = args.out ?? `android-call-peer-${tag}.jsonl`;
-const profileRoot = args.profiles ?? "C:\\Users\\user\\AppData\\Local\\Temp\\rv-edge-profiles";
+const profileRoot = args.profiles ?? join(tmpdir(), "rv-edge-profiles");
 const port = Number(args.port ?? 9341);
 const webHandle = `webpeer${tag}`;
 const phoneHandle = `droidcall${tag}`;

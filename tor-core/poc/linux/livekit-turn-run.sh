@@ -9,7 +9,7 @@
 #   no-turn is the negative control: the same server with its TURN switched off
 set -euo pipefail
 PUBLIC_IP="${PUBLIC_IP:-198.51.100.10}"
-HOME_DIR="${LK_HOME:-/home/winchester/livekit}"
+HOME_DIR="${LK_HOME:-$(getent passwd "${SUDO_USER:-$(id -un)}" | cut -d: -f6)/livekit}"
 TURN_ENABLED=true; [ "${1:-}" = "no-turn" ] && TURN_ENABLED=false
 cat > "$HOME_DIR/turn-test.yaml" <<YAML
 port: 7880

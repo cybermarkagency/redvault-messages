@@ -11,6 +11,8 @@
 // TURN_CREDENTIAL_TTL seconds): the caller renews at 80% of what's left and restarts ICE (ui/src/lib/turnRenewal.ts).
 // --block-renewal makes the renewal request fail, as a control: then the call must die once the relay's credentials lapse.
 import { appendFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { launch, sleep } from "./cdp.mjs";
 import { INIT_SCRIPT, acceptRequest, addContact, answerCall, callStats, openChat, placeVoiceCall, signUp } from "./app_driver.mjs";
 
@@ -22,7 +24,7 @@ const minutes = Number(args.minutes ?? 2);
 const tag = args.tag ?? String(Date.now()).slice(-5);
 const blockRenewal = Boolean(args["block-renewal"]);
 const out = args.out ?? `call-${tag}.jsonl`;
-const profileRoot = args.profiles ?? "C:\\Users\\user\\AppData\\Local\\Temp\\rv-edge-profiles";
+const profileRoot = args.profiles ?? join(tmpdir(), "rv-edge-profiles");
 const basePort = Number(args.port ?? 9231);
 const password = `correct horse battery staple ${tag}`;
 writeFileSync(out, "");
