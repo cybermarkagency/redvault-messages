@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
@@ -223,11 +225,11 @@ fun UploadList(queue: UploadQueue) {
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { queue.remove(u.key) }) { Text("Remove", color = colors.text2, fontSize = 13.sp) }
+                    TextButton(onClick = { queue.remove(u.key) }) { Text(stringResource(R.string.ui_remove), color = colors.text2, fontSize = 13.sp) }
                 }
                 when {
                     u.error != null -> Text(u.error, color = colors.danger, fontSize = 12.sp, modifier = Modifier.padding(end = 12.dp))
-                    u.mediaId != null -> Text("Ready", color = colors.accent, fontSize = 12.sp)
+                    u.mediaId != null -> Text(stringResource(R.string.ui_ready), color = colors.accent, fontSize = 12.sp)
                     else -> LinearProgressIndicator(
                         progress = { u.progress },
                         color = colors.accent,

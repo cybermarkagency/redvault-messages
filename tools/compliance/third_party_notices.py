@@ -236,11 +236,30 @@ def write(client: str, components: list[dict], out: Path) -> None:
         print(f"  UNKNOWN: {c['name']} {c['version']}")
 
 
+# C/C++ libraries the desktop builds from source with CMake FetchContent (not
+# packaged by MSYS2): name, pinned version, SPDX licence, and the folder their
+# source lands in under the build tree (licence files are read from there).
+DESKTOP_FETCHED = [
+    ("libdatachannel", "0.24.6", "MPL-2.0", "libdatachannel-src", "https://github.com/paullouisageneau/libdatachannel"),
+    ("zxing-cpp", "2.3.0", "Apache-2.0", "zxing_cpp-src", "https://github.com/zxing-cpp/zxing-cpp"),
+]
+
+
+def fetched_components(build_dir: Path) -> list[dict]:
+    out = []
+    for name, version, licence, folder, url in DESKTOP_FETCHED:
+        files = licence_files(build_dir / "_deps" / folder)
+        out.append({"name": name, "version": version, "licence": licence, "source": url + " (built from source)", "files": files})
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("client", choices=sorted(OUTPUTS))
     ap.add_argument("--msys2-list", type=Path)
     ap.add_argument("--maven-list", type=Path)
+    ap.add_argument("--desktop-build", type=Path, default=ROOT / "desktop/build/release",
+                    help="desktop: the CMake build folder whose _deps holds the libraries built from source")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--fetch-poms", action="store_true", help="android: download missing POMs (licence metadata only) from Google Maven / Maven Central")
     a = ap.parse_args()
@@ -251,6 +270,7 @@ def main() -> None:
         if not a.msys2_list:
             sys.exit("desktop needs --msys2-list")
         comps += msys2_components(a.msys2_list)
+        comps += fetched_components(a.desktop_build)
     elif a.client == "android":
         if not a.maven_list:
             sys.exit("android needs --maven-list")

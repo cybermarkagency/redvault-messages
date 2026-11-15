@@ -12,6 +12,8 @@
 
 #include <optional>
 
+#include <QWindow>
+
 namespace redvault::app {
 
 /**
@@ -46,6 +48,10 @@ class AppLock : public QObject {
     Q_PROPERTY(QStringList timeoutLabels READ timeoutLabels CONSTANT)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    /// Windows Hello is set up on this PC (always false on Linux).
+    Q_PROPERTY(bool helloAvailable READ helloAvailable NOTIFY helloChanged)
+    /// The lock screen offers Windows Hello as well as the PIN. The PIN stays: it is the fallback.
+    Q_PROPERTY(bool helloEnabled READ helloEnabled NOTIFY helloChanged)
 
 public:
     static constexpr int kMinPinLength = 4;
@@ -64,6 +70,13 @@ public:
     QStringList timeoutLabels() const;
     bool busy() const { return busy_; }
     QString error() const { return error_; }
+    bool helloAvailable() const { return helloAvailable_; }
+    bool helloEnabled() const { return helloAvailable_ && helloEnabled_ && enabled(); }
+
+    /// Turn Windows Hello on the lock screen on or off (needs a PIN set: the PIN is the fallback).
+    Q_INVOKABLE void setHelloEnabled(bool on);
+    /// Shows Windows' Hello prompt over `window`; unlocks when it verifies.
+    Q_INVOKABLE void unlockWithHello(QWindow* window);
 
     /// Only a signed-in app locks; signing in or out always leaves it unlocked.
     void setSignedIn(bool signedIn);
@@ -85,6 +98,7 @@ signals:
     void lockedChanged();
     void busyChanged();
     void errorChanged();
+    void helloChanged();
     /// A new PIN is set (the settings form closes on this).
     void pinSet();
     /// The session must end (too many wrong PINs, or the stored PIN was tampered with). Stays locked until it does.
@@ -110,6 +124,10 @@ private:
     bool locked_ = false;
     bool busy_ = false;
     QString error_;
+    class WindowsHello* hello_ = nullptr;
+    bool helloAvailable_ = false;
+    /// As of sign-in or the last change, like the PIN.
+    bool helloEnabled_ = false;
     QElapsedTimer backgroundFor_;
     QElapsedTimer externalFor_;
 };

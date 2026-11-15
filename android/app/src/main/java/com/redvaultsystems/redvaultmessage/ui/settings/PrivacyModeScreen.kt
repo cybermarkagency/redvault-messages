@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,13 +47,13 @@ fun PrivacyModeScreen(
 ) {
     val colors = RedvaultTheme.colors
     val allOn = !readReceipts && hideContent && appLockOn && !typingIndicators && showOnlineStatus != true
-    SubScreen(title = "Maximum privacy", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_maximum_privacy), onBack = onBack) {
         Text(
-            "Everything this app can do to keep what you do private, in one place.",
+            stringResource(R.string.ui_everything_this_app_can_do_to),
             color = colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
-        if (allOn) Notice("Maximum privacy is on.", NoticeTone.Success)
+        if (allOn) Notice(stringResource(R.string.ui_maximum_privacy_is_on), NoticeTone.Success)
 
         PrivacyItem("Hide read receipts", if (!readReceipts) "On" else "Off: people see when you've read their messages", !readReceipts)
         PrivacyItem("Block screenshots and hide in Recents", if (hideContent) "On" else "Off", hideContent)
@@ -64,13 +65,13 @@ fun PrivacyModeScreen(
         PrivacyItem("No link previews", "Always on: links are never fetched to build a preview", true)
 
         if (!allOn) {
-            PrimaryButton(text = "Turn on maximum privacy", enabled = true) {
+            PrimaryButton(text = stringResource(R.string.ui_turn_on_maximum_privacy), enabled = true) {
                 onEnable()
                 if (!appLockOn) onSetUpAppLock()
             }
             if (!appLockOn) {
                 Text(
-                    "You'll be asked to choose a PIN for the app lock.",
+                    stringResource(R.string.ui_you_ll_be_asked_to_choose),
                     color = colors.text3,
                     style = MaterialTheme.typography.bodySmall,
                 )

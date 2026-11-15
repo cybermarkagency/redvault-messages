@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
@@ -442,7 +443,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
             )
             if (model.slides.size > 1) {
                 Text(
-                    "Remove this slide",
+                    stringResource(R.string.ui_remove_this_slide),
                     color = colors.danger,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(horizontal = 20.dp).clickable(enabled = !busy) { model.removeCurrent() }.padding(vertical = 2.dp),
@@ -479,34 +480,34 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
                     singleLine = false,
                 )
                 Text("${slide.text.length}/${StoryLimits.MAX_STORY_TEXT}", color = colors.text3, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 20.dp))
-                SectionCaps("Background")
+                SectionCaps(stringResource(R.string.ui_background))
                 ChipRow(options = StoryBackground.entries.toList(), selected = slide.background, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(background = it) } })
-                SectionCaps("Style")
+                SectionCaps(stringResource(R.string.ui_style))
                 ChipRow(options = StoryFont.entries.toList(), selected = slide.font, label = { StoryStyle.label(it) }, onSelect = { model.change { s -> s.copy(font = it) } })
             } else {
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (preparing) Text("Getting it ready…", color = colors.text2)
+                    if (preparing) Text(stringResource(R.string.ui_getting_it_ready), color = colors.text2)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton("Choose photo", { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                        PillButton("Take photo", { openCamera(Capture.Photo) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_choose_photo), { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_take_photo), { openCamera(Capture.Photo) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PillButton("Choose video", { pickVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
-                        PillButton("Record video", { openCamera(Capture.Video) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_choose_video), { pickVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
+                        PillButton(stringResource(R.string.ui_record_video), { openCamera(Capture.Video) }, Modifier.weight(1f), PillStyle.Secondary, enabled = !busy && !preparing, height = 44.dp)
                     }
                     val media = slide.media
                     if (media != null && media.kind == StoryKind.Video) {
                         Text("Video · ${((media.durationMs ?: 0) / 1000)} s · ${"%.1f".format(media.sizeBytes / 1024.0 / 1024.0)} MB", color = colors.text, fontWeight = FontWeight.SemiBold)
                     }
                     Text(
-                        "A photo is saved fresh before it's posted: its location, camera and time stay behind. A video is posted as it is (up to 60 seconds and 60 MB), so details inside the file, such as a location tag, stay in it. Only the people who can see the story can read them.",
+                        stringResource(R.string.ui_a_photo_is_saved_fresh_before),
                         color = colors.text3,
                         fontSize = 12.sp,
                     )
                 }
             }
 
-            SectionCaps("Add to this slide")
+            SectionCaps(stringResource(R.string.ui_add_to_this_slide))
             ChipRow(
                 options = listOf("Words", "Emoji", "Sticker"),
                 selected = "",
@@ -538,13 +539,13 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
                 )
             }
             Text(
-                "Drag to move, pinch to size and turn. Tap the picture to let go.",
+                stringResource(R.string.ui_drag_to_move_pinch_to_size),
                 color = colors.text3,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
 
-            SectionCaps("Who sees it")
+            SectionCaps(stringResource(R.string.ui_who_sees_it))
             ChipRow(
                 options = StoryAudience.entries.toList(),
                 selected = model.audience,
@@ -576,7 +577,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
             )
 
             if (state.ttlSeconds.size > 1) {
-                SectionCaps("Disappears after")
+                SectionCaps(stringResource(R.string.ui_disappears_after))
                 ChipRow(
                     options = state.ttlSeconds,
                     selected = model.ttl ?: 86_400,
@@ -593,7 +594,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
             )
 
             Callout(
-                "End-to-end encrypted on this phone before it's sent. Anyone who can see a story can still screenshot or copy it.",
+                stringResource(R.string.ui_end_to_end_encrypted_on_this),
                 CalloutTone.Neutral,
                 R.drawable.ui_lock,
                 Modifier.padding(horizontal = 20.dp),
@@ -607,7 +608,7 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Save draft", { saveDraft() }, Modifier.weight(0.8f), PillStyle.Secondary, enabled = !busy && !preparing && model.hasWork())
+            PillButton(stringResource(R.string.ui_save_draft), { saveDraft() }, Modifier.weight(0.8f), PillStyle.Secondary, enabled = !busy && !preparing && model.hasWork())
             PillButton(
                 when (stage) {
                     PostStage.Encrypting -> progress?.let { (done, total) -> if (total > 1) "Encrypting ${done + 1} of $total…" else null } ?: "Encrypting…"
@@ -666,10 +667,10 @@ fun StoryComposerScreen(session: StoriesSession, state: StoriesState, onClose: (
         ComposerDialog.Leave -> AlertDialog(
             onDismissRequest = { dialog = null },
             containerColor = colors.surface,
-            title = { Text("Keep this story?", color = colors.text) },
-            text = { Text("You haven't shared it. Save it as a draft to finish later; a draft stays on this phone, encrypted.", color = colors.text2) },
-            confirmButton = { TextButton(onClick = { dialog = null; saveDraft(then = ::leave) }) { Text("Save draft", color = colors.accent) } },
-            dismissButton = { TextButton(onClick = { dialog = null; leave() }) { Text("Discard", color = colors.danger) } },
+            title = { Text(stringResource(R.string.ui_keep_this_story), color = colors.text) },
+            text = { Text(stringResource(R.string.ui_you_haven_t_shared_it_save), color = colors.text2) },
+            confirmButton = { TextButton(onClick = { dialog = null; saveDraft(then = ::leave) }) { Text(stringResource(R.string.ui_save_draft), color = colors.accent) } },
+            dismissButton = { TextButton(onClick = { dialog = null; leave() }) { Text(stringResource(R.string.ui_discard), color = colors.danger) } },
         )
         is ComposerDialog.Drafts -> DraftsDialog(
             drafts = d.drafts,
@@ -706,7 +707,7 @@ private fun DraftsDialog(drafts: List<DraftSummary>, onOpen: (String) -> Unit, o
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
-        title = { Text("Drafts", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_drafts), color = colors.text) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (d in drafts) {
@@ -720,13 +721,13 @@ private fun DraftsDialog(drafts: List<DraftSummary>, onOpen: (String) -> Unit, o
                                 fontSize = 12.sp,
                             )
                         }
-                        TextButton(onClick = { onDelete(d.id) }) { Text("Delete", color = colors.danger) }
+                        TextButton(onClick = { onDelete(d.id) }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
                     }
                 }
-                Text("Drafts stay on this phone, encrypted. They are kept for 30 days.", color = colors.text3, fontSize = 12.sp)
+                Text(stringResource(R.string.ui_drafts_stay_on_this_phone_encrypted), color = colors.text3, fontSize = 12.sp)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = colors.accent) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_close), color = colors.accent) } },
     )
 }
 

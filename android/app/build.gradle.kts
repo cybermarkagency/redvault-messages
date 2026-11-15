@@ -35,6 +35,16 @@ val e2eSignal: Boolean = (project.findProperty("redvaultE2eSignal") as String?)?
 require(!e2eSignal || e2eV3) { "redvaultE2eSignal needs redvaultE2eV3=true" }
 val e2eFeatures: String = if (e2eSignal) "jni signal" else "jni"
 
+// Communities (paid channels and groups, docs/paid-communities.md): turned off for now. The code stays; with this off
+// the app shows no way into them (chats the person already belongs to keep working). -PredvaultCommunities=true
+// turns them back on; the server also needs COMMUNITIES_ENABLED=true.
+val communities: Boolean = (project.findProperty("redvaultCommunities") as String?)?.let { it == "true" } ?: false
+
+// Buying a plan in the app opens Stripe's payment page in the browser. That's right for the APK on the website;
+// Google Play doesn't allow it for a digital subscription (Play Billing only), so a Play build passes
+// -PredvaultSellPlans=false and the Plans screen then only shows the plans (and still lets a subscriber cancel).
+val sellPlans: Boolean = (project.findProperty("redvaultSellPlans") as String?)?.let { it == "true" } ?: true
+
 // AGPL-3.0-only source offer (Settings > Open-Source Licenses and Source Code, see README).
 // redvaultSourceCodeUrl: https URL of the source for this version ("{version}" is replaced with
 // versionName); empty = not published yet, and the app says so instead of showing a link.
@@ -71,8 +81,8 @@ android {
         applicationId = "com.redvaultsystems.redvaultmessage"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.6.0"
+        versionCode = 11
+        versionName = "0.6.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
@@ -80,6 +90,8 @@ android {
         buildConfigField("boolean", "TOR_ONLY", torOnly.toString())
         buildConfigField("boolean", "E2E_V3", e2eV3.toString())
         buildConfigField("boolean", "E2E_SIGNAL", e2eSignal.toString())
+        buildConfigField("boolean", "COMMUNITIES", communities.toString())
+        buildConfigField("boolean", "SELL_PLANS", sellPlans.toString())
         buildConfigField("String", "SOURCE_CODE_URL", javaString(sourceCodeUrl))
         buildConfigField("String", "SOURCE_CONTACT", javaString(sourceContact))
     }

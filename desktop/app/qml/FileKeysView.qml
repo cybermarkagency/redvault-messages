@@ -21,7 +21,7 @@ Item {
     // Rename
     LockDialog {
         id: renameDialog
-        title: "Rename key"
+        title: qsTr("Rename key")
         iconName: "key"
         showIcon: false
         width: 460
@@ -31,11 +31,11 @@ Item {
             RvTextField { id: renameField; Layout.fillWidth: true; implicitHeight: 46; maximumLength: 80; onAccepted: renameOk.clicked() }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                RvButton { secondary: true; implicitHeight: 44; text: "Cancel"; onClicked: renameDialog.close() }
+                RvButton { secondary: true; implicitHeight: 44; text: qsTr("Cancel"); onClicked: renameDialog.close() }
                 RvButton {
                     id: renameOk
                     implicitHeight: 44
-                    text: "Rename"
+                    text: qsTr("Rename")
                     enabled: renameField.text.trim().length > 0
                     onClicked: { root.files.renameKey(root.files.selectedKeyId, renameField.text); renameDialog.close() }
                 }
@@ -48,11 +48,11 @@ Item {
         id: passwordDialog
         property string action: "change"   // "set", "change" or "remove"
         property string error
-        title: action === "set" ? "Set a password" : action === "remove" ? "Remove the password" : "Change the password"
+        title: action === "set" ? qsTr("Set a password") : action === "remove" ? qsTr("Remove the password") : qsTr("Change the password")
         iconName: "lock"
         subtitle: action === "remove"
-                  ? "Your account alone will protect “" + (root.files.selectedKey.name || "") + "”. Files locked with it aren't re-encrypted."
-                  : "Using “" + (root.files.selectedKey.name || "") + "” will need your account and this password. Files locked with it aren't re-encrypted."
+                  ? qsTr("Your account alone will protect “") + (root.files.selectedKey.name || "") + qsTr("”. Files locked with it aren't re-encrypted.")
+                  : qsTr("Using “") + (root.files.selectedKey.name || "") + qsTr("” will need your account and this password. Files locked with it aren't re-encrypted.")
         onOpened: { error = ""; currentPassword.text = ""; if (currentPassword.visible) currentPassword.forceActiveFocus() }
         onClosed: currentPassword.text = ""
         Connections {
@@ -69,7 +69,7 @@ Item {
                 Layout.fillWidth: true
                 visible: passwordDialog.action !== "set"
                 spacing: 8
-                Text { text: "Current password"; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
+                Text { text: qsTr("Current password"); color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
                 RvTextField { id: currentPassword; Layout.fillWidth: true; implicitHeight: 46; echoMode: TextInput.Password; Accessible.name: "Current password" }
             }
             Loader {
@@ -77,16 +77,16 @@ Item {
                 Layout.fillWidth: true
                 active: passwordDialog.opened && passwordDialog.action !== "remove"
                 visible: active
-                sourceComponent: LockPasswordField { files: root.files; label: "New password" }
+                sourceComponent: LockPasswordField { files: root.files; label: qsTr("New password") }
             }
             InfoCard { Layout.fillWidth: true; visible: passwordDialog.error.length > 0; tone: "error"; text: passwordDialog.error }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                RvButton { secondary: true; implicitHeight: 46; text: "Cancel"; onClicked: passwordDialog.close() }
+                RvButton { secondary: true; implicitHeight: 46; text: qsTr("Cancel"); onClicked: passwordDialog.close() }
                 RvButton {
                     implicitHeight: 46
                     danger: passwordDialog.action === "remove"
-                    text: root.files.lockBusy ? "Saving…" : passwordDialog.action === "remove" ? "Remove password" : "Save password"
+                    text: root.files.lockBusy ? qsTr("Saving…") : passwordDialog.action === "remove" ? qsTr("Remove password") : qsTr("Save password")
                     enabled: !root.files.lockBusy && (passwordDialog.action === "set" || currentPassword.text.length > 0)
                              && (passwordDialog.action === "remove" || (newPassword.item && newPassword.item.acceptable))
                     onClicked: {
@@ -103,9 +103,9 @@ Item {
     LockDialog {
         id: exportDialog
         property string error
-        title: "Show the key"
+        title: qsTr("Show the key")
         iconName: "eye"
-        subtitle: "Enter the password of “" + (root.files.selectedKey.name || "") + "” to show it for backup."
+        subtitle: qsTr("Enter the password of “") + (root.files.selectedKey.name || "") + qsTr("” to show it for backup.")
         width: 480
         onOpened: { error = ""; exportPassword.text = ""; exportPassword.forceActiveFocus() }
         onClosed: exportPassword.text = ""
@@ -123,11 +123,11 @@ Item {
             InfoCard { Layout.fillWidth: true; visible: exportDialog.error.length > 0; tone: "error"; text: exportDialog.error }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                RvButton { secondary: true; implicitHeight: 44; text: "Cancel"; onClicked: exportDialog.close() }
+                RvButton { secondary: true; implicitHeight: 44; text: qsTr("Cancel"); onClicked: exportDialog.close() }
                 RvButton {
                     id: exportOk
                     implicitHeight: 44
-                    text: root.files.lockBusy ? "Opening…" : "Show key"
+                    text: root.files.lockBusy ? qsTr("Opening…") : qsTr("Show key")
                     enabled: !root.files.lockBusy && exportPassword.text.length > 0
                     onClicked: { exportDialog.error = ""; root.files.revealKeyExport(root.files.selectedKeyId, exportPassword.text) }
                 }
@@ -138,7 +138,7 @@ Item {
     // Deleting a key.
     LockDialog {
         id: deleteDialog
-        title: "Delete this key?"
+        title: qsTr("Delete this key?")
         iconName: "trash"
         showIcon: false
         width: 500
@@ -150,11 +150,11 @@ Item {
         }
         contentItem: RowLayout {
             Item { Layout.fillWidth: true }
-            RvButton { secondary: true; implicitHeight: 44; text: "Cancel"; onClicked: deleteDialog.close() }
+            RvButton { secondary: true; implicitHeight: 44; text: qsTr("Cancel"); onClicked: deleteDialog.close() }
             RvButton {
                 implicitHeight: 44
                 danger: true
-                text: "Delete key"
+                text: qsTr("Delete key")
                 onClicked: { root.files.deleteKey(root.files.selectedKeyId); deleteDialog.close() }
             }
         }
@@ -183,7 +183,7 @@ Item {
                     Layout.preferredWidth: 1
                     spacing: 6
                     Text {
-                        text: "Encryption keys"
+                        text: qsTr("Encryption keys")
                         color: Theme.text
                         font.family: Theme.displayFamily
                         font.pixelSize: 28
@@ -194,7 +194,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.maximumWidth: 440
                         wrapMode: Text.Wrap
-                        text: "Your own 256-bit keys for locking files. They're saved as file-key items in your password vault, so they stay encrypted and sync to your other devices."
+                        text: qsTr("Your own 256-bit keys for locking files. They're saved as file-key items in your password vault, so they stay encrypted and sync to your other devices.")
                         color: Theme.text2
                         font.pixelSize: 14
                         lineHeight: 1.2
@@ -204,13 +204,13 @@ Item {
                     Layout.alignment: Qt.AlignTop
                     secondary: true
                     iconName: "download"
-                    text: "Import key"
+                    text: qsTr("Import key")
                     onClicked: importDialog.open()
                 }
                 RvButton {
                     Layout.alignment: Qt.AlignTop
                     iconName: "plus"
-                    text: "Create key"
+                    text: qsTr("Create key")
                     onClicked: createDialog.open()
                 }
             }
@@ -244,10 +244,10 @@ Item {
                         Layout.leftMargin: 16
                         Layout.rightMargin: 16
                         spacing: 12
-                        Text { Layout.fillWidth: true; Layout.preferredWidth: 1; text: "KEY"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                        Text { Layout.preferredWidth: 190; text: "FINGERPRINT"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                        Text { Layout.preferredWidth: 150; text: "PROTECTED BY"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
-                        Text { Layout.preferredWidth: 50; text: "FILES"; color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                        Text { Layout.fillWidth: true; Layout.preferredWidth: 1; text: qsTr("KEY"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                        Text { Layout.preferredWidth: 190; text: qsTr("FINGERPRINT"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                        Text { Layout.preferredWidth: 150; text: qsTr("PROTECTED BY"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
+                        Text { Layout.preferredWidth: 50; text: qsTr("FILES"); color: Theme.text3; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.8 }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
                     ListView {
@@ -308,7 +308,7 @@ Item {
                                 visible: root.files.keysLoaded
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.Wrap
-                                text: "No keys yet. Create one, or import a key you made elsewhere."
+                                text: qsTr("No keys yet. Create one, or import a key you made elsewhere.")
                                 color: Theme.text3
                             }
                         }
@@ -322,9 +322,9 @@ Item {
                 spacing: 12
                 Repeater {
                     model: [
-                        { title: "Fingerprints", text: "The short code is the same on every device, so you can check you're using the right key. It doesn't reveal the key." },
-                        { title: "Key passwords", text: "With a password, using the key needs your account and that password (stretched with Argon2id). Changing it is instant." },
-                        { title: "Not on the Passwords page", text: "File keys live in your vault but stay out of your password list, so they're never flagged as weak or broken passwords." }
+                        { title: qsTr("Fingerprints"), text: "The short code is the same on every device, so you can check you're using the right key. It doesn't reveal the key." },
+                        { title: qsTr("Key passwords"), text: "With a password, using the key needs your account and that password (stretched with Argon2id). Changing it is instant." },
+                        { title: qsTr("Not on the Passwords page"), text: "File keys live in your vault but stay out of your password list, so they're never flagged as weak or broken passwords." }
                     ]
                     delegate: Rectangle {
                         id: explainer
@@ -365,7 +365,7 @@ Item {
             visible: details.k.id === undefined
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            text: "Select a key to see its fingerprint, its password and its backup."
+            text: qsTr("Select a key to see its fingerprint, its password and its backup.")
             color: Theme.text3
         }
 
@@ -399,7 +399,7 @@ Item {
                     }
                     Text { textFormat: Text.PlainText; text: (details.k.createdText || "") + " · " + (details.k.filesText || ""); color: Theme.text3; font.pixelSize: 12 }
                 }
-                RvButton { secondary: true; implicitHeight: 36; text: "Rename"; onClicked: renameDialog.open() }
+                RvButton { secondary: true; implicitHeight: 36; text: qsTr("Rename"); onClicked: renameDialog.open() }
             }
 
             // Fingerprint
@@ -414,7 +414,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 16
                     spacing: 6
-                    Text { text: "Fingerprint"; color: Theme.lockText; font.pixelSize: 12 }
+                    Text { text: qsTr("Fingerprint"); color: Theme.lockText; font.pixelSize: 12 }
                     Text {
                         text: details.k.fingerprint || ""
                         textFormat: Text.PlainText
@@ -424,7 +424,7 @@ Item {
                         font.weight: Font.Medium
                         font.letterSpacing: 0.6
                     }
-                    Text { text: "Same on every device. Doesn't reveal the key."; color: Theme.lockText; font.pixelSize: 12 }
+                    Text { text: qsTr("Same on every device. Doesn't reveal the key."); color: Theme.lockText; font.pixelSize: 12 }
                 }
             }
 
@@ -440,9 +440,9 @@ Item {
                     anchors.margins: 14
                     spacing: 8
                     RowLayout {
-                        Text { Layout.fillWidth: true; text: "Key password"; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; text: qsTr("Key password"); color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
                         Text {
-                            text: details.k.passwordProtected ? "On" : "Off"
+                            text: details.k.passwordProtected ? qsTr("On") : qsTr("Off")
                             textFormat: Text.PlainText
                             color: details.k.passwordProtected ? Theme.accent : Theme.warn
                             font.pixelSize: 13
@@ -453,8 +453,8 @@ Item {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         text: details.k.passwordProtected
-                              ? "Using this key needs your account and its password. The password is stretched with Argon2id at the stronger setting."
-                              : "Your account alone protects this key. Add a password so a signed-in device isn’t enough to open locked files."
+                              ? qsTr("Using this key needs your account and its password. The password is stretched with Argon2id at the stronger setting.")
+                              : qsTr("Your account alone protects this key. Add a password so a signed-in device isn’t enough to open locked files.")
                         textFormat: Text.PlainText
                         color: Theme.text2
                         font.pixelSize: 13
@@ -467,7 +467,7 @@ Item {
                             Layout.fillWidth: true
                             secondary: true
                             implicitHeight: 38
-                            text: details.k.passwordProtected ? "Change password" : "Set a password"
+                            text: details.k.passwordProtected ? qsTr("Change password") : qsTr("Set a password")
                             onClicked: { passwordDialog.action = details.k.passwordProtected ? "change" : "set"; passwordDialog.open() }
                         }
                         RvButton {
@@ -475,11 +475,11 @@ Item {
                             visible: details.k.passwordProtected === true
                             secondary: true
                             implicitHeight: 38
-                            text: "Remove password"
+                            text: qsTr("Remove password")
                             onClicked: { passwordDialog.action = "remove"; passwordDialog.open() }
                         }
                     }
-                    Text { text: "Instant: locked files aren't re-encrypted."; color: Theme.accent; font.pixelSize: 12 }
+                    Text { text: qsTr("Instant: locked files aren't re-encrypted."); color: Theme.ok; font.pixelSize: 12 }
                 }
             }
 
@@ -495,12 +495,12 @@ Item {
                     anchors.margins: 14
                     spacing: 10
                     RowLayout {
-                        Text { Layout.fillWidth: true; text: "Export for backup"; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; text: qsTr("Export for backup"); color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
                         IconButton {
                             filled: true
                             implicitWidth: 34; implicitHeight: 34; iconSize: 16
                             iconName: root.files.exportedKey.length > 0 ? "eye-off" : "eye"
-                            tip: root.files.exportedKey.length > 0 ? "Hide the key" : "Show the key"
+                            tip: root.files.exportedKey.length > 0 ? qsTr("Hide the key") : qsTr("Show the key")
                             onClicked: {
                                 if (root.files.exportedKey.length > 0) root.files.hideKeyExport()
                                 else if (root.files.keyNeedsPassword(root.files.selectedKeyId)) exportDialog.open()
@@ -512,7 +512,7 @@ Item {
                             implicitWidth: 34; implicitHeight: 34; iconSize: 16
                             iconName: "copy"
                             enabled: root.files.exportedKey.length > 0
-                            tip: "Copy the key (clears from the clipboard in 30 seconds)"
+                            tip: qsTr("Copy the key (clears from the clipboard in 30 seconds)")
                             onClicked: root.files.copyKeyExport()
                         }
                     }
@@ -542,7 +542,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "This is the raw key: 64 hex characters. The key password doesn't protect it, so store it offline."
+                            text: qsTr("This is the raw key: 64 hex characters. The key password doesn't protect it, so store it offline.")
                             color: Theme.text
                             font.pixelSize: 12
                         }
@@ -556,8 +556,8 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 text: (details.k.files || 0) > 0
-                      ? details.k.files + (details.k.files === 1 ? " file is" : " files are") + " locked with this key. After you delete it they can’t be opened unless you have an export."
-                      : "No files are locked with this key."
+                      ? details.k.files + (details.k.files === 1 ? qsTr(" file is") : qsTr(" files are")) + qsTr(" locked with this key. After you delete it they can’t be opened unless you have an export.")
+                      : qsTr("No files are locked with this key.")
                 textFormat: Text.PlainText
                 color: Theme.text3
                 font.pixelSize: 12
@@ -567,7 +567,7 @@ Item {
                 primary: false
                 danger: true
                 iconName: "trash"
-                text: "Delete key"
+                text: qsTr("Delete key")
                 onClicked: deleteDialog.open()
             }
         }

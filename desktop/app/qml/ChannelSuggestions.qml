@@ -60,7 +60,7 @@ ColumnLayout {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "From followers. Published, they appear as the channel's, marked as suggested; who sent them is never shown."
+            text: qsTr("From followers. Published, they appear as the channel's, marked as suggested; who sent them is never shown.")
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
         }
@@ -92,7 +92,7 @@ ColumnLayout {
                     }
                     Text {
                         visible: !suggestion.editing
-                        text: "Sent " + suggestion.modelData.sent
+                        text: qsTr("Sent ") + suggestion.modelData.sent
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
@@ -108,14 +108,14 @@ ColumnLayout {
                         id: editAt
                         Layout.fillWidth: true
                         visible: suggestion.editing
-                        label: "Post at (optional)"
+                        label: qsTr("Post at (optional)")
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
                         RvButton {
                             visible: !suggestion.editing
-                            text: "Review and publish"
+                            text: qsTr("Review and publish")
                             enabled: !root.channels.busy
                             onClicked: {
                                 editBody.text = suggestion.modelData.body
@@ -126,20 +126,20 @@ ColumnLayout {
                         RvButton {
                             visible: !suggestion.editing
                             secondary: true
-                            text: "Turn down"
+                            text: qsTr("Turn down")
                             enabled: !root.channels.busy
                             onClicked: root.channels.rejectSuggestion(suggestion.modelData.id)
                         }
                         RvButton {
                             visible: suggestion.editing
-                            text: editAt.iso.length > 0 ? "Schedule" : "Publish"
+                            text: editAt.iso.length > 0 ? qsTr("Schedule") : qsTr("Publish")
                             enabled: !root.channels.busy && !editBody.tooLong && (!editAt.filled || editAt.iso.length > 0)
                             onClicked: root.channels.approveSuggestion(suggestion.modelData.id, editBody.text, editAt.iso)
                         }
                         RvButton {
                             visible: suggestion.editing
                             secondary: true
-                            text: "Cancel"
+                            text: qsTr("Cancel")
                             enabled: !root.channels.busy
                             onClicked: root.editingId = ""
                         }
@@ -157,7 +157,7 @@ ColumnLayout {
 
         FileDialog {
             id: photoDialog
-            title: "Add photos"
+            title: qsTr("Add photos")
             fileMode: FileDialog.OpenFiles
             nameFilters: ["Photos (*.jpg *.jpeg *.png *.gif *.webp *.avif *.heic)"]
             currentFolder: StandardPaths.writableLocation(StandardPaths.PicturesLocation)
@@ -171,14 +171,14 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: root.channels.suggestionSent ? "Sent. The owner will look at it."
-                                                   : (root.channels.channel.name || "") + " takes suggested posts from followers."
+                text: root.channels.suggestionSent ? qsTr("Sent. The owner will look at it.")
+                                                   : (root.channels.channel.name || "") + qsTr(" takes suggested posts from followers.")
                 textFormat: Text.PlainText
                 color: Theme.text2
             }
             RvButton {
                 secondary: true
-                text: "Suggest a post"
+                text: qsTr("Suggest a post")
                 onClicked: {
                     root.start()
                     root.focusBody()
@@ -190,7 +190,7 @@ ColumnLayout {
             id: suggestionBody
             Layout.fillWidth: true
             visible: root.composing
-            placeholderText: "Your post: fan art, a review, news… *bold*, _italic_ and links work"
+            placeholderText: qsTr("Your post: fan art, a review, news… *bold*, _italic_ and links work")
             Accessible.name: "Suggested post"
             limit: root.channels.maxPostLength
         }
@@ -203,7 +203,7 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: root.composing
             wrapMode: Text.Wrap
-            text: "The owner sees your post but not who sent it, and may edit it before publishing."
+            text: qsTr("The owner sees your post but not who sent it, and may edit it before publishing.")
             color: Theme.text3
             font.pixelSize: Theme.fontSmall + 1
         }
@@ -220,13 +220,13 @@ ColumnLayout {
             visible: root.composing
             spacing: 8
             Chip {
-                text: "Photos"
+                text: qsTr("Photos")
                 enabled: !root.channels.suggestionUploads.full
                 onClicked: photoDialog.open()
             }
             RvButton {
                 secondary: true
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: {
                     root.composing = false
                     root.channels.resetSuggestionForm()
@@ -235,7 +235,7 @@ ColumnLayout {
             }
             Item { Layout.fillWidth: true }
             RvButton {
-                text: root.channels.busy ? "Sending…" : "Send suggestion"
+                text: root.channels.busy ? qsTr("Sending…") : qsTr("Send suggestion")
                 enabled: !root.channels.busy && !root.channels.suggestionUploads.busy && !suggestionBody.tooLong
                          && (suggestionBody.text.trim().length > 0 || root.channels.suggestionUploads.readyCount > 0)
                 onClicked: root.channels.sendSuggestion(suggestionBody.text)
@@ -252,7 +252,7 @@ ColumnLayout {
                 primary: false
                 implicitHeight: 28
                 iconName: parent.open ? "chevron-down" : "chevron-right"
-                text: "Your suggestions (" + root.channels.mySuggestions.length + ")"
+                text: qsTr("Your suggestions (") + root.channels.mySuggestions.length + ")"
                 onClicked: parent.open = !parent.open
             }
             Repeater {
@@ -265,7 +265,7 @@ ColumnLayout {
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        text: mine.modelData.body.length > 0 ? mine.modelData.body : "Photos"
+                        text: mine.modelData.body.length > 0 ? mine.modelData.body : qsTr("Photos")
                         textFormat: Text.PlainText
                         color: Theme.text
                     }

@@ -117,7 +117,8 @@ void V3Device::forget() {
     } catch (const std::exception&) {
         // Gone already, or no connection: the local keys go either way.
     }
-    backend_.store->wipe(userId_);
+    // Only this device's keys: a stale instance must never take the device that replaced it here.
+    backend_.store->wipeDevice(userId_, deviceId_);
 }
 
 std::unique_ptr<V3Device> setUpFirstDevice(const std::string& userId, crypto::ByteView legacyPrivateKey, const Backend& backend) {

@@ -31,7 +31,7 @@ ColumnLayout {
 
     Text {
         visible: !dash.communities.creatorLoaded
-        text: "Loading…"
+        text: qsTr("Loading…")
         color: Theme.text3
     }
 
@@ -44,7 +44,7 @@ ColumnLayout {
         InfoCard {
             Layout.fillWidth: true
             tone: "ok"
-            text: "Become a creator"
+            text: qsTr("Become a creator")
             detail: "Run free or paid channels and groups from this account. Your creator handle is public and separate from your private RedVault username. To be paid, you'll verify your identity and bank details with Stripe; RedVault never sees them."
         }
         GridLayout {
@@ -52,13 +52,13 @@ ColumnLayout {
             columns: 2
             columnSpacing: 10
             rowSpacing: 6
-            FieldLabel { text: "Creator handle (public)" }
-            FieldLabel { text: "Display name" }
+            FieldLabel { text: qsTr("Creator handle (public)") }
+            FieldLabel { text: qsTr("Display name") }
             RvTextField {
                 id: handle
                 Layout.fillWidth: true
                 maximumLength: 32
-                placeholderText: "a–z, 0–9, _"
+                placeholderText: qsTr("a–z, 0–9, _")
                 validator: RegularExpressionValidator { regularExpression: /[A-Za-z0-9_]{0,32}/ }
                 onTextEdited: text = text.toLowerCase()
                 Accessible.name: "Creator handle"
@@ -70,7 +70,7 @@ ColumnLayout {
                 Accessible.name: "Display name"
             }
         }
-        FieldLabel { text: "About (public)" }
+        FieldLabel { text: qsTr("About (public)") }
         PostField {
             id: bio
             Layout.fillWidth: true
@@ -87,10 +87,10 @@ ColumnLayout {
         ConsentBox {
             id: acceptTerms
             Layout.fillWidth: true
-            label: "I accept the creator terms (version " + (dash.config.creatorTermsVersion || "current") + "): I'm responsible for what I publish; no illegal content, scams, sexual content involving minors, intimate images shared without consent, or other prohibited material; RedVault keeps a commission on each payment as shown when I set a price; payouts need Stripe's identity checks; RedVault can suspend communities that break the rules."
+            label: qsTr("I accept the creator terms (version ") + (dash.config.creatorTermsVersion || "current") + qsTr("): I'm responsible for what I publish; no illegal content, scams, sexual content involving minors, intimate images shared without consent, or other prohibited material; RedVault keeps a commission on each payment as shown when I set a price; payouts need Stripe's identity checks; RedVault can suspend communities that break the rules.")
         }
         RvButton {
-            text: "Create creator profile"
+            text: qsTr("Create creator profile")
             enabled: !dash.communities.busy && acceptTerms.checked && handle.text.length >= 3 && displayName.text.trim().length > 0 && !bio.tooLong
             onClicked: dash.communities.becomeCreator(handle.text, displayName.text, bio.text, link.text)
         }
@@ -126,7 +126,7 @@ ColumnLayout {
                     font.weight: Font.Bold
                 }
                 Text {
-                    text: dash.creator ? "@" + dash.creator.handle + (dash.creator.verified ? " · verified" : "") + (dash.creator.status !== "active" ? " · " + dash.creator.status : "") : ""
+                    text: dash.creator ? "@" + dash.creator.handle + (dash.creator.verified ? qsTr(" · verified") : "") + (dash.creator.status !== "active" ? " · " + dash.creator.status : "") : ""
                     textFormat: Text.PlainText
                     color: Theme.text3
                     font.pixelSize: 13
@@ -153,7 +153,7 @@ ColumnLayout {
 
         Text {
             visible: dash.tab !== "settings" && !dash.hasData
-            text: "Loading…"
+            text: qsTr("Loading…")
             color: Theme.text3
         }
 
@@ -165,16 +165,16 @@ ColumnLayout {
             StatGrid {
                 Layout.fillWidth: true
                 stats: dash.hasData ? [
-                    { label: "Paying members", value: String(dash.dashData.totals.payingMembers) },
-                    { label: "Communities", value: String(dash.dashData.communities.length) },
-                    { label: "Monthly recurring (estimate)", value: dash.money(dash.dashData.totals.monthlyRecurringEstimateMinor), hint: "If every renewing member renews" },
-                    { label: "Gross paid", value: dash.money(dash.dashData.totals.grossPaidMinor), hint: "All time, before commission" },
-                    { label: "RedVault commission", value: dash.money(dash.dashData.totals.platformCommissionMinor) },
-                    { label: "Refunds", value: dash.money(dash.dashData.totals.refundsMinor) },
-                    { label: "Disputes", value: dash.money(dash.dashData.totals.disputesMinor), hint: "Borne by RedVault" },
-                    { label: "Your earnings", value: dash.money(dash.dashData.totals.creatorEarningsMinor), hint: "Earned, not the same as paid out" },
-                    { label: "Still subscribed", value: dash.dashData.retention.stillActive + " of " + dash.dashData.retention.everPaid, hint: "Members who ever paid" },
-                    { label: "Renewals failing now", value: String(dash.dashData.failedRenewals), hint: "In their grace period" }
+                    { label: qsTr("Paying members"), value: String(dash.dashData.totals.payingMembers) },
+                    { label: qsTr("Communities"), value: String(dash.dashData.communities.length) },
+                    { label: qsTr("Monthly recurring (estimate)"), value: dash.money(dash.dashData.totals.monthlyRecurringEstimateMinor), hint: "If every renewing member renews" },
+                    { label: qsTr("Gross paid"), value: dash.money(dash.dashData.totals.grossPaidMinor), hint: "All time, before commission" },
+                    { label: qsTr("RedVault commission"), value: dash.money(dash.dashData.totals.platformCommissionMinor) },
+                    { label: qsTr("Refunds"), value: dash.money(dash.dashData.totals.refundsMinor) },
+                    { label: qsTr("Disputes"), value: dash.money(dash.dashData.totals.disputesMinor), hint: "Borne by RedVault" },
+                    { label: qsTr("Your earnings"), value: dash.money(dash.dashData.totals.creatorEarningsMinor), hint: "Earned, not the same as paid out" },
+                    { label: qsTr("Still subscribed"), value: dash.dashData.retention.stillActive + " of " + dash.dashData.retention.everPaid, hint: "Members who ever paid" },
+                    { label: qsTr("Renewals failing now"), value: String(dash.dashData.failedRenewals), hint: "In their grace period" }
                 ] : []
             }
             MonthsTable {
@@ -190,12 +190,12 @@ ColumnLayout {
             spacing: 8
             RvButton {
                 iconName: "plus"
-                text: "New community"
+                text: qsTr("New community")
                 onClicked: dash.communities.open("create")
             }
             Text {
                 visible: dash.hasData && dash.dashData.communities.length === 0
-                text: "No communities yet."
+                text: qsTr("No communities yet.")
                 color: Theme.text3
             }
             Repeater {
@@ -228,10 +228,10 @@ ColumnLayout {
                             elide: Text.ElideRight
                             color: Theme.text3
                             font.pixelSize: Theme.fontSmall + 1
-                            text: (communityRow.modelData.kind === "channel" ? "Channel" : "Group") + " · "
-                                  + (communityRow.modelData.accessType === "paid" && communityRow.modelData.price ? dash.money(communityRow.modelData.price.amountMinor) + "/month" : "Free")
-                                  + " · " + communityRow.modelData.activeMembers + " members"
-                                  + (communityRow.modelData.accessType === "paid" ? " · " + communityRow.modelData.payingMembers + " paying" : "")
+                            text: (communityRow.modelData.kind === "channel" ? qsTr("Channel") : qsTr("Group")) + " · "
+                                  + (communityRow.modelData.accessType === "paid" && communityRow.modelData.price ? dash.money(communityRow.modelData.price.amountMinor) + qsTr("/month") : qsTr("Free"))
+                                  + " · " + communityRow.modelData.activeMembers + qsTr(" members")
+                                  + (communityRow.modelData.accessType === "paid" ? " · " + communityRow.modelData.payingMembers + qsTr(" paying") : "")
                             textFormat: Text.PlainText
                         }
                     }
@@ -248,7 +248,7 @@ ColumnLayout {
                         }
                         RvButton {
                             secondary: true
-                            text: "Manage"
+                            text: qsTr("Manage")
                             onClicked: dash.communities.open("manage", communityRow.modelData.id)
                         }
                     }
@@ -263,15 +263,15 @@ ColumnLayout {
             spacing: 10
             InfoCard {
                 Layout.fillWidth: true
-                text: "Gross is what members paid (before tax). RedVault keeps its commission from each payment and pays Stripe's processing fees. Your earnings go to your Stripe balance with each payment; refunds take your share back. Earnings aren't payouts: Stripe pays your balance out to your bank on its schedule (see Payouts)."
+                text: qsTr("Gross is what members paid (before tax). RedVault keeps its commission from each payment and pays Stripe's processing fees. Your earnings go to your Stripe balance with each payment; refunds take your share back. Earnings aren't payouts: Stripe pays your balance out to your bank on its schedule (see Payouts).")
             }
             StatGrid {
                 Layout.fillWidth: true
                 stats: dash.hasData ? [
-                    { label: "Gross paid", value: dash.money(dash.dashData.totals.grossPaidMinor) },
-                    { label: "RedVault commission", value: dash.money(dash.dashData.totals.platformCommissionMinor) },
-                    { label: "Refunds", value: dash.money(dash.dashData.totals.refundsMinor) },
-                    { label: "Your earnings", value: dash.money(dash.dashData.totals.creatorEarningsMinor) }
+                    { label: qsTr("Gross paid"), value: dash.money(dash.dashData.totals.grossPaidMinor) },
+                    { label: qsTr("RedVault commission"), value: dash.money(dash.dashData.totals.platformCommissionMinor) },
+                    { label: qsTr("Refunds"), value: dash.money(dash.dashData.totals.refundsMinor) },
+                    { label: qsTr("Your earnings"), value: dash.money(dash.dashData.totals.creatorEarningsMinor) }
                 ] : []
             }
             MonthsTable {
@@ -289,14 +289,14 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: dash.hasData && !dash.dashData.payouts.ready
                 tone: "warn"
-                text: "Payouts aren't set up yet. Finish Stripe onboarding in Settings."
+                text: qsTr("Payouts aren't set up yet. Finish Stripe onboarding in Settings.")
             }
             StatGrid {
                 Layout.fillWidth: true
                 visible: dash.hasData && !!dash.dashData.payouts.balance
                 stats: dash.hasData && dash.dashData.payouts.balance
-                       ? dash.dashData.payouts.balance.available.map(b => ({ label: "Available for payout", value: dash.communities.formatMoney(b.amountMinor, b.currency), hint: "In your Stripe balance" }))
-                         .concat(dash.dashData.payouts.balance.pending.map(b => ({ label: "Pending", value: dash.communities.formatMoney(b.amountMinor, b.currency), hint: "Not yet available" })))
+                       ? dash.dashData.payouts.balance.available.map(b => ({ label: qsTr("Available for payout"), value: dash.communities.formatMoney(b.amountMinor, b.currency), hint: "In your Stripe balance" }))
+                         .concat(dash.dashData.payouts.balance.pending.map(b => ({ label: qsTr("Pending"), value: dash.communities.formatMoney(b.amountMinor, b.currency), hint: "Not yet available" })))
                        : []
             }
             Table {
@@ -312,7 +312,7 @@ ColumnLayout {
                 visible: !!dash.creator && dash.creator.payments.status !== "not_started"
                 secondary: true
                 iconName: "external"
-                text: "Open Stripe dashboard"
+                text: qsTr("Open Stripe dashboard")
                 enabled: !dash.communities.busy
                 onClicked: dash.communities.openStripeDashboard()
             }
@@ -339,15 +339,15 @@ ColumnLayout {
                 profileLink.text = dash.creator.profileLink || ""
             }
 
-            Caption { text: "PUBLIC PROFILE" }
-            FieldLabel { text: "Display name" }
+            Caption { text: qsTr("PUBLIC PROFILE") }
+            FieldLabel { text: qsTr("Display name") }
             RvTextField {
                 id: profileName
                 Layout.fillWidth: true
                 maximumLength: 60
                 Accessible.name: "Display name"
             }
-            FieldLabel { text: "About" }
+            FieldLabel { text: qsTr("About") }
             PostField {
                 id: profileBio
                 Layout.fillWidth: true
@@ -365,33 +365,33 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
                 RvButton {
-                    text: "Save profile"
+                    text: qsTr("Save profile")
                     enabled: !dash.communities.busy && !profileBio.tooLong
                     onClicked: dash.communities.saveCreatorProfile(profileName.text, profileBio.text, profileLink.text)
                 }
                 RvButton {
                     secondary: true
                     iconName: "image"
-                    text: "Choose picture…"
+                    text: qsTr("Choose picture…")
                     enabled: !dash.communities.busy
                     onClicked: pictureDialog.open()
                 }
             }
             FileDialog {
                 id: pictureDialog
-                title: "Choose a picture (PNG, JPEG or WebP, up to 300 KB)"
+                title: qsTr("Choose a picture (PNG, JPEG or WebP, up to 300 KB)")
                 nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
                 onAccepted: dash.communities.setCreatorPicture(selectedFile)
             }
 
             Caption {
                 Layout.topMargin: 8
-                text: "PAID MEMBERSHIPS AND PAYOUTS"
+                text: qsTr("PAID MEMBERSHIPS AND PAYOUTS")
             }
             InfoCard {
                 Layout.fillWidth: true
                 visible: settings.payments.configured !== true
-                text: "Paid memberships aren't available on this server yet. Free communities work."
+                text: qsTr("Paid memberships aren't available on this server yet. Free communities work.")
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -399,8 +399,8 @@ ColumnLayout {
                 spacing: 10
                 RvSwitch {
                     Layout.fillWidth: true
-                    label: "Offer paid memberships"
-                    description: "Members subscribe monthly through Stripe."
+                    label: qsTr("Offer paid memberships")
+                    description: qsTr("Members subscribe monthly through Stripe.")
                     checked: !!dash.creator && dash.creator.paidMembershipsEnabled === true
                     enabled: !dash.communities.busy
                     onToggled: (on) => dash.communities.setPaidMemberships(on)
@@ -408,11 +408,11 @@ ColumnLayout {
                 InfoCard {
                     Layout.fillWidth: true
                     tone: settings.payments.ready ? "ok" : "neutral"
-                    text: settings.payments.ready ? "Payouts are set up. You can publish paid communities."
-                        : settings.payments.status === "not_started" ? "To publish a paid community, verify your identity and add a bank account with Stripe. RedVault never sees those details."
-                        : settings.payments.status === "rejected" ? "Stripe can't offer payouts to this account."
-                        : settings.payments.requirementsDue ? "Stripe needs more information before you can be paid."
-                        : "Stripe is reviewing your details."
+                    text: settings.payments.ready ? qsTr("Payouts are set up. You can publish paid communities.")
+                        : settings.payments.status === "not_started" ? qsTr("To publish a paid community, verify your identity and add a bank account with Stripe. RedVault never sees those details.")
+                        : settings.payments.status === "rejected" ? qsTr("Stripe can't offer payouts to this account.")
+                        : settings.payments.requirementsDue ? qsTr("Stripe needs more information before you can be paid.")
+                        : qsTr("Stripe is reviewing your details.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -427,14 +427,14 @@ ColumnLayout {
                     }
                     RvButton {
                         iconName: "external"
-                        text: settings.payments.status === "not_started" ? "Set up payouts with Stripe" : "Continue with Stripe"
+                        text: settings.payments.status === "not_started" ? qsTr("Set up payouts with Stripe") : qsTr("Continue with Stripe")
                         enabled: !dash.communities.busy
                         onClicked: dash.communities.startOnboarding(country.value)
                     }
                     RvButton {
                         visible: settings.payments.status !== "not_started"
                         secondary: true
-                        text: "Check status"
+                        text: qsTr("Check status")
                         enabled: !dash.communities.busy
                         onClicked: dash.communities.refreshOnboarding()
                     }

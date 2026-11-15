@@ -12,7 +12,7 @@ ApplicationWindow {
     minimumWidth: 980
     minimumHeight: 620
     visible: true
-    // Qt appends the application display name ("redvaultmessages") itself.
+    // Qt appends the application display name ("RedVaultMessages") itself.
     title: App.state === App.SignedIn ? App.handle : ""
     color: Theme.bg
     font.family: Theme.fontFamily
@@ -25,7 +25,7 @@ ApplicationWindow {
     palette.text: Theme.text
     palette.button: Theme.surface2
     palette.buttonText: Theme.text
-    palette.highlight: Theme.accent
+    palette.highlight: Theme.accentFill
     palette.highlightedText: Theme.accentContrast
     palette.placeholderText: Theme.placeholder
     palette.mid: Theme.border

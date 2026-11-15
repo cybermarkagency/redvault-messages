@@ -50,7 +50,7 @@ ColumnLayout {
         Text {
             id: suggestedLabel
             anchors.centerIn: parent
-            text: "Suggested by a follower"
+            text: qsTr("Suggested by a follower")
             color: Theme.accent
             font.pixelSize: Theme.fontSmall
             font.weight: Font.DemiBold
@@ -87,7 +87,7 @@ ColumnLayout {
                     fillMode: content.photos.length === 1 ? Image.PreserveAspectFit : Image.PreserveAspectCrop
                     sourceSize: Qt.size(Math.max(1, parent.width * 2), Math.max(1, parent.height * 2))
                     source: "image://channelmedia/" + encodeURIComponent("fit|" + photo.modelData.url)
-                    Accessible.name: photo.modelData.hasName ? photo.modelData.name : "Photo"
+                    Accessible.name: photo.modelData.hasName ? photo.modelData.name : qsTr("Photo")
                 }
                 BusyIndicator {
                     anchors.centerIn: parent
@@ -97,7 +97,7 @@ ColumnLayout {
                 Text {
                     anchors.centerIn: parent
                     visible: picture.status === Image.Error
-                    text: "Couldn't load the photo"
+                    text: qsTr("Couldn't load the photo")
                     color: Theme.text3
                 }
                 MouseArea {
@@ -107,7 +107,7 @@ ColumnLayout {
                 }
                 ToolTip.visible: photoHover.hovered
                 ToolTip.delay: 600
-                ToolTip.text: "Open the full-resolution photo"
+                ToolTip.text: qsTr("Open the full-resolution photo")
                 HoverHandler { id: photoHover }
             }
         }
@@ -161,7 +161,7 @@ ColumnLayout {
         selectByMouse: true
         wrapMode: TextEdit.Wrap
         color: Theme.text
-        selectionColor: Theme.accent
+        selectionColor: Theme.accentFill
         selectedTextColor: Theme.accentContrast
         font.pixelSize: Theme.fontSize
         onLinkActivated: (link) => {
@@ -239,8 +239,8 @@ ColumnLayout {
                                 width: 16
                                 height: 16
                                 radius: 4
-                                color: option.on ? Theme.accent : "transparent"
-                                border.color: option.on ? Theme.accent : Theme.borderStrong
+                                color: option.on ? Theme.accentFill : "transparent"
+                                border.color: option.on ? Theme.accentFill : Theme.borderStrong
                                 Icon {
                                     anchors.centerIn: parent
                                     visible: option.on
@@ -311,7 +311,7 @@ ColumnLayout {
             }
             RvButton {
                 visible: pollCard.canVote && content.poll.multiple === true
-                text: "Vote"
+                text: qsTr("Vote")
                 enabled: pollCard.picked.length > 0
                 onClicked: {
                     content.session.vote(content.post.id, pollCard.picked)
@@ -341,7 +341,7 @@ ColumnLayout {
                     visible: !content.preview && content.hasPoll && content.poll.canTakeBack === true
                     primary: false
                     implicitHeight: 28
-                    text: "Take back my vote"
+                    text: qsTr("Take back my vote")
                     onClicked: content.session.vote(content.post.id, [])
                 }
                 RvButton {
@@ -398,8 +398,8 @@ ColumnLayout {
                         width: 18
                         height: 18
                         radius: 4
-                        color: item.modelData.done ? Theme.accent : "transparent"
-                        border.color: item.modelData.done ? Theme.accent : Theme.borderStrong
+                        color: item.modelData.done ? Theme.accentFill : "transparent"
+                        border.color: item.modelData.done ? Theme.accentFill : Theme.borderStrong
                         opacity: content.canTick ? 1 : 0.6
                         Icon {
                             anchors.centerIn: parent
@@ -593,7 +593,7 @@ ColumnLayout {
                 onClicked: roundPlayer.toggle()
             }
             Accessible.role: Accessible.Button
-            Accessible.name: roundPlayer.playing ? "Pause video message" : "Play video message"
+            Accessible.name: roundPlayer.playing ? qsTr("Pause video message") : qsTr("Play video message")
         }
         Text {
             anchors.left: circle.right
@@ -635,7 +635,7 @@ ColumnLayout {
             RvButton {
                 iconName: audioPlayer.playing ? "pause" : "play"
                 implicitWidth: 40
-                Accessible.name: audioPlayer.playing ? "Pause" : "Play"
+                Accessible.name: audioPlayer.playing ? qsTr("Pause") : qsTr("Play")
                 onClicked: audioPlayer.toggle()
             }
             ColumnLayout {
@@ -665,7 +665,7 @@ ColumnLayout {
                     text: content.session.formatDuration(audioPlayer.position / 1000) + " / "
                           + content.session.formatDuration(audioPlayer.duration / 1000)
                           + (audio.podcast && audioPlayer.position === 0 && audioPlayer.resumeAt > 5
-                             ? " · resumes at " + content.session.formatDuration(audioPlayer.resumeAt) : "")
+                             ? qsTr(" · resumes at ") + content.session.formatDuration(audioPlayer.resumeAt) : "")
                           + (audioPlayer.error.length > 0 ? " · " + audioPlayer.error : "")
                     textFormat: Text.PlainText
                     color: audioPlayer.error.length > 0 ? Theme.danger : Theme.text3
@@ -736,7 +736,7 @@ ColumnLayout {
                 font.weight: Font.DemiBold
             }
             Text {
-                text: file.media.sizeLabel + " · Download"
+                text: file.media.sizeLabel + qsTr(" · Download")
                 textFormat: Text.PlainText
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall

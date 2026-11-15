@@ -52,7 +52,7 @@ Item {
             spacing: 14
 
             Text {
-                text: "Communities"
+                text: qsTr("Communities")
                 color: Theme.text
                 font.family: Theme.displayFamily
                 font.pixelSize: 26
@@ -71,7 +71,7 @@ Item {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Free and paid channels and groups run by creators. What's posted inside is end-to-end encrypted; the public listing, its price and who's a member are not."
+                    text: qsTr("Free and paid channels and groups run by creators. What's posted inside is end-to-end encrypted; the public listing, its price and who's a member are not.")
                     color: Theme.text2
                     font.pixelSize: 13
                 }
@@ -99,7 +99,7 @@ Item {
                 Layout.fillWidth: true
                 visible: root.communities !== null && root.communities.config.enabled === false
                 tone: "warn"
-                text: "Communities aren't open on this server yet. Memberships you already have keep working."
+                text: qsTr("Communities aren't open on this server yet. Memberships you already have keep working.")
             }
             Banner {
                 Layout.fillWidth: true
@@ -153,7 +153,7 @@ Item {
                 SearchField {
                     id: searchField
                     Layout.fillWidth: true
-                    placeholderText: "Search communities"
+                    placeholderText: qsTr("Search communities")
                     maximumLength: 80
                     onTextChanged: searchTimer.restart()
                 }
@@ -173,14 +173,14 @@ Item {
                 RvTextField {
                     id: inviteField
                     Layout.fillWidth: true
-                    placeholderText: "Have an invite link? Paste it here"
+                    placeholderText: qsTr("Have an invite link? Paste it here")
                     Accessible.name: "Invite link"
                     onAccepted: if (openInvite.enabled) openInvite.clicked()
                 }
                 RvButton {
                     id: openInvite
                     secondary: true
-                    text: "Open"
+                    text: qsTr("Open")
                     // The web app's invite link, <site>/?community=<id>&invite=<token>.
                     enabled: root.communities.isCommunityLink(inviteField.text)
                     onClicked: {
@@ -197,14 +197,14 @@ Item {
             }
             Text {
                 visible: !root.communities.discoverLoaded
-                text: "Loading…"
+                text: qsTr("Loading…")
                 color: Theme.text3
             }
             Text {
                 Layout.fillWidth: true
                 visible: root.communities.discoverLoaded && root.communities.discover.length === 0
                 wrapMode: Text.Wrap
-                text: "No communities match. Unlisted communities only open from an invite link."
+                text: qsTr("No communities match. Unlisted communities only open from an invite link.")
                 color: Theme.text3
             }
             Repeater {
@@ -213,13 +213,13 @@ Item {
                     required property var modelData
                     Layout.fillWidth: true
                     title: modelData.name
-                    subtitle: "@" + modelData.creator.handle + (modelData.creator.verified ? " · verified" : "")
+                    subtitle: "@" + modelData.creator.handle + (modelData.creator.verified ? qsTr(" · verified") : "")
                     body: modelData.description || modelData.previewText || ""
                     letter: modelData.name
                     image: modelData.hasAvatar ? root.communities.imagePath("avatar", modelData.id) : ""
                     pills: [
                         { text: modelData.kind === "channel" ? "Channel" : "Group", tone: "plain" },
-                        modelData.price ? { text: root.communities.formatMoney(modelData.price.amountMinor, modelData.price.currency) + "/month", tone: "accent" } : { text: "Free", tone: "plain" },
+                        modelData.price ? { text: root.communities.formatMoney(modelData.price.amountMinor, modelData.price.currency) + "/month", tone: "accent" } : { text: qsTr("Free"), tone: "plain" },
                         modelData.memberCount !== null && modelData.memberCount !== undefined ? { text: root.members(modelData.memberCount), tone: "plain" } : null,
                         { text: root.communities.categoryLabel(modelData.category), tone: "plain" }
                     ].filter(p => p !== null)
@@ -236,12 +236,12 @@ Item {
             spacing: 10
             Text {
                 visible: !root.communities.mineLoaded
-                text: "Loading…"
+                text: qsTr("Loading…")
                 color: Theme.text3
             }
             Text {
                 visible: root.communities.mineLoaded && root.communities.mine.length === 0
-                text: "You haven't joined any communities yet."
+                text: qsTr("You haven't joined any communities yet.")
                 color: Theme.text3
             }
             Repeater {
@@ -253,13 +253,13 @@ Item {
                     title: modelData.name
                     letter: modelData.name
                     image: modelData.hasAvatar ? root.communities.imagePath("avatar", modelData.id) : ""
-                    subtitle: (modelData.kind === "channel" ? "Channel" : "Group")
+                    subtitle: (modelData.kind === "channel" ? qsTr("Channel") : qsTr("Group"))
                               + (modelData.membership.role !== "member" ? " · " + modelData.membership.role : "")
                               + (modelData.status !== "published" ? " · " + modelData.status : "")
-                    pills: [status === "active" ? { text: "Member", tone: "accent" }
-                          : status === "pending_enrollment" ? { text: "Waiting for key", tone: "warn" }
-                          : status === "pending_approval" ? { text: "Requested", tone: "warn" }
-                          : status === "banned" ? { text: "Banned", tone: "danger" }
+                    pills: [status === "active" ? { text: qsTr("Member"), tone: "accent" }
+                          : status === "pending_enrollment" ? { text: qsTr("Waiting for key"), tone: "warn" }
+                          : status === "pending_approval" ? { text: qsTr("Requested"), tone: "warn" }
+                          : status === "banned" ? { text: qsTr("Banned"), tone: "danger" }
                           : { text: status, tone: "plain" }]
                     onClicked: root.communities.open("community", modelData.id)
                 }
@@ -277,12 +277,12 @@ Item {
 
             ConfirmDialog {
                 id: cancelDialog
-                title: "Cancel membership?"
+                title: qsTr("Cancel membership?")
                 message: membershipsColumn.cancelling
-                         ? "Cancel your " + membershipsColumn.cancelling.community.name + " membership? You won't be charged again and keep access until "
+                         ? qsTr("Cancel your ") + membershipsColumn.cancelling.community.name + qsTr(" membership? You won't be charged again and keep access until ")
                            + root.communities.formatDate(membershipsColumn.cancelling.accessUntil) + "."
                          : ""
-                confirmText: "Cancel membership"
+                confirmText: qsTr("Cancel membership")
                 danger: true
                 onConfirmed: root.communities.cancelMembership(membershipsColumn.cancelling.id)
             }
@@ -291,22 +291,22 @@ Item {
                 Layout.fillWidth: true
                 visible: root.communities.confirming.length > 0
                 tone: "neutral"
-                text: "Confirming your payment with Stripe… Access starts as soon as Stripe confirms it, not before."
+                text: qsTr("Confirming your payment with Stripe… Access starts as soon as Stripe confirms it, not before.")
                 RvButton {
                     secondary: true
-                    text: "Check now"
+                    text: qsTr("Check now")
                     enabled: !root.communities.busy
                     onClicked: root.communities.checkConfirmation()
                 }
             }
             Text {
                 visible: !root.communities.membershipsLoaded
-                text: "Loading…"
+                text: qsTr("Loading…")
                 color: Theme.text3
             }
             Text {
                 visible: root.communities.membershipsLoaded && root.communities.memberships.length === 0
-                text: "No paid memberships."
+                text: qsTr("No paid memberships.")
                 color: Theme.text3
             }
             Repeater {
@@ -331,7 +331,7 @@ Item {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: "@" + (membershipCard.m.creatorHandle || "creator") + " · code " + membershipCard.m.community.code
+                        text: "@" + (membershipCard.m.creatorHandle || "creator") + qsTr(" · code ") + membershipCard.m.community.code
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall + 1
@@ -340,16 +340,16 @@ Item {
                         Layout.fillWidth: true
                         spacing: 6
                         Pill {
-                            text: ({ pending: "Processing payment", active: "Active", trialing: "Trial", grace_period: "Payment failed",
-                                     cancel_scheduled: "Cancelled — access until period end", expired: "Ended", canceled: "Not completed",
-                                     refunded: "Refunded", disputed: "Payment under review", suspended: "Suspended" })[membershipCard.status] || membershipCard.status
+                            text: ({ pending: qsTr("Processing payment"), active: qsTr("Active"), trialing: qsTr("Trial"), grace_period: qsTr("Payment failed"),
+                                     cancel_scheduled: qsTr("Cancelled — access until period end"), expired: qsTr("Ended"), canceled: qsTr("Not completed"),
+                                     refunded: qsTr("Refunded"), disputed: qsTr("Payment under review"), suspended: qsTr("Suspended") })[membershipCard.status] || membershipCard.status
                             tone: membershipCard.status === "active" ? "accent"
                                 : ["grace_period", "pending", "cancel_scheduled"].includes(membershipCard.status) ? "warn"
                                 : ["refunded", "disputed", "suspended"].includes(membershipCard.status) ? "danger" : "plain"
                         }
                         Pill {
                             visible: !!membershipCard.m.price
-                            text: membershipCard.m.price ? root.communities.formatMoney(membershipCard.m.price.amountMinor, membershipCard.m.price.currency) + "/month" : ""
+                            text: membershipCard.m.price ? root.communities.formatMoney(membershipCard.m.price.amountMinor, membershipCard.m.price.currency) + qsTr("/month") : ""
                         }
                     }
                     Text {
@@ -358,10 +358,10 @@ Item {
                         visible: text.length > 0
                         color: Theme.text2
                         font.pixelSize: 13
-                        text: (membershipCard.m.renewsOn ? "Renews on " + root.communities.formatDate(membershipCard.m.renewsOn) + ". " : "")
-                              + (membershipCard.status === "cancel_scheduled" ? "Access until " + root.communities.formatDate(membershipCard.m.accessUntil) + "; you won't be charged again. " : "")
-                              + (membershipCard.status === "grace_period" ? "Update your card by " + root.communities.formatDate(membershipCard.m.graceUntil) + " to keep access. " : "")
-                              + (membershipCard.status === "expired" && membershipCard.m.endedAt ? "Ended on " + root.communities.formatDate(membershipCard.m.endedAt) + ". " : "")
+                        text: (membershipCard.m.renewsOn ? qsTr("Renews on ") + root.communities.formatDate(membershipCard.m.renewsOn) + ". " : "")
+                              + (membershipCard.status === "cancel_scheduled" ? qsTr("Access until ") + root.communities.formatDate(membershipCard.m.accessUntil) + qsTr("; you won't be charged again. ") : "")
+                              + (membershipCard.status === "grace_period" ? qsTr("Update your card by ") + root.communities.formatDate(membershipCard.m.graceUntil) + qsTr(" to keep access. ") : "")
+                              + (membershipCard.status === "expired" && membershipCard.m.endedAt ? qsTr("Ended on ") + root.communities.formatDate(membershipCard.m.endedAt) + ". " : "")
                         textFormat: Text.PlainText
                     }
                     Flow {
@@ -369,14 +369,14 @@ Item {
                         spacing: 6
                         RvButton {
                             secondary: true
-                            text: "View community"
+                            text: qsTr("View community")
                             onClicked: root.communities.open("community", membershipCard.m.community.id)
                         }
                         RvButton {
                             visible: (membershipCard.status === "active" || membershipCard.status === "grace_period") && !membershipCard.m.cancelAtPeriodEnd
                             primary: false
                             danger: true
-                            text: "Cancel membership"
+                            text: qsTr("Cancel membership")
                             enabled: !root.communities.busy
                             onClicked: {
                                 membershipsColumn.cancelling = membershipCard.m
@@ -386,7 +386,7 @@ Item {
                         RvButton {
                             visible: membershipCard.status === "cancel_scheduled" && membershipCard.m.billingStatus !== "canceled"
                             secondary: true
-                            text: "Keep membership"
+                            text: qsTr("Keep membership")
                             enabled: !root.communities.busy
                             onClicked: root.communities.resumeMembership(membershipCard.m.id)
                         }
@@ -394,13 +394,13 @@ Item {
                             visible: membershipCard.m.billingStatus !== "checkout_pending" && membershipCard.m.billingStatus !== "checkout_expired"
                             secondary: true
                             iconName: "external"
-                            text: "Manage payment method"
+                            text: qsTr("Manage payment method")
                             enabled: !root.communities.busy
                             onClicked: root.communities.openPortal(membershipCard.m.id)
                         }
                         RvButton {
                             primary: false
-                            text: membershipCard.receiptRows ? "Hide receipts" : "Receipts"
+                            text: membershipCard.receiptRows ? qsTr("Hide receipts") : qsTr("Receipts")
                             onClicked: root.communities.toggleReceipts(membershipCard.m.id)
                         }
                     }
@@ -410,7 +410,7 @@ Item {
                         spacing: 4
                         Text {
                             visible: !!membershipCard.receiptRows && membershipCard.receiptRows.length === 0
-                            text: "No payments yet."
+                            text: qsTr("No payments yet.")
                             color: Theme.text3
                         }
                         Repeater {
@@ -429,7 +429,7 @@ Item {
                                     color: Theme.text2
                                     font.pixelSize: 13
                                     text: root.communities.formatDate(receiptRow.modelData.occurredAt) + " · "
-                                          + (receiptRow.modelData.kind === "payment" ? "Payment" : receiptRow.modelData.kind === "refund" ? "Refund" : receiptRow.modelData.kind)
+                                          + (receiptRow.modelData.kind === "payment" ? qsTr("Payment") : receiptRow.modelData.kind === "refund" ? qsTr("Refund") : receiptRow.modelData.kind)
                                           + (receiptRow.modelData.periodStart ? " · " + root.communities.formatDate(receiptRow.modelData.periodStart) + " – " + root.communities.formatDate(receiptRow.modelData.periodEnd) : "")
                                     textFormat: Text.PlainText
                                 }

@@ -49,7 +49,7 @@ RowLayout {
             x: toggle.leftPadding
             y: parent.height / 2 - height / 2
             radius: 12
-            color: toggle.checked ? Theme.accent : Theme.surface3
+            color: toggle.checked ? Theme.accentFill : Theme.surface3
             Rectangle {
                 x: toggle.checked ? parent.width - width - 3 : 3
                 y: 3

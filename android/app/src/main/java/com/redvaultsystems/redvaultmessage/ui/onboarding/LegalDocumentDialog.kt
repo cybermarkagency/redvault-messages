@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.onboarding
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,7 +103,7 @@ internal fun LegalDocumentDialog(document: LegalDocument, onDismiss: () -> Unit)
                     }
                 }
             }
-            PillButton("Done", onDismiss, Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(50)))
+            PillButton(stringResource(R.string.ui_done), onDismiss, Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(50)))
         }
     }
 }

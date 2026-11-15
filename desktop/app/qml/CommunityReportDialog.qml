@@ -56,7 +56,7 @@ RvDialog {
         open()
     }
 
-    title: targetKind === "community" ? "Report this community" : "Report this message"
+    title: targetKind === "community" ? qsTr("Report this community") : qsTr("Report this message")
     width: 500
     onOpened: {
         categoryBox.value = "spam"
@@ -80,7 +80,7 @@ RvDialog {
         spacing: 12
 
         Text {
-            text: "What's wrong?"
+            text: qsTr("What's wrong?")
             color: Theme.text2
             font.pixelSize: 13
         }
@@ -92,7 +92,7 @@ RvDialog {
             value: "spam"
         }
         Text {
-            text: "Details (optional)"
+            text: qsTr("Details (optional)")
             color: Theme.text2
             font.pixelSize: 13
         }
@@ -127,8 +127,8 @@ RvDialog {
             ConsentBox {
                 id: share
                 Layout.fillWidth: true
-                label: "Share this message's text with " + (dialog.platformOnly ? "RedVault's safety reviewers" : "this community's moderators")
-                       + ". It's end-to-end encrypted, so they can only see it if you share it. Your name isn't shown to the community's moderators."
+                label: qsTr("Share this message's text with ") + (dialog.platformOnly ? qsTr("RedVault's safety reviewers") : qsTr("this community's moderators"))
+                       + qsTr(". It's end-to-end encrypted, so they can only see it if you share it. Your name isn't shown to the community's moderators.")
             }
         }
         Text {
@@ -136,8 +136,8 @@ RvDialog {
             wrapMode: Text.Wrap
             color: Theme.text3
             font.pixelSize: Theme.fontSmall + 1
-            text: dialog.platformOnly ? "This goes to RedVault's own reviewers, not to the community's moderators."
-                                      : "This goes to the community's moderators. Serious categories go to RedVault instead."
+            text: dialog.platformOnly ? qsTr("This goes to RedVault's own reviewers, not to the community's moderators.")
+                                      : qsTr("This goes to the community's moderators. Serious categories go to RedVault instead.")
             textFormat: Text.PlainText
         }
         Banner {
@@ -149,12 +149,12 @@ RvDialog {
             spacing: 8
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.close()
             }
             RvButton {
                 danger: true
-                text: "Send report"
+                text: qsTr("Send report")
                 enabled: !dialog.communities.busy && !details.tooLong
                 onClicked: dialog.communities.report(dialog.communityId, dialog.targetKind, dialog.senderId, categoryBox.value, details.text,
                                                      dialog.messageId, dialog.messageText, dialog.targetKind === "content" && share.checked)

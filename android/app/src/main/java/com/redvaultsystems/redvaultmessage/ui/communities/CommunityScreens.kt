@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.communities
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -105,7 +106,7 @@ fun CommunitiesScreen(
         ChipRow(CommunitiesPage.entries, page, { it.label }, onPage, edge = 0.dp)
         configError?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
         if (config?.enabled == false) {
-            Callout("Communities aren't open on this server yet. Memberships you already have keep working.", CalloutTone.Neutral, R.drawable.ui_info)
+            Callout(stringResource(R.string.ui_communities_aren_t_open_on_this), CalloutTone.Neutral, R.drawable.ui_info)
         }
         when (page) {
             CommunitiesPage.Discover -> DiscoverPage(session, config, onOpenCommunity)
@@ -272,9 +273,9 @@ private fun MembershipsPage(session: CommunitySession, onOpen: (String) -> Unit)
                 TextButton(onClick = {
                     confirmCancel = null
                     act(m.id) { session.cancelMembership(m.id) }
-                }) { Text("Cancel membership", color = RedvaultTheme.colors.danger) }
+                }) { Text(stringResource(R.string.ui_cancel_membership), color = RedvaultTheme.colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirmCancel = null }) { Text("Keep it") } },
+            dismissButton = { TextButton(onClick = { confirmCancel = null }) { Text(stringResource(R.string.ui_keep_it)) } },
         )
     }
     error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
@@ -312,12 +313,12 @@ private fun MembershipsPage(session: CommunitySession, onOpen: (String) -> Unit)
             }.trim()
             if (line.isNotEmpty()) Text(line, color = colors.text2, fontSize = 13.sp)
             val wide = Modifier.fillMaxWidth()
-            PillButton("View community", { onOpen(m.community.id) }, wide, style = PillStyle.Secondary, height = 44.dp)
+            PillButton(stringResource(R.string.ui_view_community), { onOpen(m.community.id) }, wide, style = PillStyle.Secondary, height = 44.dp)
             if ((m.entitlementStatus == "active" || m.entitlementStatus == "grace_period") && !m.cancelAtPeriodEnd) {
-                PillButton("Cancel membership", { confirmCancel = m }, wide, style = PillStyle.Danger, height = 44.dp, enabled = busyId != m.id)
+                PillButton(stringResource(R.string.ui_cancel_membership), { confirmCancel = m }, wide, style = PillStyle.Danger, height = 44.dp, enabled = busyId != m.id)
             }
             if (m.entitlementStatus == "cancel_scheduled" && m.billingStatus != "canceled") {
-                PillButton("Keep membership", { act(m.id) { session.resumeMembership(m.id) } }, wide, style = PillStyle.Secondary, height = 44.dp, busy = busyId == m.id)
+                PillButton(stringResource(R.string.ui_keep_membership), { act(m.id) { session.resumeMembership(m.id) } }, wide, style = PillStyle.Secondary, height = 44.dp, busy = busyId == m.id)
             }
         }
     }
@@ -456,18 +457,18 @@ fun CommunityScreen(
                     }
                     renewal?.let { Text(it, color = colors.text3, fontSize = 13.sp) }
                 }
-                if (!membership.canPost) Text("Only the creator and staff post here; you read.", color = colors.text3, fontSize = 13.sp)
+                if (!membership.canPost) Text(stringResource(R.string.ui_only_the_creator_and_staff_post_2), color = colors.text3, fontSize = 13.sp)
                 c.conversationId?.let { conversationId ->
                     PillButton(if (c.kind == "channel") "Open channel" else "Open chat", { onOpenChat(conversationId) }, Modifier.fillMaxWidth(), height = 44.dp)
                 }
                 if (membership.role != "owner") {
-                    PillButton("Leave", { confirmLeave = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, height = 44.dp, enabled = !busy)
+                    PillButton(stringResource(R.string.ui_leave), { confirmLeave = true }, Modifier.fillMaxWidth(), style = PillStyle.Danger, height = 44.dp, enabled = !busy)
                 }
             }
         }
 
         membership?.status?.let(Communities::membershipNotice)?.let { Callout(it, CalloutTone.Neutral, R.drawable.ui_clock) }
-        if (subscription?.entitlementStatus == "pending") Callout("Your payment is being confirmed. This page updates once it's done.", CalloutTone.Neutral, R.drawable.ui_clock)
+        if (subscription?.entitlementStatus == "pending") Callout(stringResource(R.string.ui_your_payment_is_being_confirmed_this), CalloutTone.Neutral, R.drawable.ui_clock)
 
         val canAskToJoin = !isActiveMember && membership?.status != "banned" && membership?.status?.startsWith("pending") != true
         if (canAskToJoin) {
@@ -475,10 +476,10 @@ fun CommunityScreen(
                 val price = c.price
                 when {
                     c.accessType == "free" -> {
-                        Text("Free to join", color = colors.text, fontWeight = FontWeight.SemiBold)
-                        if (closedForJoining) Text("Not accepting new members right now.", color = colors.text3, fontSize = 13.sp)
+                        Text(stringResource(R.string.ui_free_to_join), color = colors.text, fontWeight = FontWeight.SemiBold)
+                        if (closedForJoining) Text(stringResource(R.string.ui_not_accepting_new_members_right_now), color = colors.text3, fontSize = 13.sp)
                         PillButton(
-                            "Join",
+                            stringResource(R.string.ui_join),
                             { act(JOINED_WAITING) { session.join(c.id) } },
                             Modifier.fillMaxWidth(),
                             height = 44.dp,
@@ -488,7 +489,7 @@ fun CommunityScreen(
                     }
                     subscription != null && (subscription.entitlementStatus == "cancel_scheduled" || subscription.entitlementStatus == "active") -> {
                         Text("You still have a paid membership until ${day(subscription.accessUntil)}.", color = colors.text, fontWeight = FontWeight.SemiBold)
-                        PillButton("Rejoin", { act("Welcome back.") { session.join(c.id) } }, Modifier.fillMaxWidth(), height = 44.dp, busy = busy)
+                        PillButton(stringResource(R.string.ui_rejoin), { act("Welcome back.") { session.join(c.id) } }, Modifier.fillMaxWidth(), height = 44.dp, busy = busy)
                     }
                     price != null -> {
                         Text(
@@ -499,7 +500,7 @@ fun CommunityScreen(
                         )
                         Callout(Communities.NOT_SOLD_HERE, CalloutTone.Neutral, R.drawable.ui_info)
                     }
-                    else -> Text("This community has no price yet.", color = colors.text3, fontSize = 13.sp)
+                    else -> Text(stringResource(R.string.ui_this_community_has_no_price_yet), color = colors.text3, fontSize = 13.sp)
                 }
             }
         }
@@ -507,14 +508,14 @@ fun CommunityScreen(
         message?.let { Callout(it, CalloutTone.Neutral, R.drawable.ui_info) }
 
         if (c.previewText.isNotBlank()) {
-            SectionLabel("Preview")
+            SectionLabel(stringResource(R.string.ui_preview))
             Text(c.previewText, color = colors.text2, fontSize = 15.sp, fontStyle = FontStyle.Italic)
         }
         if (c.rules.isNotBlank()) {
-            SectionLabel("Rules")
+            SectionLabel(stringResource(R.string.ui_rules))
             Text(c.rules, color = colors.text2, fontSize = 15.sp)
         }
-        SectionLabel("Privacy")
+        SectionLabel(stringResource(R.string.ui_privacy))
         Text(
             "Messages, images, voice notes and files inside are end-to-end encrypted: neither RedVault nor Stripe can read them. " +
                 "RedVault does see this public listing, who is a member, and the state of each membership's billing. When someone " +
@@ -522,7 +523,7 @@ fun CommunityScreen(
             color = colors.text3,
             fontSize = 13.sp,
         )
-        TextButton(onClick = { reporting = true }) { Text("Report this community", color = colors.danger) }
+        TextButton(onClick = { reporting = true }) { Text(stringResource(R.string.ui_report_this_community), color = colors.danger) }
 
         if (confirmLeave) {
             val note = if (subscription != null) " Your subscription stops renewing; you won't be charged again. You can come back until the paid period ends." else ""
@@ -534,9 +535,9 @@ fun CommunityScreen(
                     TextButton(onClick = {
                         confirmLeave = false
                         act("You left the community.") { session.leave(c.id) }
-                    }) { Text("Leave", color = colors.danger) }
+                    }) { Text(stringResource(R.string.ui_leave), color = colors.danger) }
                 },
-                dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Stay") } },
+                dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(stringResource(R.string.ui_stay)) } },
             )
         }
         if (reporting) {
@@ -582,7 +583,7 @@ fun CommunityReportDialog(
                 return@AlertDialog
             }
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("What's wrong?", color = colors.text, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ui_what_s_wrong), color = colors.text, fontWeight = FontWeight.SemiBold)
                 Box {
                     Text(
                         "${category.label} ▾",
@@ -602,7 +603,7 @@ fun CommunityReportDialog(
                 OutlinedTextField(
                     value = details,
                     onValueChange = { if (it.length <= 2000) details = it },
-                    placeholder = { Text("Details (optional)") },
+                    placeholder = { Text(stringResource(R.string.ui_details_optional)) },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -632,7 +633,7 @@ fun CommunityReportDialog(
         },
         confirmButton = {
             if (sent) {
-                TextButton(onClick = onDismiss) { Text("Done") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_done)) }
             } else {
                 TextButton(enabled = !busy, onClick = {
                     busy = true
@@ -652,7 +653,7 @@ fun CommunityReportDialog(
                 }) { Text(if (busy) "Sending…" else "Send report", color = colors.danger) }
             }
         },
-        dismissButton = { if (!sent) TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { if (!sent) TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.ui_cancel)) } },
     )
 }
 

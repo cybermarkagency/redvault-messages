@@ -21,7 +21,7 @@ Rectangle {
     implicitHeight: row.implicitHeight + 28
     radius: 14
     color: tone === "ok" ? Theme.accentSoft : tone === "error" ? Theme.dangerSoft : tone === "warn" ? Theme.warnSoft : Theme.surface
-    border.color: tone === "ok" ? Theme.accentBorder : tone === "error" ? "#5A2D28" : tone === "warn" ? "#4A3F28" : Theme.border
+    border.color: tone === "ok" ? Theme.accentBorder : tone === "error" ? Theme.dangerBorder : tone === "warn" ? Theme.warnBorder : Theme.border
 
     RowLayout {
         id: row

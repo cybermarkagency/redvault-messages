@@ -16,6 +16,9 @@ Button {
     /// A Lucide icon name (icons/lucide), or empty for text only.
     property string iconName: ""
     property int iconSize: 18
+    /// Part of a plan the user doesn't have: a lock after the text. Stays
+    /// clickable so the click can explain the plan (PlanGate.ask).
+    property bool locked: false
 
     readonly property color ink: control.secondary ? Theme.text
                                : control.primary ? (control.danger ? "#FFFFFF" : Theme.accentContrast)
@@ -54,14 +57,34 @@ Button {
                 color: control.ink
                 elide: Text.ElideRight
             }
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: control.locked
+                name: "lock"
+                size: 14
+                color: control.ink
+            }
         }
     }
 
     background: Rectangle {
         radius: Theme.radiusControl
-        color: control.secondary ? (control.hovered ? Theme.borderStrong : Theme.surface3)
-             : control.primary ? (control.danger ? Theme.dangerStrong : Theme.accent)
+        color: control.secondary ? (control.hovered ? Theme.surface3 : Theme.surface2)
+             : control.primary ? (control.danger ? Theme.dangerStrong : (control.hovered ? Theme.accentFillHover : Theme.accentFill))
              : (control.hovered ? Theme.surface2 : "transparent")
+        border.width: control.secondary ? 1 : 0
+        border.color: Theme.borderStrong
         opacity: control.enabled ? (control.down ? 0.85 : 1) : 0.45
+
+        // Keyboard focus: a ring outside the button, never only a colour change.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -3
+            radius: parent.radius + 3
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.focusRing
+            visible: control.visualFocus
+        }
     }
 }

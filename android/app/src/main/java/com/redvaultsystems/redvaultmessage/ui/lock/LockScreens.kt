@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.lock
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,7 +94,10 @@ fun LockScreen(lock: AppLock, onLockedOut: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
     ) {
-        Text("Redvaultsystem", fontFamily = FontFamily.Serif, fontSize = 26.sp, color = colors.text)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.redvaultsystems.redvaultmessage.ui.components.AppLogo(36.dp)
+            Text(com.redvaultsystems.redvaultmessage.ui.components.APP_DISPLAY_NAME, fontFamily = com.redvaultsystems.redvaultmessage.ui.theme.RedvaultFonts.display, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colors.text, letterSpacing = (-0.5).sp)
+        }
         Text(if (checking) "Checking…" else "Enter your PIN", color = colors.text2)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(length) { i ->
@@ -114,28 +118,28 @@ fun LockScreen(lock: AppLock, onLockedOut: () -> Unit) {
                 Box(Modifier.size(72.dp))
                 KeyButton("0") { press('0') }
                 Box(Modifier.size(72.dp).clickable(enabled = pin.isNotEmpty() && !checking) { pin = pin.dropLast(1) }, contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.ic_backspace), contentDescription = "Delete", tint = colors.text2, modifier = Modifier.size(26.dp))
+                    Icon(painterResource(R.drawable.ic_backspace), contentDescription = stringResource(R.string.ui_delete), tint = colors.text2, modifier = Modifier.size(26.dp))
                 }
             }
         }
-        TextButton(onClick = { confirmForget = true }) { Text("Forgot PIN?") }
+        TextButton(onClick = { confirmForget = true }) { Text(stringResource(R.string.ui_forgot_pin)) }
     }
 
     if (confirmForget) {
         AlertDialog(
             onDismissRequest = { confirmForget = false },
-            title = { Text("Forgot your PIN?") },
+            title = { Text(stringResource(R.string.ui_forgot_your_pin)) },
             text = {
                 TouchGuard()
-                Text("You'll be logged out and the PIN removed. Log back in with your password, then set a new PIN in Settings.")
+                Text(stringResource(R.string.ui_you_ll_be_logged_out_and))
             },
             confirmButton = {
                 TextButton(onClick = {
                     lock.forget()
                     onLockedOut()
-                }) { Text("Log out") }
+                }) { Text(stringResource(R.string.ui_log_out)) }
             },
-            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 }
@@ -174,7 +178,7 @@ fun AppLockSettingsScreen(lock: AppLock, onBack: () -> Unit) {
         return ok
     }
 
-    SubScreen(title = "App lock", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_app_lock), onBack = onBack) {
         Text(
             "Ask for a PIN when you come back to the app after it's been in the background. " +
                 "The PIN is stored only on this phone, as a one-way hash. After ${AppLockStore.MAX_ATTEMPTS} wrong tries you're logged out.",
@@ -185,7 +189,7 @@ fun AppLockSettingsScreen(lock: AppLock, onBack: () -> Unit) {
         error?.let { Notice(it) }
 
         if (enabled) {
-            SectionLabel("Lock after")
+            SectionLabel(stringResource(R.string.ui_lock_after))
             LockTimeout.entries.forEach { option ->
                 Row(
                     Modifier.fillMaxWidth().clickable {
@@ -201,14 +205,14 @@ fun AppLockSettingsScreen(lock: AppLock, onBack: () -> Unit) {
                     Text(option.label, color = colors.text)
                 }
             }
-            SectionLabel("Current PIN")
+            SectionLabel(stringResource(R.string.ui_current_pin))
             PinField(currentPin, { currentPin = it }, "Current PIN")
         }
 
         SectionLabel(if (enabled) "Change PIN" else "Set a PIN")
         PinField(newPin, { newPin = it }, "New PIN (${AppLockStore.MIN_PIN_LENGTH}–${AppLockStore.MAX_PIN_LENGTH} digits)")
         PinField(confirmPin, { confirmPin = it }, "Confirm new PIN")
-        if (confirmPin.isNotEmpty() && confirmPin != newPin) Notice("PINs don't match.")
+        if (confirmPin.isNotEmpty() && confirmPin != newPin) Notice(stringResource(R.string.ui_pins_don_t_match))
         PrimaryButton(
             text = if (enabled) "Change PIN" else "Turn on app lock",
             enabled = AppLockStore.isValidPin(newPin) && newPin == confirmPin && (!enabled || currentPin.isNotEmpty()),
@@ -246,21 +250,20 @@ fun AppLockSettingsScreen(lock: AppLock, onBack: () -> Unit) {
                     }
                     busy = false
                 }
-            }) { Text("Turn off app lock", color = colors.warn) }
+            }) { Text(stringResource(R.string.ui_turn_off_app_lock), color = colors.warn) }
         }
     }
 }
 
 @Composable
 private fun PinField(value: String, onValueChange: (String) -> Unit, label: String) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onValueChange(it.filter(Char::isDigit).take(AppLockStore.MAX_PIN_LENGTH)) },
-        label = { Text(label) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
+    com.redvaultsystems.redvaultmessage.ui.files.DsTextField(
+        value,
+        { onValueChange(it.filter(Char::isDigit).take(AppLockStore.MAX_PIN_LENGTH)) },
+        label,
+        modifier = Modifier.widthIn(max = 420.dp),
+        password = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),
     )
 }
 
@@ -268,7 +271,7 @@ private fun PinField(value: String, onValueChange: (String) -> Unit, label: Stri
 @Composable
 fun AppLockRow(enabled: Boolean, timeout: LockTimeout, onClick: () -> Unit) {
     SettingsRow(
-        title = "App lock",
+        title = stringResource(R.string.ui_app_lock),
         description = if (enabled) "On · ${timeout.label.lowercase()}" else "Off. Require a PIN to open the app",
         onClick = onClick,
         icon = com.redvaultsystems.redvaultmessage.R.drawable.ui_lock,

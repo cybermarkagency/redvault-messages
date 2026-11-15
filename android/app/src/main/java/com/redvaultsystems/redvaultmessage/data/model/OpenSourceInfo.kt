@@ -20,11 +20,11 @@ data class LicenseAsset(val title: String, val assetPath: String)
 object OpenSourceInfo {
     const val SECTION_TITLE = "Open-Source Licenses and Source Code"
     const val LICENSE_STATEMENT =
-        "RedVault Messages is free software, licensed under the GNU Affero General Public License, version 3 only " +
+        "RedVaultMessages is free software, licensed under the GNU Affero General Public License, version 3 only " +
             "(AGPL-3.0-only). It comes with no warranty."
     const val NO_SOURCE_LINK_YET = "The public source code link will appear here once it is published."
     const val SOURCE_LINK_LABEL = "Source code for this version"
-    const val SIGNAL_DISCLAIMER = "RedVault Messages is not affiliated with or endorsed by Signal Messenger LLC."
+    const val SIGNAL_DISCLAIMER = "RedVaultMessages is not affiliated with or endorsed by Signal Messenger LLC."
 
     /** Optional placeholder in redvaultSourceCodeUrl, replaced with the app's version name. */
     const val VERSION_PLACEHOLDER = "{version}"
@@ -34,6 +34,7 @@ object OpenSourceInfo {
 
     /** The licences of the fonts and icons bundled with the app (assets/licenses). */
     val BUNDLED_LICENSES = listOf(
+        LicenseAsset("Inter (SIL Open Font License 1.1)", "licenses/inter-OFL.txt"),
         LicenseAsset("Bricolage Grotesque (SIL Open Font License 1.1)", "licenses/bricolage-grotesque-OFL.txt"),
         LicenseAsset("IBM Plex Sans (SIL Open Font License 1.1)", "licenses/ibm-plex-sans-OFL.txt"),
         LicenseAsset("IBM Plex Mono (SIL Open Font License 1.1)", "licenses/ibm-plex-mono-OFL.txt"),

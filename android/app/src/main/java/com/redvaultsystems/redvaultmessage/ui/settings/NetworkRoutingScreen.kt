@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,12 +64,12 @@ fun NetworkRoutingScreen(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Network routing", fontFamily = RedvaultFonts.display, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(stringResource(R.string.ui_network_routing), fontFamily = RedvaultFonts.display, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.text)
 
             if (tor == null) {
                 // Only a debug build pointed at a local test server.
                 Callout(
-                    "Development server: this test build talks to it directly, without Tor. Calls go through the call relay (TURN).",
+                    stringResource(R.string.ui_development_server_this_test_build_talks),
                     CalloutTone.Neutral, R.drawable.ui_info,
                 )
             }
@@ -85,7 +86,7 @@ fun NetworkRoutingScreen(
             }
 
             if (tor != null) {
-                SectionCaps("Tor", edge = 0.dp)
+                SectionCaps(stringResource(R.string.ui_tor), edge = 0.dp)
                 Card {
                     val (label, tone) = torLabel(status)
                     Line("Tor connection", status?.detail?.takeIf { it.isNotBlank() } ?: "Built into this app", label, tone)
@@ -124,7 +125,7 @@ fun NetworkRoutingScreen(
 private fun torLabel(status: TorStatus?): Pair<String, Color> {
     val colors = RedvaultTheme.colors
     return when (status?.state) {
-        TorState.Connected -> "Connected" to colors.accent
+        TorState.Connected -> "Connected" to colors.ok
         TorState.Connecting -> "Connecting through Tor… ${status.progress}%" to colors.warn
         else -> "Can't reach Tor" to colors.danger
     }
@@ -158,7 +159,7 @@ private fun Line(title: String, detail: String, value: String, tone: Color) {
 fun TorStatusStrip(status: TorStatus, queued: Int, pausedUploads: Int, callActive: Boolean) {
     val colors = RedvaultTheme.colors
     val (text, tone) = when (status.state) {
-        TorState.Connected -> "Tor connected" to colors.accent
+        TorState.Connected -> "Tor connected" to colors.ok
         TorState.Connecting -> "Connecting through Tor… ${status.progress}%" to colors.warn
         TorState.Unavailable -> "Can't reach Tor" to colors.danger
     }

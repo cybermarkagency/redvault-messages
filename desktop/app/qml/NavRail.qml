@@ -57,9 +57,25 @@ Rectangle {
         Accessible.name: text
         onClicked: picked(page)
 
+        focusPolicy: Qt.StrongFocus
+        Accessible.role: Accessible.PageTab
+        Accessible.checkable: true
+        Accessible.checked: active
         background: Rectangle {
             radius: Theme.radiusControl
-            color: button.active ? Theme.selected : (button.hovered ? Theme.panel : "transparent")
+            color: button.active ? Theme.selected : (button.hovered ? Theme.hover : "transparent")
+            border.width: button.visualFocus ? 2 : 0
+            border.color: Theme.focusRing
+            // The current page: a burgundy bar on the rail's edge as well as the lighter tile.
+            Rectangle {
+                visible: button.active
+                x: -6
+                anchors.verticalCenter: parent.verticalCenter
+                width: 3
+                height: 24
+                radius: 2
+                color: Theme.accentFill
+            }
         }
         contentItem: Column {
             spacing: button.tight ? 1 : 4
@@ -81,7 +97,7 @@ Rectangle {
                     width: Math.max(18, badgeText.implicitWidth + 8)
                     height: 18
                     radius: 9
-                    color: Theme.accent
+                    color: Theme.accentFill
                     Text {
                         id: badgeText
                         anchors.centerIn: parent
@@ -110,38 +126,36 @@ Rectangle {
         anchors.bottomMargin: 16
         spacing: rail.compact ? 2 : 6
 
-        // The mark: the lock on the accent.
-        Rectangle {
+        // The official RedVaultMessages logo, as shipped (icons/app/redvault.svg).
+        Image {
             Layout.alignment: Qt.AlignHCenter
             Layout.bottomMargin: rail.compact ? 4 : 12
-            implicitWidth: 40
-            implicitHeight: 40
-            radius: 12
-            color: Theme.accent
-            Icon {
-                anchors.centerIn: parent
-                name: "lock"
-                size: 20
-                color: Theme.accentContrast
-            }
+            Layout.preferredWidth: 40
+            Layout.preferredHeight: 40
+            source: "qrc:/qt/qml/Redvault/icons/app/redvault.svg"
+            sourceSize: Qt.size(80, 80)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            Accessible.role: Accessible.Graphic
+            Accessible.name: "RedVaultMessages"
         }
 
-        RailButton { compact: rail.compact; tight: rail.tight; page: "chats"; iconName: "chat"; text: "Chats"; badge: rail.chatsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "calls"; iconName: "phone"; text: "Calls"; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "contacts"; iconName: "users"; text: "Contacts"; badge: rail.contactsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "channels"; iconName: "globe"; text: "Channels"; badge: rail.channelsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "communities"; iconName: "ticket"; text: "Communities"; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "earnings"; iconName: "credit-card"; text: "Earnings"; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "files"; iconName: "cloud"; text: "Files"; badge: rail.filesBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "passwords"; iconName: "key"; text: "Passwords"; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "inbox"; iconName: "inbox"; text: "Inbox"; badge: rail.inboxBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "chats"; iconName: "chat"; text: qsTr("Chats"); badge: rail.chatsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "calls"; iconName: "phone"; text: qsTr("Calls"); current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "contacts"; iconName: "users"; text: qsTr("Contacts"); badge: rail.contactsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "channels"; iconName: "globe"; text: qsTr("Channels"); badge: rail.channelsBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { visible: App.communitiesEnabled; compact: rail.compact; tight: rail.tight; page: "communities"; iconName: "ticket"; text: qsTr("Communities"); current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { visible: App.earningsEnabled; compact: rail.compact; tight: rail.tight; page: "earnings"; iconName: "credit-card"; text: qsTr("Earnings"); current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "files"; iconName: "cloud"; text: qsTr("Files"); badge: rail.filesBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "passwords"; iconName: "key"; text: qsTr("Passwords"); current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "inbox"; iconName: "inbox"; text: qsTr("Inbox"); badge: rail.inboxBadge; current: rail.current; onPicked: (page) => rail.navigate(page) }
 
         Item { Layout.fillHeight: true }
 
-        RailButton { visible: rail.showAdmin; compact: rail.compact; tight: rail.tight; page: "admin"; iconName: "shield-check"; text: "Admin"; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { visible: rail.showAdmin; compact: rail.compact; tight: rail.tight; page: "admin"; iconName: "shield-check"; text: qsTr("Admin"); current: rail.current; onPicked: (page) => rail.navigate(page) }
 
-        RailButton { compact: rail.compact; tight: rail.tight; page: "privacy"; iconName: "shield"; text: "Privacy"; current: rail.current; onPicked: (page) => rail.navigate(page) }
-        RailButton { compact: rail.compact; tight: rail.tight; page: "settings"; iconName: "sliders"; text: "Settings"; current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "privacy"; iconName: "shield"; text: qsTr("Privacy"); current: rail.current; onPicked: (page) => rail.navigate(page) }
+        RailButton { compact: rail.compact; tight: rail.tight; page: "settings"; iconName: "sliders"; text: qsTr("Settings"); current: rail.current; onPicked: (page) => rail.navigate(page) }
 
         AbstractButton {
             id: me

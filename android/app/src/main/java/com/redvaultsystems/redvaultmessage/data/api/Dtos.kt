@@ -415,7 +415,24 @@ data class PlanStatusDto(
     val endsOn: String? = null,
     val canCancel: Boolean = false,
     val canResume: Boolean = false,
+    /** A card subscriber can move to this plan from the app ("pro" or "premium"). */
+    val canSwitchTo: String? = null,
 )
+
+/** Each plan's Files storage in bytes. */
+@Serializable
+data class FilesStorageLimitsDto(val free: Long, val pro: Long, val premium: Long)
+
+/** GET /billing/config: Stripe payment links (null: not offered) and Files storage per plan. */
+@Serializable
+data class BillingConfigDto(
+    val paymentLink: String? = null,
+    val premiumPaymentLink: String? = null,
+    val filesStorage: FilesStorageLimitsDto? = null,
+)
+
+@Serializable
+data class SwitchPlanRequest(val tier: String)
 
 /** Your own storage in use vs. your own plan's limit (0 for Free: sending files is Pro-only). */
 @Serializable

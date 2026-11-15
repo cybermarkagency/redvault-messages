@@ -93,10 +93,10 @@ class OpenSourceInfoTest {
     fun theRequiredWordingIsExact() {
         assertEquals("Open-Source Licenses and Source Code", OpenSourceInfo.SECTION_TITLE)
         assertEquals(
-            "RedVault Messages is free software, licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). It comes with no warranty.",
+            "RedVaultMessages is free software, licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). It comes with no warranty.",
             OpenSourceInfo.LICENSE_STATEMENT,
         )
         assertEquals("The public source code link will appear here once it is published.", OpenSourceInfo.NO_SOURCE_LINK_YET)
-        assertEquals("RedVault Messages is not affiliated with or endorsed by Signal Messenger LLC.", OpenSourceInfo.SIGNAL_DISCLAIMER)
+        assertEquals("RedVaultMessages is not affiliated with or endorsed by Signal Messenger LLC.", OpenSourceInfo.SIGNAL_DISCLAIMER)
     }
 }

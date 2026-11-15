@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,9 +46,9 @@ fun SharedMediaScreen(conversation: Conversation?, onBack: () -> Unit, onDownloa
     val colors = RedvaultTheme.colors
     var filterName by rememberSaveable { mutableStateOf(MediaFilter.All.name) }
     val filter = MediaFilter.valueOf(filterName)
-    SubScreen(title = "Shared media and files", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_shared_media_and_files), onBack = onBack) {
         if (conversation == null) {
-            Text("This chat isn't available.", color = colors.text3, fontSize = 14.sp)
+            Text(stringResource(R.string.ui_this_chat_isn_t_available), color = colors.text3, fontSize = 14.sp)
             return@SubScreen
         }
         val files = conversation.messages.filter { it.kind == MessageKind.File && it.file != null }.sortedByDescending { it.createdAtMs }

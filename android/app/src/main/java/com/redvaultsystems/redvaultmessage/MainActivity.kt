@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.redvaultsystems.redvaultmessage.data.AppearanceStore
 import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
@@ -34,18 +37,19 @@ import com.redvaultsystems.redvaultmessage.ui.verify.TransparencyFeedScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // The design is dark only: light status and navigation bar icons.
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        )
+        // Settings > Appearance: dark by default; the system bars' icons follow the theme (see below).
+        AppearanceStore.load(this)
+        applySystemBars(AppearanceStore.isDark(AppearanceStore.mode.value, isSystemDark()))
         val container = (application as RedvaultApp).container
         takeChannelToOpen(intent)
         // Not again after a rotation or a restore: the same intent comes back with the saved state.
         if (savedInstanceState == null) takeChatOrShare(intent)
 
         setContent {
-            RedvaultTheme {
+            val appearance by AppearanceStore.mode.collectAsStateWithLifecycle()
+            val dark = AppearanceStore.isDark(appearance, isSystemInDarkTheme())
+            LaunchedEffect(dark) { applySystemBars(dark) }
+            RedvaultTheme(dark = dark) {
                 CompositionLocalProvider(LocalAvatarLoader provides container.avatarLoader) {
                     val authViewModel: AuthViewModel = viewModel(
                         factory = viewModelFactory {
@@ -131,5 +135,16 @@ class MainActivity : ComponentActivity() {
         val id = intent?.getStringExtra(ChannelNotifications.EXTRA_CHANNEL_ID) ?: return
         intent.removeExtra(ChannelNotifications.EXTRA_CHANNEL_ID)
         if (Regex("^[0-9a-f-]{36}$", RegexOption.IGNORE_CASE).matches(id)) (application as RedvaultApp).container.openChannelRequests.value = id.lowercase()
+    }
+
+    private fun isSystemDark(): Boolean =
+        (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+    /** Light icons on the dark theme, dark icons on the light one. */
+    private fun applySystemBars(dark: Boolean) {
+        val transparent = android.graphics.Color.TRANSPARENT
+        val style = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
+        enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
     }
 }

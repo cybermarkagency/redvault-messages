@@ -14,6 +14,8 @@ import Redvault
 Item {
     id: page
     required property AccountSession account
+    /// For the blocked-people list in Privacy.
+    property PeopleSession people: null
     property string section: "account"
 
     // Which security form is open: "", "password", "recovery", "mfaOn", "mfaOff", "plan", "pin".
@@ -47,11 +49,12 @@ Item {
         if (section === "devices" && App.devices) App.devices.reload()
         if (section === "devicekeys" && App.deviceKeys) App.deviceKeys.refresh()
         if (section === "relays" && App.relays) App.relays.load()
+        if (section === "privacy" && people) people.refreshBlocked()
     }
 
     FileDialog {
         id: photoDialog
-        title: "Choose a profile photo"
+        title: qsTr("Choose a profile photo")
         fileMode: FileDialog.OpenFile
         nameFilters: ["Images (*.jpg *.jpeg *.png *.bmp *.gif)"]
         currentFolder: StandardPaths.writableLocation(StandardPaths.PicturesLocation)
@@ -194,37 +197,38 @@ Item {
                     Layout.leftMargin: 8
                     Layout.preferredHeight: Theme.headerHeight - 12
                     verticalAlignment: Text.AlignVCenter
-                    text: "Settings"
+                    text: qsTr("Settings")
                     color: Theme.text
                     font.family: Theme.displayFamily
                     font.pixelSize: Theme.fontDisplay
                     font.weight: Font.Bold
                 }
-                NavCaption { text: "ACCOUNT" }
-                NavItem { key: "account"; iconName: "user"; text: "Account and plan"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "privacy"; iconName: "lock"; text: "Privacy"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "stories"; iconName: "stories"; text: "Stories"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "security"; iconName: "key"; text: "Security"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "network"; iconName: "shield"; text: "Network routing"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "notifications"; iconName: "bell"; text: "Notifications"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "calls"; iconName: "phone"; text: "Calls and audio"; current: page.section; onPicked: (key) => page.section = key }
-                NavCaption { text: "NETWORK" }
-                NavItem { key: "devices"; iconName: "monitor"; text: "Linked devices"; current: page.section; onPicked: (key) => page.section = key }
+                NavCaption { text: qsTr("ACCOUNT") }
+                NavItem { key: "account"; iconName: "user"; text: qsTr("Account and plan"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "privacy"; iconName: "lock"; text: qsTr("Privacy"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "stories"; iconName: "stories"; text: qsTr("Stories"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "security"; iconName: "key"; text: qsTr("Security"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "network"; iconName: "shield"; text: qsTr("Network routing"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "notifications"; iconName: "bell"; text: qsTr("Notifications"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "calls"; iconName: "phone"; text: qsTr("Calls and audio"); current: page.section; onPicked: (key) => page.section = key }
+                NavCaption { text: qsTr("NETWORK") }
+                NavItem { key: "devices"; iconName: "monitor"; text: qsTr("Linked devices"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem {
                     visible: App.deviceKeys !== null && App.deviceKeys.status !== "off"
-                    key: "devicekeys"; iconName: "key"; text: "Devices & encryption"; current: page.section; onPicked: (key) => page.section = key
+                    key: "devicekeys"; iconName: "key"; text: qsTr("Devices & encryption"); current: page.section; onPicked: (key) => page.section = key
                 }
-                NavItem { key: "log"; iconName: "log"; text: "Transparency log"; current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "relays"; iconName: "globe"; text: "Relay servers"; current: page.section; onPicked: (key) => page.section = key }
-                NavCaption { text: "APP" }
-                NavItem { key: "about"; iconName: "info"; text: "About"; current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "log"; iconName: "log"; text: qsTr("Transparency log"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "relays"; iconName: "globe"; text: qsTr("Relay servers"); current: page.section; onPicked: (key) => page.section = key }
+                NavCaption { text: qsTr("APP") }
+                NavItem { key: "appearance"; iconName: "monitor"; text: qsTr("Appearance"); current: page.section; onPicked: (key) => page.section = key }
+                NavItem { key: "about"; iconName: "info"; text: qsTr("About"); current: page.section; onPicked: (key) => page.section = key }
                 Item { Layout.fillHeight: true }
                 RvButton {
                     Layout.fillWidth: true
                     primary: false
                     danger: true
                     iconName: "log-out"
-                    text: "Sign out"
+                    text: qsTr("Sign out")
                     onClicked: App.signOut()
                 }
             }
@@ -261,8 +265,8 @@ Item {
                 Text {
                     visible: page.section !== "devices" && page.section !== "relays" && page.section !== "devicekeys"
                     Layout.bottomMargin: 4
-                    text: ({ account: "Account and plan", privacy: "Privacy", stories: "Stories", security: "Security",
-                             notifications: "Notifications", calls: "Calls and audio", about: "About" })[page.section] || ""
+                    text: ({ account: qsTr("Account and plan"), privacy: qsTr("Privacy"), stories: qsTr("Stories"), security: qsTr("Security"),
+                             notifications: qsTr("Notifications"), calls: qsTr("Calls and audio"), appearance: qsTr("Appearance"), about: qsTr("About") })[page.section] || ""
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.family: Theme.displayFamily
@@ -276,7 +280,7 @@ Item {
                         spacing: 12
 
                         // --- Profile ---
-                        Section { text: "Profile" }
+                        Section { text: qsTr("Profile") }
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -299,7 +303,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
-                                    text: "Everyone can see your profile photo. It's resized to a small square and its location and camera details are removed before upload."
+                                    text: qsTr("Everyone can see your profile photo. It's resized to a small square and its location and camera details are removed before upload.")
                                     color: Theme.text2
                                     font.pixelSize: Theme.fontSmall
                                 }
@@ -310,7 +314,7 @@ Item {
                             RvButton {
                                 primary: false
                                 iconName: "image"
-                                text: page.account.avatarUrl.length > 0 ? "Change photo" : "Add a photo"
+                                text: page.account.avatarUrl.length > 0 ? qsTr("Change photo") : qsTr("Add a photo")
                                 enabled: !page.account.busy
                                 onClicked: {
                                     App.lock.expectExternalReturn()
@@ -322,14 +326,14 @@ Item {
                                 danger: true
                                 visible: page.account.avatarUrl.length > 0
                                 iconName: "trash-2"
-                                text: "Remove"
+                                text: qsTr("Remove")
                                 enabled: !page.account.busy
                                 onClicked: page.account.removeAvatar()
                             }
                             RvButton {
                                 primary: false
                                 iconName: "pen"
-                                text: "Change handle"
+                                text: qsTr("Change handle")
                                 visible: page.form !== "handle"
                                 enabled: !page.account.busy
                                 onClicked: {
@@ -350,7 +354,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "Your handle is how people find and add you. Changing it doesn't change your keys or your chats, and your safety numbers stay the same."
+                                text: qsTr("Your handle is how people find and add you. Changing it doesn't change your keys or your chats, and your safety numbers stay the same.")
                                 color: Theme.text2
                                 font.pixelSize: Theme.fontSmall + 1
                             }
@@ -360,20 +364,20 @@ Item {
                                     id: handleField
                                     Layout.fillWidth: true
                                     maximumLength: 64
-                                    placeholderText: "New handle"
+                                    placeholderText: qsTr("New handle")
                                     font.family: Theme.monoFamily
                                     enabled: !page.account.busy
                                     onAccepted: page.account.changeHandle(text)
                                 }
                                 RvButton {
-                                    text: page.account.busy ? "Saving…" : "Save"
+                                    text: page.account.busy ? qsTr("Saving…") : qsTr("Save")
                                     enabled: !page.account.busy && handleField.text.trim().length >= 3
                                              && handleField.text.trim() !== App.handle
                                     onClicked: page.account.changeHandle(handleField.text)
                                 }
                                 RvButton {
                                     primary: false
-                                    text: "Cancel"
+                                    text: qsTr("Cancel")
                                     onClicked: page.form = ""
                                 }
                             }
@@ -391,7 +395,7 @@ Item {
                         }
 
                         // --- Plan ---
-                        Section { text: "Plan" }
+                        Section { text: qsTr("Plan") }
 
                         // Free, Pro and Premium side by side. Every button makes a real change
                         // on the server (core/model/plan_choices): a Stripe checkout, or a change
@@ -465,12 +469,47 @@ Item {
                             onConfirmed: planConfirm.go()
                         }
 
+                        // Files (the encrypted drive): every plan has some (5 / 50 / 100 GB).
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: App.files !== null && (App.files.usage.limitText || "").length > 0
+                            spacing: 6
+                            Text {
+                                text: qsTr("Files storage")
+                                color: Theme.text
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: App.files ? (App.files.usage.usedText || qsTr("0 bytes")) + qsTr(" of ") + (App.files.usage.limitText || "")
+                                                  + qsTr(" used (") + (App.files.usage.plan || page.account.plan) + ")" : ""
+                                textFormat: Text.PlainText
+                                color: Theme.text2
+                                font.pixelSize: Theme.fontSmall
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 6
+                                radius: 3
+                                color: Theme.surface2
+                                Rectangle {
+                                    width: parent.width * (App.files ? (App.files.usage.fraction || 0) : 0)
+                                    height: parent.height
+                                    radius: 3
+                                    color: App.files && App.files.usage.full ? Theme.danger
+                                         : App.files && App.files.usage.nearlyFull ? Theme.warn : Theme.accent
+                                }
+                            }
+                        }
+
+                        // Files sent in chats (Pro and Premium only: Free can't send files).
                         ColumnLayout {
                             Layout.fillWidth: true
                             visible: page.account.pro && page.account.storageText.length > 0
                             spacing: 6
                             Text {
-                                text: "File storage"
+                                text: qsTr("Files sent in chats")
                                 color: Theme.text
                                 font.weight: Font.DemiBold
                             }
@@ -497,13 +536,13 @@ Item {
                         }
 
                         // --- Delete account ---
-                        Section { text: "Delete account" }
+                        Section { text: qsTr("Delete account") }
                         RvButton {
                             visible: page.form !== "delete"
                             primary: false
                             danger: true
                             iconName: "trash-2"
-                            text: "Delete my account…"
+                            text: qsTr("Delete my account…")
                             onClicked: {
                                 page.openForm("delete")
                                 deletePassword.text = ""
@@ -517,15 +556,15 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "This permanently deletes your account and signs you out on every device. Your keys, recovery key, two-factor setup, profile photo and Files are removed. You can't undo this, and your handle can't be used again.\n\nMessages you already sent stay in other people's chats, still end-to-end encrypted. They'll see your account as deleted."
-                                      + (page.account.pro ? "\n\nDeleting your account doesn't stop a card subscription: switch to Free above first." : "")
+                                text: qsTr("This permanently deletes your account and signs you out on every device. Your keys, recovery key, two-factor setup, profile photo and Files are removed. You can't undo this, and your handle can't be used again.\n\nMessages you already sent stay in other people's chats, still end-to-end encrypted. They'll see your account as deleted.")
+                                      + (page.account.pro ? qsTr("\n\nDeleting your account doesn't stop a card subscription: switch to Free above first.") : "")
                                 color: Theme.text
                                 font.pixelSize: Theme.fontSmall + 1
                             }
                             RvTextField {
                                 id: deletePassword
                                 Layout.fillWidth: true
-                                placeholderText: "Your password"
+                                placeholderText: qsTr("Your password")
                                 echoMode: TextInput.Password
                                 enabled: !page.account.busy
                             }
@@ -536,19 +575,19 @@ Item {
                             }
                             CheckBox {
                                 id: deleteConfirm
-                                text: "I understand this can't be undone"
+                                text: qsTr("I understand this can't be undone")
                                 palette.windowText: Theme.text
                             }
                             RowLayout {
                                 RvButton {
                                     danger: true
-                                    text: page.account.busy ? "Deleting…" : "Delete my account"
+                                    text: page.account.busy ? qsTr("Deleting…") : qsTr("Delete my account")
                                     enabled: !page.account.busy && deletePassword.text.length > 0 && deleteConfirm.checked
                                     onClicked: page.account.deleteAccount(deletePassword.text)
                                 }
                                 RvButton {
                                     primary: false
-                                    text: "Cancel"
+                                    text: qsTr("Cancel")
                                     enabled: !page.account.busy
                                     onClicked: {
                                         deletePassword.text = ""
@@ -565,26 +604,52 @@ Item {
                         active: page.section === "stories" && App.stories !== null
                         sourceComponent: StorySettingsSection { stories: App.stories }
                     }
+                    // --- Appearance: System, Dark or Light, kept on this computer (Theme.mode) ---
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: page.section === "appearance"
+                        spacing: 12
+                        Section { text: qsTr("Theme") }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: qsTr("Calls and photo viewers stay dark in every theme.")
+                            color: Theme.text2
+                            font.pixelSize: Theme.fontSmall + 1
+                        }
+                        Row {
+                            spacing: 8
+                            Repeater {
+                                model: [["system", "Match Windows"], ["dark", "Dark"], ["light", "Light"]]
+                                Chip {
+                                    required property var modelData
+                                    text: Qt.platform.os === "windows" || modelData[0] !== "system" ? modelData[1] : qsTr("Match system")
+                                    checked: Theme.mode === modelData[0]
+                                    onClicked: Theme.setMode(modelData[0])
+                                }
+                            }
+                        }
+                    }
                     ColumnLayout {
                         Layout.fillWidth: true
                         visible: page.section === "privacy"
                         spacing: 12
 
                         // --- Privacy ---
-                        Section { text: "Privacy" }
+                        Section { text: qsTr("Privacy") }
 
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Read receipts"
-                            description: "Let people see when you've read their messages. Off means they only see that it was delivered. Saved on this computer."
+                            label: qsTr("Read receipts")
+                            description: qsTr("Let people see when you've read their messages. Off means they only see that it was delivered. Saved on this computer.")
                             checked: page.account.readReceipts
                             onToggled: (on) => page.account.setReadReceipts(on)
                         }
 
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Accept friend requests"
-                            description: "When off, nobody can send you a new friend request."
+                            label: qsTr("Accept friend requests")
+                            description: qsTr("When off, nobody can send you a new friend request.")
                             checked: page.account.acceptMessageRequests
                             enabled: page.account.loaded && !page.account.busy
                             onToggled: (on) => page.account.setAcceptMessageRequests(on)
@@ -592,28 +657,73 @@ Item {
 
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Show when I'm online"
-                            description: "Your contacts see a dot when you're online, and you see theirs. Off means neither: it works both ways."
+                            label: qsTr("Show when I'm online")
+                            description: qsTr("Your contacts see a dot when you're online, and you see theirs. Off means neither: it works both ways.")
                             checked: page.account.showOnlineStatus
                             enabled: page.account.loaded && !page.account.busy
                             onToggled: (on) => page.account.setShowOnlineStatus(on)
                         }
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Transparency mode"
-                            description: "When on, your outgoing messages' encrypted ciphertext (never the readable content) appears in the public live transparency feed. Off by default: this is entirely your choice."
+                            label: qsTr("Transparency mode")
+                            description: qsTr("When on, your outgoing messages' encrypted ciphertext (never the readable content) appears in the public live transparency feed. Off by default: this is entirely your choice.")
                             checked: page.account.transparencyMode
                             enabled: page.account.loaded && !page.account.busy
                             onToggled: (on) => page.account.setTransparencyMode(on)
                         }
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Typing indicators"
-                            description: "Show when you're typing, and see when others are. Off means neither."
+                            label: qsTr("Typing indicators")
+                            description: qsTr("Show when you're typing, and see when others are. Off means neither.")
                             checked: App.live !== null && App.live.typingIndicators
                             onToggled: (on) => { if (App.live) App.live.typingIndicators = on }
                         }
 
+                        // --- Blocked people: everyone you've blocked, with Unblock ---
+                        Section { text: qsTr("Blocked people") }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: page.people !== null && page.people.blockedPeople.length === 0
+                            text: qsTr("You haven't blocked anyone. Blocked people can't message or call you.")
+                            color: Theme.text3
+                            font.pixelSize: Theme.fontSmall + 1
+                        }
+                        Repeater {
+                            model: page.people ? page.people.blockedPeople : []
+                            RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 12
+                                Avatar {
+                                    size: 32
+                                    initial: (modelData.handle || "?").charAt(0).toUpperCase()
+                                    tintKey: modelData.userId
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.handle ? "@" + modelData.handle : qsTr("Someone")
+                                    textFormat: Text.PlainText
+                                    elide: Text.ElideRight
+                                    color: Theme.text
+                                }
+                                RvButton {
+                                    secondary: true
+                                    implicitHeight: 32
+                                    text: qsTr("Unblock")
+                                    enabled: !page.people.busy
+                                    onClicked: page.people.unblock(modelData.userId)
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: page.people !== null && page.people.notice.indexOf("nblocked") >= 0
+                            text: page.people ? page.people.notice : ""
+                            textFormat: Text.PlainText
+                            color: Theme.accent
+                            font.pixelSize: Theme.fontSmall
+                        }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -621,7 +731,7 @@ Item {
                         spacing: 12
 
                         // --- Security ---
-                        Section { text: "Security" }
+                        Section { text: qsTr("Security") }
 
                         Banner {
                             Layout.fillWidth: true
@@ -632,12 +742,12 @@ Item {
 
                         // Password
                         Row2 {
-                            label: "Password"
-                            status: "Changing it keeps your messages: your key is re-encrypted on this computer."
+                            label: qsTr("Password")
+                            status: qsTr("Changing it keeps your messages: your key is re-encrypted on this computer.")
                             statusGood: true
                             RvButton {
                                 primary: false
-                                text: "Change"
+                                text: qsTr("Change")
                                 visible: page.form !== "password"
                                 onClicked: page.openForm("password")
                             }
@@ -645,12 +755,12 @@ Item {
 
                         // Recovery key
                         Row2 {
-                            label: "Recovery key"
-                            status: !page.account.loaded ? "…" : page.account.hasRecoveryKey ? "Set up" : "Not set up: you can't recover this account if you forget your password"
+                            label: qsTr("Recovery key")
+                            status: !page.account.loaded ? "…" : page.account.hasRecoveryKey ? qsTr("Set up") : qsTr("Not set up: you can't recover this account if you forget your password")
                             statusGood: page.account.hasRecoveryKey
                             RvButton {
                                 primary: false
-                                text: page.account.hasRecoveryKey ? "Replace" : "Create"
+                                text: page.account.hasRecoveryKey ? qsTr("Replace") : qsTr("Create")
                                 visible: page.form !== "recovery"
                                 onClicked: page.openForm("recovery")
                             }
@@ -658,13 +768,13 @@ Item {
 
                         // Two-factor
                         Row2 {
-                            label: "Two-factor authentication"
-                            status: !page.account.loaded ? "…" : page.account.mfaEnabled ? "On" : "Off"
+                            label: qsTr("Two-factor authentication")
+                            status: !page.account.loaded ? "…" : page.account.mfaEnabled ? qsTr("On") : qsTr("Off")
                             statusGood: page.account.mfaEnabled
                             RvButton {
                                 primary: false
                                 danger: page.account.mfaEnabled
-                                text: page.account.mfaEnabled ? "Turn off" : "Turn on"
+                                text: page.account.mfaEnabled ? qsTr("Turn off") : qsTr("Turn on")
                                 visible: page.account.loaded && page.form !== "mfaOn" && page.form !== "mfaOff"
                                 onClicked: page.openForm(page.account.mfaEnabled ? "mfaOff" : "mfaOn")
                             }
@@ -690,10 +800,10 @@ Item {
                                     wrapMode: Text.Wrap
                                     font.weight: Font.DemiBold
                                     color: Theme.text
-                                    text: page.form === "password" ? "Change your password"
-                                        : page.form === "recovery" ? (page.account.newRecoveryKey.length > 0 ? "Your new recovery key" : "Create a new recovery key")
-                                        : page.form === "mfaOn" ? "Turn on two-factor authentication"
-                                        : "Turn off two-factor authentication"
+                                    text: page.form === "password" ? qsTr("Change your password")
+                                        : page.form === "recovery" ? (page.account.newRecoveryKey.length > 0 ? qsTr("Your new recovery key") : qsTr("Create a new recovery key"))
+                                        : page.form === "mfaOn" ? qsTr("Turn on two-factor authentication")
+                                        : qsTr("Turn off two-factor authentication")
                                     textFormat: Text.PlainText
                                 }
 
@@ -703,9 +813,9 @@ Item {
                                     visible: text.length > 0
                                     color: Theme.text2
                                     font.pixelSize: Theme.fontSmall + 1
-                                    text: page.form === "password" ? "Your other devices will be signed out."
+                                    text: page.form === "password" ? qsTr("Your other devices will be signed out.")
                                         : page.form === "recovery" && page.account.newRecoveryKey.length === 0
-                                          ? "This replaces any recovery key you had before, which stops working." : ""
+                                          ? qsTr("This replaces any recovery key you had before, which stops working.") : ""
                                     textFormat: Text.PlainText
                                 }
 
@@ -715,7 +825,7 @@ Item {
                                     Layout.fillWidth: true
                                     visible: page.form === "password" || page.form === "mfaOff"
                                              || (page.form === "recovery" && page.account.newRecoveryKey.length === 0)
-                                    placeholderText: page.form === "password" ? "Current password" : "Your password"
+                                    placeholderText: page.form === "password" ? qsTr("Current password") : qsTr("Your password")
                                     echoMode: TextInput.Password
                                     enabled: !page.account.busy
                                 }
@@ -723,7 +833,7 @@ Item {
                                     id: newPassword
                                     Layout.fillWidth: true
                                     visible: page.form === "password"
-                                    placeholderText: "New password (at least 8 characters)"
+                                    placeholderText: qsTr("New password (at least 8 characters)")
                                     echoMode: TextInput.Password
                                     enabled: !page.account.busy
                                 }
@@ -731,7 +841,7 @@ Item {
                                     id: confirmPassword
                                     Layout.fillWidth: true
                                     visible: page.form === "password"
-                                    placeholderText: "Repeat the new password"
+                                    placeholderText: qsTr("Repeat the new password")
                                     echoMode: TextInput.Password
                                     enabled: !page.account.busy
                                 }
@@ -744,7 +854,7 @@ Item {
                                     Text {
                                         Layout.fillWidth: true
                                         wrapMode: Text.Wrap
-                                        text: "Scan this with your authenticator app (Google Authenticator, Authy, 1Password, …), or enter the setup key below by hand. Then type the 6-digit code it shows."
+                                        text: qsTr("Scan this with your authenticator app (Google Authenticator, Authy, 1Password, …), or enter the setup key below by hand. Then type the 6-digit code it shows.")
                                         color: Theme.text2
                                         font.pixelSize: Theme.fontSmall + 1
                                     }
@@ -778,21 +888,21 @@ Item {
                                             textFormat: TextEdit.PlainText
                                             text: page.account.mfaSecret.length > 0 ? page.account.mfaSecret : "…"
                                             color: Theme.text
-                                            font.family: "Consolas"
+                                            font.family: Theme.monoFamily
                                             font.pixelSize: 17
                                         }
                                     }
                                     RvButton {
                                         primary: false
                                         iconName: "copy"
-                                        text: "Copy setup key"
+                                        text: qsTr("Copy setup key")
                                         enabled: page.account.mfaSecret.length > 0
                                         onClicked: App.copySecret(page.account.mfaSecret.replace(/ /g, ""))
                                     }
                                     RvTextField {
                                         id: mfaCode
                                         Layout.fillWidth: true
-                                        placeholderText: "6-digit code"
+                                        placeholderText: qsTr("6-digit code")
                                         inputMethodHints: Qt.ImhDigitsOnly
                                         maximumLength: 10
                                         enabled: !page.account.busy && page.account.mfaSecret.length > 0
@@ -822,17 +932,17 @@ Item {
                                     Item { Layout.fillWidth: true }
                                     RvButton {
                                         primary: false
-                                        text: "Cancel"
+                                        text: qsTr("Cancel")
                                         onClicked: page.openForm("")
                                     }
                                     RvButton {
                                         enabled: !page.account.busy
                                         danger: page.form === "mfaOff"
-                                        text: page.account.busy ? "Working…"
-                                            : page.form === "password" ? "Change password"
-                                            : page.form === "recovery" ? "Create recovery key"
-                                            : page.form === "mfaOn" ? "Turn on"
-                                            : "Turn off"
+                                        text: page.account.busy ? qsTr("Working…")
+                                            : page.form === "password" ? qsTr("Change password")
+                                            : page.form === "recovery" ? qsTr("Create recovery key")
+                                            : page.form === "mfaOn" ? qsTr("Turn on")
+                                            : qsTr("Turn off")
                                         onClicked: {
                                             if (page.form === "password")
                                                 page.account.changePassword(currentPassword.text, newPassword.text, confirmPassword.text)
@@ -849,16 +959,16 @@ Item {
                         }
 
                         // --- App lock ---
-                        Section { text: "App lock" }
+                        Section { text: qsTr("App lock") }
 
                         Row2 {
-                            label: "PIN lock"
-                            status: App.lock.enabled ? "On: " + App.lock.timeoutLabels[App.lock.timeoutIndex].toLowerCase() + " away" : "Off"
+                            label: qsTr("PIN lock")
+                            status: App.lock.enabled ? qsTr("On: ") + App.lock.timeoutLabels[App.lock.timeoutIndex].toLowerCase() + qsTr(" away") : qsTr("Off")
                             statusGood: App.lock.enabled
                             RvButton {
                                 primary: false
                                 visible: page.form !== "pin"
-                                text: App.lock.enabled ? "Change PIN" : "Set a PIN"
+                                text: App.lock.enabled ? qsTr("Change PIN") : qsTr("Set a PIN")
                                 onClicked: {
                                     App.lock.clearError()
                                     pinField.text = ""
@@ -870,7 +980,7 @@ Item {
                                 primary: false
                                 danger: true
                                 visible: App.lock.enabled && page.form !== "pin"
-                                text: "Turn off"
+                                text: qsTr("Turn off")
                                 onClicked: App.lock.disable()
                             }
                         }
@@ -880,7 +990,7 @@ Item {
                             visible: App.lock.enabled
                             Text {
                                 Layout.fillWidth: true
-                                text: "Lock when I've been away"
+                                text: qsTr("Lock when I've been away")
                                 color: Theme.text
                             }
                             ComboBox {
@@ -906,6 +1016,15 @@ Item {
                             }
                         }
 
+                        RvSwitch {
+                            Layout.fillWidth: true
+                            visible: App.lock.enabled && App.lock.helloAvailable
+                            label: qsTr("Unlock with Windows Hello")
+                            description: qsTr("Use your face, fingerprint or Windows PIN to unlock. Your app PIN still works if Hello isn't available.")
+                            checked: App.lock.helloEnabled
+                            onToggled: (on) => App.lock.setHelloEnabled(on)
+                        }
+
                         Rectangle {
                             Layout.fillWidth: true
                             visible: page.form === "pin"
@@ -923,14 +1042,14 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
-                                    text: "Choose a 4 to 12 digit PIN. It's stored on this computer only as a slow, salted hash. Ten wrong tries sign you out. Press Ctrl+L to lock at any time."
+                                    text: qsTr("Choose a 4 to 12 digit PIN. It's stored on this computer only as a slow, salted hash. Ten wrong tries sign you out. Press Ctrl+L to lock at any time.")
                                     color: Theme.text2
                                     font.pixelSize: Theme.fontSmall + 1
                                 }
                                 RvTextField {
                                     id: pinField
                                     Layout.fillWidth: true
-                                    placeholderText: "New PIN"
+                                    placeholderText: qsTr("New PIN")
                                     echoMode: TextInput.Password
                                     inputMethodHints: Qt.ImhDigitsOnly
                                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,12}/ }
@@ -939,7 +1058,7 @@ Item {
                                 RvTextField {
                                     id: pinConfirm
                                     Layout.fillWidth: true
-                                    placeholderText: "Repeat the PIN"
+                                    placeholderText: qsTr("Repeat the PIN")
                                     echoMode: TextInput.Password
                                     inputMethodHints: Qt.ImhDigitsOnly
                                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,12}/ }
@@ -955,11 +1074,11 @@ Item {
                                     Item { Layout.fillWidth: true }
                                     RvButton {
                                         primary: false
-                                        text: "Cancel"
+                                        text: qsTr("Cancel")
                                         onClicked: page.form = ""
                                     }
                                     RvButton {
-                                        text: App.lock.busy ? "Saving…" : "Save PIN"
+                                        text: App.lock.busy ? qsTr("Saving…") : qsTr("Save PIN")
                                         enabled: !App.lock.busy
                                         onClicked: App.lock.setPin(pinField.text, pinConfirm.text)
                                     }
@@ -975,28 +1094,28 @@ Item {
                         spacing: 12
 
                         // --- This computer ---
-                        Section { text: "This computer" }
+                        Section { text: qsTr("This computer") }
 
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Notifications"
-                            description: "Tell me about new messages while redvaultmessages is in the background. Never includes what the message says."
+                            label: qsTr("Notifications")
+                            description: qsTr("Tell me about new messages while RedVaultMessages is in the background. Never includes what the message says.")
                             checked: Shell.notifications
                             onToggled: (on) => Shell.notifications = on
                         }
                         RvSwitch {
                             Layout.fillWidth: true
                             visible: Shell.notifications
-                            label: "Show who it's from"
-                            description: "Windows keeps notifications in its history, so this is off by default. Never shown while locked."
+                            label: qsTr("Show who it's from")
+                            description: qsTr("Windows keeps notifications in its history, so this is off by default. Never shown while locked.")
                             checked: Shell.notificationShowsSender
                             onToggled: (on) => Shell.notificationShowsSender = on
                         }
                         RvSwitch {
                             Layout.fillWidth: true
                             visible: Shell.trayAvailable
-                            label: "Keep running in the tray"
-                            description: "Closing the window leaves redvaultmessages running (and signed in) so notifications keep coming. Quit from the tray icon to sign out."
+                            label: qsTr("Keep running in the tray")
+                            description: qsTr("Closing the window leaves RedVaultMessages running (and signed in) so notifications keep coming. Quit from the tray icon to sign out.")
                             checked: Shell.closeToTray
                             onToggled: (on) => Shell.closeToTray = on
                         }
@@ -1004,16 +1123,16 @@ Item {
                             Layout.fillWidth: true
                             // Windows only: Linux has no way for a window to opt out of capture.
                             visible: Qt.platform.os === "windows"
-                            label: "Hide from screenshots and screen sharing"
-                            description: "Screenshots, recordings and apps that share your screen see an empty window instead of your chats."
+                            label: qsTr("Hide from screenshots and screen sharing")
+                            description: qsTr("Screenshots, recordings and apps that share your screen see an empty window instead of your chats.")
                             checked: Shell.captureProtection
                             onToggled: (on) => Shell.captureProtection = on
                         }
 
                         RvSwitch {
                             Layout.fillWidth: true
-                            label: "Ringtone"
-                            description: "Ring for incoming calls. Muted contacts never ring."
+                            label: qsTr("Ringtone")
+                            description: qsTr("Ring for incoming calls. Muted contacts never ring.")
                             checked: App.calls !== null && App.calls.ringtone
                             onToggled: (on) => { if (App.calls) App.calls.ringtone = on }
                         }
@@ -1023,16 +1142,16 @@ Item {
                         Layout.fillWidth: true
                         visible: page.section === "calls"
                         spacing: 12
-                        Section { text: "Calls and audio" }
+                        Section { text: qsTr("Calls and audio") }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "Calls are one-to-one and encrypted end to end. They always go through a relay, so nobody you call learns your IP address."
+                            text: qsTr("One-to-one and group calls are encrypted end to end. One-to-one calls always go through a relay, so nobody you call learns your IP address.")
                             color: Theme.text2
                             font.pixelSize: Theme.fontSmall + 1
                         }
                         Text {
-                            text: "Microphone"
+                            text: qsTr("Microphone")
                             color: Theme.text
                             font.weight: Font.DemiBold
                         }
@@ -1045,7 +1164,7 @@ Item {
                             onPicked: (id) => App.calls.setMicrophone(id)
                         }
                         Text {
-                            text: "Speaker"
+                            text: qsTr("Speaker")
                             color: Theme.text
                             font.weight: Font.DemiBold
                         }
@@ -1058,7 +1177,7 @@ Item {
                             onPicked: (id) => App.calls.setSpeaker(id)
                         }
                         Text {
-                            text: "Camera"
+                            text: qsTr("Camera")
                             color: Theme.text
                             font.weight: Font.DemiBold
                         }
@@ -1071,16 +1190,16 @@ Item {
                             onPicked: (id) => App.calls.setCamera(id)
                         }
                         Row2 {
-                            label: "Echo cancellation"
-                            status: App.calls && App.calls.echoCancellation ? "On: echo, noise and volume are handled on this computer"
-                                                                             : "Not in this build: use headphones to avoid echo"
+                            label: qsTr("Echo cancellation")
+                            status: App.calls && App.calls.echoCancellation ? qsTr("On: echo, noise and volume are handled on this computer")
+                                                                             : qsTr("Not in this build: use headphones to avoid echo")
                             statusGood: App.calls !== null && App.calls.echoCancellation
                         }
                         Row2 {
-                            label: "Your plan"
-                            status: page.account.premium ? "Premium: one-to-one calls, voice and video call links, screen sharing"
-                                  : page.account.pro ? "Pro: one-to-one calls and voice call links (video links and screen sharing are in Premium)"
-                                  : "Free: one-to-one voice and video calls. Call links need Pro; screen sharing needs Premium."
+                            label: qsTr("Your plan")
+                            status: page.account.premium ? qsTr("Premium: one-to-one calls, starting group calls, voice and video call links, screen sharing")
+                                  : page.account.pro ? qsTr("Pro: one-to-one calls, joining group calls and voice call links (starting group calls, video links and screen sharing are in Premium)")
+                                  : qsTr("Free: one-to-one voice and video calls, and joining group calls. Call links need Pro; starting group calls and screen sharing need Premium.")
                             statusGood: true
                         }
                     }
@@ -1110,7 +1229,7 @@ Item {
                         spacing: 12
 
                         // --- About ---
-                        Section { text: "About" }
+                        Section { text: qsTr("About") }
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -1121,7 +1240,7 @@ Item {
                                 spacing: 2
                                 Text {
                                     Layout.fillWidth: true
-                                    text: "redvaultmessages " + Updater.currentVersion
+                                    text: qsTr("RedVaultMessages ") + Updater.currentVersion
                                     textFormat: Text.PlainText
                                     color: Theme.text
                                     font.weight: Font.DemiBold
@@ -1129,17 +1248,17 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
-                                    text: Updater.fromStore ? "Updates come from the Microsoft Store."
-                                        : Updater.blockedByTor ? "This app checks for updates only through Tor, and its server address isn't Redvault's onion service."
-                                        : !Updater.enabled && Qt.platform.os !== "windows" ? "To update, download the newest version and replace this one."
-                                        : !Updater.enabled ? "Automatic updates aren't set up in this build."
-                                        : Updater.status === Updater.Checking ? "Checking for updates…"
-                                        : Updater.status === Updater.UpToDate ? "You're up to date."
-                                        : Updater.status === Updater.Available ? "Version " + Updater.availableVersion + " is available (see the top of the window)."
-                                        : Updater.status === Updater.Downloading ? "Downloading the update…"
-                                        : Updater.status === Updater.Installing ? "Installing the update…"
-                                        : Updater.status === Updater.Failed ? "Couldn't check for updates: " + Updater.error
-                                        : "Updates are checked automatically and verified before they're installed."
+                                    text: Updater.fromStore ? qsTr("Updates come from the Microsoft Store.")
+                                        : Updater.blockedByTor ? qsTr("This app checks for updates only through Tor, and its server address isn't RedVault's onion service.")
+                                        : !Updater.enabled && Qt.platform.os !== "windows" ? qsTr("To update, download the newest version and replace this one.")
+                                        : !Updater.enabled ? qsTr("Automatic updates aren't set up in this build.")
+                                        : Updater.status === Updater.Checking ? qsTr("Checking for updates…")
+                                        : Updater.status === Updater.UpToDate ? qsTr("You're up to date.")
+                                        : Updater.status === Updater.Available ? qsTr("Version ") + Updater.availableVersion + qsTr(" is available (see the top of the window).")
+                                        : Updater.status === Updater.Downloading ? qsTr("Downloading the update…")
+                                        : Updater.status === Updater.Installing ? qsTr("Installing the update…")
+                                        : Updater.status === Updater.Failed ? qsTr("Couldn't check for updates: ") + Updater.error
+                                        : qsTr("Updates are checked automatically and verified before they're installed.")
                                     textFormat: Text.PlainText
                                     color: Updater.status === Updater.Failed ? Theme.warn : Theme.text2
                                     font.pixelSize: Theme.fontSmall + 1
@@ -1159,7 +1278,7 @@ Item {
                                 visible: Updater.enabled
                                 primary: false
                                 iconName: "download"
-                                text: "Check for updates"
+                                text: qsTr("Check for updates")
                                 enabled: Updater.status !== Updater.Checking && Updater.status !== Updater.Downloading
                                          && Updater.status !== Updater.Installing
                                 onClicked: Updater.check()

@@ -21,6 +21,9 @@ Item {
     property string selectedPeer: ""
     property string selectedLink: ""
     property string notice: ""
+    // The notice is good news (a link copied), not a problem. Set after the notice; any other notice clears it.
+    property bool noticeOk: false
+    onNoticeChanged: noticeOk = false
 
     function when(ms) {
         const d = new Date(ms)
@@ -63,9 +66,9 @@ Item {
 
     ConfirmDialog {
         id: clearHistoryDialog
-        title: "Clear call history?"
-        message: "Every call in the list is deleted from this computer. The server never kept a record of them, so they're gone for good. Call links stay."
-        confirmText: "Clear history"
+        title: qsTr("Clear call history?")
+        message: qsTr("Every call in the list is deleted from this computer. The server never kept a record of them, so they're gone for good. Call links stay.")
+        confirmText: qsTr("Clear history")
         danger: true
         onConfirmed: {
             root.calls.clearHistory()
@@ -77,7 +80,8 @@ Item {
         target: root.calls
         function onLinkCreated(url) {
             root.calls.copyText(url)
-            root.notice = "Link created and copied. Anyone with it can ask to join; you'll ring when they do."
+            root.notice = qsTr("Link created and copied. Anyone with it can ask to join; you'll ring when they do.")
+            root.noticeOk = true
         }
     }
 
@@ -109,7 +113,7 @@ Item {
                     Layout.rightMargin: 12
                     Text {
                         Layout.fillWidth: true
-                        text: "Calls"
+                        text: qsTr("Calls")
                         color: Theme.text
                         font.family: Theme.displayFamily
                         font.pixelSize: Theme.fontDisplay
@@ -117,13 +121,13 @@ Item {
                     }
                     IconButton {
                         iconName: "trash"
-                        tip: "Clear call history"
+                        tip: qsTr("Clear call history")
                         enabled: root.calls !== null && root.calls.history.length > 0
                         onClicked: clearHistoryDialog.open()
                     }
                     IconButton {
                         iconName: "link"
-                        tip: "New call link"
+                        tip: qsTr("New call link")
                         onClicked: {
                             root.filter = "links"
                             root.selectedPeer = ""
@@ -137,7 +141,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
-                    placeholderText: "Search calls"
+                    placeholderText: qsTr("Search calls")
                 }
 
                 Row {
@@ -242,7 +246,7 @@ Item {
                         visible: historyList.count === 0
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: root.filter === "missed" ? "No missed calls." : "No calls yet. Your call history is kept only on this computer, encrypted."
+                        text: root.filter === "missed" ? qsTr("No missed calls.") : qsTr("No calls yet. Your call history is kept only on this computer, encrypted.")
                         textFormat: Text.PlainText
                         color: Theme.text3
                     }
@@ -304,7 +308,7 @@ Item {
                                     font.weight: Font.Medium
                                 }
                                 Text {
-                                    text: (linkRow.modelData.kind === "video" ? "Video" : "Voice") + " link"
+                                    text: (linkRow.modelData.kind === "video" ? qsTr("Video") : qsTr("Voice")) + qsTr(" link")
                                     textFormat: Text.PlainText
                                     color: Theme.text3
                                     font.pixelSize: 13
@@ -318,7 +322,7 @@ Item {
                         visible: linkList.count === 0
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: "No call links yet. Create one on the right to share with someone."
+                        text: qsTr("No call links yet. Create one on the right to share with someone.")
                         color: Theme.text3
                     }
                 }
@@ -349,7 +353,7 @@ Item {
 
                     Banner {
                         Layout.fillWidth: true
-                        error: root.notice.indexOf("copied") < 0
+                        error: !root.noticeOk
                         text: root.notice
                     }
                     Banner {
@@ -387,21 +391,21 @@ Item {
                             RvButton {
                                 secondary: true
                                 iconName: "phone"
-                                text: "Voice"
+                                text: qsTr("Voice")
                                 enabled: peerPane.chatId.length > 0
                                 onClicked: root.tryCall(peerPane.chatId, "voice")
                             }
                             RvButton {
                                 secondary: true
                                 iconName: "video"
-                                text: "Video"
+                                text: qsTr("Video")
                                 enabled: peerPane.chatId.length > 0
                                 onClicked: root.tryCall(peerPane.chatId, "video")
                             }
                             RvButton {
                                 secondary: true
                                 iconName: "chat"
-                                text: "Message"
+                                text: qsTr("Message")
                                 enabled: peerPane.chatId.length > 0
                                 onClicked: root.openChat(peerPane.chatId)
                             }
@@ -411,7 +415,7 @@ Item {
                             spacing: 0
                             Text {
                                 Layout.bottomMargin: 8
-                                text: "HISTORY WITH " + (peerPane.first ? peerPane.first.peerHandle.toUpperCase() : "")
+                                text: qsTr("HISTORY WITH ") + (peerPane.first ? peerPane.first.peerHandle.toUpperCase() : "")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.pixelSize: 11
@@ -438,7 +442,7 @@ Item {
                                         color: historyRow.modelData.outcome === "missed" ? Theme.danger : Theme.text2
                                     }
                                     Text {
-                                        text: Qt.formatDateTime(new Date(historyRow.modelData.startedAt), "d MMM yyyy · hh:mm")
+                                        text: Qt.formatDateTime(new Date(historyRow.modelData.startedAt), qsTr("d MMM yyyy · hh:mm"))
                                         textFormat: Text.PlainText
                                         color: Theme.text3
                                         font.family: Theme.monoFamily
@@ -457,7 +461,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "The server never records calls. This history exists only on this computer, encrypted with your key."
+                                text: qsTr("The server never records calls. This history exists only on this computer, encrypted with your key.")
                                 color: Theme.text3
                                 font.pixelSize: 12
                             }
@@ -478,7 +482,7 @@ Item {
                             font.weight: Font.Bold
                         }
                         Text {
-                            text: root.selectedLinkData ? (root.selectedLinkData.kind === "video" ? "Video call link" : "Voice call link") : ""
+                            text: root.selectedLinkData ? (root.selectedLinkData.kind === "video" ? qsTr("Video call link") : qsTr("Voice call link")) : ""
                             textFormat: Text.PlainText
                             color: Theme.text3
                         }
@@ -505,17 +509,18 @@ Item {
                             spacing: 10
                             RvButton {
                                 iconName: "copy"
-                                text: "Copy link"
+                                text: qsTr("Copy link")
                                 onClicked: {
                                     root.calls.copyText(root.selectedLinkData.url)
-                                    root.notice = "Link copied."
+                                    root.notice = qsTr("Link copied.")
+                                    root.noticeOk = true
                                 }
                             }
                             RvButton {
                                 primary: false
                                 danger: true
                                 iconName: "trash"
-                                text: "Delete link"
+                                text: qsTr("Delete link")
                                 onClicked: {
                                     root.calls.deleteLink(root.selectedLink)
                                     root.selectedLink = ""
@@ -525,7 +530,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "The part after # is the link's secret: it never reaches the server, and it seals the call setup end to end. Anyone with the whole link can ask to join, and you decide when it rings."
+                            text: qsTr("The part after # is the link's secret: it never reaches the server, and it seals the call setup end to end. Anyone with the whole link can ask to join, and you decide when it rings.")
                             color: Theme.text3
                             font.pixelSize: 13
                         }
@@ -538,7 +543,7 @@ Item {
                         spacing: 16
 
                         Text {
-                            text: "Call links"
+                            text: qsTr("Call links")
                             color: Theme.text
                             font.family: Theme.displayFamily
                             font.pixelSize: 28
@@ -547,42 +552,50 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "Share a link to talk with someone who isn't in your contacts yet. Calls through it are relayed and encrypted end to end, like every call."
+                            text: qsTr("Share a link to talk with someone who isn't in your contacts yet. Calls through it are relayed and encrypted end to end, like every call.")
                             color: Theme.text2
                         }
 
                         Card {
                             Layout.fillWidth: true
                             Text {
-                                text: "Create a link"
+                                text: qsTr("Create a link")
                                 color: Theme.text
                                 font.weight: Font.DemiBold
                             }
                             RvTextField {
                                 id: linkName
                                 Layout.fillWidth: true
-                                placeholderText: "Name (only you and people with the link see it)"
+                                placeholderText: qsTr("Name (only you and people with the link see it)")
                                 maximumLength: 60
                             }
                             RowLayout {
                                 spacing: 8
                                 Chip {
                                     id: voiceKind
-                                    text: "Voice"
+                                    text: qsTr("Voice")
                                     checked: !videoKind.checked
                                     onClicked: videoKind.checked = false
                                 }
                                 Chip {
                                     id: videoKind
-                                    text: "Video"
+                                    text: qsTr("Video")
+                                    locked: !root.account.premium
                                     onClicked: checked = true
                                 }
                                 Item { Layout.fillWidth: true }
                                 RvButton {
+                                    // Voice links need Pro, video links Premium: locked (not greyed) so a click explains why.
+                                    readonly property bool allowed: videoKind.checked ? root.account.premium : root.account.pro
                                     iconName: "link"
-                                    text: "Create and copy"
-                                    enabled: root.account.pro
+                                    text: qsTr("Create and copy")
+                                    locked: !allowed
                                     onClicked: {
+                                        if (!allowed) {
+                                            PlanGate.ask(videoKind.checked ? "premium" : "pro",
+                                                         videoKind.checked ? "A video call link" : "A call link")
+                                            return
+                                        }
                                         root.notice = ""
                                         root.calls.createLink(linkName.text, videoKind.checked ? "video" : "voice")
                                         linkName.text = ""
@@ -590,11 +603,12 @@ Item {
                                 }
                             }
                             Text {
-                                visible: !root.account.pro
+                                visible: !root.account.premium
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "Call links are part of Pro (voice) and Premium (video)."
-                                color: Theme.warn
+                                text: root.account.pro ? qsTr("Voice links are included in Pro. Video links are part of Premium.")
+                                                       : qsTr("Call links are part of Pro (voice) and Premium (video). Anyone can join a link on any plan.")
+                                color: Theme.text3
                                 font.pixelSize: 13
                             }
                         }
@@ -602,7 +616,7 @@ Item {
                         Card {
                             Layout.fillWidth: true
                             Text {
-                                text: "Join a call link"
+                                text: qsTr("Join a call link")
                                 color: Theme.text
                                 font.weight: Font.DemiBold
                             }
@@ -612,13 +626,13 @@ Item {
                                 RvTextField {
                                     id: joinField
                                     Layout.fillWidth: true
-                                    placeholderText: "Paste the whole link"
+                                    placeholderText: qsTr("Paste the whole link")
                                     font.family: Theme.monoFamily
                                     onAccepted: joinButton.clicked()
                                 }
                                 RvButton {
                                     id: joinButton
-                                    text: "Join"
+                                    text: qsTr("Join")
                                     enabled: joinField.text.trim().length > 0
                                     onClicked: {
                                         // A group invite link pasted here opens the join screen, like a call link joins the call.
@@ -634,7 +648,7 @@ Item {
                                 textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
-                                text: "Anyone can join a link someone shares with them; the call rings the link's owner. A group call link from a group chat (or the whole message) joins that call right here; anyone in the group can join, on any plan."
+                                text: qsTr("Anyone can join a link someone shares with them; the call rings the link's owner. A group call link from a group chat (or the whole message) joins that call right here; anyone in the group can join, on any plan.")
                                 color: Theme.text3
                                 font.pixelSize: 13
                             }

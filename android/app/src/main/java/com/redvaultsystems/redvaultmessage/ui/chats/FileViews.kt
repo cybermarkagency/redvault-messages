@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -305,7 +306,7 @@ fun AttachmentBar(
                 error?.let { Text(it, color = colors.danger, style = MaterialTheme.typography.labelSmall) }
             }
             if (pending.isNotEmpty() && stage == null) {
-                TextButton(onClick = onCancel) { Text("Cancel", color = colors.text2) }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.ui_cancel), color = colors.text2) }
                 TextButton(onClick = onSend) {
                     Text(
                         when {

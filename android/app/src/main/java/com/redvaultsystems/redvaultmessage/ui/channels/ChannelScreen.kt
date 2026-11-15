@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -324,13 +325,13 @@ fun ChannelScreen(
                 DsTextField(edit.first, { if (it.length <= MAX_NAME) editing = it to edit.second }, "Channel name")
                 DsTextField(edit.second, { if (it.length <= MAX_DESCRIPTION) editing = edit.first to it }, "Description", singleLine = false, minHeight = 90.dp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PillButton("Save", {
+                    PillButton(stringResource(R.string.ui_save), {
                         run("Couldn't save the changes.") {
                             channel = channels.update(channelId, edit.first, edit.second)
                             editing = null
                         }
                     }, enabled = edit.first.isNotBlank() && !busy, busy = busy, height = 48.dp)
-                    PillButton("Cancel", { editing = null }, style = PillStyle.Secondary, enabled = !busy, height = 48.dp)
+                    PillButton(stringResource(R.string.ui_cancel), { editing = null }, style = PillStyle.Secondary, enabled = !busy, height = 48.dp)
                 }
             }
         } else {
@@ -339,7 +340,7 @@ fun ChannelScreen(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(shown.name, fontFamily = RedvaultFonts.display, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     Text(ChannelThread.subtitle(shown.isPrivate), color = colors.text3, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    if (shown.isPrivate) Text("Only people with its link can read it.", color = colors.text3, fontSize = 12.sp)
+                    if (shown.isPrivate) Text(stringResource(R.string.ui_only_people_with_its_link_can), color = colors.text3, fontSize = 12.sp)
                 }
             }
             if (shown.description.isNotEmpty()) Text(shown.description, color = colors.text2, fontSize = 15.sp)
@@ -361,11 +362,11 @@ fun ChannelScreen(
                     )
                 }
                 if (link != null) {
-                    PillButton("Copy link", {
+                    PillButton(stringResource(R.string.ui_copy_link), {
                         SecretClipboard.copy(context, link, secret = false)
                         notice = "Link copied."
                     }, style = PillStyle.Secondary, height = 48.dp, icon = R.drawable.ui_copy)
-                    PillButton("Share", {
+                    PillButton(stringResource(R.string.ui_share), {
                         appLock?.expectExternalReturn()
                         share(context, link)
                     }, style = PillStyle.Secondary, height = 48.dp, icon = R.drawable.ui_share)
@@ -373,7 +374,7 @@ fun ChannelScreen(
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (canManage) {
-                    TextButton(enabled = !busy, onClick = { editing = shown.name to shown.description }) { Text("Edit", color = colors.accent) }
+                    TextButton(enabled = !busy, onClick = { editing = shown.name to shown.description }) { Text(stringResource(R.string.ui_edit), color = colors.accent) }
                     TextButton(enabled = !busy, onClick = {
                         appLock?.expectExternalReturn()
                         pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -384,10 +385,10 @@ fun ChannelScreen(
                                 channels.removePhoto(channelId)
                                 channel = shown.copy(avatarUrl = null)
                             }
-                        }) { Text("Remove photo", color = colors.text2) }
+                        }) { Text(stringResource(R.string.ui_remove_photo), color = colors.text2) }
                     }
                 } else {
-                    TextButton(enabled = !busy, onClick = { reporting = true }) { Text("Report", color = colors.text2) }
+                    TextButton(enabled = !busy, onClick = { reporting = true }) { Text(stringResource(R.string.ui_report), color = colors.text2) }
                 }
                 if (canManage) {
                     TextButton(enabled = !busy, onClick = {
@@ -395,7 +396,7 @@ fun ChannelScreen(
                             channels.delete(channelId)
                             onBack()
                         }
-                    }) { Text("Delete channel", color = colors.danger) }
+                    }) { Text(stringResource(R.string.ui_delete_channel), color = colors.danger) }
                 }
             }
         }
@@ -440,11 +441,11 @@ fun ChannelScreen(
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillButton("Copy", {
+                        PillButton(stringResource(R.string.ui_copy), {
                             SecretClipboard.copy(context, link, secret = false)
                             notice = "Link copied."
                         }, height = 48.dp, icon = R.drawable.ui_copy)
-                        PillButton("Reset link", {
+                        PillButton(stringResource(R.string.ui_reset_link), {
                             confirm = Confirm(
                                 "Reset the private link?",
                                 "Everyone who has the current link, followers included, loses access until you share the new one.",
@@ -472,7 +473,7 @@ fun ChannelScreen(
             )
             PostContent(channels, shown.id, post, access, isOwner = true, onOpenLink = ::handleLink)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                PillButton("Publish now", {
+                PillButton(stringResource(R.string.ui_publish_now), {
                     run("Couldn't publish it.") {
                         val published = channels.publishNow(shown.id, post.id)
                         scheduled = scheduled.filterNot { it.id == post.id }
@@ -484,7 +485,7 @@ fun ChannelScreen(
                         channels.deletePost(shown.id, post.id)
                         scheduled = scheduled.filterNot { it.id == post.id }
                     }
-                }) { Text("Delete", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
             }
         }
     }
@@ -535,7 +536,7 @@ fun ChannelScreen(
             }
             if (shown == null) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                    if (error == null) Text("Loading…", color = colors.text3)
+                    if (error == null) Text(stringResource(R.string.ui_loading), color = colors.text3)
                 }
                 return@Column
             }
@@ -549,7 +550,7 @@ fun ChannelScreen(
                 if (rows.isEmpty()) {
                     item(key = "empty") {
                         Box(Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No posts yet.", color = colors.text3, fontSize = 14.sp)
+                            Text(stringResource(R.string.ui_no_posts_yet), color = colors.text3, fontSize = 14.sp)
                         }
                     }
                 }
@@ -570,7 +571,7 @@ fun ChannelScreen(
                 if (older) {
                     item(key = "older", contentType = 2) {
                         LaunchedEffect(posts.size) { loadOlder() }
-                        LoadOlderRow(loading = loadingOlder, onClick = ::loadOlder, label = "Load older posts")
+                        LoadOlderRow(loading = loadingOlder, onClick = ::loadOlder, label = stringResource(R.string.ui_load_older_posts))
                     }
                 }
             }
@@ -638,13 +639,13 @@ fun ChannelScreen(
                             actionsFor = null
                             SecretClipboard.copyPrivate(context, post.body)
                             notice = "Copied."
-                        }) { Text("Copy text", color = colors.accent) }
+                        }) { Text(stringResource(R.string.ui_copy_text), color = colors.accent) }
                     }
                     if (PostAction.Forward in actions) {
                         TextButton(onClick = {
                             actionsFor = null
                             forwarding = post
-                        }) { Text("Forward", color = colors.accent) }
+                        }) { Text(stringResource(R.string.ui_forward), color = colors.accent) }
                     }
                     if (PostAction.Delete in actions) {
                         TextButton(enabled = !busy, onClick = {
@@ -654,12 +655,12 @@ fun ChannelScreen(
                                 channels.deletePost(from.id, post.id)
                                 posts = posts.filterNot { it.id == post.id }
                             }
-                        }) { Text("Delete", color = colors.danger) }
+                        }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
                     }
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { actionsFor = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { actionsFor = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
@@ -668,7 +669,7 @@ fun ChannelScreen(
         AlertDialog(
             onDismissRequest = { forwarding = null },
             containerColor = colors.surface,
-            title = { Text("Forward to…", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_forward_to), color = colors.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -676,7 +677,7 @@ fun ChannelScreen(
                         color = colors.text2,
                         fontSize = 13.sp,
                     )
-                    if (forwardTargets.isEmpty()) Text("You don't have a chat to forward to yet.", color = colors.text3, fontSize = 13.sp)
+                    if (forwardTargets.isEmpty()) Text(stringResource(R.string.ui_you_don_t_have_a_chat), color = colors.text3, fontSize = 13.sp)
                     LazyColumn(Modifier.heightIn(max = 320.dp)) {
                         items(forwardTargets, key = { it.id }) { target ->
                             Text(
@@ -709,7 +710,7 @@ fun ChannelScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { forwarding = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { forwarding = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
@@ -718,10 +719,10 @@ fun ChannelScreen(
         AlertDialog(
             onDismissRequest = { reporting = false },
             containerColor = colors.surface,
-            title = { Text("Report this channel", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_report_this_channel), color = colors.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("What's wrong with this channel? Your report goes to the RedVault admins.", color = colors.text2, fontSize = 14.sp)
+                    Text(stringResource(R.string.ui_what_s_wrong_with_this_channel), color = colors.text2, fontSize = 14.sp)
                     DsTextField(reason, { if (it.length <= 1000) reason = it }, "What's wrong", singleLine = false, minHeight = 90.dp)
                 }
             },
@@ -732,9 +733,9 @@ fun ChannelScreen(
                         channels.report(channelId, reason)
                         notice = "Thanks. The admins will look at it."
                     }
-                }) { Text("Send report", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_send_report), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { reporting = false }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { reporting = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
@@ -750,7 +751,7 @@ fun ChannelScreen(
                     run("That didn't work. Try again.", ask.run)
                 }) { Text(ask.action, color = if (ask.danger) colors.danger else colors.accent) }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 
@@ -758,16 +759,16 @@ fun ChannelScreen(
         AlertDialog(
             onDismissRequest = { openLink = null },
             containerColor = colors.surface,
-            title = { Text("Open this link?", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_open_this_link), color = colors.text) },
             text = { Text(url, color = colors.text2, fontSize = 13.sp) },
             confirmButton = {
                 TextButton(onClick = {
                     openLink = null
                     appLock?.expectExternalReturn()
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-                }) { Text("Open", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_open), color = colors.accent) }
             },
-            dismissButton = { TextButton(onClick = { openLink = null }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { openLink = null }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -794,7 +795,7 @@ private fun ChannelBar(title: String, subtitle: String?, onBack: () -> Unit, onI
     val colors = RedvaultTheme.colors
     TopAppBar(
         navigationIcon = {
-            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back", tint = colors.text) }
+            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.ui_back), tint = colors.text) }
         },
         title = {
             Row(
@@ -820,7 +821,7 @@ private fun ChannelBar(title: String, subtitle: String?, onBack: () -> Unit, onI
         },
         actions = {
             if (onInfo != null) {
-                IconButton(onClick = onInfo) { Icon(painterResource(R.drawable.ui_info), contentDescription = "Channel info", tint = colors.text) }
+                IconButton(onClick = onInfo) { Icon(painterResource(R.drawable.ui_info), contentDescription = stringResource(R.string.ui_channel_info), tint = colors.text) }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg),
@@ -845,14 +846,14 @@ private fun ChannelReaderBar(following: Boolean, onToggleFollow: () -> Unit, can
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (canSuggest) {
-            Text("Only the owner posts here.", color = colors.text3, fontSize = 13.sp)
+            Text(stringResource(R.string.ui_only_the_owner_posts_here), color = colors.text3, fontSize = 13.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 followButton(Modifier.weight(1f))
-                PillButton("Suggest a post", onSuggest, Modifier.weight(1f), style = PillStyle.Secondary, height = 48.dp)
+                PillButton(stringResource(R.string.ui_suggest_a_post), onSuggest, Modifier.weight(1f), style = PillStyle.Secondary, height = 48.dp)
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Only the owner posts here.", color = colors.text3, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.ui_only_the_owner_posts_here), color = colors.text3, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 followButton()
             }
         }

@@ -26,7 +26,7 @@ RowLayout {
         }
     }
     Text {
-        text: (bar.strength.label || "") + " · " + (bar.strength.length || 0) + " characters"
+        text: (bar.strength.label || "") + " · " + (bar.strength.length || 0) + qsTr(" characters")
         textFormat: Text.PlainText
         color: bar.tone
         font.pixelSize: 12

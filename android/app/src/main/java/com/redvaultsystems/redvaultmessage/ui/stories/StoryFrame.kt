@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import android.graphics.SurfaceTexture
 import android.media.AudioAttributes
 import android.media.MediaPlayer
@@ -163,7 +165,7 @@ internal fun StoryFrame(
                 )
             }
             StoryKind.Image -> if (photo != null) {
-                Image(photo, contentDescription = "Story photo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                Image(photo, contentDescription = stringResource(R.string.ui_story_photo), contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             }
             StoryKind.Video -> if (video != null) VideoSurface(video, meta.media?.width ?: 9, meta.media?.height ?: 16, paused, muted, onVideoPosition, onVideoEnded)
         }

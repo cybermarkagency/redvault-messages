@@ -128,6 +128,7 @@ if(TARGET Qt6::Quick)
         app_logic_test.cpp
         chat_guard_test.cpp
         open_source_test.cpp
+        qr_scanner_test.cpp
         vault_session_test.cpp
         ../app/src/app_lock.cpp
         ../app/src/app_lock.hpp
@@ -143,10 +144,16 @@ if(TARGET Qt6::Quick)
         ../app/src/vault_session.hpp
         ../app/src/windows_hello.cpp
         ../app/src/windows_hello.hpp
+        ../app/src/qr_scanner.cpp
+        ../app/src/qr_scanner.hpp
     )
     set_target_properties(redvault_app_tests PROPERTIES AUTOMOC ON)
     target_include_directories(redvault_app_tests PRIVATE ../app/src)
     target_link_libraries(redvault_app_tests PRIVATE redvault_core Qt6::Quick Qt6::Qml Catch2::Catch2WithMain)
+    # The QR reader (zxing-cpp, set up in app/CMakeLists.txt) and libqrencode to draw codes for it to read.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(QRENCODE_TESTS REQUIRED IMPORTED_TARGET libqrencode)
+    target_link_libraries(redvault_app_tests PRIVATE ZXing::ZXing Qt6::Multimedia PkgConfig::QRENCODE_TESTS)
     if(WIN32)
         target_link_libraries(redvault_app_tests PRIVATE runtimeobject)  # windows_hello.cpp
     endif()

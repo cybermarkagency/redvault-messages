@@ -11,6 +11,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QStandardPaths>
+#include <QTranslator>
 
 #include <cstdlib>
 #include <string>
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
     // The internal name stays "Redvault": it locates this computer's settings
     // (last handle, app-lock PIN) and cache, which a rename must not lose.
     QApplication::setApplicationName(QStringLiteral("Redvault"));
-    QApplication::setApplicationDisplayName(QStringLiteral("redvaultmessages"));
+    QApplication::setApplicationDisplayName(QStringLiteral("RedVaultMessages"));
     QApplication::setApplicationVersion(QStringLiteral(REDVAULT_VERSION));
     // Lets Linux desktops match the window to redvaultmessages.desktop (its name and icon).
     QGuiApplication::setDesktopFileName(QStringLiteral("redvaultmessages"));
@@ -57,7 +58,7 @@ int main(int argc, char* argv[]) {
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("redvaultmessages: end-to-end encrypted messenger"));
+    parser.setApplicationDescription(QStringLiteral("RedVaultMessages: end-to-end encrypted messenger"));
     parser.addHelpOption();
     parser.addVersionOption();
     QCommandLineOption apiOption(QStringLiteral("api"), QStringLiteral("API base URL (default: production)."),
@@ -77,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
     // An address given at run time gets no debug-build leniency: passwords and session cookies would follow it.
     if (!redvault::net::isAllowedServerUrl(apiBase, !overridden && redvault::net::kDebugBuild)) {
-        QMessageBox::critical(nullptr, QStringLiteral("redvaultmessages"),
+        QMessageBox::critical(nullptr, QStringLiteral("RedVaultMessages"),
                               QStringLiteral("That server address isn't allowed. It must use https, or be this computer or an onion service."));
         return 1;
     }
@@ -108,9 +109,9 @@ int main(int argc, char* argv[]) {
     const bool onion = server && redvault::net::isOnionHost(server->host);
 #ifdef REDVAULT_TOR_ONLY
     if (!onion) {
-        QMessageBox::critical(nullptr, QStringLiteral("redvaultmessages"),
-                              QStringLiteral("This version only connects to Redvault through Tor, and the server address it was "
-                                             "given isn't Redvault's onion service."));
+        QMessageBox::critical(nullptr, QStringLiteral("RedVaultMessages"),
+                              QStringLiteral("This version only connects to RedVault through Tor, and the server address it was "
+                                             "given isn't RedVault's onion service."));
         return 1;
     }
 #endif
@@ -141,23 +142,34 @@ int main(int argc, char* argv[]) {
     redvault::app::Updater updater(&controller);
     redvault::app::Updater::setInstance(&updater);
     QObject::connect(&updater, &redvault::app::Updater::updateFound, &shell, [&shell](const QString& version) {
-        shell.notify(QStringLiteral("redvaultmessages %1 is available").arg(version),
-                     QStringLiteral("Open redvaultmessages and choose Update to install it."));
+        shell.notify(QStringLiteral("RedVaultMessages %1 is available").arg(version),
+                     QStringLiteral("Open RedVaultMessages and choose Update to install it."));
     });
     QObject::connect(&updater, &redvault::app::Updater::manifestExpired, &shell, [&shell](const QString& warning) {
         shell.notify(QStringLiteral("Update check"), warning);
     });
 
-    // The design's typefaces (SIL Open Font License, in fonts/): IBM Plex Sans
-    // for text, IBM Plex Mono for anything exact, Bricolage Grotesque for titles.
-    for (const char* font : {"ibm-plex-sans-latin-400-normal", "ibm-plex-sans-latin-500-normal", "ibm-plex-sans-latin-600-normal",
+    // The design's typefaces (SIL Open Font License, in fonts/): Inter for
+    // text, IBM Plex Mono for anything exact (keys, codes, safety numbers),
+    // Bricolage Grotesque for the few large titles.
+    for (const char* font : {"inter-latin-400-normal", "inter-latin-500-normal", "inter-latin-600-normal", "inter-latin-700-normal",
+                             "ibm-plex-sans-latin-400-normal", "ibm-plex-sans-latin-500-normal", "ibm-plex-sans-latin-600-normal",
                              "ibm-plex-mono-latin-400-normal", "ibm-plex-mono-latin-500-normal", "bricolage-grotesque-latin-700-normal"}) {
         QFontDatabase::addApplicationFont(QStringLiteral(":/qt/qml/Redvault/fonts/%1.ttf").arg(QLatin1String(font)));
     }
-    // Every Text, not only controls, uses it.
-    QFont uiFont(QStringLiteral("IBM Plex Sans"));
+    // Every Text, not only controls, uses it. If Inter didn't load, Qt falls
+    // back to the platform's UI font (Segoe UI, Cantarell/Noto…).
+    QFont uiFont(QStringLiteral("Inter"));
     uiFont.setPixelSize(14);
+    uiFont.setHintingPreference(QFont::PreferVerticalHinting);
     QGuiApplication::setFont(uiFont);
+
+    // The interface in the computer's language when a translation is built in (i18n/README.md);
+    // otherwise English. Translations are compiled into the app as :/i18n/redvaultmessages_<lang>.qm.
+    QTranslator translator;
+    if (translator.load(QLocale(), QStringLiteral("redvaultmessages"), QStringLiteral("_"), QStringLiteral(":/i18n"))) {
+        QCoreApplication::installTranslator(&translator);
+    }
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("avatar"), new redvault::app::AvatarImageProvider(&controller));

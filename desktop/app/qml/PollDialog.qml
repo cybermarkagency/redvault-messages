@@ -15,7 +15,7 @@ RvDialog {
     property var options: ["", ""]
     property string error: ""
     property bool busy: false
-    title: "New poll"
+    title: qsTr("New poll")
     width: 460
 
     function reset() {
@@ -45,11 +45,11 @@ RvDialog {
         RvTextField {
             id: question
             Layout.fillWidth: true
-            placeholderText: "Ask a question"
+            placeholderText: qsTr("Ask a question")
             maximumLength: 300
         }
         Text {
-            text: "Options"
+            text: qsTr("Options")
             color: Theme.text3
             font.pixelSize: Theme.fontSmall
             font.weight: Font.DemiBold
@@ -63,7 +63,7 @@ RvDialog {
                 spacing: 6
                 RvTextField {
                     Layout.fillWidth: true
-                    placeholderText: "Option " + (optionRow.index + 1)
+                    placeholderText: qsTr("Option ") + (optionRow.index + 1)
                     maximumLength: 100
                     text: dialog.options[optionRow.index]
                     onTextEdited: {
@@ -75,7 +75,7 @@ RvDialog {
                 IconButton {
                     visible: dialog.options.length > 2
                     iconName: "x"
-                    tip: "Remove this option"
+                    tip: qsTr("Remove this option")
                     onClicked: {
                         const next = dialog.options.slice()
                         next.splice(optionRow.index, 1)
@@ -88,14 +88,14 @@ RvDialog {
             visible: dialog.options.length < 10
             primary: false
             iconName: "plus"
-            text: "Add an option"
+            text: qsTr("Add an option")
             onClicked: dialog.options = dialog.options.concat([""])
         }
         RowLayout {
             Layout.fillWidth: true
             Text {
                 Layout.fillWidth: true
-                text: "Allow more than one answer"
+                text: qsTr("Allow more than one answer")
                 color: Theme.text
             }
             RvSwitch {
@@ -105,7 +105,7 @@ RvDialog {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "Like your messages, the poll and every vote are end-to-end encrypted. Everyone in the chat can see who voted for what."
+            text: qsTr("Like your messages, the poll and every vote are end-to-end encrypted. Everyone in the chat can see who voted for what.")
             color: Theme.text3
             font.pixelSize: 12
         }
@@ -118,11 +118,11 @@ RvDialog {
             spacing: 8
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.close()
             }
             RvButton {
-                text: dialog.busy ? "Sending…" : "Send poll"
+                text: dialog.busy ? qsTr("Sending…") : qsTr("Send poll")
                 enabled: !dialog.busy && question.text.trim().length > 0
                          && dialog.options.filter(o => o.trim().length > 0).length >= 2
                 onClicked: {

@@ -76,6 +76,9 @@ public:
     void saveState(const std::string& userId, const std::string& deviceId, const std::string& state);
     /// Forgets the device: its key and its protocol-3 history here.
     void wipe(const std::string& userId);
+    /// wipe(), but only while the device kept here is still `deviceId`: an abandoned pairing attempt must not take
+    /// a device that has since replaced it (set up as the account's first device). Returns whether it wiped.
+    bool wipeDevice(const std::string& userId, const std::string& deviceId);
     /// What this computer noticed about the account's stored device, oldest first. Kept across wipe() and create().
     std::vector<StoreEvent> events(const std::string& userId) const;
 

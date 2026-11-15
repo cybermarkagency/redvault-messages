@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.settings
 
+import androidx.compose.ui.res.stringResource
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -104,40 +105,40 @@ internal fun OpenSourceSection() {
     }
     SettingsRow(
         title = OpenSourceInfo.LICENSE.title,
-        description = "The full licence text (AGPL-3.0-only)",
+        description = stringResource(R.string.ui_the_full_licence_text_agpl_3),
         onClick = { readingPath = OpenSourceInfo.LICENSE.assetPath },
         icon = R.drawable.ui_file,
     )
     SettingsRow(
         title = OpenSourceInfo.THIRD_PARTY_NOTICES.title,
-        description = "The libraries this app includes and their licences",
+        description = stringResource(R.string.ui_the_libraries_this_app_includes_and),
         onClick = { readingPath = OpenSourceInfo.THIRD_PARTY_NOTICES.assetPath },
         icon = R.drawable.ui_file,
     )
     OpenSourceInfo.BUNDLED_LICENSES.forEach { asset ->
-        SettingsRow(title = asset.title, description = "Bundled with the app", onClick = { readingPath = asset.assetPath }, icon = R.drawable.ui_file)
+        SettingsRow(title = asset.title, description = stringResource(R.string.ui_bundled_with_the_app), onClick = { readingPath = asset.assetPath }, icon = R.drawable.ui_file)
     }
     when (contact) {
         is ReportContact.Email -> SettingsRow(
-            title = "Report a source code problem",
+            title = stringResource(R.string.ui_report_a_source_code_problem),
             description = "If the source for this version is missing or incomplete, write to ${contact.address}",
             onClick = { open(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${contact.address}")), "No e-mail app found. Write to ${contact.address}") },
             icon = R.drawable.ui_info,
         )
         is ReportContact.Web -> SettingsRow(
-            title = "Report a source code problem",
+            title = stringResource(R.string.ui_report_a_source_code_problem),
             description = "If the source for this version is missing or incomplete: ${contact.url}",
             onClick = { open(Intent(Intent.ACTION_VIEW, Uri.parse(contact.url)), "No browser found to open ${contact.url}") },
             icon = R.drawable.ui_info,
         )
         is ReportContact.Text -> SettingsRow(
-            title = "Report a source code problem",
+            title = stringResource(R.string.ui_report_a_source_code_problem),
             description = "If the source for this version is missing or incomplete: ${contact.text}",
             icon = R.drawable.ui_info,
         )
         ReportContact.TermsOfService -> SettingsRow(
-            title = "Report a source code problem",
-            description = "If the source for this version is missing or incomplete, write to the contact address in the Terms of Service",
+            title = stringResource(R.string.ui_report_a_source_code_problem),
+            description = stringResource(R.string.ui_if_the_source_for_this_version),
             onClick = { readingTerms = true },
             icon = R.drawable.ui_info,
         )
@@ -194,7 +195,7 @@ private fun LicenseTextDialog(asset: LicenseAsset, onDismiss: () -> Unit) {
             }
             Box(Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp)) {
                 when (val state = loaded) {
-                    Loaded.Loading -> Text("Loading…", color = colors.text3, fontSize = 14.sp)
+                    Loaded.Loading -> Text(stringResource(R.string.ui_loading), color = colors.text3, fontSize = 14.sp)
                     Loaded.Failed -> Text("Couldn't open ${asset.assetPath}.", color = colors.text3, fontSize = 14.sp)
                     is Loaded.Text -> LazyColumn(Modifier.fillMaxSize()) {
                         items(state.blocks) { block ->
@@ -203,7 +204,7 @@ private fun LicenseTextDialog(asset: LicenseAsset, onDismiss: () -> Unit) {
                     }
                 }
             }
-            PillButton("Done", onDismiss, Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(50)))
+            PillButton(stringResource(R.string.ui_done), onDismiss, Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(50)))
         }
     }
 }

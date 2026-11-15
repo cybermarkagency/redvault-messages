@@ -8,7 +8,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Redvault
 
-// Inbox: messages and polls from the Redvault team. Plain text, and said so:
+// Inbox: messages and polls from the RedVault team. Plain text, and said so:
 // unlike chats they aren't end-to-end encrypted (the server counts votes).
 Item {
     id: root
@@ -49,7 +49,7 @@ Item {
             spacing: 14
 
             Text {
-                text: "Inbox"
+                text: qsTr("Inbox")
                 color: Theme.text
                 font.family: Theme.displayFamily
                 font.pixelSize: 26
@@ -67,7 +67,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Messages from the Redvault team. These aren't end-to-end encrypted like your chats, so the server can read them, and your votes and replies."
+                    text: qsTr("Messages from the RedVault team. These aren't end-to-end encrypted like your chats, so the server can read them, and your votes and replies.")
                     color: Theme.text2
                     font.pixelSize: 13
                 }
@@ -79,7 +79,7 @@ Item {
             Text {
                 visible: root.inbox !== null && root.inbox.loaded && root.inbox.items.length === 0
                 Layout.topMargin: 20
-                text: "Nothing here yet."
+                text: qsTr("Nothing here yet.")
                 color: Theme.text3
             }
 
@@ -108,7 +108,7 @@ Item {
                             Layout.fillWidth: true
                             Text {
                                 Layout.fillWidth: true
-                                text: card.poll ? "POLL" : "MESSAGE"
+                                text: card.poll ? qsTr("POLL") : qsTr("MESSAGE")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.pixelSize: 11
@@ -130,7 +130,7 @@ Item {
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
                             color: Theme.text
-                            selectionColor: Theme.accent
+                            selectionColor: Theme.accentFill
                             selectedTextColor: Theme.accentContrast
                             font.pixelSize: 15
                         }
@@ -164,7 +164,7 @@ Item {
                                     Text {
                                         visible: option.mine
                                         Layout.rightMargin: 14
-                                        text: "Your vote"
+                                        text: qsTr("Your vote")
                                         color: Theme.accent
                                         font.pixelSize: 12
                                         font.weight: Font.DemiBold
@@ -174,7 +174,7 @@ Item {
                         }
                         Text {
                             visible: card.poll && !card.voted
-                            text: "Pick one. Votes can't be changed."
+                            text: qsTr("Pick one. Votes can't be changed.")
                             color: Theme.text3
                             font.pixelSize: 12
                         }
@@ -211,7 +211,7 @@ Item {
                             RvTextField {
                                 id: replyField
                                 Layout.fillWidth: true
-                                placeholderText: "Reply to the team"
+                                placeholderText: qsTr("Reply to the team")
                                 maximumLength: 2000
                                 enabled: !root.inbox.busy
                                 onAccepted: root.inbox.reply(card.modelData.id, text)
@@ -223,14 +223,14 @@ Item {
                                 }
                             }
                             RvButton {
-                                text: "Send"
+                                text: qsTr("Send")
                                 enabled: !root.inbox.busy && replyField.text.trim().length > 0
                                 onClicked: root.inbox.reply(card.modelData.id, replyField.text)
                             }
                         }
                         Text {
                             visible: !card.modelData.allowReplies
-                            text: "Replies are turned off for this one."
+                            text: qsTr("Replies are turned off for this one.")
                             color: Theme.text3
                             font.pixelSize: 12
                         }

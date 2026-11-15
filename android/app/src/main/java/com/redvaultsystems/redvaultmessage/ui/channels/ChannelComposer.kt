@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -342,7 +343,7 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
                                     TextButton(onClick = {
                                         options = options.filterIndexed { j, _ -> j != i }
                                         if (correct >= i && correct > 0) correct -= 1
-                                    }) { Text("Remove", color = colors.text2, fontSize = 13.sp) }
+                                    }) { Text(stringResource(R.string.ui_remove), color = colors.text2, fontSize = 13.sp) }
                                 }
                             }
                         }
@@ -364,7 +365,7 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
                                     DsTextField(item, { v -> if (v.length <= ChannelPosts.MAX_CHECKLIST_ITEM) items = items.mapIndexed { j, x -> if (j == i) v else x } }, "Item ${i + 1}")
                                 }
                                 if (items.size > 1) {
-                                    TextButton(onClick = { items = items.filterIndexed { j, _ -> j != i } }) { Text("Remove", color = colors.text2, fontSize = 13.sp) }
+                                    TextButton(onClick = { items = items.filterIndexed { j, _ -> j != i } }) { Text(stringResource(R.string.ui_remove), color = colors.text2, fontSize = 13.sp) }
                                 }
                             }
                         }
@@ -380,8 +381,8 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
                             DsIcon(R.drawable.ui_clock, colors.text2, 16.dp)
                             Text("Posts at ${whenText(at)}", color = colors.text, fontSize = 14.sp)
                         }
-                        TextButton(onClick = { picking = true }) { Text("Change", color = colors.accent) }
-                        TextButton(onClick = { publishAt = null }) { Text("Post now instead", color = colors.text2) }
+                        TextButton(onClick = { picking = true }) { Text(stringResource(R.string.ui_change), color = colors.accent) }
+                        TextButton(onClick = { publishAt = null }) { Text(stringResource(R.string.ui_post_now_instead), color = colors.text2) }
                     }
                 }
 
@@ -396,7 +397,7 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 MARKERS.forEach { m -> ToolButton(m) { format(m.marker) } }
-                Text("Links are made automatically", color = colors.text3, fontSize = 11.sp, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                Text(stringResource(R.string.ui_links_are_made_automatically), color = colors.text3, fontSize = 11.sp, modifier = Modifier.weight(1f).padding(start = 4.dp))
             }
         }
 
@@ -407,7 +408,7 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
         ) {
             Box {
                 IconButton(onClick = { attachMenu = true }) {
-                    Icon(painterResource(R.drawable.ic_attach), contentDescription = "Attach media, a poll, or more", tint = colors.text2)
+                    Icon(painterResource(R.drawable.ic_attach), contentDescription = stringResource(R.string.ui_attach_media_a_poll_or_more), tint = colors.text2)
                 }
                 DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
                     AttachItem("Photo or video", R.drawable.ui_image, enabled = canAttach) {
@@ -469,27 +470,27 @@ fun ChannelComposer(channel: ChannelDto, state: ComposerState, onPosted: (post: 
                     TextButton(onClick = {
                         recording = false
                         recorder.cancel()
-                    }) { Text("Cancel", color = colors.text2) }
-                    TextButton(onClick = ::finishVoice) { Text("Add", color = colors.accent, fontWeight = FontWeight.SemiBold) }
+                    }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) }
+                    TextButton(onClick = ::finishVoice) { Text(stringResource(R.string.ui_add), color = colors.accent, fontWeight = FontWeight.SemiBold) }
                 }
                 return@Row
             }
             OutlinedTextField(
                 value = body,
                 onValueChange = { if (it.text.length <= ChannelPosts.MAX_POST) body = it },
-                placeholder = { Text("Write a post", maxLines = 1) },
+                placeholder = { Text(stringResource(R.string.ui_write_a_post), maxLines = 1) },
                 maxLines = 5,
                 shape = RoundedCornerShape(22.dp),
                 trailingIcon = {
                     IconButton(onClick = { pickingEmoji = true }) {
-                        Icon(painterResource(R.drawable.ui_smile), contentDescription = "Emoji", tint = colors.text2)
+                        Icon(painterResource(R.drawable.ui_smile), contentDescription = stringResource(R.string.ui_emoji), tint = colors.text2)
                     }
                 },
                 modifier = Modifier.weight(1f),
             )
             if (ChannelThread.showMic(hasText, extra != null, hasMedia)) {
                 IconButton(onClick = ::recordVoice) {
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Record a voice clip", tint = colors.text2)
+                    Icon(painterResource(R.drawable.ic_mic), contentDescription = stringResource(R.string.ui_record_a_voice_clip), tint = colors.text2)
                 }
                 return@Row
             }
@@ -637,8 +638,8 @@ fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     ) {
         Box(
             Modifier.size(20.dp).clip(RoundedCornerShape(5.dp))
-                .background(if (checked) colors.accent else androidx.compose.ui.graphics.Color.Transparent)
-                .border(1.5.dp, if (checked) colors.accent else colors.text3, RoundedCornerShape(5.dp)),
+                .background(if (checked) colors.accentFill else androidx.compose.ui.graphics.Color.Transparent)
+                .border(1.5.dp, if (checked) colors.accentFill else colors.text3, RoundedCornerShape(5.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (checked) DsIcon(R.drawable.ui_check, colors.accentContrast, 14.dp)
@@ -675,9 +676,9 @@ fun ScheduleDialog(initial: Instant?, onDismiss: () -> Unit, onPicked: (Instant)
                 TextButton(onClick = {
                     val millis = dateState.selectedDateMillis ?: return@TextButton
                     day = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                }) { Text("Next", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_next), color = colors.accent) }
             },
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
             colors = DatePickerDefaults.colors(containerColor = colors.surface),
         ) {
             DatePicker(
@@ -688,7 +689,7 @@ fun ScheduleDialog(initial: Instant?, onDismiss: () -> Unit, onPicked: (Instant)
                     headlineContentColor = colors.text,
                     weekdayContentColor = colors.text3,
                     dayContentColor = colors.text,
-                    selectedDayContainerColor = colors.accent,
+                    selectedDayContainerColor = colors.accentFill,
                     selectedDayContentColor = colors.accentContrast,
                     todayContentColor = colors.accent,
                     todayDateBorderColor = colors.accent,
@@ -699,13 +700,13 @@ fun ScheduleDialog(initial: Instant?, onDismiss: () -> Unit, onPicked: (Instant)
         AlertDialog(
             onDismissRequest = onDismiss,
             containerColor = colors.surface,
-            title = { Text("Post at", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_post_at), color = colors.text) },
             text = {
                 TimePicker(
                     state = timeState,
                     colors = TimePickerDefaults.colors(
                         clockDialColor = colors.surface2,
-                        selectorColor = colors.accent,
+                        selectorColor = colors.accentFill,
                         timeSelectorSelectedContainerColor = colors.accentSoft,
                         timeSelectorUnselectedContainerColor = colors.surface2,
                         timeSelectorSelectedContentColor = colors.text,
@@ -721,9 +722,9 @@ fun ScheduleDialog(initial: Instant?, onDismiss: () -> Unit, onPicked: (Instant)
             confirmButton = {
                 TextButton(onClick = {
                     onPicked(chosenDay.atTime(LocalTime.of(timeState.hour, timeState.minute)).atZone(zone).toInstant())
-                }) { Text("Done", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_done), color = colors.accent) }
             },
-            dismissButton = { TextButton(onClick = { day = null }) { Text("Back", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { day = null }) { Text(stringResource(R.string.ui_back), color = colors.text2) } },
         )
     }
 }

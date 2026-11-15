@@ -15,6 +15,7 @@
 #include <QImage>
 #include <QMimeData>
 #include <QStandardPaths>
+#include <QUuid>
 
 #include <algorithm>
 #include <system_error>
@@ -336,6 +337,21 @@ QString ChatSession::currentSafetyQr() const {
     const auto* meta = currentMeta();
     if (!meta || meta->isGroup || meta->safetyNumber.empty()) return {};
     return QString::fromStdString(crypto::safety_qr::encode(meta->safetyNumber));
+}
+
+QString ChatSession::checkSafetyQr(const QString& scanned) {
+    const auto* meta = currentMeta();
+    if (!meta || meta->isGroup || meta->safetyNumber.empty()) return QStringLiteral("invalid");
+    switch (crypto::safety_qr::compare(scanned.toStdString(), meta->safetyNumber)) {
+        case crypto::safety_qr::Result::Match:
+            setCurrentVerified(true);
+            return QStringLiteral("match");
+        case crypto::safety_qr::Result::Mismatch:
+            return QStringLiteral("mismatch");
+        case crypto::safety_qr::Result::NotASafetyCode:
+            break;
+    }
+    return QStringLiteral("invalid");
 }
 
 QString ChatSession::currentAvatarUrl() const {
@@ -747,6 +763,46 @@ QVariantMap ChatSession::imageInfo(const QString& messageId) const {
     if (state.isEmpty() && message->file->originalSize > kAutoLoadBytes) state = QStringLiteral("large");
     const QSize size = ChatImageCache::instance().thumbSize(messageId);
     return {{"state", state}, {"width", size.width()}, {"height", size.height()}};
+}
+
+QVariantMap ChatSession::audioInfo(const QString& messageId) const {
+    const auto* message = messages_.find(messageId.toStdString());
+    if (!message || !isAudioFile(*message)) return {};
+    const auto it = audioStates_.find(message->id);
+    if (it == audioStates_.end()) return {{"state", QString()}, {"url", QUrl()}};
+    return {{"state", it->second.first}, {"url", it->second.second}};
+}
+
+void ChatSession::loadAudio(const QString& messageId) {
+    const auto* message = messages_.find(messageId.toStdString());
+    if (!message || !isAudioFile(*message)) return;
+    const std::string id = message->id;
+    if (const auto it = audioStates_.find(id); it != audioStates_.end() && it->second.first != QStringLiteral("failed")) return;
+    audioStates_[id] = {QStringLiteral("loading"), QUrl()};
+    ++audioRevision_;
+    emit audioChanged();
+    auto files = files_;
+    const auto descriptor = *message->file;
+    runInBackground(
+        pool_, this, [files, descriptor]() { return files->download(descriptor); },
+        [this, id](fs::path path) {
+            audioStates_[id] = {QStringLiteral("ready"), QUrl::fromLocalFile(QString::fromStdWString(path.wstring()))};
+            ++audioRevision_;
+            emit audioChanged();
+        },
+        [this, id](const Failure& failure) {
+            audioStates_[id] = {QStringLiteral("failed"), QUrl()};
+            ++audioRevision_;
+            emit audioChanged();
+            if (failure.status == 401) emit sessionExpired();
+        });
+}
+
+QUrl ChatSession::newVoiceFile() {
+    const fs::path dir = cacheDir_ / "voice" / QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+    std::error_code ignored;
+    fs::create_directories(dir, ignored);
+    return QUrl::fromLocalFile(QString::fromStdWString((dir / L"Voice message.m4a").wstring()));
 }
 
 void ChatSession::loadImage(const QString& messageId, bool force) {
@@ -1328,7 +1384,8 @@ void ChatSession::attachFile(const QUrl& file) {
             Qt::QueuedConnection);
     };
     // A pasted picture's temporary copy goes once it's sent (or failed to).
-    const bool pastedCopy = path.parent_path() == cacheDir_ / "pasted";
+    // A voice recording (newVoiceFile: voice/<random>/Voice message.m4a) goes the same way.
+    const bool pastedCopy = path.parent_path() == cacheDir_ / "pasted" || path.parent_path().parent_path() == cacheDir_ / "voice";
     if (outbox_) {
         // Tor routing: a sealed copy goes into the outbox (the original may
         // change or move), then it's sent over Tor when Tor is connected.

@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.ui.components.ActionSheet
+import com.redvaultsystems.redvaultmessage.ui.components.SheetAction
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -133,13 +136,15 @@ import com.redvaultsystems.redvaultmessage.data.model.VerificationStatus
 import com.redvaultsystems.redvaultmessage.ui.TimeFormat
 import com.redvaultsystems.redvaultmessage.ui.communities.CommunityReportDialog
 import com.redvaultsystems.redvaultmessage.ui.components.Avatar
+import com.redvaultsystems.redvaultmessage.ui.components.LockBadge
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
+import androidx.compose.foundation.layout.offset
 import com.redvaultsystems.redvaultmessage.ui.groups.GroupAvatar
 import com.redvaultsystems.redvaultmessage.ui.components.describeError
 import kotlinx.coroutines.launch
 import com.redvaultsystems.redvaultmessage.ui.theme.RedvaultTheme
 
 /** Same wording as the server's pro_required refusal (FileService.requestUpload), which stays the real gate. */
-private const val PRO_REQUIRED_MESSAGE = "Sending files isn't included in your plan."
 
 /** 1 week, matching the server's RETENTION_WARNING_MS. */
 private const val RETENTION_WARNING_MS = 7L * 24 * 60 * 60 * 1000
@@ -289,11 +294,11 @@ fun ThreadScreen(
     val listState = rememberLazyListState()
     /** A group call button or the Join banner: join the one going on, start one if you can, or say why not. */
     fun placeGroupCall(kind: String) {
-        val message = when {
-            callBusy -> GroupCallManager.ALREADY_IN_CALL
-            groupCallBlocked -> GroupCallManager.PREMIUM_ONLY
-            else -> null
+        if (groupCallBlocked && !callBusy) {
+            PlanGate.ask("premium", "Starting a group call")
+            return
         }
+        val message = if (callBusy) GroupCallManager.ALREADY_IN_CALL else null
         if (message != null) android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show() else onGroupCall?.invoke(kind)
     }
     val today = LocalDate.now()
@@ -404,15 +409,15 @@ fun ThreadScreen(
                 val forwardable = MessageSelection.forwardable(conversation.messages, selected)
                 TopAppBar(
                     navigationIcon = {
-                        IconButton(onClick = ::stopSelecting) { Icon(painterResource(R.drawable.ic_close), contentDescription = "Stop selecting") }
+                        IconButton(onClick = ::stopSelecting) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_stop_selecting)) }
                     },
                     title = { Text(if (selected.isEmpty()) "Select messages" else "${selected.size} selected", fontWeight = FontWeight.SemiBold) },
                     actions = {
                         IconButton(enabled = forwardable.isNotEmpty(), onClick = { forwarding = forwardable }) {
-                            Icon(painterResource(R.drawable.ui_share), contentDescription = "Forward", tint = if (forwardable.isNotEmpty()) colors.text else colors.text3)
+                            Icon(painterResource(R.drawable.ui_share), contentDescription = stringResource(R.string.ui_forward), tint = if (forwardable.isNotEmpty()) colors.text else colors.text3)
                         }
                         IconButton(enabled = selected.isNotEmpty(), onClick = { deletingMany = true }) {
-                            Icon(painterResource(R.drawable.ui_trash), contentDescription = "Delete", tint = if (selected.isNotEmpty()) colors.danger else colors.text3)
+                            Icon(painterResource(R.drawable.ui_trash), contentDescription = stringResource(R.string.ui_delete), tint = if (selected.isNotEmpty()) colors.danger else colors.text3)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.accentSoft),
@@ -421,13 +426,14 @@ fun ThreadScreen(
             }
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.ui_back)) }
                 },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(
                             Modifier.clickable(
-                                enabled = conversation.isGroup || onOpenChatDetails != null,
+                                // A community chat while Communities are off has no info page to open.
+                                enabled = (conversation.isGroup && !(conversation.meta.community != null && onOpenCommunity == null)) || onOpenChatDetails != null,
                                 onClickLabel = if (conversation.isGroup) "Group info" else "Chat details",
                                 onClick = if (conversation.isGroup) onOpenCommunity ?: onOpenGroupInfo else onOpenChatDetails ?: {},
                             ),
@@ -440,7 +446,13 @@ fun ThreadScreen(
                                 Avatar(avatarUrl = conversation.avatarUrl, seed = conversation.handle, size = 32.dp, online = online)
                             }
                             Column {
-                                Text(conversation.handle, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                Text(
+                                    conversation.handle,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                )
                                 val status = when {
                                     typing.isNotEmpty() && conversation.isGroup ->
                                         if (typing.size == 1) "${typing[0]} is typing…" else "${typing.size} people are typing…"
@@ -452,13 +464,20 @@ fun ThreadScreen(
                                 if (typing.isEmpty() && !conversation.isGroup && conversation.keyChanged) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Icon(painterResource(R.drawable.ic_alert), contentDescription = null, tint = colors.warn, modifier = Modifier.size(12.dp))
-                                        Text("Safety number changed", color = colors.warn, fontSize = 12.sp, maxLines = 1)
+                                        Text(stringResource(R.string.ui_safety_number_changed), color = colors.warn, fontSize = 12.sp, maxLines = 1)
                                     }
                                 } else if (status != null) {
                                     Text(status, color = colors.accent, fontSize = 12.sp, maxLines = 1)
+                                } else if (!conversation.isGroup && conversation.verified) {
+                                    // Contact verification, from the chat's own state: only once verified.
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(painterResource(R.drawable.ui_shield_check), contentDescription = null, tint = colors.ok, modifier = Modifier.size(12.dp))
+                                        Text(stringResource(R.string.ui_verified), color = colors.ok, fontSize = 12.sp, maxLines = 1)
+                                    }
                                 } else if (community != null) {
                                     Text(
-                                        (if (community.isChannel) "Channel" else "Community") + " · end-to-end encrypted" + if (readOnly) " · read only" else "",
+                                        (if (!com.redvaultsystems.redvaultmessage.BuildConfig.COMMUNITIES) "Group" else if (community.isChannel) "Channel" else "Community") +
+                                            " · end-to-end encrypted" + if (readOnly) " · read only" else "",
                                         color = colors.text3,
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -473,29 +492,37 @@ fun ThreadScreen(
                         if (onGroupCall != null) {
                             val tint = if (groupCallBlocked || callBusy) colors.text3 else colors.text
                             IconButton(onClick = { placeGroupCall(ongoingGroupCall?.kind ?: "voice") }) {
-                                Icon(
-                                    painterResource(R.drawable.ui_phone),
-                                    contentDescription = if (ongoingGroupCall != null) "Join the group call" else if (groupCallBlocked) "Group voice call. Only Premium members can start group calls" else "Group voice call",
-                                    tint = tint,
-                                )
+                                Box {
+                                    Icon(
+                                        painterResource(R.drawable.ui_phone),
+                                        contentDescription = if (ongoingGroupCall != null) "Join the group call" else if (groupCallBlocked) "Group voice call, locked: Premium starts group calls, anyone can join" else "Group voice call",
+                                        tint = tint,
+                                    )
+                                    if (groupCallBlocked) LockBadge(Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp))
+                                }
                             }
                             IconButton(onClick = { placeGroupCall(ongoingGroupCall?.kind ?: "video") }) {
-                                Icon(
-                                    painterResource(R.drawable.ui_video),
-                                    contentDescription = if (ongoingGroupCall != null) "Join the group call" else if (groupCallBlocked) "Group video call. Only Premium members can start group calls" else "Group video call",
-                                    tint = tint,
-                                )
+                                Box {
+                                    Icon(
+                                        painterResource(R.drawable.ui_video),
+                                        contentDescription = if (ongoingGroupCall != null) "Join the group call" else if (groupCallBlocked) "Group video call, locked: Premium starts group calls, anyone can join" else "Group video call",
+                                        tint = tint,
+                                    )
+                                    if (groupCallBlocked) LockBadge(Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp))
+                                }
                             }
                         }
-                        TextButton(onClick = onOpenCommunity ?: onOpenGroupInfo) { Text("Info") }
+                        if (conversation.meta.community == null || onOpenCommunity != null) {
+                            TextButton(onClick = onOpenCommunity ?: onOpenGroupInfo) { Text(stringResource(R.string.ui_info)) }
+                        }
                         GroupThreadMenu(onSearch = { searchOpen = true }, onSelect = if (deviceKeyChat) null else ({ selecting = true }))
                         return@TopAppBar
                     }
                     if (onCall != null && !blocked) {
-                        IconButton(onClick = { onCall("voice") }) { Icon(painterResource(R.drawable.ui_phone), contentDescription = "Voice call", tint = colors.text) }
-                        IconButton(onClick = { onCall("video") }) { Icon(painterResource(R.drawable.ui_video), contentDescription = "Video call", tint = colors.text) }
+                        IconButton(onClick = { onCall("voice") }) { Icon(painterResource(R.drawable.ui_phone), contentDescription = stringResource(R.string.ui_voice_call), tint = colors.text) }
+                        IconButton(onClick = { onCall("video") }) { Icon(painterResource(R.drawable.ui_video), contentDescription = stringResource(R.string.ui_video_call), tint = colors.text) }
                     }
-                    VerifiedChip(conversation.verified, onClick = onOpenVerify)
+                    VerifyButton(conversation.verified, onClick = onOpenVerify)
                     ThreadMenu(
                         blocked = blocked,
                         onSafetyNumber = onOpenVerify,
@@ -585,7 +612,7 @@ fun ThreadScreen(
                 )
             } else if (!conversation.verified && !conversation.isGroup) {
                 Banner(
-                    text = "Not verified. Confirm this contact's safety number.",
+                    text = stringResource(R.string.ui_not_verified_confirm_this_contact_s),
                     action = "Verify",
                     onClick = onOpenVerify,
                 )
@@ -709,7 +736,7 @@ fun ThreadScreen(
                     scope.launch { runCatching { onSetBlocked(!blocked) } }
                 }) { Text(if (blocked) "Unblock" else "Block", color = if (blocked) colors.accent else colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 
@@ -810,7 +837,7 @@ fun ThreadScreen(
     pendingDelete?.let { messageId ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete for everyone?") },
+            title = { Text(stringResource(R.string.ui_delete_for_everyone)) },
             text = {
                 val onDeviceKeys = conversation.messages.any { it.id == messageId && it.v3 }
                 Text(if (onDeviceKeys) "It's deleted on everyone's devices in this chat. This can't be undone." else "It's deleted from the server for everyone. This can't be undone.")
@@ -819,9 +846,9 @@ fun ThreadScreen(
                 TextButton(onClick = {
                     onDelete(messageId)
                     pendingDelete = null
-                }) { Text("Delete", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_delete), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 
@@ -856,17 +883,17 @@ fun ThreadScreen(
                         onDeleteMany(selected, false)
                         deletingMany = false
                         stopSelecting()
-                    }) { Text("Delete for me", color = colors.danger) }
+                    }) { Text(stringResource(R.string.ui_delete_for_me), color = colors.danger) }
                     if (allMine) {
                         TextButton(onClick = {
                             onDeleteMany(selected, true)
                             deletingMany = false
                             stopSelecting()
-                        }) { Text("Delete for everyone", color = colors.danger, fontWeight = FontWeight.SemiBold) }
+                        }) { Text(stringResource(R.string.ui_delete_for_everyone_2), color = colors.danger, fontWeight = FontWeight.SemiBold) }
                     }
                 }
             },
-            dismissButton = { TextButton(onClick = { deletingMany = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deletingMany = false }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 
@@ -885,7 +912,7 @@ fun ThreadScreen(
         // Long-press in here selects part of it, with Android's own Copy.
         AlertDialog(
             onDismissRequest = { selectingTextOf = null },
-            title = { Text("Select text") },
+            title = { Text(stringResource(R.string.ui_select_text)) },
             text = {
                 SelectionContainer(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                     Text(message.text, color = colors.text)
@@ -895,9 +922,9 @@ fun ThreadScreen(
                 TextButton(onClick = {
                     copyMessageText(context, message.text)
                     selectingTextOf = null
-                }) { Text("Copy all") }
+                }) { Text(stringResource(R.string.ui_copy_all)) }
             },
-            dismissButton = { TextButton(onClick = { selectingTextOf = null }) { Text("Close") } },
+            dismissButton = { TextButton(onClick = { selectingTextOf = null }) { Text(stringResource(R.string.ui_close)) } },
         )
     }
 
@@ -920,7 +947,7 @@ fun ThreadScreen(
         val versions = (message.earlierVersions + EditVersion(message.text, message.editedAtMs ?: message.createdAtMs)).asReversed()
         AlertDialog(
             onDismissRequest = { versionsOf = null },
-            title = { Text("Edit history") },
+            title = { Text(stringResource(R.string.ui_edit_history)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     versions.forEachIndexed { i, version ->
@@ -936,7 +963,7 @@ fun ThreadScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { versionsOf = null }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = { versionsOf = null }) { Text(stringResource(R.string.ui_close)) } },
         )
     }
 
@@ -944,11 +971,11 @@ fun ThreadScreen(
         // Links in messages are untrusted: show the whole address and ask first.
         AlertDialog(
             onDismissRequest = { openLink = null },
-            title = { Text("Open this link?") },
+            title = { Text(stringResource(R.string.ui_open_this_link)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(url, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, color = colors.text)
-                    Text("It opens in your browser, outside this app.", style = MaterialTheme.typography.bodySmall, color = colors.text2)
+                    Text(stringResource(R.string.ui_it_opens_in_your_browser_outside), style = MaterialTheme.typography.bodySmall, color = colors.text2)
                 }
             },
             confirmButton = {
@@ -956,9 +983,9 @@ fun ThreadScreen(
                     openLink = null
                     appLock?.expectExternalReturn()
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-                }) { Text("Open") }
+                }) { Text(stringResource(R.string.ui_open)) }
             },
-            dismissButton = { TextButton(onClick = { openLink = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { openLink = null }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 }
@@ -998,7 +1025,7 @@ private fun PinnedBar(pinned: List<PinnedView>, onJump: (String) -> Unit, onUnpi
             )
         }
         IconButton(onClick = { onUnpin(shown.messageId) }) {
-            Icon(painterResource(R.drawable.ic_close), contentDescription = "Unpin", tint = colors.text2, modifier = Modifier.size(18.dp))
+            Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_unpin), tint = colors.text2, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -1080,7 +1107,7 @@ private fun SearchBar(
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                placeholder = { Text("Search this chat") },
+                placeholder = { Text(stringResource(R.string.ui_search_this_chat)) },
                 singleLine = true,
                 shape = RoundedCornerShape(22.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -1088,13 +1115,13 @@ private fun SearchBar(
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
             IconButton(enabled = count > 1, onClick = onOlder) {
-                Icon(painterResource(R.drawable.ui_chevron_down), contentDescription = "Older match", tint = if (count > 1) colors.text else colors.text3, modifier = Modifier.rotate(180f))
+                Icon(painterResource(R.drawable.ui_chevron_down), contentDescription = stringResource(R.string.ui_older_match), tint = if (count > 1) colors.text else colors.text3, modifier = Modifier.rotate(180f))
             }
             IconButton(enabled = count > 1, onClick = onNewer) {
-                Icon(painterResource(R.drawable.ui_chevron_down), contentDescription = "Newer match", tint = if (count > 1) colors.text else colors.text3)
+                Icon(painterResource(R.drawable.ui_chevron_down), contentDescription = stringResource(R.string.ui_newer_match), tint = if (count > 1) colors.text else colors.text3)
             }
             IconButton(onClick = onClose) {
-                Icon(painterResource(R.drawable.ic_close), contentDescription = "Close search", tint = colors.text2)
+                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_close_search), tint = colors.text2)
             }
         }
         if (query.isNotBlank()) {
@@ -1144,7 +1171,7 @@ private fun ForwardDialog(
                     OutlinedTextField(
                         value = filter,
                         onValueChange = { filter = it },
-                        placeholder = { Text("Search chats") },
+                        placeholder = { Text(stringResource(R.string.ui_search_chats)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -1181,6 +1208,9 @@ private fun ForwardDialog(
                         color = if (canSendFiles) colors.text3 else colors.warn,
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    if (!canSendFiles) {
+                        TextButton(onClick = { PlanGate.ask("pro", "Forwarding files") }) { Text(stringResource(R.string.ui_see_plans)) }
+                    }
                 }
                 error?.let { Text(it, color = colors.danger, style = MaterialTheme.typography.bodySmall) }
             }
@@ -1207,7 +1237,7 @@ private fun ForwardDialog(
                 )
             }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.ui_cancel)) } },
     )
 }
 
@@ -1223,13 +1253,13 @@ private fun PollDialog(onCreate: (String, List<String>, Boolean, (String?) -> Un
     val ready = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("New poll") },
+        title = { Text(stringResource(R.string.ui_new_poll)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = question,
                     onValueChange = { if (it.length <= RichMessage.MAX_POLL_QUESTION) question = it },
-                    placeholder = { Text("Question") },
+                    placeholder = { Text(stringResource(R.string.ui_question)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1242,7 +1272,7 @@ private fun PollDialog(onCreate: (String, List<String>, Boolean, (String?) -> Un
                         trailingIcon = if (options.size > 2) {
                             {
                                 IconButton(onClick = { options.removeAt(index) }) {
-                                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Remove option", modifier = Modifier.size(18.dp))
+                                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_remove_option), modifier = Modifier.size(18.dp))
                                 }
                             }
                         } else {
@@ -1252,14 +1282,14 @@ private fun PollDialog(onCreate: (String, List<String>, Boolean, (String?) -> Un
                     )
                 }
                 if (options.size < RichMessage.MAX_POLL_OPTIONS) {
-                    TextButton(onClick = { options += "" }) { Text("Add option") }
+                    TextButton(onClick = { options += "" }) { Text(stringResource(R.string.ui_add_option)) }
                 }
                 Row(
                     Modifier.fillMaxWidth().clickable { multiple = !multiple },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Checkbox(checked = multiple, onCheckedChange = { multiple = it })
-                    Text("Allow more than one answer", color = colors.text)
+                    Text(stringResource(R.string.ui_allow_more_than_one_answer), color = colors.text)
                 }
                 error?.let { Text(it, color = colors.danger, style = MaterialTheme.typography.bodySmall) }
             }
@@ -1274,7 +1304,7 @@ private fun PollDialog(onCreate: (String, List<String>, Boolean, (String?) -> Un
                 }
             }) { Text(if (busy) "Sending…" else "Send poll") }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.ui_cancel)) } },
     )
 }
 
@@ -1284,15 +1314,15 @@ private fun GroupThreadMenu(onSearch: () -> Unit, onSelect: (() -> Unit)?) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More options")
+            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.ui_more_options))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("Search") }, onClick = {
+            DropdownMenuItem(text = { Text(stringResource(R.string.ui_search)) }, onClick = {
                 open = false
                 onSearch()
             })
             onSelect?.let { select ->
-                DropdownMenuItem(text = { Text("Select messages") }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.ui_select_messages)) }, onClick = {
                     open = false
                     select()
                 })
@@ -1316,32 +1346,32 @@ private fun ThreadMenu(
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More options")
+            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.ui_more_options))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             onChatDetails?.let { details ->
-                DropdownMenuItem(text = { Text("Chat details") }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.ui_chat_details)) }, onClick = {
                     open = false
                     details()
                 })
             }
             onSharedMedia?.let { media ->
-                DropdownMenuItem(text = { Text("Shared media and files") }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.ui_shared_media_and_files)) }, onClick = {
                     open = false
                     media()
                 })
             }
-            DropdownMenuItem(text = { Text("Search") }, onClick = {
+            DropdownMenuItem(text = { Text(stringResource(R.string.ui_search)) }, onClick = {
                 open = false
                 onSearch()
             })
             onSelect?.let { select ->
-                DropdownMenuItem(text = { Text("Select messages") }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.ui_select_messages)) }, onClick = {
                     open = false
                     select()
                 })
             }
-            DropdownMenuItem(text = { Text("Safety number") }, onClick = {
+            DropdownMenuItem(text = { Text(stringResource(R.string.ui_safety_number)) }, onClick = {
                 open = false
                 onSafetyNumber()
             })
@@ -1349,7 +1379,7 @@ private fun ThreadMenu(
                 open = false
                 onToggleBlock()
             })
-            DropdownMenuItem(text = { Text("Report") }, onClick = {
+            DropdownMenuItem(text = { Text(stringResource(R.string.ui_report)) }, onClick = {
                 open = false
                 onReport()
             })
@@ -1370,17 +1400,17 @@ private fun ReportDialog(handle: String, onReport: suspend (String) -> Unit, onD
         title = { Text(if (sent) "Report sent" else "Report $handle") },
         text = {
             if (sent) {
-                Text("Thanks. The moderators will review it.")
+                Text(stringResource(R.string.ui_thanks_the_moderators_will_review_it))
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Tell the moderators what happened. Messages are end-to-end encrypted, so they can't read your chat; only what you write here is sent.",
+                        stringResource(R.string.ui_tell_the_moderators_what_happened_messages),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     OutlinedTextField(
                         value = reason,
                         onValueChange = { if (it.length <= 1000) reason = it },
-                        placeholder = { Text("Reason") },
+                        placeholder = { Text(stringResource(R.string.ui_reason)) },
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -1390,7 +1420,7 @@ private fun ReportDialog(handle: String, onReport: suspend (String) -> Unit, onD
         },
         confirmButton = {
             if (sent) {
-                TextButton(onClick = onDismiss) { Text("Done") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_done)) }
             } else {
                 TextButton(enabled = reason.isNotBlank() && !busy, onClick = {
                     busy = true
@@ -1408,7 +1438,7 @@ private fun ReportDialog(handle: String, onReport: suspend (String) -> Unit, onD
                 }) { Text(if (busy) "Sending..." else "Send report", color = RedvaultTheme.colors.danger) }
             }
         },
-        dismissButton = { if (!sent) TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { if (!sent) TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel)) } },
     )
 }
 
@@ -1441,50 +1471,49 @@ private fun MessageActionsDialog(
     onSelect: (() -> Unit)? = null,
 ) {
     val colors = RedvaultTheme.colors
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (canPost) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    RichMessage.REACTION_EMOJI.forEach { emoji ->
-                        val mine = message.reactions.any { it.emoji == emoji && it.mine }
-                        Text(
-                            emoji,
-                            style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier
-                                .background(if (mine) colors.accentSoft else Color.Transparent, RoundedCornerShape(50))
-                                .clickable { onReact(emoji) }
-                                .padding(6.dp),
-                        )
-                    }
-                    // Any other emoji, from the full picker.
-                    Text(
-                        "+",
-                        color = colors.text2,
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(colors.surface2)
-                            .clickable(onClickLabel = "More reactions", onClick = onMoreReactions)
-                            .padding(horizontal = 10.dp, vertical = 2.dp),
-                    )
-                }
-                // Device-key messages have no replies, pins or "delete for me" yet, as on the web.
-                if (canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onReply) { Text("Reply") }
-                onEdit?.let { TextButton(onClick = it) { Text("Edit") } }
-                onCopyText?.let { TextButton(onClick = it) { Text("Copy text") } }
-                onSelectText?.let { TextButton(onClick = it) { Text("Select text") } }
-                onForward?.let { TextButton(onClick = it) { Text("Forward") } }
-                if (canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onTogglePin) { Text(if (pinned) "Unpin" else "Pin") }
-                onSelect?.let { TextButton(onClick = it) { Text("Select") } }
-                if (!message.v3) TextButton(onClick = onDeleteForMe) { Text("Delete for me") }
-                if (message.fromMe) TextButton(onClick = onDeleteForEveryone) { Text("Delete for everyone", color = colors.danger) }
-                onReport?.let { TextButton(onClick = it) { Text("Report", color = colors.danger) } }
+    // Device-key messages have no replies, pins or "delete for me" yet, as on the web.
+    val actions = buildList {
+        if (canPost && !message.v3 && !deviceKeyChat) add(SheetAction("Reply", R.drawable.ui_arrow_down_left, onClick = onReply))
+        onEdit?.let { add(SheetAction("Edit", R.drawable.ui_pen, onClick = it)) }
+        onCopyText?.let { add(SheetAction("Copy text", R.drawable.ui_copy, onClick = it)) }
+        onSelectText?.let { add(SheetAction("Select text", R.drawable.ui_note, onClick = it)) }
+        onForward?.let { add(SheetAction("Forward", R.drawable.ui_share, onClick = it)) }
+        if (canPost && !message.v3 && !deviceKeyChat) add(SheetAction(if (pinned) "Unpin" else "Pin", R.drawable.ui_star, onClick = onTogglePin))
+        onSelect?.let { add(SheetAction("Select", R.drawable.ui_check, onClick = it)) }
+        if (!message.v3) add(SheetAction("Delete for me", R.drawable.ui_trash, onClick = onDeleteForMe))
+        if (message.fromMe) add(SheetAction("Delete for everyone", R.drawable.ui_trash, danger = true, onClick = onDeleteForEveryone))
+        onReport?.let { add(SheetAction("Report", R.drawable.ui_flag, danger = true, onClick = it)) }
+    }
+    ActionSheet(onDismiss = onDismiss, actions = actions) {
+        if (canPost) Row(
+            Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RichMessage.REACTION_EMOJI.forEach { emoji ->
+                val mine = message.reactions.any { it.emoji == emoji && it.mine }
+                Text(
+                    emoji,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier
+                        .background(if (mine) colors.accentSoft else Color.Transparent, RoundedCornerShape(50))
+                        .clickable(onClickLabel = "React with $emoji") { onReact(emoji) }
+                        .padding(6.dp),
+                )
             }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+            // Any other emoji, from the full picker.
+            Text(
+                "+",
+                color = colors.text2,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.surface2)
+                    .clickable(onClickLabel = "More reactions", onClick = onMoreReactions)
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
+            )
+        }
+    }
 }
 
 /** Copy text: kept out of Android's clipboard preview, like the desktop's (which keeps it out of clipboard history). */
@@ -1493,19 +1522,21 @@ private fun copyMessageText(context: android.content.Context, text: String) {
     android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
 }
 
+/**
+ * The safety number, from the header: a 48dp shield (green with a check once verified, amber until then). The name
+ * says "Verified" under it once it is, and the banner under the bar says "Not verified" in words, so the state never
+ * rests on the colour alone; TalkBack reads it from the description.
+ */
 @Composable
-private fun VerifiedChip(verified: Boolean, onClick: () -> Unit) {
+private fun VerifyButton(verified: Boolean, onClick: () -> Unit) {
     val colors = RedvaultTheme.colors
-    Text(
-        if (verified) "Verified" else "Not verified",
-        color = if (verified) colors.accent else colors.warn,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier
-            .padding(end = 12.dp)
-            .background(if (verified) colors.accentSoft else colors.warnSoft, RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    )
+    IconButton(onClick = onClick) {
+        Icon(
+            painterResource(if (verified) R.drawable.ui_shield_check else R.drawable.ui_shield),
+            contentDescription = if (verified) "Verified: view safety number" else "Not verified: verify safety number",
+            tint = if (verified) colors.ok else colors.warn,
+        )
+    }
 }
 
 /** In place of the composer in a channel this user only reads. */
@@ -1518,7 +1549,7 @@ private fun ReadOnlyBar(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(painterResource(R.drawable.ui_lock), contentDescription = null, tint = colors.text3, modifier = Modifier.size(14.dp))
-        Text("Only the creator and staff post in this channel.", color = colors.text3, style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.ui_only_the_creator_and_staff_post), color = colors.text3, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -1549,7 +1580,7 @@ private fun DisappearingRow(current: Disappearing, onChange: (Disappearing) -> U
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Disappearing messages", style = MaterialTheme.typography.labelMedium, color = colors.text3, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.ui_disappearing_messages), style = MaterialTheme.typography.labelMedium, color = colors.text3, modifier = Modifier.weight(1f))
         Box {
             Text(
                 "${current.label} ▾",
@@ -1622,9 +1653,12 @@ private fun MessageBubble(
     val colors = RedvaultTheme.colors
     var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
     val sent = message.fromMe
-    val background = if (sent) colors.accent else colors.surface
-    val foreground = if (sent) colors.accentContrast else colors.text
-    val meta = if (sent) colors.accentContrast.copy(alpha = 0.75f) else colors.text3
+    // Burgundy for yours, charcoal (with a hairline) for theirs.
+    val background = if (sent) colors.bubbleOut else colors.bubbleIn
+    val foreground = if (sent) colors.bubbleOutText else colors.text
+    val meta = if (sent) colors.bubbleOutTime else colors.text3
+    /** Links, sender names and accents inside the bubble: white on burgundy. */
+    val accentInk = if (sent) colors.bubbleOutText else colors.accent
     val shape = if (sent) RoundedCornerShape(15.dp, 15.dp, 4.dp, 15.dp) else RoundedCornerShape(15.dp, 15.dp, 15.dp, 4.dp)
 
     Row(
@@ -1639,7 +1673,8 @@ private fun MessageBubble(
                 modifier = Modifier
                     .widthIn(max = 300.dp)
                     .background(background, shape)
-                    .then(if (highlighted) Modifier.border(2.dp, if (sent) colors.accentContrast else colors.accent, shape) else Modifier)
+                    .then(if (!sent) Modifier.border(1.dp, colors.border, shape) else Modifier)
+                    .then(if (highlighted) Modifier.border(2.dp, if (sent) colors.bubbleOutText else colors.focusRing, shape) else Modifier)
                     .combinedClickable(
                         onClick = {
                             if (!sent || message.queued) return@combinedClickable
@@ -1650,10 +1685,10 @@ private fun MessageBubble(
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                senderName?.let { Text(it, color = colors.accent, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium) }
+                senderName?.let { Text(it, color = accentInk, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium) }
                 // No signature where their apps now sign: an older app of theirs, or someone else made it.
                 if (message.unverifiedSender) {
-                    Text("⚠ Sender not verified", color = colors.danger, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.ui_sender_not_verified), color = colors.danger, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
                 }
                 val channelPost = message.channelPost
                 if (channelPost != null) {
@@ -1668,7 +1703,7 @@ private fun MessageBubble(
                         modifier = if (onOpenForwardedChannel != null) Modifier.clickable(role = Role.Button, onClick = onOpenForwardedChannel) else Modifier,
                     )
                 } else if (message.forwarded) {
-                    Text("↪ Forwarded", color = meta, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.ui_forwarded), color = meta, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, style = MaterialTheme.typography.labelSmall)
                 }
                 message.storyReply?.let { story ->
                     Column(
@@ -1714,7 +1749,7 @@ private fun MessageBubble(
                                 onOpenLink = onOpenLink,
                                 mentions = mentions,
                                 selfHandle = selfHandle,
-                                linkColor = if (sent) foreground else colors.accent,
+                                linkColor = if (sent) foreground else accentInk,
                             )
                         }
                     }
@@ -1740,7 +1775,7 @@ private fun MessageBubble(
                             modifier = Modifier.clickable(onClickLabel = "Show earlier versions", onClick = onShowVersions),
                         )
                     }
-                    Icon(painterResource(R.drawable.ic_lock), contentDescription = "End-to-end encrypted", tint = meta, modifier = Modifier.size(11.dp))
+                    Icon(painterResource(R.drawable.ic_lock), contentDescription = stringResource(R.string.ui_end_to_end_encrypted), tint = meta, modifier = Modifier.size(11.dp))
                     Text(TimeFormat.time(message.createdAtMs), color = meta, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelSmall)
                     if (sent) {
                         val (icon, label) = compactStatus(message)
@@ -1782,7 +1817,7 @@ private fun SelectMark(selected: Boolean, enabled: Boolean) {
             .then(
                 when {
                     !enabled -> Modifier
-                    selected -> Modifier.background(colors.accent)
+                    selected -> Modifier.background(colors.accentFill)
                     else -> Modifier.border(2.dp, colors.text3, CircleShape)
                 },
             )
@@ -1802,7 +1837,7 @@ private fun QueuedRow(message: Message, meta: Color, foreground: Color, onRetry:
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(top = 2.dp)) {
             if (message.queueHeld) {
                 Text(
-                    "Retry",
+                    stringResource(R.string.ui_retry),
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelMedium,
@@ -1810,7 +1845,7 @@ private fun QueuedRow(message: Message, meta: Color, foreground: Color, onRetry:
                 )
             }
             Text(
-                "Discard",
+                stringResource(R.string.ui_discard),
                 color = foreground,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.labelMedium,
@@ -1876,7 +1911,7 @@ private fun PollCard(poll: PollView, foreground: Color, meta: Color, onVote: (Li
             )
             if (onEndPoll != null && !poll.closed) {
                 Text(
-                    "End poll",
+                    stringResource(R.string.ui_end_poll),
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelMedium,
@@ -1894,11 +1929,11 @@ private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onO
         // Per-device keys: there is no public transaction record, delivery or read receipt for these yet, so nothing
         // here pretends otherwise.
         Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("MESSAGE SECURITY", color = muted, style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.ui_message_security), color = muted, style = MaterialTheme.typography.labelSmall)
             SecurityRow(if (message.fromMe) "Encrypted on this phone, for each device" else "Decrypted on this phone", SecurityMark.Done, foreground)
             if (message.fromMe) SecurityRow("Relayed as ciphertext", if (message.queued) SecurityMark.Failed else SecurityMark.Done, foreground)
             Text(
-                "Sent with per-device keys. The server kept only ciphertext until each device fetched it. No public record, delivered or read marks yet.",
+                stringResource(R.string.ui_sent_with_per_device_keys_the),
                 color = muted,
                 style = MaterialTheme.typography.labelSmall,
             )
@@ -1906,7 +1941,7 @@ private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onO
         return
     }
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text("MESSAGE SECURITY", color = muted, style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(R.string.ui_message_security), color = muted, style = MaterialTheme.typography.labelSmall)
         SecurityRow("Encrypted locally", SecurityMark.Done, foreground)
         SecurityRow("Relayed as ciphertext", SecurityMark.Done, foreground)
         SecurityRow(
@@ -1924,7 +1959,7 @@ private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onO
         message.security?.let { security ->
             if (security.verification == VerificationStatus.Failed) {
                 Text(
-                    "The server's record of this message doesn't match what this phone sent.",
+                    stringResource(R.string.ui_the_server_s_record_of_this),
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelSmall,
@@ -1932,7 +1967,7 @@ private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onO
             }
             if (security.publicTransactionId != null) {
                 Text(
-                    "View verification details",
+                    stringResource(R.string.ui_view_verification_details),
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelMedium,
@@ -1950,8 +1985,8 @@ private fun SecurityRow(label: String, mark: SecurityMark, color: Color) {
     Row(Modifier.widthIn(min = 200.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = color, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
         when (mark) {
-            SecurityMark.Done -> Icon(painterResource(R.drawable.ic_check), contentDescription = "Yes", tint = color, modifier = Modifier.size(14.dp))
-            SecurityMark.Failed -> Icon(painterResource(R.drawable.ic_close), contentDescription = "Failed", tint = color, modifier = Modifier.size(14.dp))
+            SecurityMark.Done -> Icon(painterResource(R.drawable.ic_check), contentDescription = stringResource(R.string.ui_yes), tint = color, modifier = Modifier.size(14.dp))
+            SecurityMark.Failed -> Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_failed), tint = color, modifier = Modifier.size(14.dp))
             SecurityMark.Unavailable -> Text("–", color = color, style = MaterialTheme.typography.labelMedium)
             SecurityMark.Pending -> Text("…", color = color, style = MaterialTheme.typography.labelMedium)
         }
@@ -2042,7 +2077,7 @@ private fun Composer(
         if (files.isEmpty()) return
         fileSent = false
         if (!canSendFiles) {
-            fileError = PRO_REQUIRED_MESSAGE
+            PlanGate.ask("pro", "Sending files")
             return
         }
         pendingFiles += files
@@ -2128,7 +2163,7 @@ private fun Composer(
     fun pastePicture(uri: Uri, mimeType: String) {
         if (!canSendFiles) {
             fileSent = false
-            fileError = PRO_REQUIRED_MESSAGE
+            PlanGate.ask("pro", "Sending pictures")
             return
         }
         scope.launch {
@@ -2188,7 +2223,7 @@ private fun Composer(
                     )
                 }
                 IconButton(onClick = onCancelReply) {
-                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Cancel reply", tint = colors.text2, modifier = Modifier.size(20.dp))
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_cancel_reply), tint = colors.text2, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -2198,11 +2233,11 @@ private fun Composer(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Editing message", color = colors.accent, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.ui_editing_message), color = colors.accent, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
                     Text(TextFormat.toPlain(target.text), color = colors.text2, maxLines = 1, style = MaterialTheme.typography.bodySmall)
                 }
                 IconButton(onClick = onCancelEdit) {
-                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Cancel editing", tint = colors.text2, modifier = Modifier.size(20.dp))
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_cancel_editing), tint = colors.text2, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -2254,21 +2289,25 @@ private fun Composer(
         ) {
             Box {
                 IconButton(enabled = fileStage == null && editing == null, onClick = { attachMenu = true }) {
-                    Icon(painterResource(R.drawable.ic_attach), contentDescription = "Attach files or a poll", tint = colors.text2)
+                    Icon(painterResource(R.drawable.ic_attach), contentDescription = stringResource(R.string.ui_attach_files_or_a_poll), tint = colors.text2)
                 }
                 DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
-                    DropdownMenuItem(text = { Text("Files") }, onClick = {
-                        attachMenu = false
-                        if (canSendFiles) {
-                            appLock?.expectExternalReturn()
-                            pick.launch(arrayOf("*/*"))
-                        } else {
-                            fileSent = false
-                            fileError = PRO_REQUIRED_MESSAGE
-                        }
-                    })
+                    DropdownMenuItem(
+                        text = { Text(if (canSendFiles) "Files" else "Files (Pro)") },
+                        trailingIcon = if (canSendFiles) null else ({ LockBadge() }),
+                        onClick = {
+                            attachMenu = false
+                            if (canSendFiles) {
+                                appLock?.expectExternalReturn()
+                                pick.launch(arrayOf("*/*"))
+                            } else {
+                                fileSent = false
+                                PlanGate.ask("pro", "Sending files")
+                            }
+                        },
+                    )
                     onStartPoll?.let { startPoll ->
-                        DropdownMenuItem(text = { Text("Poll") }, onClick = {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.ui_poll)) }, onClick = {
                             attachMenu = false
                             startPoll()
                         })
@@ -2287,8 +2326,8 @@ private fun Composer(
                     TextButton(onClick = {
                         recording = false
                         recorder.cancel()
-                    }) { Text("Cancel", color = colors.text2) }
-                    TextButton(onClick = { sendRecording() }) { Text("Send", fontWeight = FontWeight.SemiBold) }
+                    }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) }
+                    TextButton(onClick = { sendRecording() }) { Text(stringResource(R.string.ui_send), fontWeight = FontWeight.SemiBold) }
                 }
                 return@Row
             }
@@ -2300,7 +2339,7 @@ private fun Composer(
                 shape = RoundedCornerShape(22.dp),
                 trailingIcon = {
                     IconButton(onClick = { pickingEmoji = true }) {
-                        Icon(painterResource(R.drawable.ui_smile), contentDescription = "Emoji", tint = colors.text2)
+                        Icon(painterResource(R.drawable.ui_smile), contentDescription = stringResource(R.string.ui_emoji), tint = colors.text2)
                     }
                 },
                 modifier = Modifier.weight(1f).contentReceiver(pictureReceiver),
@@ -2310,14 +2349,21 @@ private fun Composer(
                     when {
                         !canSendFiles -> {
                             fileSent = false
-                            fileError = PRO_REQUIRED_MESSAGE
+                            PlanGate.ask("pro", "Voice messages")
                         }
                         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED ->
                             startRecording()
                         else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 }) {
-                    Icon(painterResource(R.drawable.ic_mic), contentDescription = "Record a voice message", tint = colors.text2)
+                    Box {
+                        Icon(
+                            painterResource(R.drawable.ic_mic),
+                            contentDescription = if (canSendFiles) "Record a voice message" else "Record a voice message, locked: part of Pro",
+                            tint = colors.text2,
+                        )
+                        if (!canSendFiles) LockBadge(Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp))
+                    }
                 }
                 return@Row
             }

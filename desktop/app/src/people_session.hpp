@@ -37,6 +37,8 @@ class PeopleSession : public QObject {
     Q_PROPERTY(QVariantMap found READ found NOTIFY foundChanged)
     /// userIds you've blocked (they can't message or call you).
     Q_PROPERTY(QStringList blocked READ blocked NOTIFY blockedChanged)
+    /// The same people with their handles ({userId, handle}), for Settings > Privacy > Blocked.
+    Q_PROPERTY(QVariantList blockedPeople READ blockedPeople NOTIFY blockedChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QString notice READ notice NOTIFY noticeChanged)
@@ -51,6 +53,7 @@ public:
     QVariantList friends() const { return friends_; }
     QVariantMap found() const { return found_; }
     QStringList blocked() const { return blocked_; }
+    QVariantList blockedPeople() const { return blockedPeople_; }
     bool busy() const { return busy_; }
     QString error() const { return error_; }
     QString notice() const { return notice_; }
@@ -103,6 +106,7 @@ private:
     QVariantList friends_;
     QVariantMap found_;
     QStringList blocked_;
+    QVariantList blockedPeople_;
     QString error_;
     QString notice_;
 };

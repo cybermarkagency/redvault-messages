@@ -10,6 +10,7 @@ import com.redvaultsystems.redvaultmessage.data.FriendRepository
 import com.redvaultsystems.redvaultmessage.data.FriendRequestView
 import com.redvaultsystems.redvaultmessage.data.FileRepository
 import com.redvaultsystems.redvaultmessage.data.FriendRequests
+import com.redvaultsystems.redvaultmessage.data.api.BillingConfigDto
 import com.redvaultsystems.redvaultmessage.data.api.BlockedUserDto
 import com.redvaultsystems.redvaultmessage.data.api.FileStorageUsageDto
 import com.redvaultsystems.redvaultmessage.data.api.ApiException
@@ -97,6 +98,18 @@ class AccountSession(
     suspend fun storageUsage(): FileStorageUsageDto = call { files.storageUsage() }
 
     suspend fun planStatus(): PlanStatusDto = call { account.planStatus() }
+
+    /** The Stripe payment links and each plan's Files storage, for the Plans screen. */
+    suspend fun billingConfig(): BillingConfigDto = call { account.billingConfig() }
+
+    /** Moves a card subscription between Pro and Premium (Stripe prorates). */
+    suspend fun switchPlan(tier: String): PlanStatusDto = call { account.switchPlan(tier) }.also { quietly { refreshProfile() } }
+
+    /** Reads the plan again now (after coming back from a Stripe checkout in the browser). */
+    suspend fun refreshPlan() = quietly { refreshProfile() }
+
+    /** The signed-in account's id: Stripe hands it back to the server as the checkout's client_reference_id. */
+    val userId: String get() = identity.userId
 
     /** Switch to Free at the end of the paid period. */
     suspend fun cancelPlan(): PlanStatusDto = call { account.cancelPlan() }

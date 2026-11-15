@@ -16,13 +16,13 @@ RvDialog {
     property var foundOffer: ({ available: false })
     property string startError: ""
     readonly property string foundUserId: people.found.userId ?? ""
-    title: "Friends"
+    title: qsTr("Friends")
     width: 500
 
     onFoundUserIdChanged: {
         foundOffer = { available: false }
         startError = ""
-        if (foundUserId.length > 0 && App.earnings && !people.found.isSelf && !people.found.isFriend && !people.found.deleted)
+        if (foundUserId.length > 0 && App.earningsEnabled && App.earnings && !people.found.isSelf && !people.found.isFriend && !people.found.deleted)
             App.earnings.loadOffer(foundUserId)
     }
     Connections {
@@ -86,19 +86,19 @@ RvDialog {
         spacing: 10
 
         // --- Add a friend ---
-        SectionTitle { text: "Add a friend" }
+        SectionTitle { text: qsTr("Add a friend") }
         RowLayout {
             Layout.fillWidth: true
             RvTextField {
                 id: lookupField
                 Layout.fillWidth: true
-                placeholderText: "Their handle"
+                placeholderText: qsTr("Their handle")
                 enabled: !dialog.people.busy
                 onAccepted: dialog.people.lookup(text)
             }
             RvButton {
                 iconName: "search"
-                text: "Find"
+                text: qsTr("Find")
                 enabled: !dialog.people.busy && lookupField.text.trim().length > 0
                 onClicked: dialog.people.lookup(lookupField.text)
             }
@@ -124,10 +124,10 @@ RvDialog {
                     visible: !!dialog.people.found.isSelf || !!dialog.people.found.isFriend
                              || !!dialog.people.found.pending || !!dialog.people.found.deleted
                     anchors.verticalCenter: parent.verticalCenter
-                    text: dialog.people.found.isSelf ? "That's you"
-                        : dialog.people.found.deleted ? "Account deleted"
-                        : dialog.people.found.isFriend ? "Already friends"
-                        : "Request sent"
+                    text: dialog.people.found.isSelf ? qsTr("That's you")
+                        : dialog.people.found.deleted ? qsTr("Account deleted")
+                        : dialog.people.found.isFriend ? qsTr("Already friends")
+                        : qsTr("Request sent")
                     textFormat: Text.PlainText
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall + 1
@@ -136,7 +136,7 @@ RvDialog {
                     visible: !dialog.people.found.isSelf && !dialog.people.found.isFriend
                              && !dialog.people.found.pending && !dialog.people.found.deleted
                     iconName: "user-plus"
-                    text: "Send request"
+                    text: qsTr("Send request")
                     implicitHeight: 32
                     enabled: !dialog.people.busy
                     onClicked: dialog.people.sendRequest(dialog.people.found.handle)
@@ -152,7 +152,7 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Creator. " + (dialog.foundOffer.paidMessages ?? "")
+                text: qsTr("Creator. ") + (dialog.foundOffer.paidMessages ?? "")
                 textFormat: Text.PlainText
                 color: Theme.text2
                 font.pixelSize: Theme.fontSmall + 1
@@ -160,7 +160,7 @@ RvDialog {
             RvButton {
                 secondary: true
                 iconName: "chat"
-                text: "Message"
+                text: qsTr("Message")
                 implicitHeight: 32
                 enabled: App.chats !== null && !App.chats.groupBusy
                 onClicked: {
@@ -187,7 +187,7 @@ RvDialog {
         // --- Requests to you ---
         SectionTitle {
             visible: dialog.people.incoming.length > 0
-            text: "Requests to you (" + dialog.people.incoming.length + ")"
+            text: qsTr("Requests to you (") + dialog.people.incoming.length + ")"
         }
         Repeater {
             model: dialog.people.incoming
@@ -197,7 +197,7 @@ RvDialog {
                 handle: modelData.handle
                 avatarUrl: modelData.avatarUrl
                 RvButton {
-                    text: "Accept"
+                    text: qsTr("Accept")
                     implicitHeight: 32
                     enabled: !dialog.people.busy
                     onClicked: dialog.people.accept(incomingRow.modelData.id)
@@ -205,7 +205,7 @@ RvDialog {
                 RvButton {
                     primary: false
                     danger: true
-                    text: "Deny"
+                    text: qsTr("Deny")
                     implicitHeight: 32
                     enabled: !dialog.people.busy
                     onClicked: dialog.people.deny(incomingRow.modelData.id)
@@ -216,7 +216,7 @@ RvDialog {
         // --- Your requests ---
         SectionTitle {
             visible: dialog.people.outgoing.length > 0
-            text: "Waiting for them (" + dialog.people.outgoing.length + ")"
+            text: qsTr("Waiting for them (") + dialog.people.outgoing.length + ")"
         }
         Repeater {
             model: dialog.people.outgoing
@@ -227,7 +227,7 @@ RvDialog {
                 avatarUrl: modelData.avatarUrl
                 RvButton {
                     primary: false
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     implicitHeight: 32
                     enabled: !dialog.people.busy
                     onClicked: dialog.people.cancel(outgoingRow.modelData.id)
@@ -239,7 +239,7 @@ RvDialog {
             Layout.fillWidth: true
             Layout.topMargin: 6
             wrapMode: Text.Wrap
-            text: "Accepting a request creates an end-to-end encrypted chat. They aren't told if you deny it."
+            text: qsTr("Accepting a request creates an end-to-end encrypted chat. They aren't told if you deny it.")
             color: Theme.text3
             font.pixelSize: Theme.fontSmall
         }

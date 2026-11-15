@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.onboarding
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -126,14 +127,12 @@ fun OnboardingScreen(
 private fun Wordmark() {
     val colors = RedvaultTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.accent), contentAlignment = Alignment.Center) {
-            DsIcon(R.drawable.ui_shield_check, colors.accentContrast, 22.dp)
-        }
-        Text("Redvaultsystem", fontFamily = RedvaultFonts.display, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colors.text, letterSpacing = (-0.5).sp)
+        com.redvaultsystems.redvaultmessage.ui.components.AppLogo(40.dp)
+        Text(com.redvaultsystems.redvaultmessage.ui.components.APP_DISPLAY_NAME,fontFamily = RedvaultFonts.display, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = colors.text, letterSpacing = (-0.5).sp)
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DsIcon(R.drawable.ui_lock, colors.accent, 13.dp)
-        Text("End-to-end encrypted · keys stay on this device", color = colors.accent, fontFamily = RedvaultFonts.mono, fontSize = 11.sp)
+        Text(stringResource(R.string.ui_end_to_end_encrypted_keys_stay), color = colors.accent, fontFamily = RedvaultFonts.mono, fontSize = 11.sp)
     }
 }
 
@@ -188,8 +187,8 @@ private fun ColumnScope.CreateForm(
     ) {
         KeyGlyph(seed = trimmed.ifEmpty { state.candidateHandle }, size = 56.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Your key, made on this phone", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text("Its private half never leaves your devices unencrypted.", color = colors.text3, fontSize = 12.5.sp)
+            Text(stringResource(R.string.ui_your_key_made_on_this_phone), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ui_its_private_half_never_leaves_your), color = colors.text3, fontSize = 12.5.sp)
         }
     }
 
@@ -203,7 +202,7 @@ private fun ColumnScope.CreateForm(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "Suggest",
+                stringResource(R.string.ui_suggest),
                 color = colors.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -217,14 +216,14 @@ private fun ColumnScope.CreateForm(
     Field("Confirm password") { Input(confirmPassword, { confirmPassword = it }, "Confirm password", password = true) }
     if (confirmPassword.isNotEmpty() && confirmPassword != password) Problem("Passwords don't match.")
 
-    ConsentBox(termsAccepted, { termsAccepted = it }, "I agree to the RedVault Messages ", "Terms of Service") { reading = LegalDocument.Terms }
-    ConsentBox(privacyAcknowledged, { privacyAcknowledged = it }, "I acknowledge the RedVault Messages ", "Privacy Policy") { reading = LegalDocument.Privacy }
+    ConsentBox(termsAccepted, { termsAccepted = it }, "I agree to the RedVaultMessages ", "Terms of Service") { reading = LegalDocument.Terms }
+    ConsentBox(privacyAcknowledged, { privacyAcknowledged = it }, "I acknowledge the RedVaultMessages ", "Privacy Policy") { reading = LegalDocument.Privacy }
     ConsentBox(age18Confirmed, { age18Confirmed = it }, "I confirm I am 18 or older")
     state.error?.let { Problem(it) }
 
     PillButton(if (busy) "Creating…" else "Create Account", { onRegister(trimmed, password, consent) }, Modifier.fillMaxWidth(), enabled = canSubmit, busy = busy)
     Callout(
-        "There's no password reset by email. After you create your account you'll get a recovery key: it's the only way back in if you forget your password, so keep it safe.",
+        stringResource(R.string.ui_there_s_no_password_reset_by),
         CalloutTone.Neutral,
         R.drawable.ui_key,
     )
@@ -267,7 +266,7 @@ private fun ConsentBox(checked: Boolean, onChange: (Boolean) -> Unit, text: Stri
         Checkbox(
             checked = checked,
             onCheckedChange = null,
-            colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
+            colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
         )
         // No 48dp touch-target growth for the link: grown, it would reach over the
         // words above it, and a tap meant to tick the box would open the document.
@@ -296,7 +295,7 @@ private fun ColumnScope.LoginForm(state: AuthUiState, onLogin: (String, String) 
     state.error?.let { Problem(it) }
     PillButton(if (busy) "Logging in…" else "Log in", { onLogin(handle.trim(), password) }, Modifier.fillMaxWidth(), enabled = canSubmit, busy = busy)
     LinkText("Forgot your password? Use your recovery key", { onModeChange(OnboardingMode.Recover) }, Modifier.align(Alignment.CenterHorizontally))
-    PillButton("Create a new identity", { onModeChange(OnboardingMode.Create) }, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
+    PillButton(stringResource(R.string.ui_create_a_new_identity), { onModeChange(OnboardingMode.Create) }, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
 }
 
 @Composable

@@ -18,6 +18,7 @@
 #include "file_safety.hpp"
 #include "redvault/e2ev3/key_vault.hpp"
 #include "redvault/e2ev3/v3_server.hpp"
+#include "redvault/model/text_format.hpp"
 #include "redvault/util/text.hpp"
 #include "tor_controller.hpp"
 #endif
@@ -33,7 +34,8 @@ QHash<int, QByteArray> V3ChatModel::roleNames() const {
     return {{IdRole, "messageId"},       {TextRole, "text"},         {FromMeRole, "fromMe"},     {TimeRole, "time"},
             {StatusRole, "status"},      {SenderRole, "sender"},     {DeletedRole, "deleted"},   {EditedRole, "edited"},
             {ReactionsRole, "reactions"}, {HasFileRole, "hasFile"},  {FileNameRole, "fileName"}, {FileSizeRole, "fileSize"},
-            {CanOpenRole, "canOpen"},    {CanReactRole, "canReact"}, {CanEditRole, "canEdit"},   {CanDeleteRole, "canDelete"}};
+            {CanOpenRole, "canOpen"},    {CanReactRole, "canReact"}, {CanEditRole, "canEdit"},   {CanDeleteRole, "canDelete"},
+            {RichTextRole, "richText"},  {RichTextRevealedRole, "richTextRevealed"}};
 }
 
 void V3ChatModel::setRows(QVariantList rows) {
@@ -148,7 +150,17 @@ QVariantMap chatRow(const e2ev3::ChatRecord& r, const std::string& selfUserId, s
         reactions.append(QVariantMap{{"emoji", emoji}, {"count", held.first}, {"mine", held.second}});
     }
     const QString fileName = r.file ? qs(r.file->filename) : QString();
+    // Formatting as in the other chats: the sender's text is escaped first, only the formatter's own tags appear.
+    QString richText, richTextRevealed;
+    if (!r.deleted && !r.file && model::text_format::hasFormatting(r.text)) {
+        model::text_format::Options options;
+        richText = qs(model::text_format::toHtml(r.text, options));
+        options.revealSpoilers = true;
+        richTextRevealed = qs(model::text_format::toHtml(r.text, options));
+    }
     return QVariantMap{{"messageId", qs(r.id)},
+                       {"richText", richText},
+                       {"richTextRevealed", richTextRevealed},
                        {"text", r.deleted ? QStringLiteral("This message was deleted.") : qs(r.text)},
                        {"fromMe", mine},
                        {"time", QLocale().toString(QDateTime::fromMSecsSinceEpoch(r.ts).toLocalTime(), QLocale::ShortFormat)},

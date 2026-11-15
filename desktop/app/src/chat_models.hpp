@@ -37,6 +37,8 @@ QString communityAvatarPath(const data::ConversationMeta& meta);
 
 /// A picture the chat shows inline (by its declared type; the decoder checks the bytes).
 bool isInlineImage(const data::Message& m);
+/// An audio file the chat plays inline (a voice message: "Voice message.m4a", audio/mp4).
+bool isAudioFile(const data::Message& m);
 
 /// "09:24" today, "Wed" this week, "Sep 24" before that. Local time.
 QString formatListTime(std::int64_t ms);
@@ -129,6 +131,8 @@ public:
         RichTextRevealedRole,
         /// A file the app can show inline (a JPEG, PNG, GIF, WebP or BMP picture).
         IsImageRole,
+        /// An audio file (a voice message) the chat plays inline.
+        IsAudioRole,
         /// MessageKind::Poll: {question, multiple, closed, voters, mine (bool), options: [{label, count, mine}]}.
         PollRole,
         /// MessageKind::Notice: the line to show ("bob pinned “…”").

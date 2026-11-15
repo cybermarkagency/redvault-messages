@@ -90,7 +90,7 @@ ColumnLayout {
             implicitWidth: 44
             implicitHeight: 44
             iconName: "refresh"
-            tip: "Generate another"
+            tip: qsTr("Generate another")
             onClicked: field.generate()
         }
     }

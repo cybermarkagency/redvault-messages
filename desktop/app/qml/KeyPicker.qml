@@ -43,7 +43,7 @@ ComboBox {
         Text {
             Layout.fillWidth: true
             elide: Text.ElideRight
-            text: picker.current ? picker.current.name : picker.files.keys.length === 0 ? "No keys yet: create or import one" : "Choose a key"
+            text: picker.current ? picker.current.name : picker.files.keys.length === 0 ? qsTr("No keys yet: create or import one") : qsTr("Choose a key")
             textFormat: Text.PlainText
             color: picker.current ? Theme.text : Theme.text3
             font.pixelSize: 14

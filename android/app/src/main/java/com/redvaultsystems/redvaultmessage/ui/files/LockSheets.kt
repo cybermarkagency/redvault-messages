@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.files
 
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -128,7 +129,7 @@ fun UploadLockSheet(
                 }
             }
         }
-        Text("Extra lock", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.ui_extra_lock), color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         OptionCard(
             if (changing != null && currentLock.isNotEmpty()) "Remove the lock" else "No extra lock",
             if (changing == null) "Your account protects them." else "Your account protects it, like your other files.",
@@ -147,7 +148,7 @@ fun UploadLockSheet(
         }
         error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
         Callout(
-            "Our servers and storage can't tell locked files apart. You can change the lock later without re-uploading.",
+            stringResource(R.string.ui_our_servers_and_storage_can_t),
             CalloutTone.Neutral,
             R.drawable.ui_info,
         )
@@ -175,7 +176,7 @@ fun UnlockFileSheet(files: FilesSession, state: FilesState, id: String, onDone: 
     val needsKeyPassword = mode == "key" && files.keyNeedsPassword(keyId)
 
     FullSheet(
-        title = "Unlock file",
+        title = stringResource(R.string.ui_unlock_file),
         onCancel = { onDone(false) },
         primary = "Unlock",
         primaryEnabled = if (mode == "password") filePassword.isNotEmpty() else keyId.isNotEmpty() && (!needsKeyPassword || keyPassword.isNotEmpty()),
@@ -191,10 +192,10 @@ fun UnlockFileSheet(files: FilesSession, state: FilesState, id: String, onDone: 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(entry.name, color = colors.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             if (lockKind == "password") {
-                Text("Locked with a password", color = colors.text2, fontSize = 14.sp)
+                Text(stringResource(R.string.ui_locked_with_a_password), color = colors.text2, fontSize = 14.sp)
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Locked with", color = colors.text2, fontSize = 14.sp)
+                    Text(stringResource(R.string.ui_locked_with), color = colors.text2, fontSize = 14.sp)
                     Text(lockKey?.name ?: "a key", color = colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text("· ${FileLocks.lockFingerprint(entry.meta).take(9)}", color = colors.lockText2, fontFamily = MonoFamily, fontSize = 13.sp)
                 }
@@ -237,7 +238,7 @@ fun UnlockFileSheet(files: FilesSession, state: FilesState, id: String, onDone: 
             Callout(message, CalloutTone.Error, R.drawable.ui_alert_circle) {
                 if (message.contains("newer version")) {
                     PillButton(
-                        "Update the app",
+                        stringResource(R.string.ui_update_the_app),
                         {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
                             runCatching { context.startActivity(intent) }
@@ -249,7 +250,7 @@ fun UnlockFileSheet(files: FilesSession, state: FilesState, id: String, onDone: 
             }
         }
         Callout(
-            "Unlocks for this session only. The file's key is never saved back to the server unlocked, even if you rename or move it.",
+            stringResource(R.string.ui_unlocks_for_this_session_only_the),
             CalloutTone.Ok,
             R.drawable.ui_shield,
         )

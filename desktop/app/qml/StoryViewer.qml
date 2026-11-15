@@ -56,7 +56,7 @@ Rectangle {
     color: Theme.storyStage
     z: 50
     Accessible.role: Accessible.Dialog
-    Accessible.name: viewer.group ? (viewer.own ? "Your story" : viewer.group.owner.handle + "'s story") : "Stories"
+    Accessible.name: viewer.group ? (viewer.own ? qsTr("Your story") : viewer.group.owner.handle + qsTr("'s story")) : qsTr("Stories")
 
     /// A story with something to answer stays longer: reading a question and choosing takes more than five seconds.
     function secondsFor(story) {
@@ -251,7 +251,7 @@ Rectangle {
         Text {
             anchors.centerIn: parent
             visible: viewer.failed
-            text: "This story couldn't be opened."
+            text: qsTr("This story couldn't be opened.")
             color: Theme.storyChrome
             font.pixelSize: Theme.fontSize
         }
@@ -351,7 +351,7 @@ Rectangle {
                     source: viewer.group ? viewer.group.owner.avatarUrl : ""
                 }
                 Text {
-                    text: viewer.group ? (viewer.own ? "Your story" : viewer.group.owner.handle) : ""
+                    text: viewer.group ? (viewer.own ? qsTr("Your story") : viewer.group.owner.handle) : ""
                     textFormat: Text.PlainText
                     color: Theme.storyChrome
                     font.pixelSize: Theme.fontSize
@@ -373,7 +373,7 @@ Rectangle {
                     Text {
                         id: closeLabel
                         anchors.centerIn: parent
-                        text: "★ Close friends"
+                        text: qsTr("★ Close friends")
                         color: Theme.storyColors.black
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
@@ -383,26 +383,26 @@ Rectangle {
                 IconButton {
                     iconName: viewer.userPaused ? "play" : "pause"
                     iconColor: Theme.storyChrome
-                    tip: viewer.userPaused ? "Play" : "Pause"
+                    tip: viewer.userPaused ? qsTr("Play") : qsTr("Pause")
                     onClicked: viewer.userPaused = !viewer.userPaused
                 }
                 IconButton {
                     visible: viewer.story !== null && viewer.story.kind === "video"
                     iconName: viewer.muted ? "speaker-off" : "speaker"
                     iconColor: Theme.storyChrome
-                    tip: viewer.muted ? "Turn sound on" : "Turn sound off"
+                    tip: viewer.muted ? qsTr("Turn sound on") : qsTr("Turn sound off")
                     onClicked: viewer.muted = !viewer.muted
                 }
                 IconButton {
                     iconName: "dots"
                     iconColor: Theme.storyChrome
-                    tip: "More"
+                    tip: qsTr("More")
                     onClicked: viewer.sheet = viewer.sheet === "menu" ? "" : "menu"
                 }
                 IconButton {
                     iconName: "close"
                     iconColor: Theme.storyChrome
-                    tip: "Close stories"
+                    tip: qsTr("Close stories")
                     onClicked: viewer.close()
                 }
             }
@@ -428,7 +428,7 @@ Rectangle {
                 RvButton {
                     secondary: true
                     iconName: "eye"
-                    text: viewer.story && viewer.story.viewCount > 0 ? "Seen by " + viewer.story.viewCount : "Activity"
+                    text: viewer.story && viewer.story.viewCount > 0 ? qsTr("Seen by ") + viewer.story.viewCount : qsTr("Activity")
                     onClicked: {
                         viewer.viewers = []
                         viewer.sheet = "viewers"
@@ -439,7 +439,7 @@ Rectangle {
                     visible: viewer.story !== null && viewer.story.answerable && viewer.stories.interactiveEnabled
                     secondary: true
                     iconName: "send"
-                    text: viewer.interactions && viewer.interactions.own ? "Answers (" + viewer.interactions.answerCount + ")" : "Answers"
+                    text: viewer.interactions && viewer.interactions.own ? qsTr("Answers (") + viewer.interactions.answerCount + ")" : qsTr("Answers")
                     onClicked: {
                         viewer.loadInteractions()
                         viewer.sheet = "answers"
@@ -448,7 +448,7 @@ Rectangle {
                 RvButton {
                     secondary: true
                     iconName: "heart"
-                    text: "Highlight"
+                    text: qsTr("Highlight")
                     onClicked: {
                         viewer.stories.loadLibrary()
                         viewer.sheet = "highlight"
@@ -493,7 +493,7 @@ Rectangle {
                     TextField {
                         id: replyField
                         Layout.fillWidth: true
-                        placeholderText: viewer.group ? "Reply to " + viewer.group.owner.handle + "…" : ""
+                        placeholderText: viewer.group ? qsTr("Reply to ") + viewer.group.owner.handle + "…" : ""
                         placeholderTextColor: Theme.storyTrack
                         color: Theme.storyChrome
                         maximumLength: 2000
@@ -521,7 +521,7 @@ Rectangle {
                     IconButton {
                         iconName: replyField.text.trim().length > 0 ? "send" : "heart"
                         iconColor: Theme.storyChrome
-                        tip: replyField.text.trim().length > 0 ? "Send reply" : "Like story"
+                        tip: replyField.text.trim().length > 0 ? qsTr("Send reply") : qsTr("Like story")
                         onClicked: {
                             const t = replyField.text.trim()
                             viewer.stories.reply(viewer.story.id, t.length > 0 ? t : "❤️", t.length === 0)
@@ -576,7 +576,7 @@ Rectangle {
                 spacing: 0
                 MenuRow {
                     visible: viewer.own && viewer.stories.viewerHighlightId.length > 0
-                    text: "Remove from highlight"
+                    text: qsTr("Remove from highlight")
                     onClicked: {
                         viewer.stories.removeFromHighlight(viewer.stories.viewerHighlightId, viewer.story.id)
                         viewer.close()
@@ -584,7 +584,7 @@ Rectangle {
                 }
                 MenuRow {
                     visible: viewer.own
-                    text: "Delete story"
+                    text: qsTr("Delete story")
                     danger: true
                     onClicked: {
                         viewer.sheet = ""
@@ -593,7 +593,7 @@ Rectangle {
                 }
                 MenuRow {
                     visible: viewer.own
-                    text: "Add to highlight"
+                    text: qsTr("Add to highlight")
                     onClicked: {
                         viewer.stories.loadLibrary()
                         viewer.sheet = "highlight"
@@ -601,7 +601,7 @@ Rectangle {
                 }
                 MenuRow {
                     visible: viewer.own
-                    text: "Story settings"
+                    text: qsTr("Story settings")
                     onClicked: {
                         viewer.close()
                         viewer.openSettings()
@@ -609,8 +609,8 @@ Rectangle {
                 }
                 MenuRow {
                     visible: !viewer.own && viewer.group !== null
-                    text: viewer.group && viewer.stories.isMuted(viewer.group.owner.userId) ? "Unmute " + viewer.group.owner.handle
-                                                                                             : "Mute " + (viewer.group ? viewer.group.owner.handle : "") + "'s stories"
+                    text: viewer.group && viewer.stories.isMuted(viewer.group.owner.userId) ? qsTr("Unmute ") + viewer.group.owner.handle
+                                                                                             : qsTr("Mute ") + (viewer.group ? viewer.group.owner.handle : "") + qsTr("'s stories")
                     onClicked: {
                         viewer.stories.setMuted(viewer.group.owner.userId, !viewer.stories.isMuted(viewer.group.owner.userId))
                         viewer.sheet = ""
@@ -618,11 +618,11 @@ Rectangle {
                 }
                 MenuRow {
                     visible: !viewer.own && viewer.group !== null
-                    text: "Report story"
+                    text: qsTr("Report story")
                     onClicked: viewer.sheet = "report"
                 }
                 MenuRow {
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     onClicked: viewer.sheet = ""
                 }
             }
@@ -648,12 +648,12 @@ Rectangle {
         // --- A link sticker: say where it goes before leaving ---
         StorySheet {
             visible: viewer.sheet === "link" && viewer.pendingLink !== null
-            title: "Open this link?"
+            title: qsTr("Open this link?")
             closable: false
             Accessible.role: Accessible.AlertMessage
             Text {
                 Layout.fillWidth: true
-                text: "A friend's story links to " + (viewer.pendingLink ? viewer.pendingLink.host : "") + ". RedVault hasn't checked it."
+                text: qsTr("A friend's story links to ") + (viewer.pendingLink ? viewer.pendingLink.host : "") + qsTr(". RedVault hasn't checked it.")
                 textFormat: Text.PlainText
                 wrapMode: Text.Wrap
                 color: Theme.text3
@@ -670,10 +670,10 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                RvButton { secondary: true; text: "Stay here"; onClicked: viewer.sheet = "" }
+                RvButton { secondary: true; text: qsTr("Stay here"); onClicked: viewer.sheet = "" }
                 Item { Layout.fillWidth: true }
                 RvButton {
-                    text: "Open"
+                    text: qsTr("Open")
                     onClicked: {
                         const url = viewer.pendingLink.url
                         viewer.sheet = ""
@@ -686,7 +686,7 @@ Rectangle {
         // --- Who saw it ---
         Sheet {
             visible: viewer.sheet === "viewers"
-            title: viewer.viewers.length > 0 ? "Seen by " + viewer.viewers.length : "Activity"
+            title: viewer.viewers.length > 0 ? qsTr("Seen by ") + viewer.viewers.length : qsTr("Activity")
             note: "Friends who turned off sharing views aren't listed. No times are kept."
             ListView {
                 Layout.fillWidth: true
@@ -719,7 +719,7 @@ Rectangle {
         // --- Add to a highlight ---
         Sheet {
             visible: viewer.sheet === "highlight"
-            title: "Add to highlight"
+            title: qsTr("Add to highlight")
             note: "Highlights stay on your profile after 24 hours, for friends who could see these stories."
             Repeater {
                 model: viewer.stories.ownHighlights
@@ -730,7 +730,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Text {
                         Layout.fillWidth: true
-                        text: highlightRow.modelData.title.length > 0 ? highlightRow.modelData.title : "Highlight"
+                        text: highlightRow.modelData.title.length > 0 ? highlightRow.modelData.title : qsTr("Highlight")
                         textFormat: Text.PlainText
                         color: Theme.text
                         elide: Text.ElideRight
@@ -738,7 +738,7 @@ Rectangle {
                     RvButton {
                         secondary: true
                         enabled: !highlightRow.contains
-                        text: highlightRow.contains ? "Added" : "Add"
+                        text: highlightRow.contains ? qsTr("Added") : qsTr("Add")
                         onClicked: {
                             viewer.stories.addToHighlight(highlightRow.modelData.id, viewer.story.id)
                             viewer.sheet = ""
@@ -752,13 +752,13 @@ Rectangle {
                 RvTextField {
                     id: highlightName
                     Layout.fillWidth: true
-                    placeholderText: "New highlight name"
+                    placeholderText: qsTr("New highlight name")
                     maximumLength: 40
                     onAccepted: createButton.clicked()
                 }
                 RvButton {
                     id: createButton
-                    text: "Create"
+                    text: qsTr("Create")
                     enabled: highlightName.text.trim().length > 0
                     onClicked: {
                         viewer.stories.saveHighlight("", highlightName.text, [viewer.story.id])
@@ -772,9 +772,9 @@ Rectangle {
 
     ConfirmDialog {
         id: confirmDelete
-        title: "Delete this story?"
-        message: "It's removed for everyone."
-        confirmText: "Delete"
+        title: qsTr("Delete this story?")
+        message: qsTr("It's removed for everyone.")
+        confirmText: qsTr("Delete")
         danger: true
         onConfirmed: {
             const id = viewer.story.id
@@ -831,7 +831,7 @@ Rectangle {
                 }
                 IconButton {
                     iconName: "close"
-                    tip: "Close"
+                    tip: qsTr("Close")
                     onClicked: viewer.sheet = ""
                 }
             }

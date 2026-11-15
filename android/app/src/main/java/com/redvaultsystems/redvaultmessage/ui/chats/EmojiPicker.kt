@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,7 +97,7 @@ internal fun EmojiPickerDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) 
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search emoji") },
+                    placeholder = { Text(stringResource(R.string.ui_search_emoji)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -110,8 +111,8 @@ internal fun EmojiPickerDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) 
                 }
                 Box(Modifier.fillMaxWidth().height(300.dp)) {
                     when {
-                        all == null -> Text("Loading…", color = colors.text3, modifier = Modifier.align(Alignment.Center))
-                        shown.isEmpty() -> Text("No emoji found.", color = colors.text3, modifier = Modifier.align(Alignment.Center))
+                        all == null -> Text(stringResource(R.string.ui_loading), color = colors.text3, modifier = Modifier.align(Alignment.Center))
+                        shown.isEmpty() -> Text(stringResource(R.string.ui_no_emoji_found), color = colors.text3, modifier = Modifier.align(Alignment.Center))
                         else -> LazyVerticalGrid(columns = GridCells.Adaptive(44.dp)) {
                             items(shown, key = { it.first }) { (emoji, name) ->
                                 Box(
@@ -131,7 +132,7 @@ internal fun EmojiPickerDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) 
                         }
                     }
                 }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.ui_cancel)) }
             }
         }
     }

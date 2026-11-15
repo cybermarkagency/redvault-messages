@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
@@ -175,7 +176,7 @@ fun PostContent(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (post.suggested) {
             Text(
-                "Suggested by a follower",
+                stringResource(R.string.ui_suggested_by_a_follower),
                 color = colors.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -303,8 +304,8 @@ private fun PhotoViewer(channels: ChannelSession, media: ChannelMediaDto, onClos
                 TextButton(onClick = {
                     appLock?.expectExternalReturn()
                     save.launch(media.filename ?: "photo")
-                }) { Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold) }
-                TextButton(onClick = onClose) { Text("Close", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                }) { Text(stringResource(R.string.ui_save), color = Color.White, fontWeight = FontWeight.SemiBold) }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.ui_close), color = Color.White, fontWeight = FontWeight.SemiBold) }
             }
             error?.let { Text(it, color = Color.White, modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp)) }
         }
@@ -359,7 +360,7 @@ private fun VideoPlayer(channels: ChannelSession, media: ChannelMediaDto) {
             if (player.phase != ChannelPlayer.Phase.Idle) VideoSurface(player)
             when {
                 player.phase == ChannelPlayer.Phase.Preparing -> CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
-                player.phase == ChannelPlayer.Phase.Failed -> Text("Couldn't play this video.", color = Color.White, fontSize = 13.sp)
+                player.phase == ChannelPlayer.Phase.Failed -> Text(stringResource(R.string.ui_couldn_t_play_this_video), color = Color.White, fontSize = 13.sp)
                 !player.playing -> PlayBadge(media.durationMs?.let { ChannelPosts.formatDuration(it / 1000.0) })
             }
         }
@@ -381,7 +382,7 @@ private fun RoundVideo(channels: ChannelSession, media: ChannelMediaDto) {
         if (player.phase != ChannelPlayer.Phase.Idle) VideoSurface(player, crop = true)
         when {
             player.phase == ChannelPlayer.Phase.Preparing -> CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
-            player.phase == ChannelPlayer.Phase.Failed -> Text("Couldn't play it.", color = Color.White, fontSize = 13.sp)
+            player.phase == ChannelPlayer.Phase.Failed -> Text(stringResource(R.string.ui_couldn_t_play_it), color = Color.White, fontSize = 13.sp)
             !player.playing -> PlayBadge(media.durationMs?.let { ChannelPosts.formatDuration(it / 1000.0) })
         }
     }
@@ -470,7 +471,7 @@ private fun AudioPlayer(channels: ChannelSession, media: ChannelMediaDto, podcas
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(colors.accent).clickable(role = Role.Button) { player.toggle() }
+                Modifier.size(40.dp).clip(CircleShape).background(colors.accentFill).clickable(role = Role.Button) { player.toggle() }
                     .semantics { contentDescription = if (player.playing) "Pause" else "Play" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -479,7 +480,7 @@ private fun AudioPlayer(channels: ChannelSession, media: ChannelMediaDto, podcas
             }
             Column(Modifier.weight(1f)) {
                 if (podcast && media.filename != null) Text(media.filename, color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (!podcast) Text("Voice message", color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                if (!podcast) Text(stringResource(R.string.ui_voice_message), color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Slider(
                     value = if (duration > 0) (player.positionMs.toFloat() / duration).coerceIn(0f, 1f) else 0f,
                     onValueChange = { if (player.phase == ChannelPlayer.Phase.Ready) player.seekTo((it * duration).toLong()) },
@@ -571,16 +572,16 @@ private fun FileRow(channels: ChannelSession, media: ChannelMediaDto) {
                         progress = null
                     }
                 }
-            }) { Text("Download", color = colors.accent, fontWeight = FontWeight.SemiBold) }
+            }) { Text(stringResource(R.string.ui_download), color = colors.accent, fontWeight = FontWeight.SemiBold) }
         } else {
             TextButton(onClick = {
                 appLock?.expectExternalReturn()
                 openFile(context, ready, if (media.mime == "application/octet-stream") "*/*" else media.mime) { error = it }
-            }) { Text("Open", color = colors.accent, fontWeight = FontWeight.SemiBold) }
+            }) { Text(stringResource(R.string.ui_open), color = colors.accent, fontWeight = FontWeight.SemiBold) }
             TextButton(onClick = {
                 appLock?.expectExternalReturn()
                 save.launch(media.filename ?: "file")
-            }) { Text("Save", color = colors.accent, fontWeight = FontWeight.SemiBold) }
+            }) { Text(stringResource(R.string.ui_save), color = colors.accent, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -683,7 +684,7 @@ private fun PollCard(
         }
         if (!showResults && poll.multiple) {
             TextButton(enabled = !busy && picked.isNotEmpty(), onClick = { vote(picked.sorted()) }) {
-                Text("Vote", color = if (picked.isNotEmpty()) colors.accent else colors.text3, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ui_vote), color = if (picked.isNotEmpty()) colors.accent else colors.text3, fontWeight = FontWeight.SemiBold)
             }
         }
         if (poll.quiz && showResults && !explanation.isNullOrBlank()) Text(explanation, color = colors.text2, fontSize = 13.sp)
@@ -784,8 +785,8 @@ private fun ChecklistCard(
             ) {
                 Box(
                     Modifier.size(20.dp).clip(RoundedCornerShape(5.dp))
-                        .background(if (item.done) colors.accent else Color.Transparent)
-                        .border(1.5.dp, if (item.done) colors.accent else colors.text3, RoundedCornerShape(5.dp)),
+                        .background(if (item.done) colors.accentFill else Color.Transparent)
+                        .border(1.5.dp, if (item.done) colors.accentFill else colors.text3, RoundedCornerShape(5.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (item.done) DsIcon(R.drawable.ui_check, colors.accentContrast, 14.dp)

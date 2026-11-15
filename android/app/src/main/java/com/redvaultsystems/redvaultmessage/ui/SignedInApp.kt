@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui
 
+import com.redvaultsystems.redvaultmessage.data.AppearanceStore
+import com.redvaultsystems.redvaultmessage.ui.theme.DarkOnly
 import com.redvaultsystems.redvaultmessage.data.api.TOR_UNAVAILABLE_MESSAGE
 import com.redvaultsystems.redvaultmessage.tor.TorState
 import com.redvaultsystems.redvaultmessage.ui.settings.TorStatusStrip
@@ -122,6 +124,9 @@ import com.redvaultsystems.redvaultmessage.ui.settings.TransparencyLogScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.PrivacyModeScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.SettingsScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.isPaidTier
+import com.redvaultsystems.redvaultmessage.ui.settings.PlansScreen
+import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
+import com.redvaultsystems.redvaultmessage.ui.components.UpgradeSheet
 import com.redvaultsystems.redvaultmessage.ui.verify.MessageDetailsScreen
 import com.redvaultsystems.redvaultmessage.ui.verify.TransparencyFeedScreen
 import com.redvaultsystems.redvaultmessage.ui.verify.VerifyScreen
@@ -137,7 +142,7 @@ internal sealed interface Route {
     data object FriendRequests : Route
     /** Chats from people who aren't friends, waiting to be accepted or ignored. */
     data object MessageRequests : Route
-    /** Messages and polls from the Redvault team. */
+    /** Messages and polls from the RedVault team. */
     data object Inbox : Route
     data object Settings : Route
     data object ChangeUsername : Route
@@ -149,6 +154,8 @@ internal sealed interface Route {
     data object AppLockSettings : Route
     data object PrivacyMode : Route
     data object Blocked : Route
+    /** Settings › Plans: compare, buy, switch or cancel. */
+    data object Plans : Route
     data object RecoveryKeySettings : Route
     data object DeleteAccount : Route
     data object NewGroup : Route
@@ -226,6 +233,7 @@ internal sealed interface Route {
         AppLockSettings -> "appLock"
         PrivacyMode -> "privacyMode"
         Blocked -> "blocked"
+        Plans -> "plans"
         RecoveryKeySettings -> "recoveryKey"
         DeleteAccount -> "deleteAccount"
         NewGroup -> "newGroup"
@@ -277,6 +285,7 @@ internal sealed interface Route {
             value == "appLock" -> AppLockSettings
             value == "privacyMode" -> PrivacyMode
             value == "blocked" -> Blocked
+            value == "plans" -> Plans
             value == "recoveryKey" -> RecoveryKeySettings
             value == "deleteAccount" -> DeleteAccount
             value == "newGroup" -> NewGroup
@@ -419,6 +428,7 @@ private fun SignedInContent(
     // The team's messages and polls: checked every minute while the app is on screen (the Settings badge).
     LaunchedEffect(session) { session.inbox.poll() }
     val inboxState by session.inbox.state.collectAsStateWithLifecycle()
+    val appearance by AppearanceStore.mode.collectAsStateWithLifecycle()
     // A tapped new-post notification opens its channel (behind the lock screen when app lock is on).
     LaunchedEffect(openChannelRequests) {
         openChannelRequests.collect { id ->
@@ -549,25 +559,34 @@ private fun SignedInContent(
         if ((activeCall == null && groupCall == null) || activeCall?.phase == CallPhase.Incoming || groupCall?.phase == GroupPhase.Incoming) callMinimized = false
     }
     val context = LocalContext.current
+    // A paid feature tapped on a plan without it (PlanGate.ask), shown over calls too.
+    UpgradeSheet(onSeePlans = {
+        if (activeCall != null || groupCall != null) callMinimized = true
+        if (stack.last() != Route.Plans) push(Route.Plans)
+    })
     fun toast(message: String) = android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
     if (groupCall != null && !callMinimized) {
         BackHandler { callMinimized = true }
-        GroupCallScreen(
-            calls = session.groupCalls,
-            call = groupCall,
-            onMinimize = { callMinimized = true },
-            onOpenChat = { id -> if ((stack.last() as? Route.Thread)?.conversationId != id) push(Route.Thread(id)) },
-        )
+        DarkOnly {
+            GroupCallScreen(
+                calls = session.groupCalls,
+                call = groupCall,
+                onMinimize = { callMinimized = true },
+                onOpenChat = { id -> if ((stack.last() as? Route.Thread)?.conversationId != id) push(Route.Thread(id)) },
+            )
+        }
         return
     }
     if (activeCall != null && !callMinimized) {
         BackHandler { callMinimized = true }
-        CallScreen(
-            calls = session.calls,
-            call = activeCall,
-            onMinimize = { callMinimized = true },
-            onOpenChat = { id -> if ((stack.last() as? Route.Thread)?.conversationId != id) push(Route.Thread(id)) },
-        )
+        DarkOnly {
+            CallScreen(
+                calls = session.calls,
+                call = activeCall,
+                onMinimize = { callMinimized = true },
+                onOpenChat = { id -> if ((stack.last() as? Route.Thread)?.conversationId != id) push(Route.Thread(id)) },
+            )
+        }
         return
     }
     val askCallPermissions = rememberCallPermissions { message -> toast(message) }
@@ -673,9 +692,10 @@ private fun SignedInContent(
                     onNewGroup = { push(Route.NewGroup) },
                     onOpenRequests = { push(Route.FriendRequests) },
                     onOpenSettings = { push(Route.Settings) },
+                    inboxUnread = inboxState.unread,
                     onJoinGroupLink = { linkId, secret -> push(Route.JoinGroup(linkId, secret)) },
                     onOpenMessageRequests = { push(Route.MessageRequests) },
-                    onOpenCommunities = { push(Route.Communities()) },
+                    onOpenCommunities = if (com.redvaultsystems.redvaultmessage.BuildConfig.COMMUNITIES) ({ push(Route.Communities()) }) else null,
                     favorites = live.favorites,
                     muted = live.muted,
                     typingIn = live.typing.filterValues { it.isNotEmpty() }.keys,
@@ -799,8 +819,9 @@ private fun SignedInContent(
                     },
                     onVote = { poll, options -> session.chats.vote(conversation.id, poll, options) },
                     onEndPoll = { session.chats.endPoll(conversation.id, it) },
-                    onOpenCommunity = conversation.meta.community?.let { community -> { push(Route.Community(community.id)) } },
-                    onReportCommunityMessage = conversation.meta.community?.let { community ->
+                    onOpenCommunity = conversation.meta.community?.takeIf { com.redvaultsystems.redvaultmessage.BuildConfig.COMMUNITIES }
+                        ?.let { community -> { push(Route.Community(community.id)) } },
+                    onReportCommunityMessage = conversation.meta.community?.takeIf { com.redvaultsystems.redvaultmessage.BuildConfig.COMMUNITIES }?.let { community ->
                         { message, category, details, shareText ->
                             session.communities.reportMessage(
                                 community.id, message.id, message.senderId.ifEmpty { null }, message.text, category, details, shareText,
@@ -830,14 +851,16 @@ private fun SignedInContent(
             },
         )
 
-        is Route.Communities -> CommunitiesScreen(
+        // Communities are turned off in this build: a stray route (an old saved back stack) just closes.
+        is Route.Communities, is Route.Community -> if (!com.redvaultsystems.redvaultmessage.BuildConfig.COMMUNITIES) {
+            LaunchedEffect(route) { pop() }
+        } else if (route is Route.Communities) CommunitiesScreen(
             session = session.communities,
             page = CommunitiesPage.of(route.page),
             onBack = ::pop,
             onPage = { replaceTop(Route.Communities(it.key)) },
             onOpenCommunity = { push(Route.Community(it)) },
-        )
-        is Route.Community -> CommunityScreen(
+        ) else if (route is Route.Community) CommunityScreen(
             session = session.communities,
             communityId = route.id,
             onBack = ::pop,
@@ -997,7 +1020,14 @@ private fun SignedInContent(
             onOpenRecoveryKey = { push(Route.RecoveryKeySettings) },
             onOpenDeleteAccount = { push(Route.DeleteAccount) },
             onLogout = onLogout,
+            onOpenPlans = { push(Route.Plans) },
+            appearance = appearance,
+            onAppearanceChange = { AppearanceStore.set(context, it) },
+            filesUsed = filesState.snapshot.usage?.used,
+            filesLimit = filesState.snapshot.usage?.limit,
         )
+
+        Route.Plans -> PlansScreen(session.account, tier = account.profile.subscriptionTier, onBack = ::pop)
 
         Route.ChangeUsername -> ChangeUsernameScreen(session.account, current = account.profile.handle, onBack = ::pop)
         Route.ChangePassword -> ChangePasswordScreen(session.account, onBack = ::pop)

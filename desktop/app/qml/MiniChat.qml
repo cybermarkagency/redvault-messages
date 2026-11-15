@@ -45,14 +45,14 @@ Item {
             Layout.rightMargin: 10
             Text {
                 Layout.fillWidth: true
-                text: "Chat"
+                text: qsTr("Chat")
                 color: Theme.text
                 font.pixelSize: 16
                 font.weight: Font.DemiBold
             }
             IconButton {
                 iconName: "close"
-                tip: "Hide chat"
+                tip: qsTr("Hide chat")
                 onClicked: root.closeRequested()
             }
         }
@@ -89,14 +89,14 @@ Item {
                 objectName: "miniChatInput"
                 Layout.fillWidth: true
                 enabled: !root.deviceKeyChat
-                placeholderText: root.deviceKeyChat ? "Device-key chat: send from the chat itself" : "Message"
+                placeholderText: root.deviceKeyChat ? qsTr("Device-key chat: send from the chat itself") : qsTr("Message")
                 Accessible.name: "Message"
                 onAccepted: root.send()
                 onTextChanged: if (text.length > 0 && App.live) App.live.notifyTyping(root.session.currentChatId)
             }
             IconButton {
                 iconName: "send"
-                tip: "Send"
+                tip: qsTr("Send")
                 iconColor: Theme.accent
                 enabled: input.text.trim().length > 0 && !root.session.sending && !root.deviceKeyChat
                 onClicked: root.send()

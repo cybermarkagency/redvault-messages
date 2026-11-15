@@ -47,9 +47,9 @@ Item {
 
     ConfirmDialog {
         id: deletePostDialog
-        title: "Delete this post?"
-        message: "It's removed for everyone who follows the channel."
-        confirmText: "Delete"
+        title: qsTr("Delete this post?")
+        message: qsTr("It's removed for everyone who follows the channel.")
+        confirmText: qsTr("Delete")
         danger: true
         onConfirmed: page.channels.deletePost(page.deletingPostId)
     }
@@ -66,7 +66,7 @@ Item {
     FileDialog {
         id: saveDialog
         property string url: ""
-        title: "Save"
+        title: qsTr("Save")
         fileMode: FileDialog.SaveFile
         currentFolder: StandardPaths.writableLocation(StandardPaths.DownloadLocation)
         onAccepted: page.channels.saveMedia(url, selectedFile)
@@ -92,9 +92,9 @@ Item {
     ConfirmDialog {
         id: linkDialog
         property string url: ""
-        title: "Open this link?"
-        message: linkDialog.url + "\n\nIt opens in your browser. Check the address first: a link can look like one site and go to another."
-        confirmText: "Open link"
+        title: qsTr("Open this link?")
+        message: linkDialog.url + qsTr("\n\nIt opens in your browser. Check the address first: a link can look like one site and go to another.")
+        confirmText: qsTr("Open link")
         function ask(link) {
             // This app's own links open here.
             if (App.groupCalls && App.groupCalls.isOwnCallLink(link)) {
@@ -134,21 +134,21 @@ Item {
             popup()
         }
         MenuItem {
-            text: "Forward…"
+            text: qsTr("Forward…")
             icon.source: "image://icon/share/" + menuIcon.hex(Theme.text)
             visible: App.chats !== null
             height: visible ? implicitHeight : 0
             onTriggered: page.forward(postMenu.post)
         }
         MenuItem {
-            text: "Copy text"
+            text: qsTr("Copy text")
             icon.source: "image://icon/copy/" + menuIcon.hex(Theme.text)
             visible: (postMenu.post.body || "").length > 0
             height: visible ? implicitHeight : 0
             onTriggered: App.copySecret(postMenu.post.body)
         }
         MenuItem {
-            text: "Delete post"
+            text: qsTr("Delete post")
             icon.source: "image://icon/trash/" + menuIcon.hex(Theme.danger)
             visible: page.canManage
             height: visible ? implicitHeight : 0
@@ -159,7 +159,7 @@ Item {
     // A follower's suggested post, opened from the read-only bar.
     RvDialog {
         id: suggestDialog
-        title: "Suggest a post"
+        title: qsTr("Suggest a post")
         width: 520
         onOpened: suggestForm.focusBody()
         ChannelSuggestions {
@@ -196,7 +196,7 @@ Item {
 
                     IconButton {
                         iconName: "chevron-left"
-                        tip: "Back to channels"
+                        tip: qsTr("Back to channels")
                         onClicked: page.back()
                     }
                     ChannelAvatar {
@@ -211,7 +211,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: page.loaded ? page.channels.channel.name
-                                              : page.channels.error.length > 0 ? "Channel" : "Loading…"
+                                              : page.channels.error.length > 0 ? qsTr("Channel") : qsTr("Loading…")
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: Theme.text
@@ -223,7 +223,7 @@ Item {
                             objectName: "channelSubtitle"
                             Layout.fillWidth: true
                             visible: page.loaded
-                            text: (page.isPrivate ? "Private channel" : "Public channel") + " · not end-to-end encrypted"
+                            text: (page.isPrivate ? qsTr("Private channel") : qsTr("Public channel")) + qsTr(" · not end-to-end encrypted")
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: Theme.text3
@@ -234,7 +234,7 @@ Item {
                         objectName: "channelInfoButton"
                         enabled: page.loaded
                         iconName: "info"
-                        tip: page.infoOpen ? "Hide channel info" : "Channel info"
+                        tip: page.infoOpen ? qsTr("Hide channel info") : qsTr("Channel info")
                         toggled: page.infoOpen
                         onClicked: page.infoOpen = !page.infoOpen
                     }
@@ -276,7 +276,7 @@ Item {
                         anchors.centerIn: parent
                         primary: false
                         implicitHeight: 30
-                        text: "Show older posts"
+                        text: qsTr("Show older posts")
                         onClicked: page.channels.loadOlder()
                     }
                 }
@@ -297,7 +297,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     visible: page.loaded && thread.count === 0
-                    text: "No posts yet."
+                    text: qsTr("No posts yet.")
                     color: Theme.text3
                 }
             }
@@ -319,7 +319,7 @@ Item {
                     iconName: "x"
                     implicitHeight: 30
                     ToolTip.visible: hovered
-                    ToolTip.text: "Dismiss"
+                    ToolTip.text: qsTr("Dismiss")
                     onClicked: page.channels.clearMessages()
                 }
             }

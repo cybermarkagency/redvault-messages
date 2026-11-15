@@ -112,7 +112,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 2
                     Text {
-                        text: root.video ? "Group video call" : "Group voice call"
+                        text: root.video ? qsTr("Group video call") : qsTr("Group voice call")
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: 12
@@ -130,7 +130,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         visible: root.groupCalls.hostHandle.length > 0
-                        text: root.groupCalls.hostHandle + " started it"
+                        text: root.groupCalls.hostHandle + qsTr(" started it")
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text2
@@ -148,7 +148,7 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Sealed to each member's identity key · end-to-end encrypted"
+                    text: qsTr("Sealed to each member's identity key · end-to-end encrypted")
                     color: Theme.accent
                     font.pixelSize: 12
                 }
@@ -161,13 +161,13 @@ Item {
                     danger: true
                     primary: true
                     iconName: "phone-off"
-                    text: "Decline"
+                    text: qsTr("Decline")
                     onClicked: root.groupCalls.decline()
                 }
                 RvButton {
                     Layout.fillWidth: true
                     iconName: root.video ? "video" : "phone"
-                    text: "Join"
+                    text: qsTr("Join")
                     onClicked: root.groupCalls.accept()
                 }
             }
@@ -176,7 +176,7 @@ Item {
                 visible: root.groupCalls.conversationId.length > 0
                 primary: false
                 implicitHeight: 32
-                text: "Open the chat"
+                text: qsTr("Open the chat")
                 onClicked: {
                     const chat = root.groupCalls.conversationId
                     root.openChat(chat)
@@ -222,7 +222,7 @@ Item {
                             color: Theme.accent
                         }
                         Text {
-                            text: "End-to-end encrypted · group call"
+                            text: qsTr("End-to-end encrypted · group call")
                             color: Theme.accent
                             font.pixelSize: 12
                             font.weight: Font.Medium
@@ -300,7 +300,7 @@ Item {
                     spacing: 6
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: "Safety words: everyone in the call should see the same four."
+                        text: qsTr("Safety words: everyone in the call should see the same four.")
                         color: Theme.text3
                         font.pixelSize: 12
                     }
@@ -377,7 +377,7 @@ Item {
                     implicitWidth: 56; implicitHeight: 56; iconSize: 22
                     iconName: root.groupCalls.muted ? "mic-off" : "mic"
                     toggled: root.groupCalls.muted
-                    tip: root.groupCalls.muted ? "Unmute" : "Mute"
+                    tip: root.groupCalls.muted ? qsTr("Unmute") : qsTr("Mute")
                     onClicked: root.groupCalls.toggleMute()
                 }
                 IconButton {
@@ -386,7 +386,7 @@ Item {
                     implicitWidth: 56; implicitHeight: 56; iconSize: 22
                     iconName: root.groupCalls.cameraOff ? "video-off" : "video"
                     toggled: root.groupCalls.cameraOff
-                    tip: root.groupCalls.cameraOff ? "Turn camera on" : "Turn camera off"
+                    tip: root.groupCalls.cameraOff ? qsTr("Turn camera on") : qsTr("Turn camera off")
                     onClicked: root.groupCalls.toggleCamera()
                 }
                 IconButton {
@@ -395,8 +395,10 @@ Item {
                     iconName: "monitor-up"
                     toggled: root.groupCalls.sharingScreen
                     enabled: root.phase === "active" && root.groupCalls.keyReady
-                    tip: root.groupCalls.sharingScreen ? "Stop sharing" : "Share your screen"
+                    tip: root.groupCalls.sharingScreen ? qsTr("Stop sharing") : qsTr("Share your screen") + (locked ? qsTr(" (Premium)") : "")
+                    locked: App.account !== null && !App.account.premium && !root.groupCalls.sharingScreen
                     onClicked: {
+                        if (locked) { PlanGate.ask("premium", "Screen sharing"); return }
                         const problem = root.groupCalls.toggleScreenShare()
                         if (problem.length > 0) shareNotice.text = problem
                     }
@@ -405,7 +407,7 @@ Item {
                     round: true; filled: true
                     implicitWidth: 56; implicitHeight: 56; iconSize: 22
                     iconName: "chevron-down"
-                    tip: "Back to the app (the call continues)"
+                    tip: qsTr("Back to the app (the call continues)")
                     onClicked: {
                         if (root.groupCalls.conversationId.length > 0)
                             root.openChat(root.groupCalls.conversationId)
@@ -417,7 +419,7 @@ Item {
                     round: true
                     implicitWidth: 64; implicitHeight: 56; iconSize: 24
                     iconName: "phone-off"
-                    tip: "Leave the call"
+                    tip: qsTr("Leave the call")
                     onClicked: root.groupCalls.leave()
                 }
             }
@@ -438,7 +440,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 visible: root.phase === "ended"
                 primary: false
-                text: "Close"
+                text: qsTr("Close")
                 onClicked: root.groupCalls.dismiss()
             }
         }

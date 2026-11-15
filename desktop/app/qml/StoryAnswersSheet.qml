@@ -26,7 +26,7 @@ StorySheet {
     }
     readonly property int unreadable: sheet.interactions ? sheet.interactions.unreadable : 0
 
-    title: "Answers"
+    title: qsTr("Answers")
     note: "Only you can open these. Polls, quizzes and sliders show totals, not who chose what. Totals reach your friends while your app is open."
 
     function percent(n, total) {
@@ -39,14 +39,14 @@ StorySheet {
     Text {
         Layout.fillWidth: true
         visible: sheet.interactions === null
-        text: "Opening answers…"
+        text: qsTr("Opening answers…")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
     }
     Text {
         Layout.fillWidth: true
         visible: sheet.unreadable > 0
-        text: sheet.unreadable + (sheet.unreadable === 1 ? " answer couldn't be opened and isn't" : " answers couldn't be opened and aren't") + " counted."
+        text: sheet.unreadable + (sheet.unreadable === 1 ? qsTr(" answer couldn't be opened and isn't") : qsTr(" answers couldn't be opened and aren't")) + qsTr(" counted.")
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: Theme.text3
@@ -95,9 +95,9 @@ StorySheet {
                     Text {
                         Layout.fillWidth: true
                         text: sheet.plural(block.total)
-                              + (block.ended ? " · voting has ended" : "")
-                              + (block.modelData.type === "quiz" ? " · " + (block.totals && block.totals.hasCorrect ? block.totals.correct : 0) + " right" : "")
-                              + (block.modelData.type === "slider" && block.total > 0 && block.totals && block.totals.hasAverage ? " · average " + block.totals.average + "%" : "")
+                              + (block.ended ? qsTr(" · voting has ended") : "")
+                              + (block.modelData.type === "quiz" ? " · " + (block.totals && block.totals.hasCorrect ? block.totals.correct : 0) + qsTr(" right") : "")
+                              + (block.modelData.type === "slider" && block.total > 0 && block.totals && block.totals.hasAverage ? qsTr(" · average ") + block.totals.average + "%" : "")
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
@@ -146,7 +146,7 @@ StorySheet {
                     Text {
                         Layout.fillWidth: true
                         visible: block.modelData.type === "question" && block.entries.length === 0
-                        text: "No answers yet."
+                        text: qsTr("No answers yet.")
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
                     }
@@ -197,7 +197,7 @@ StorySheet {
                                 }
                                 RvButton {
                                     secondary: true
-                                    text: "Report"
+                                    text: qsTr("Report")
                                     Accessible.name: "Report this answer"
                                     onClicked: row.open = !row.open
                                 }
@@ -210,18 +210,18 @@ StorySheet {
                                     id: reason
                                     Layout.fillWidth: true
                                     maximumLength: 300
-                                    placeholderText: "What's wrong?"
+                                    placeholderText: qsTr("What's wrong?")
                                     Accessible.name: "What's wrong with this answer?"
                                 }
                                 CheckBox {
                                     id: includeBox
                                     Layout.fillWidth: true
                                     checked: row.share
-                                    text: "Include the answer's text in the report"
+                                    text: qsTr("Include the answer's text in the report")
                                     onToggled: row.share = checked
                                     contentItem: Text {
                                         leftPadding: includeBox.indicator.width + 8
-                                        text: "Include the answer's text in the report"
+                                        text: qsTr("Include the answer's text in the report")
                                         color: Theme.text2
                                         font.pixelSize: Theme.fontSmall
                                         verticalAlignment: Text.AlignVCenter
@@ -237,7 +237,7 @@ StorySheet {
                                     font.pixelSize: Theme.fontSmall
                                 }
                                 RvButton {
-                                    text: row.sending ? "Sending…" : "Send report"
+                                    text: row.sending ? qsTr("Sending…") : qsTr("Send report")
                                     enabled: !row.sending
                                     onClicked: {
                                         row.problem = ""

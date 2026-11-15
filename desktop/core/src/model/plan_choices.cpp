@@ -33,12 +33,13 @@ PlanChoice base(const std::string& tier, const std::optional<api::FilesStorageDt
     } else if (tier == "pro") {
         c.price = "$8";
         c.per = "per month";
-        c.includes = {"Everything in Free", "Send files in chats", "Voice call links"};
+        c.includes = {"Everything in Free", "Send files and voice messages in chats", "Voice call links"};
         if (files) c.includes.push_back(storage(files->pro));
     } else {
         c.price = "$15";
         c.per = "per month";
-        c.includes = {"Everything in Pro", "Video call links and group voice and video calls", "Screen sharing in calls"};
+        c.includes = {"Everything in Pro", "Video call links and group voice and video calls", "Screen sharing in calls",
+                      "Create your own channels"};
         if (files) c.includes.push_back(storage(files->premium));
     }
     return c;

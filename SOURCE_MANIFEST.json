@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-08T23:17:55+00:00",
- "repository_commit": "cd972ca6a73d459adffec00d67981ff964c9ee15",
- "branch": "release/0.6.0-tor",
+ "generated": "2026-11-15T06:05:51+00:00",
+ "repository_commit": "76ddeb79ebf5385bb5d2f5fd75bca3c850ebaebe",
+ "branch": "HEAD",
  "uncommitted_changes_included": false,
  "app_versions": {
-  "desktop": "0.7.0",
-  "android": "0.6.0",
+  "desktop": "0.7.1",
+  "android": "0.6.1",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -88,9 +88,14 @@
    "bytes": 14940
   },
   {
+   "path": "android/TRANSLATING.md",
+   "sha256": "f0d72b9a0a6d66955ef679d76f88b14c6e2fa8a3e2bb18edb4ef0b14363292d1",
+   "bytes": 1048
+  },
+  {
    "path": "android/app/build.gradle.kts",
-   "sha256": "5c3cddf90cead0aee0ce864ccf5f35c13faf048dafe5f3f3637a4823981e2498",
-   "bytes": 21192
+   "sha256": "7683cff2e3f2366f70d724b8f5ad70197e0b843dc29f799b1bcc0ff473f7e7b5",
+   "bytes": 22592
   },
   {
    "path": "android/app/proguard-rules.pro",
@@ -184,8 +189,8 @@
   },
   {
    "path": "android/app/src/main/assets/legal/THIRD_PARTY_NOTICES.txt",
-   "sha256": "e07732ab6bd9922022a2d3674140ceac1271b034b92f5c9e1cf6429e03abb7a5",
-   "bytes": 3438378
+   "sha256": "434216e2409e4f96cf598e9a11816ef40a6255e5aa3330bc04d678b063d5e526",
+   "bytes": 3443096
   },
   {
    "path": "android/app/src/main/assets/licenses/bricolage-grotesque-OFL.txt",
@@ -203,14 +208,19 @@
    "bytes": 4522
   },
   {
+   "path": "android/app/src/main/assets/licenses/inter-OFL.txt",
+   "sha256": "b3195af0fb14368d1b3b10fb9d3fe503b7163ea083859d2ee553bc74da07c320",
+   "bytes": 4472
+  },
+  {
    "path": "android/app/src/main/assets/licenses/lucide-LICENSE.txt",
    "sha256": "6fc5b7332939dd5c61af3a5f97450f7bc05d4a396dd0bc21ac341716b3b05096",
    "bytes": 3251
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/MainActivity.kt",
-   "sha256": "b27f6fd4b5f22e80821751dbb900457c948890ceecb809d72b1959a9056dd634",
-   "bytes": 7318
+   "sha256": "a1893265a4b57f77435234143a8b04eba2f03d8f338afb37e110aadb89a30160",
+   "bytes": 8265
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/RedvaultApp.kt",
@@ -364,13 +374,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/AccountRepository.kt",
-   "sha256": "a65f395b1ccf0404f2cd34710e8f905ec2b7699b6f8c04814040b1194391d1ed",
-   "bytes": 7619
+   "sha256": "089ec22e5d05fdd9f4ae295fbfc163c5a7e5c443f61a66de7a76795520764264",
+   "bytes": 7992
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/AppLockStore.kt",
    "sha256": "719efd3d7e9e7f57815f687f176057560c69aadcbfa824196bbaea620f1b6441",
    "bytes": 3534
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/AppearanceStore.kt",
+   "sha256": "0937c8141bccda075dd4b19dbc25e0621b2ba25ebfb8d7643ec5559efa00aaa5",
+   "bytes": 1624
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/AuthRepository.kt",
@@ -554,8 +569,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/ApiService.kt",
-   "sha256": "e09855dfe8c9df437a94fc9d09c3b04a41266d84f08270d211d1512aaf00f5f1",
-   "bytes": 10273
+   "sha256": "f88a17521faa694502c8bb16bd917edb2e8a1482c7f2da7fb333ba8bf57641dc",
+   "bytes": 10550
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/CallApi.kt",
@@ -569,8 +584,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/CommunityApi.kt",
-   "sha256": "79052f19a8c0bab40020656bf731a329b4da9c2fbc9a55fffc596ff8b0830fbc",
-   "bytes": 8988
+   "sha256": "daeccdbd2c225203dcdc4c4857aef2422353aa4e8303806079fafb9946919b05",
+   "bytes": 8986
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/DriveApi.kt",
@@ -579,8 +594,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/Dtos.kt",
-   "sha256": "f303c13899a38cccf2a32c32f30546979d249bebf93515ebd4004b81e99d7f74",
-   "bytes": 16500
+   "sha256": "f4c2f23cb7347fe8ed723811fbb3fb1e6b68c3c18b48682fe840da9f904c3f10",
+   "bytes": 17120
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/GroupInviteApi.kt",
@@ -644,8 +659,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/LegalDocument.kt",
-   "sha256": "f617aca26f691a5e05168da156c317ec9ed79d63e73b0bc83c35eb64c7f2feda",
-   "bytes": 2733
+   "sha256": "f11073008807f590954027bd3d09f3c7e9f7246e357aa6ff6005628ba8742f5c",
+   "bytes": 2732
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/MessageFolding.kt",
@@ -654,8 +669,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/OpenSourceInfo.kt",
-   "sha256": "b68bbf536a8eeeb9e0a6c85c19c0283b59782e45376b459e2e671de933760976",
-   "bytes": 5057
+   "sha256": "a488a81b8539cc80fadc93344e7b220f3107c0d832009c570e2a3a2af7217e67",
+   "bytes": 5141
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/RichMessage.kt",
@@ -699,13 +714,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeysSession.kt",
-   "sha256": "6e3e9aa9200f65f2ff1cdc937f76e7cef52efdfeac4ea521cb9ba2496946aca5",
-   "bytes": 31151
+   "sha256": "61524f99f4a860738ed4ac61ee935a119d28a231f0147bf3c3d2767ebcd87810",
+   "bytes": 32064
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceStorage.kt",
-   "sha256": "148f7c2d70ff40f6ea979ddfd6f4f3c864cbc5b8eb02187b2ccd1795e09926a0",
-   "bytes": 16426
+   "sha256": "0740ffb2b1f7f59b2c59da4dc03a652fffdce7775a28ce9c95fe3d038b8a7d68",
+   "bytes": 16997
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Engine.kt",
@@ -749,8 +764,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Device.kt",
-   "sha256": "e0264f213e28bffd7e11991368fa798ad69d7df2ca54223dc5210ab78ab9fe6f",
-   "bytes": 11352
+   "sha256": "14cac3ab8fb0f63830885860f76876c46c85b9362dc2aeb89aefc4f400ae629a",
+   "bytes": 11537
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3SendQueue.kt",
@@ -789,8 +804,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/PushRegistrar.kt",
-   "sha256": "b55fd71db4792108e0c113b2128ed9df459b8d1d8749f87d00eeaad292e579f2",
-   "bytes": 16306
+   "sha256": "b51514831d47c9197a7a67b819df4048e32b4f6abd994e7afc8a53fc0d8b0e6a",
+   "bytes": 16305
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/push/PushWaitLoop.kt",
@@ -829,13 +844,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/RouteProtection.kt",
-   "sha256": "a7d1c483a1833f464cef22ed4dfda0cf9e1724bcfcad58bdf61f1ab6b085f84c",
-   "bytes": 2359
+   "sha256": "d538426bb67b99b10b584340478245c91318bc7f64845fea40c362a6a8dca1a6",
+   "bytes": 2450
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInApp.kt",
-   "sha256": "2720ebf36c068a73e1a0ae18905d54b16aa026ee75d8506aa94b312eb50b1907",
-   "bytes": 68701
+   "sha256": "b9a26c8e25b367541c959a9e0a719efe1a581ecfbfc6f5b7efc6f0b89b41e527",
+   "bytes": 70626
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInSession.kt",
@@ -849,23 +864,23 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/account/AccountSession.kt",
-   "sha256": "0d8cb1f22cd06662b68bad4b4c7ef843b1ef823db8b6e52f14ef80c0065f90cc",
-   "bytes": 9353
+   "sha256": "4d571e29fb46887138e89b1e9aeddd21721aef13669568a2211b9bf7e441b6a5",
+   "bytes": 10139
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/calls/CallScreens.kt",
-   "sha256": "862acac8be6fcfe137c0e1f3a3fd6dc793502b00e9bc895574665486c26c62be",
-   "bytes": 24717
+   "sha256": "8b4f9e155ec156cfb286adfab3a2bcbed7bec41d25eaf78315dc2a22dad6bf61",
+   "bytes": 25588
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/calls/CallsTab.kt",
-   "sha256": "ee7f314d206b9254c978f534cdb186406be8948214ed251b9b43071e51760390",
-   "bytes": 21234
+   "sha256": "7798492827817ca26561bb3da6e5b2ea182472dd206f4dec593ce93b5674b1a6",
+   "bytes": 26184
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/calls/GroupCallScreens.kt",
-   "sha256": "f71c9d69809c27c05af9a80b0e690cb7312fa0e23f03958e1878bde336bd5f00",
-   "bytes": 19475
+   "sha256": "a5a421b14af7ab69d5b2ad2f15afc51635a80ca9b84102d78d2b338a7b9b8d1f",
+   "bytes": 20222
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelAvatar.kt",
@@ -874,8 +889,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelComposer.kt",
-   "sha256": "045663486a1563056c8265860cd966a5fe7ccafe502b9ba4ca89a467a7d6c433",
-   "bytes": 35765
+   "sha256": "40d75ac5fdbe81fad60da0a066bad77cb2351fb9ee9e29397e097e8a75f65f06",
+   "bytes": 36242
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelNotifications.kt",
@@ -889,13 +904,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelPostViews.kt",
-   "sha256": "a65c2a8a2f672ed54d60895a685af60f36fceef8f54bca728bebc700039c9bf6",
-   "bytes": 40775
+   "sha256": "b7fcf9918361c23268ff6637d82a0ea27255da3267ed4a89f14d3d5c30f39ad5",
+   "bytes": 41092
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelScreen.kt",
-   "sha256": "827ff94c0b4dcbbac5d319adb327ec31979415bfb7b489c5ff2c5ba8fdc7a022",
-   "bytes": 44767
+   "sha256": "00f20ae8622635911ff64753ff5479b500688c80386807b1309bf6601baf12ed",
+   "bytes": 45670
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelSession.kt",
@@ -904,8 +919,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelSuggestions.kt",
-   "sha256": "5c4a3a857194364dbc750bcb3703e537bca0043dff692406ab818aae4da9a5bf",
-   "bytes": 14576
+   "sha256": "2506a21cd91b7e5412b64a853cc0e5605201579f473b82a583331ea4d0202ac7",
+   "bytes": 14759
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelThreadLogic.kt",
@@ -914,18 +929,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelsScreens.kt",
-   "sha256": "febd4d816424730676ec0e09e10be1cdd5b8d631d116374cd8836c1110d1c16a",
-   "bytes": 20632
+   "sha256": "2fba296c58d93c29d5d769c949a75cfb1fb23b0dc240ffb12f61c43c13e24a4b",
+   "bytes": 21381
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/RoundVideoRecorder.kt",
-   "sha256": "1f1eec231f2fa97573f2bd98c3b295dc944e8c3c3b0c38af6983d2ae83dd09e9",
-   "bytes": 16985
+   "sha256": "49bbf971604967194acb465fb986c2edce90f82156d75a503c9162f74def24da",
+   "bytes": 17182
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/channels/Uploads.kt",
-   "sha256": "e723a557a4dde19599589c167e383f75bf47a43983b199736d1cb7ec2fe46b46",
-   "bytes": 10617
+   "sha256": "5380a9a3cd77e005f3551e05796874e2e3ab308744a0d23c84dd5076417dfb90",
+   "bytes": 10762
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatListLogic.kt",
@@ -944,18 +959,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatsScreen.kt",
-   "sha256": "caf97670bc6333d7b4bb3812002e1d8e4d0fb9f3f805399e933851cc0bb77a05",
-   "bytes": 19120
+   "sha256": "7b46f4553f07511b2d2f88dd4b82de0c685766cb4765ec219db18d5329f0103d",
+   "bytes": 20397
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/EmojiPicker.kt",
-   "sha256": "ab3d9dc10ba925ec9e75a54cdc665cd287623bb73e43ffed7c9c3f862a9f8115",
-   "bytes": 7535
+   "sha256": "6d90231636d2d49cab06abeb94411ad8d2ff244c95a225cf1ec539e35e5a536e",
+   "bytes": 7682
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/FileViews.kt",
-   "sha256": "7e0b79ade1bbfc948060137a4c496eb919d26674d4af566a6de7e61c549071b3",
-   "bytes": 15973
+   "sha256": "739d2f53923f68410b24457f166f4000e1c5062b14c56f542106924665dba54c",
+   "bytes": 16046
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/FormattedText.kt",
@@ -964,23 +979,23 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/MessageRequestsScreen.kt",
-   "sha256": "5868fc91ab3c2171b375e043debab04d2a716111b99d5f527164cd22f0724b75",
-   "bytes": 8068
+   "sha256": "adf6102e89006800c626c2f7c7c310234ae156cc2dd5bf2fabdfd7f5989ff39f",
+   "bytes": 8263
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/PictureViews.kt",
-   "sha256": "98e9122b2a266a85ffc86bafdd95d1d67e49fa7c386a30a0b8d7998fe51c4fbe",
-   "bytes": 12568
+   "sha256": "1c7431cb56e0d44268c0e21e7b49dd4a6a39f8640835662e8f4896bee1a77506",
+   "bytes": 12693
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ShareToScreen.kt",
-   "sha256": "bf00ad9410b0270ceef205362d167100eaef4f13dace6fe7b8912f659416ba46",
-   "bytes": 4621
+   "sha256": "43de3fc147eb657003815ea662ff8a3f0b8dfed09f6911b1f43e2a1002dccbbd",
+   "bytes": 4690
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/SharedMediaScreen.kt",
-   "sha256": "c5094d27157fcd45a14209fe0aea4c41f7a0b737676640349c2f6cc622f7f185",
-   "bytes": 4943
+   "sha256": "7933d36459e1284ecd7ce106e27c51ffdaad5d4adceecd4c45ed17657ea4df68",
+   "bytes": 5087
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ThreadLogic.kt",
@@ -989,8 +1004,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ThreadScreen.kt",
-   "sha256": "76c8846298c21f0dba4a6ebdc45a008b87a7211a5e006334674b571ad37a2a22",
-   "bytes": 121202
+   "sha256": "932617398877232b92bd811d34c10d21c95b72075876d5fbb356aa9a36cdad36",
+   "bytes": 126246
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/VoiceRecorder.kt",
@@ -999,13 +1014,23 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/communities/CommunityScreens.kt",
-   "sha256": "9b3e1bc6f521a553d952e008fdf81c77aedb9708037f3898ae2c19d575a384dc",
-   "bytes": 34832
+   "sha256": "b0e832572f5b508ee11b3050e3ebca637831a237a598de15507a1430807dc682",
+   "bytes": 35399
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/communities/CommunitySession.kt",
    "sha256": "6c53a55568a97b3ad97c7b539062df78c1c7918a6a0e5bac7ea35855e2e09f8a",
    "bytes": 5772
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/ActionSheet.kt",
+   "sha256": "334eeb6d0000f5cd4d089319a2882a0813e88721f4c7d491ad7e462cded969cb",
+   "bytes": 3781
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/AppLogo.kt",
+   "sha256": "e3d5b656d2f9e26892060e5d9825a673f55adad3bca127b7bba9028a367bc992",
+   "bytes": 1594
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/Avatar.kt",
@@ -1019,13 +1044,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/Design.kt",
-   "sha256": "ad5636b27c97e0a9d6dc3a5c80fbac570182b05f394380330ed548577739c769",
-   "bytes": 17454
+   "sha256": "4f10d39ce781a0e345ce12f521d07152a8869408b2c8ce0ace474421f2d8a319",
+   "bytes": 18533
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/KeyGlyph.kt",
    "sha256": "4da5cb35f7ce094ea6d154022c0ce01684c6deb84c9ef6b95215e4f1c022b325",
    "bytes": 2420
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/PlanGate.kt",
+   "sha256": "c28a842ffbbe1f735e1bd828986a5e1c6789e17309f0391ba7a589e181675b58",
+   "bytes": 5627
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/components/SecretClipboard.kt",
@@ -1039,13 +1069,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/contacts/ContactsScreens.kt",
-   "sha256": "9ab50fad074845e202126024571a29581cee299d0a7d0c1c7778300d5d4dec1e",
-   "bytes": 29865
+   "sha256": "d55e1cda90081871381e2f5d4f21026f0acdad4f60d4203be5e2c33e61a40ff1",
+   "bytes": 30080
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/FilesScreens.kt",
-   "sha256": "684c8fd4ff7d8a6c997dd4c7e13efefe0272deb5cdb2140997dfe1eb7339c4ea",
-   "bytes": 43977
+   "sha256": "b4b9e2559b40242306d5bf5c82eef528d3f4c6c69f8086b8f649e63fc7b55bd0",
+   "bytes": 45077
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/FilesSession.kt",
@@ -1054,23 +1084,23 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/KeyScreens.kt",
-   "sha256": "8607fa075db91c3cea69306b186cf2b23b32c385b939aaefbdc4b85bd9e4067e",
-   "bytes": 26987
+   "sha256": "89cfb0a6c271cea8e8bdbd95d73f3a516e6bbe5222115efdfdaf9418f74b88b5",
+   "bytes": 27304
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/LockSheets.kt",
-   "sha256": "b4c5cc0955c909342f1dd120070109c77c73d991a640a0e754f8e13a89fdaefe",
-   "bytes": 13059
+   "sha256": "5b895f0086434b6f1cc5775d325ba26d28e5bcea02ba749af68a60a16b361721",
+   "bytes": 13124
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/LockWidgets.kt",
-   "sha256": "51802f16063d079c7cb3fa0233a6f63638d65d49b8cc3bc3dcc5a048e9fa4613",
-   "bytes": 16905
+   "sha256": "7072fe3b43da999daa0062c61fc6136c1355bfae720d448cb87790019a4b134f",
+   "bytes": 17345
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/ShareScreens.kt",
-   "sha256": "0eafdcbb5d78f234670e5be455dead7aa5ff05bf7b5fe7bddc97b37481e0eb70",
-   "bytes": 38303
+   "sha256": "b9a6a64df9f90f6a5a27688198c10da45647d60cd81c923ae24e41ac6dc19a89",
+   "bytes": 38451
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/files/SharesSession.kt",
@@ -1079,32 +1109,32 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/friends/FriendScreens.kt",
-   "sha256": "f5dbe65aa45dbbfc15a6ec7a1857c6bf0e776fcf48fb4b611d6cb6dfbd94f425",
-   "bytes": 9741
+   "sha256": "8a0d615537b52986aaca30c10b7a15371ed453cec3c7964d4575ede95981d5d6",
+   "bytes": 10486
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/groups/GroupInviteSection.kt",
-   "sha256": "6849ace8523be24973c2d30e1ecb1fc110f3f51499f2a1daafb8c73f5c8a0748",
-   "bytes": 10269
+   "sha256": "454a27828c45525178d2530131e3635e6fdf3f0a4be1e7c2a02e1deb02f9a6dc",
+   "bytes": 10602
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/groups/GroupScreens.kt",
-   "sha256": "ffef7e3d55529cd73915df593ac829109438adc282f6fcd324c4cfee20ff99ff",
-   "bytes": 13273
+   "sha256": "58062116ef1bb44ded813c7544b6adb5b2b5fcdd63d9a32c11a46ea708dc10dc",
+   "bytes": 13540
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/groups/JoinGroupScreen.kt",
-   "sha256": "5c66f0165d3efa5db2ae5066af5c9b31ce2b2092367849b5a52650bcadd54960",
-   "bytes": 5813
+   "sha256": "27ba278d7c3b8d0333a0c2b9fa500a062691e6a81aba282fb28304cc5c926694",
+   "bytes": 5919
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/inbox/InboxScreen.kt",
-   "sha256": "802909121c7193286f293c8c3c26399ce840e356c5f665840cadcff5145fc3ee",
-   "bytes": 5969
+   "sha256": "21dfea544b10a5b9f78618d47cfb0d953741f513dc5ad1be8f53cd4a9bc548be",
+   "bytes": 6065
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/inbox/InboxSession.kt",
-   "sha256": "fd7f1fa00972b740cd6e1dcad96cbdf6c3699d1fba172649c1189bad291fa5c0",
+   "sha256": "95da72c207df0253cbc667e346bb2680ebdf75f59a2e99438a56195c7f41a623",
    "bytes": 6348
   },
   {
@@ -1119,18 +1149,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/lock/LockScreens.kt",
-   "sha256": "ffab67235725c1afbc4e74fd3280c60c490291513506117b9fcc1e3c27384d21",
-   "bytes": 12065
+   "sha256": "d2fddb5f5f19c801222583f8569cb6e7699eb80ec947b5940f4ab7d5564bb51f",
+   "bytes": 12622
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/onboarding/LegalDocumentDialog.kt",
-   "sha256": "1ab5f825069f485e2a098649bac7edc554b16530812a1eb4d488e74a6124c140",
-   "bytes": 6020
+   "sha256": "cc96a5e53694f2ec8c3337b62a00afba8e477729d8ba9596fcb9ac00bb0d8d0a",
+   "bytes": 6139
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/onboarding/OnboardingScreen.kt",
-   "sha256": "28fb9a78fea4f27cb9e4b1e9bde849bd0981d70b810a11d437513c210cfa2b11",
-   "bytes": 20601
+   "sha256": "827032921d036e2321c922ca780db44b796b9ce193f557624e630bfb248bec53",
+   "bytes": 20532
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/passwords/Biometrics.kt",
@@ -1139,8 +1169,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/passwords/PasswordsScreens.kt",
-   "sha256": "15b8de1083a96131924b77e5dbd5bbdb6a2d2e508cf1aed6d4f269a6fc66952c",
-   "bytes": 48731
+   "sha256": "b7657700bf7232c97cae3525e60c3aafe0af231d708b684cc99d5a9686663819",
+   "bytes": 49174
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/passwords/VaultSession.kt",
@@ -1149,38 +1179,48 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/recovery/RecoveryScreens.kt",
-   "sha256": "ddf1d1af0b42415fd95b05da20bfc2eed4e6b5aab53c2ad082bf74740cfa455d",
-   "bytes": 11034
+   "sha256": "a4a9037e7c9011eb6f438dfccc8ffb41306ecaec74859ad5c18cde7af0222c13",
+   "bytes": 10924
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/BlockedUsersScreen.kt",
-   "sha256": "910b67ec66baffd44a441643ed0e64252dcd981120b337c3f5a771ca50ef992a",
-   "bytes": 3493
+   "sha256": "f4b03215f8f0ba735df751f39c8a6f662821a2a677275d8aa28c3445acbd9c91",
+   "bytes": 3588
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/DeviceKeysScreen.kt",
-   "sha256": "4137836758f5bc130759df8b971411415a27f7998f0162476f13ea21a7b064f9",
-   "bytes": 28715
+   "sha256": "80bf6a39abb5293c60b70537fa6c297c144dc5845782041849167c6778d01d4b",
+   "bytes": 28896
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/NetworkRoutingScreen.kt",
-   "sha256": "07a32abee0603e12848ecc12f7f4e7fd1660a71f24e4f4ed147d8f10b287ffc9",
-   "bytes": 9504
+   "sha256": "3fc7e8a685b724ebc71c0de56ca0275c931153089470602e948acc6dd1f218f1",
+   "bytes": 9551
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/OpenSourceSection.kt",
-   "sha256": "9bc375c994174d988dc832096864f4748d2cdf697105a068800aed82ff6339cd",
-   "bytes": 10550
+   "sha256": "0e14ca236d249767635bea99065f0ed7e7c55bdbdd0406e3751fea82a61c5479",
+   "bytes": 10751
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/PlanChoices.kt",
+   "sha256": "9f7d43a655fb4e8e76e945fed64ade8cfc23b9034b22fcf01c0ffcb5dbccb39d",
+   "bytes": 8883
+  },
+  {
+   "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/PlansScreen.kt",
+   "sha256": "736076a9a862d580b8980d8b8b1d5be27984192511a1c7564f3352c69d41e02e",
+   "bytes": 10035
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/PrivacyModeScreen.kt",
-   "sha256": "d73c326f950db29e21843b44c7d1efcbbbae8378cf32a97b2b6397c8601dd206",
-   "bytes": 4761
+   "sha256": "716c704141e1ec4d8bc001dbb77c8a65096dca5a3664e13b096e0c9544341375",
+   "bytes": 4873
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SecurityScreens.kt",
-   "sha256": "4e16970ce995d6bcb91d50662aa0932f5fec898e5dbd6b2fd3e8f8d87c1c602c",
-   "bytes": 23187
+   "sha256": "4868e449629fc78db74bbb55ea65297eb290a4e8e451707bcdbdfd73db955dbb",
+   "bytes": 23165
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SecuritySession.kt",
@@ -1189,13 +1229,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SettingsScreens.kt",
-   "sha256": "fb6f5842e8d087d8ddcd268f758a977f71ddf2a3bb250d157d44583889a7b312",
-   "bytes": 38633
+   "sha256": "d69f24571691319bc56ddd1614631329e63e91404eea861e97383c4ff3a84032",
+   "bytes": 40387
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/ComposerParts.kt",
-   "sha256": "a673a7bc27fe9fa2a7951711f538bd3fcfb16001a7ad593c2e3d09d3bbf8fe92",
-   "bytes": 32646
+   "sha256": "48786b0a54119de254cbde3569d462b2cef8b2179d438ccf300689a910426c33",
+   "bytes": 33152
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StickerViews.kt",
@@ -1209,23 +1249,23 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoriesTray.kt",
-   "sha256": "34d1d4923d788c286e312a77a273dc0ce27d09c0cde6d91e7f1dc71e4545aca2",
-   "bytes": 5452
+   "sha256": "a0d740fbeab551230a4eeb8ca385a9568979e592da28bdf303a08297bc428f1f",
+   "bytes": 5529
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryComposerScreen.kt",
-   "sha256": "36592f977bbf0f4083fcd4cbd023cd0a96fe56d436dd55b00998b9c43ffb73dc",
-   "bytes": 38399
+   "sha256": "e50d0fa7ac50292feeb96e4cd080e941d00abd61d24d064ee95b65dddbeaa8e3",
+   "bytes": 38587
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryDialogs.kt",
-   "sha256": "9eb1564e8ccd6ce67e1ac5337a9c986bd35c4fce6bfe0c7e70f317c8c5b67557",
-   "bytes": 11438
+   "sha256": "bb4a6f3cc9155cf61d77e388ee3d5899b635a6cc0fd77a44a6f46caf66dc859f",
+   "bytes": 11758
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryFrame.kt",
-   "sha256": "a2f1770b215d62221314a2b9cb46d70e6463cadebf1bfa00a5b201b413597804",
-   "bytes": 13965
+   "sha256": "0d6f5c5b0c89ad884aabd26048651d05c72bee4bc579728edb123275f4671486",
+   "bytes": 14084
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryReplyBar.kt",
@@ -1234,8 +1274,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StorySettingsScreen.kt",
-   "sha256": "f2be4195b8b58d9ff6e13d0d06249e721061c5d8e40eddfb78b036d52114f0f0",
-   "bytes": 25839
+   "sha256": "dfb1c6351a45792377bcd2d2c23d085d1987d7d12aea88e7429758860ce8993c",
+   "bytes": 25992
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryTiming.kt",
@@ -1244,18 +1284,18 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/stories/StoryViewerScreen.kt",
-   "sha256": "ccb490d520b5fc6399adc6d3d80a360a15865c32bf454dc8c3536319cdc1082b",
-   "bytes": 22302
+   "sha256": "dfbea8839f9e26198f95c1877b2e66c1e36a2648102d76e5b5675e2eb37e3667",
+   "bytes": 22525
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/theme/Theme.kt",
-   "sha256": "490c2ba070be4fc9fe15fd7830ac34688a9a86a85673794aa32aaf76a25b30e5",
-   "bytes": 7570
+   "sha256": "b124aeb22ea63f5821abf7f55e2333070e1219aa8e3abbdc6f22eda8a5b3c7d4",
+   "bytes": 11327
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/verify/VerifyScreens.kt",
-   "sha256": "7061a9c23effce418c3b742df6fbf3570da0d546bb4ef9d9a62ed826629f07f5",
-   "bytes": 16683
+   "sha256": "fa3a723cbf0c941b0abf9a8722fff31ef8cfe2684f3c1acc734a4c14d81aee30",
+   "bytes": 17001
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/tor/NativeTor.java",
@@ -1753,6 +1793,26 @@
    "bytes": 46256
   },
   {
+   "path": "android/app/src/main/res/font/inter_bold.ttf",
+   "sha256": "5690774f0eb61e332c515c3d01d76dadfb31d45d80482f560b50cde776df8549",
+   "bytes": 67556
+  },
+  {
+   "path": "android/app/src/main/res/font/inter_medium.ttf",
+   "sha256": "30cb9eeb11fe406902b1b4220101d5242a4e4c887b4adc1429e1961ef9c1cc4c",
+   "bytes": 67416
+  },
+  {
+   "path": "android/app/src/main/res/font/inter_regular.ttf",
+   "sha256": "bf4083193db9cfda9db6606a01fc01a96bc6ac0d173ca27f04c4ab2eca15d601",
+   "bytes": 67336
+  },
+  {
+   "path": "android/app/src/main/res/font/inter_semibold.ttf",
+   "sha256": "ed5abe65bb5dc99bc200189a252e6c91cd6b68b50d27993689e76a0b2a26ad64",
+   "bytes": 67572
+  },
+  {
    "path": "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
    "sha256": "58ec5bb00f31aff91c383447a3c81554b9ed1ba7fe2f96d3a5213f7cc84fe1e6",
    "bytes": 576
@@ -1774,8 +1834,13 @@
   },
   {
    "path": "android/app/src/main/res/values/strings.xml",
-   "sha256": "5220c4f3a39841f66596dee10b7f2a5c739dac96ccc1e5523a983dcd58f6eba7",
-   "bytes": 121
+   "sha256": "7adbf11b98dfc61f6c694fd6c8a9cbd2b1dfec8194886d7c8d29e6a3c8c9c337",
+   "bytes": 122
+  },
+  {
+   "path": "android/app/src/main/res/values/strings_ui.xml",
+   "sha256": "b877b9a7ea6707ca3190593db671d1e0b9d66d838671b79249b5705400a23d4b",
+   "bytes": 50090
   },
   {
    "path": "android/app/src/main/res/values/themes.xml",
@@ -1979,8 +2044,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/data/model/OpenSourceInfoTest.kt",
-   "sha256": "c68e1a68b93ab6ff6afee076a81fca2098aefa077979b0ea5d3ffdcfca7c17db",
-   "bytes": 4856
+   "sha256": "9dba860c9f5ced489ea72190b297f8d19e4d5dbb7d76512c17cadd1d191e6938",
+   "bytes": 4854
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/data/model/RichFeaturesTest.kt",
@@ -2074,8 +2139,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/privacy/SecretHandlingSourceTest.kt",
-   "sha256": "74c33900e93b49d5f2abdedc8f959a207d68322ef92434830dd8b72458850207",
-   "bytes": 8597
+   "sha256": "3399d04ca14b5cf5de67e7f827e1c02ed5aefa7e3c3ef5453e4c196f87c55ca2",
+   "bytes": 8587
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/push/PushTest.kt",
@@ -2154,13 +2219,13 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/RouteProtectionTest.kt",
-   "sha256": "228b0e351e5d540fd529fc56bb1d723c57bce888630763ab0944b31787a14afd",
-   "bytes": 2062
+   "sha256": "eae26fc62aed2d61ae7859d139bec499ee1f6b19239dc79e1e2cebe7de2ae834",
+   "bytes": 2075
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/RouteTest.kt",
-   "sha256": "e72a04bb4aedd17ec47c89d2e800a183cfc3316eae0597fcef63c5c70a9a6ef2",
-   "bytes": 2736
+   "sha256": "1209e5c1b6b28523ea270e804b9174c4fdf18cf1d6f8979b7f763908cf2999b5",
+   "bytes": 2749
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/channels/ChannelThreadTest.kt",
@@ -2201,6 +2266,11 @@
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/files/SharesSessionRiskTest.kt",
    "sha256": "e74a273295fc3cd219de15fcf3558d565683b973ca977b5253adff818ced1ed8",
    "bytes": 1596
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/ui/settings/PlanChoicesTest.kt",
+   "sha256": "cb47c1c11ff34bec77c8912a724e0b06069f870186f28f33fe08adf2b7cd1b6a",
+   "bytes": 5012
   },
   {
    "path": "android/app/src/test/resources/vectors/make_android_draft_vectors.ts",
@@ -2589,8 +2659,8 @@
   },
   {
    "path": "desktop/CMakeLists.txt",
-   "sha256": "45b7999d7d4896cb26882bfcaa786ed1c3eacf3fe75c5af9a421b6eb837ccff1",
-   "bytes": 6100
+   "sha256": "f258922b7bd108fb5c3edb1c960ee6c6ad9983ac47a847ff9bc3ea044f4e6152",
+   "bytes": 6580
   },
   {
    "path": "desktop/CMakePresets.json",
@@ -2614,8 +2684,8 @@
   },
   {
    "path": "desktop/app/CMakeLists.txt",
-   "sha256": "d1a66099944d12113218e30ea052dcddec8718047732901ce0a9fe6fa90a4fb0",
-   "bytes": 19081
+   "sha256": "4061c927b6ad7ad0c1dd0b29ba6f5b69c4cc03e9e4f2177fed7d29ab5938b024",
+   "bytes": 21857
   },
   {
    "path": "desktop/app/fonts/BricolageGrotesque-OFL.txt",
@@ -2626,6 +2696,11 @@
    "path": "desktop/app/fonts/IBMPlex-OFL.txt",
    "sha256": "a8b8906fa622f65203a8c4eb7b467967c7823f4445ed7f05bd378d6b9ecf9b5d",
    "bytes": 4522
+  },
+  {
+   "path": "desktop/app/fonts/Inter-OFL.txt",
+   "sha256": "b3195af0fb14368d1b3b10fb9d3fe503b7163ea083859d2ee553bc74da07c320",
+   "bytes": 4472
   },
   {
    "path": "desktop/app/fonts/bricolage-grotesque-latin-700-normal.ttf",
@@ -2656,6 +2731,31 @@
    "path": "desktop/app/fonts/ibm-plex-sans-latin-600-normal.ttf",
    "sha256": "6080f8d33c74be69ee437d83e272d7d4e7bfdf77d1e2618ad71ea8efab27cacd",
    "bytes": 46256
+  },
+  {
+   "path": "desktop/app/fonts/inter-latin-400-normal.ttf",
+   "sha256": "bf4083193db9cfda9db6606a01fc01a96bc6ac0d173ca27f04c4ab2eca15d601",
+   "bytes": 67336
+  },
+  {
+   "path": "desktop/app/fonts/inter-latin-500-normal.ttf",
+   "sha256": "30cb9eeb11fe406902b1b4220101d5242a4e4c887b4adc1429e1961ef9c1cc4c",
+   "bytes": 67416
+  },
+  {
+   "path": "desktop/app/fonts/inter-latin-600-normal.ttf",
+   "sha256": "ed5abe65bb5dc99bc200189a252e6c91cd6b68b50d27993689e76a0b2a26ad64",
+   "bytes": 67572
+  },
+  {
+   "path": "desktop/app/fonts/inter-latin-700-normal.ttf",
+   "sha256": "5690774f0eb61e332c515c3d01d76dadfb31d45d80482f560b50cde776df8549",
+   "bytes": 67556
+  },
+  {
+   "path": "desktop/app/i18n/README.md",
+   "sha256": "b889cca385dba73f6dc59c1db6798c5a7e7bf1d97bf4884e8cdf1eb33ff794fe",
+   "bytes": 1001
   },
   {
    "path": "desktop/app/icons/app/redvault-128.png",
@@ -3349,13 +3449,13 @@
   },
   {
    "path": "desktop/app/qml/AdminView.qml",
-   "sha256": "2011dce49eccc440d1531c1a332712922718b7096adfccf468a90ff8070b589a",
-   "bytes": 33255
+   "sha256": "12f1f27f3e8e0be8195805f0d2aa13ccd90f222d3f9f375998280c278c0f8489",
+   "bytes": 33519
   },
   {
    "path": "desktop/app/qml/AppShell.qml",
-   "sha256": "d2fdd41e61ca5709d48ea5c45e678aec183e7623e33358bbdcd944506e780249",
-   "bytes": 10329
+   "sha256": "b124a3fcfa4b402d039b1f9c9cb5ab273ade59f8db7ed99010f5d707725488b2",
+   "bytes": 11541
   },
   {
    "path": "desktop/app/qml/Avatar.qml",
@@ -3369,18 +3469,18 @@
   },
   {
    "path": "desktop/app/qml/CallBar.qml",
-   "sha256": "b8d201eacc1304e4351f8e62daf41c6d4720f2d12f5ead0b12b7f63bcaf70ebe",
-   "bytes": 2896
+   "sha256": "f09c403d72595073caacbabdd17d719bf9b540cb4d933373360669a544f4142d",
+   "bytes": 2932
   },
   {
    "path": "desktop/app/qml/CallOverlay.qml",
-   "sha256": "da25db84646ec8b0c9b01e22a13cc9a1f0221b6c89def06df4197fe9f4e2c357",
-   "bytes": 24270
+   "sha256": "5527025e948a37abc37398fea731d8db275c16afec7674865d5f5dd806d2eafa",
+   "bytes": 24685
   },
   {
    "path": "desktop/app/qml/CallsView.qml",
-   "sha256": "a2f3b789fc34d4cb6e28a668ce4fc93331bcfd1c76ca231e53f37614704e9ab7",
-   "bytes": 30956
+   "sha256": "569528f0cdb13b50276abef8eb20b272eb119e774ccaf047ec08e206045a2e6d",
+   "bytes": 32316
   },
   {
    "path": "desktop/app/qml/Card.qml",
@@ -3394,143 +3494,143 @@
   },
   {
    "path": "desktop/app/qml/ChannelComposer.qml",
-   "sha256": "2e3809389996ea80ab7811460fd6d1f57dce615402b7900156fffc943a6ff48c",
-   "bytes": 26818
+   "sha256": "ba6bf1a5cdeb21e528b9a64da363661e4231c39175a1bda99c8f7b1cb1d807f7",
+   "bytes": 27078
   },
   {
    "path": "desktop/app/qml/ChannelInfoPanel.qml",
-   "sha256": "fcd132d653f427d23fa3fd184a4354af4e7e82cec9b6e22459ced15da06b7c54",
-   "bytes": 15644
+   "sha256": "6f2feff64e6eb2f86c33673c9ad190edff0f55cea81f1bb8bd0c8a6a772e2554",
+   "bytes": 15936
   },
   {
    "path": "desktop/app/qml/ChannelOwnerExtras.qml",
-   "sha256": "c235d674a2baf29af398b507ad502f2f52437bcc126e7815c0b76e587d2afe5d",
-   "bytes": 6789
+   "sha256": "5bf1575f5ee4543cd78d6999e9256994168819a20349350ef1774089b465179a",
+   "bytes": 6831
   },
   {
    "path": "desktop/app/qml/ChannelPage.qml",
-   "sha256": "b4e3551984cc0270db523685ce8dfa029aabe441e81b0f6b6eaebb0692e21226",
-   "bytes": 15107
+   "sha256": "3769b1b342d3471bf1f4565f60940e65fd6fa721e1aff2241756903e98c3d73c",
+   "bytes": 15239
   },
   {
    "path": "desktop/app/qml/ChannelPhotoViewer.qml",
-   "sha256": "51d13fd217471a6a47073eb63cfbdb4e57e1329c73eb28a299c7f6c3f63e54eb",
-   "bytes": 2650
+   "sha256": "eaddf88353033a803c2e95f8672257e71484d80533b3d682279b518e89a2809b",
+   "bytes": 2662
   },
   {
    "path": "desktop/app/qml/ChannelPostBubble.qml",
-   "sha256": "946dfd44ca485e6fab09352cb8bd5b8100c53f4ff826dcbbbe3c62432812ae39",
-   "bytes": 6362
+   "sha256": "d073332ecb92e835fdf58635a8b2479f09764219ba9e65213df54f521bc0ff41",
+   "bytes": 6380
   },
   {
    "path": "desktop/app/qml/ChannelPostContent.qml",
-   "sha256": "ad7846f2a1757b22e9f2884b39add1d1395165ef30a53525f7a88c0afbd6a8d4",
-   "bytes": 31425
+   "sha256": "8585bb9ae270e060cde7baaf2c8c9e314c07ad1de240bec01ac6f094ea1d78bf",
+   "bytes": 31517
   },
   {
    "path": "desktop/app/qml/ChannelReaderBar.qml",
-   "sha256": "f04327e2eab47f7f9735bd17f299d1e9ff5844ab454155e4a53752bbff178d1a",
-   "bytes": 2292
+   "sha256": "b6b88ec3c888b63a12ea143ead2f61eb6c60d2d2172e9e306c7b03f6709ece8b",
+   "bytes": 2328
   },
   {
    "path": "desktop/app/qml/ChannelScheduleField.qml",
-   "sha256": "ef87598cb372bc591423b1a52754101924daa910f79d43ee96a3c43b29f6dff7",
-   "bytes": 2389
+   "sha256": "c2e4f0536877dc1604d2eb0a26216a06b831b195371aff71ba8cec3621fd8cc7",
+   "bytes": 2419
   },
   {
    "path": "desktop/app/qml/ChannelSuggestions.qml",
-   "sha256": "839f377bad9542baef48080ed6fd48a5c31622076501788fbd08fa5ae634a4fc",
-   "bytes": 11635
+   "sha256": "76161140b21c9086376dece99ea94cc23152d89e06919b1f25e286e783515bde",
+   "bytes": 11755
   },
   {
    "path": "desktop/app/qml/ChannelUploadList.qml",
-   "sha256": "8db8d337264f662ed1bcb8e80b0aa55f3cdf9fe1f8ebc068ed5335f8594c69bc",
-   "bytes": 3825
+   "sha256": "c144776f2ef3fb3e3b60dbc7e12dc8a945a6a069cf304c1b1179c8f82022df2e",
+   "bytes": 3837
   },
   {
    "path": "desktop/app/qml/ChannelsView.qml",
-   "sha256": "4441339e25be426216f8a43801af7c12721d5aa23f7966a21583955383894e34",
-   "bytes": 16403
+   "sha256": "45c43b39e9ac751a6f39a2fd4f63359b93dd10553e6a25a20b4966bf99aa490d",
+   "bytes": 16535
   },
   {
    "path": "desktop/app/qml/ChatDetails.qml",
-   "sha256": "b4de97f3c7c7a74ee59613d6f215a338f71389638685afbd4d4d6390925c1c07",
-   "bytes": 18139
+   "sha256": "0e3cebe01d6c80a3756b6581cdc99750dccd6e843da8298e15a651b61ab218c8",
+   "bytes": 18907
   },
   {
    "path": "desktop/app/qml/ChatsView.qml",
-   "sha256": "f95f1d28f999b181b4c4d34aab2581eeae629bc4dab57de7aed06d927b3fa257",
-   "bytes": 20305
+   "sha256": "3919c8fbd9125345bd4785c61a2d05362191a89d69dd5f473d14d587e948d21d",
+   "bytes": 26805
   },
   {
    "path": "desktop/app/qml/Chip.qml",
-   "sha256": "79c66d092edef0a263040cd2b7cdcc8a925b5a2c589456f614b93e43dc40df73",
-   "bytes": 921
+   "sha256": "855cfd207e6e34ce1c0fd5384f59c0a2a35474559d148b73503b4068c4a9285e",
+   "bytes": 1494
   },
   {
    "path": "desktop/app/qml/CommunitiesView.qml",
-   "sha256": "d39e7e9ba887c92166f49f30c74bb1200f24900f03b03ba2eede248f62aa60bc",
-   "bytes": 24547
+   "sha256": "90e24562807122a3a6a051ade0e9c6138582688a51786b7e987f23acf3e18f68",
+   "bytes": 24865
   },
   {
    "path": "desktop/app/qml/CommunityCreate.qml",
-   "sha256": "1ee380f077e03067041616c4cbc4a692c9601e49dceb392c2a861fab51a8d6c0",
-   "bytes": 11320
+   "sha256": "38267db4c9c33aaf7fc09033da74689e1b4380a91050316c71b06f01f5b92893",
+   "bytes": 11482
   },
   {
    "path": "desktop/app/qml/CommunityManage.qml",
-   "sha256": "0742665073863aa697c5ee6adba833e6e1abf01e9cbfb3123a0f427c77a42748",
-   "bytes": 33795
+   "sha256": "5a94f0c6f708fbff8457f0efb7441166fbfe43d2bb71721c4c59225d4500293c",
+   "bytes": 34317
   },
   {
    "path": "desktop/app/qml/CommunityPage.qml",
-   "sha256": "f885a5f432eb34912220d0fb588915742463d178dd1dd1ed38d7b5d39ca93c7f",
-   "bytes": 16951
+   "sha256": "3c09aa8ad2428b344c8ec2b2ac7c4b6decb765e2358d9813329576ef70a64c68",
+   "bytes": 17191
   },
   {
    "path": "desktop/app/qml/CommunityReportDialog.qml",
-   "sha256": "e4ad95ab0da272c13c98c8215e9cae1f8f3a41d1daf461feaaf4f3ba4f6141d4",
-   "bytes": 6032
+   "sha256": "a367ab5c3f2a84d875a835862f084717a4f45ca3730e6ddcc2eee6e67488b96d",
+   "bytes": 6104
   },
   {
    "path": "desktop/app/qml/ConfirmDialog.qml",
-   "sha256": "0ad9f72fba247099a63a8587a596735121a56226d86443516b6241a7373cd628",
-   "bytes": 1388
+   "sha256": "393f93b8dbef61a488aa8e12128968d8c10e9524ae8be720b2217c086e1381ec",
+   "bytes": 1394
   },
   {
    "path": "desktop/app/qml/ConsentBox.qml",
-   "sha256": "a41e1ca97b55c30ef25743bcf56c4b4110621ca6ceb82beb2954b55b23700505",
-   "bytes": 1637
+   "sha256": "7421e1c8b725c4483c79eec283abe6374372f5808a40aebdd1f284dfdd0c5a7d",
+   "bytes": 1645
   },
   {
    "path": "desktop/app/qml/ContactPickerDialog.qml",
-   "sha256": "1ab7405ecf72c1c8a6df76eb5f4e62e7ae54b6d2fe151a544cfa976450d7af19",
-   "bytes": 2634
+   "sha256": "2d775537c4a4f8a8057d446fb65fa2926ec662a6089fe7c8dba91e59c775a491",
+   "bytes": 2648
   },
   {
    "path": "desktop/app/qml/ContactsView.qml",
-   "sha256": "c9b1f2c454cbda7611050434459e61f6a8cb28d5f164cdb6cb5ffdcfa557e892",
-   "bytes": 19336
+   "sha256": "2d1e432f2e7354d4894487b29c7b15e958d38c69dde61fc97f58402e2f5450db",
+   "bytes": 19484
   },
   {
    "path": "desktop/app/qml/CountdownRing.qml",
-   "sha256": "eec53f9c306b728c24e2b857b544dc83929ae67fa239d2a3d03aab06f8fa98db",
-   "bytes": 1358
+   "sha256": "3c3e594a48b0ed0cb035aa5c219aa428d0de02d4738fe3246a54d2b13754fe48",
+   "bytes": 1364
   },
   {
    "path": "desktop/app/qml/CreatorDashboard.qml",
-   "sha256": "4a6289c9d5e8c7b464e8465bbe69586d94b6a1fbc5449c28fecb326d4ff5dc45",
-   "bytes": 26253
+   "sha256": "6016d4627c41c8aaa0f844f7f1c1d9808f6ae0cdaeaa61a6e256f0f90cde713e",
+   "bytes": 26595
   },
   {
    "path": "desktop/app/qml/CreatorOfferSection.qml",
-   "sha256": "5ad3ca5e85ace5033765ed85a6de3b7229a8035706b24d13d8076e4a2bc52c19",
-   "bytes": 4688
+   "sha256": "9e8ab2dd940284659fe04c2c3a675dc0ed2216b524cd5eb6c0f7f961e1efeb0a",
+   "bytes": 4742
   },
   {
    "path": "desktop/app/qml/DeviceKeysSection.qml",
-   "sha256": "0591442f7c145d958553fa8def67e3d82affaefbaf2f23f54ac245c39a7d47b8",
-   "bytes": 19178
+   "sha256": "22ea8be186e2413c94536cdca2127c975de0ca5b85f6509f388ba44e11648813",
+   "bytes": 19460
   },
   {
    "path": "desktop/app/qml/DevicePicker.qml",
@@ -3539,8 +3639,8 @@
   },
   {
    "path": "desktop/app/qml/EarningsView.qml",
-   "sha256": "6ec20fbaf1157712cad5877673eff4096eb3a83aaf212018cef946f373a0afbc",
-   "bytes": 39188
+   "sha256": "2e066a7f4ad1fdedaefbe73006367a24d511eeb391dc806f745662e8e62901fc",
+   "bytes": 39740
   },
   {
    "path": "desktop/app/qml/EmojiData.js",
@@ -3549,68 +3649,68 @@
   },
   {
    "path": "desktop/app/qml/EmojiPicker.qml",
-   "sha256": "38ace639372ff851a6abe3e76c3b79165e6d4835325ed3444e321e04e8d9d73a",
-   "bytes": 5204
+   "sha256": "c565a8410831d0f73d2f658958e8b06a71c25c79b807298ff97fb491405315c6",
+   "bytes": 5228
   },
   {
    "path": "desktop/app/qml/ExclusivePostCard.qml",
-   "sha256": "bdadb9d98bdf2592916aa482db4e732b1c4f06d3ad30f6b32c218b0f40d9cdbb",
-   "bytes": 8278
+   "sha256": "ff6df95bc7a0a597653c190b114a8b05cfd791215b75b69d92ffafe24039b74b",
+   "bytes": 8380
   },
   {
    "path": "desktop/app/qml/FileKeysView.qml",
-   "sha256": "8ba56363f45cb1cf8d2ccc476644ddd1147503447a54732df90b07b610574f2c",
-   "bytes": 28400
+   "sha256": "5398a6d86667a2d5baaddcc2b96f0c67f2528ad72704f8ca2a6d228a2508090f",
+   "bytes": 28756
   },
   {
    "path": "desktop/app/qml/FilesView.qml",
-   "sha256": "a590bffc467f764911909f733cf2e1f046e52483d5341f21f80fc36570c86eff",
-   "bytes": 67980
+   "sha256": "b6a46aff0d8c9a7b25697f7c1852bd1b1cd47679a5bebc5ecae39b8b20b719c4",
+   "bytes": 69368
   },
   {
    "path": "desktop/app/qml/ForwardDialog.qml",
-   "sha256": "cf2132b14d442f8209ac44648d898c9d659a66a96b6083ae2a0ca608f4b3a1c3",
-   "bytes": 7783
+   "sha256": "a8474f2df86fd8142b156042dffa627af71569c69a5c70afc2a12fb19e9a14a2",
+   "bytes": 8171
   },
   {
    "path": "desktop/app/qml/FriendPicker.qml",
-   "sha256": "6ba69dad6ae1a8d61f22ae9a94fbab13d94c6985bbe33d5f7fd7ba3d56ef1de3",
-   "bytes": 2445
+   "sha256": "c94628c9abb3ebeea4e06ec883cd9632de06fd8e58d257c3918d8b6c86f90ca9",
+   "bytes": 2457
   },
   {
    "path": "desktop/app/qml/FriendsDialog.qml",
-   "sha256": "a6708a9437e8db73c1ed67d03bca0b81f7d6750d7faf1609890483b8aeee2e12",
-   "bytes": 8831
+   "sha256": "4aaaa3775859365e2899869d56c9aff0075011726757007fe6848d35edb797fe",
+   "bytes": 8956
   },
   {
    "path": "desktop/app/qml/GroupCallBar.qml",
-   "sha256": "9f7f4ff73bfc7f7de6e2ddf088b3341cc04d39816e5caf5fa12db432d16e21ca",
-   "bytes": 2993
+   "sha256": "d0541b8839cbb9bd08ebdda53fb732486d118638e7aa208712514127b75a15e6",
+   "bytes": 3029
   },
   {
    "path": "desktop/app/qml/GroupCallOverlay.qml",
-   "sha256": "58ed570cf7de21d645be025b2d7dec07366a506a2128ecc83209aebf734c1007",
-   "bytes": 17944
+   "sha256": "ede4282a0aad6b10d863f8ed911b845d5fefb7f65fd926ea6267d73c559ff427",
+   "bytes": 18288
   },
   {
    "path": "desktop/app/qml/GroupCallTile.qml",
-   "sha256": "a67d4441d14aa1bfcee5a3e18ddfe8c1fa3b99bda5df34ef98ac6b4199e6cc69",
-   "bytes": 3874
+   "sha256": "eec92f614553ee3cdac3989815ea4cef283cb5d0064c246b0b4c84d0aee34ffb",
+   "bytes": 3886
   },
   {
    "path": "desktop/app/qml/GroupInfoDialog.qml",
-   "sha256": "4717ac7f8f68c94fc4d37c661a36eac11791365d27b5dbd25cb6fb00d51348a8",
-   "bytes": 7846
+   "sha256": "cd38e5e3d80c9e81d725ebcd9ceeffd355cffc7c23a398bc076da6da7b3808b2",
+   "bytes": 7954
   },
   {
    "path": "desktop/app/qml/GroupInviteSection.qml",
-   "sha256": "b648fe3e84bbc135001d5e0e1ceaea699af1d4533fc7f57e713475aae7a60bb2",
-   "bytes": 7161
+   "sha256": "851bc914618272bf56abd6fb3adf1e8c5ffbc4a255d390ebfb0b1a618d4d09a8",
+   "bytes": 7281
   },
   {
    "path": "desktop/app/qml/HighlightsRow.qml",
-   "sha256": "6552822064ef3362c3b637a8fe878a00b24d754c80315a40a2158f3d5c182403",
-   "bytes": 4556
+   "sha256": "f6f7e37cff9f15bfe8e5435ebd5419ae9d3109ff03f099b4d3d707233fd5fbf3",
+   "bytes": 4574
   },
   {
    "path": "desktop/app/qml/Icon.qml",
@@ -3619,173 +3719,183 @@
   },
   {
    "path": "desktop/app/qml/IconButton.qml",
-   "sha256": "77cea908c4c5a2c16b93abf571b098fd7aa9279c230e52d30848816ebf52b377",
-   "bytes": 2309
+   "sha256": "733971d3a3a3b813bef2bc1d0605d6bb01b13f27693ca59cf4c07f8fd788d288",
+   "bytes": 3416
   },
   {
    "path": "desktop/app/qml/ImageViewer.qml",
-   "sha256": "49fecaf8b19ff81f71ca953210f84b8ccdccffd028d718388579977ce17f2191",
-   "bytes": 3253
+   "sha256": "515f5a609e5e9b69e46c2ac6b9fcb247a61392543fe86501bed7a60be35b2634",
+   "bytes": 3271
   },
   {
    "path": "desktop/app/qml/InboxView.qml",
-   "sha256": "c4eb43afacb2a6d15646395ccb2e6dee8420f95e8768ef891ef618876396ff7e",
-   "bytes": 10777
+   "sha256": "2232e672f304d99f2292d310fe809c409d46aa604f806c38b2c0b2638b6df42c",
+   "bytes": 10841
   },
   {
    "path": "desktop/app/qml/IncomingSharesView.qml",
-   "sha256": "14f4cafb58f6e515ae49f558f7ff7c624d46402d21e3b710701282b28eee2b68",
-   "bytes": 9123
+   "sha256": "43e1714b124b23356a725769a460e3d5f5d294b367a79d83d1461b94c14cd96f",
+   "bytes": 9249
   },
   {
    "path": "desktop/app/qml/InfoCard.qml",
-   "sha256": "2a0ef12649b5cb64a259cbe9dafc543d2f32e3ca3669c0a40cdaa00d3c8a69ad",
-   "bytes": 2429
+   "sha256": "25338e71a6b517b7a9ae0e935edb2b0e758a5672f63704c1215ee1762c419b85",
+   "bytes": 2445
   },
   {
    "path": "desktop/app/qml/JoinGroupDialog.qml",
-   "sha256": "1d94c0a1c3696e3043390a0975ae51d7ce43075544f151e70cf68d700a0d8697",
-   "bytes": 6579
+   "sha256": "3a276b2a77abbfb79b1c04aa51159d0824da37d33cb817136254d0f8768bcfc5",
+   "bytes": 6681
   },
   {
    "path": "desktop/app/qml/KeyCreateDialog.qml",
-   "sha256": "9b50b94e91dbf62ae468cbc7a1667695fdd550b7ae070bc10c17cfe6b250087f",
-   "bytes": 3691
+   "sha256": "94edbb36ac3d8b73760816a03e631717c4b52dd09c945468bf1eb769b1a26fc8",
+   "bytes": 3763
   },
   {
    "path": "desktop/app/qml/KeyImportDialog.qml",
-   "sha256": "91f1221d5a47b94fad22c56c440c0716b5dfef9dab90530c101c9477188aefd2",
-   "bytes": 7160
+   "sha256": "3a5583fe78ffab2fdef6687c89757b4c661f4efc9da7ba4daf7d575d22931db9",
+   "bytes": 7296
   },
   {
    "path": "desktop/app/qml/KeyPicker.qml",
-   "sha256": "35b4252c2972e77a415427b6ef0787230214b4f3cf875b53c672fc90a7b6c1c2",
-   "bytes": 3134
+   "sha256": "2e8315066a84e31a5f630709ae233a9107e7240fb03d50bbdd449838200d2514",
+   "bytes": 3146
   },
   {
    "path": "desktop/app/qml/LegalDocumentDialog.qml",
-   "sha256": "07a5c86c347c229645a965458d4147f9fb364ce67fb84c97817f924841d20feb",
-   "bytes": 2020
+   "sha256": "e5b3789fd910705a417698036a65631c5f9ab166c0fb8db1f6d5caeb32dfc611",
+   "bytes": 2026
   },
   {
    "path": "desktop/app/qml/LinkedDevicesSection.qml",
-   "sha256": "2051d80651c09f14d556a15e3612705cb7e22b649922c7c7c17d1f8440064073",
-   "bytes": 7461
+   "sha256": "b91c67ed47e867b929dfb2a42f8da09ac3db999e188bd2d209a10c9fa7fd489a",
+   "bytes": 7539
   },
   {
    "path": "desktop/app/qml/LockDialog.qml",
-   "sha256": "edbc1be36ec06676290077eca393231c5331a8b3f9a2fd81bc20c7789af2c310",
-   "bytes": 2712
+   "sha256": "04d9f48ac70a0750ea13d89e597297b5f854a7d22d089dbbf32ed2f04c8faeea",
+   "bytes": 2718
   },
   {
    "path": "desktop/app/qml/LockPasswordField.qml",
-   "sha256": "2f51464fb7ebe8c8d19c45f821f5d7443f06838a8a35be091045bf91306ef8e3",
-   "bytes": 3939
+   "sha256": "6fc767855028068ca304b4470f0e99bdcf3633235ccb630942db505a0de17b9c",
+   "bytes": 3945
   },
   {
    "path": "desktop/app/qml/LockView.qml",
-   "sha256": "c5cad46c1249bbc715076a0a88696ad0ac1a50a4d149196a296acba19f416dac",
-   "bytes": 4660
+   "sha256": "a2abf818d84c45672d05997d820eab2e31b721e25deccc9a40e949c1bc9bfeee",
+   "bytes": 5299
   },
   {
    "path": "desktop/app/qml/LoginView.qml",
-   "sha256": "4951b657e65f901ab47d2d3af35a50453a9c5652ae1ecf40523690e6a9537aac",
-   "bytes": 11606
+   "sha256": "2d534f8d8226c077dc1caf5911ba8911ee441850efdf72f2e172d8d6e7c16bff",
+   "bytes": 11784
   },
   {
    "path": "desktop/app/qml/Main.qml",
-   "sha256": "1671af00ef298a44d72906f1fcc887bda67c08d3a348e4a83c14954c2188a136",
-   "bytes": 3720
+   "sha256": "9a87f508a39d3616f86d49d43049e1cfdcd7ffef4fe5ffbeb0ef8c8743d64538",
+   "bytes": 3724
   },
   {
    "path": "desktop/app/qml/MessageDelegate.qml",
-   "sha256": "2a27d7e764ce45ee08abe592134a47498f679d1a7ce70b030d9c67d9ecbe1ef7",
-   "bytes": 38219
+   "sha256": "1d52f6574daae859ec636d887a57f4ece847504983910529e8fd21ba793c5e56",
+   "bytes": 41901
   },
   {
    "path": "desktop/app/qml/MessageRequestsDialog.qml",
-   "sha256": "88be0b6ef82b8239b88a64e7557c5b2b457b2432349dbf7e18bcdd3cae38508c",
-   "bytes": 6082
+   "sha256": "620a7f705afd744439d5499a70849a240a56cc6df808a828aedc7000f3de2179",
+   "bytes": 6118
   },
   {
    "path": "desktop/app/qml/MiniChat.qml",
-   "sha256": "1f204a27744523568a0dd52b21e87a1063d1cb1e9f542460adcf957969c0ce4f",
-   "bytes": 3451
+   "sha256": "132181a9f6818946c6425b40439d78700040dee35cf613e160034bb5e095e6bf",
+   "bytes": 3481
   },
   {
    "path": "desktop/app/qml/NavRail.qml",
-   "sha256": "1fb3f18877bd1e62c4f180e5f7958a34ed195c84ab3cd8a56d837c9b71ab7637",
-   "bytes": 7530
+   "sha256": "cd752a648e60ec8a7345778f9f2b4203ffb8f7c54ef08df880ef4094300fdb89",
+   "bytes": 8400
   },
   {
    "path": "desktop/app/qml/NetworkRoutingSection.qml",
-   "sha256": "6f326c5091c63ae7234dbf7ef651a59662762be02d7fbb714110619bc8573291",
-   "bytes": 7199
+   "sha256": "eb4fc35db25da73f97b67b531395dd6fdd0b00788c39f5fcd8de4d2a73bdb680",
+   "bytes": 7333
   },
   {
    "path": "desktop/app/qml/NewGroupDialog.qml",
-   "sha256": "5a24cf6ed5bec5d202e6e95d43645e367af3a80e920b2e647a61f65247b52524",
-   "bytes": 1990
+   "sha256": "6dcf80f24e6859a1fed5133be461846de28d7a103221fe619931f28f8f282f8c",
+   "bytes": 2020
   },
   {
    "path": "desktop/app/qml/OpenSourceSection.qml",
-   "sha256": "2a6cb23a6bc1987f360c1f6f1dc01950e4102b270b0400af0b48acb0268bd510",
-   "bytes": 3575
+   "sha256": "edc69355e59a2cc249bb78c597d428d5347bbc7d80fd6dc7cd93ff692be99240",
+   "bytes": 3639
   },
   {
    "path": "desktop/app/qml/PaidMessageBar.qml",
-   "sha256": "4449f4f55991ffa427b0e2f24b90543eb193d49b335cbf0be33a638cda88537c",
-   "bytes": 4598
+   "sha256": "354826eb8bbda54ba3324a6679a64df9423af4f62422508aa4274b6bf35c4096",
+   "bytes": 4646
   },
   {
    "path": "desktop/app/qml/PasswordsView.qml",
-   "sha256": "7c1bfe9fb4d0abdd8bbe58573e1bc4562eeb5aba1e745796f3c1f4186396bab9",
-   "bytes": 54129
+   "sha256": "a9887698bc6287b8281dc362ca5035f04d1dd4e6ddfbe88822d4e581dd3b1fb9",
+   "bytes": 54709
   },
   {
    "path": "desktop/app/qml/Pill.qml",
-   "sha256": "45b32022464a49e69b57c0c532dd9962b27942ef9ba29ce20a4370ea894b8ef9",
-   "bytes": 1078
+   "sha256": "04f88c74091ad3d180b4b9003a2e3ffd19888fef501a9998f3db3780b1dad2d5",
+   "bytes": 1897
   },
   {
    "path": "desktop/app/qml/PlainTextDocumentDialog.qml",
-   "sha256": "79bf6d138563ed104aaecd1fc7b0037e054a13b3504620c45096b6ef2d596e3d",
-   "bytes": 2387
+   "sha256": "0a1453a49c0ab38cf139f67b19b161bbc4b0eda35f378c12eb15f88b4a768a73",
+   "bytes": 2399
   },
   {
    "path": "desktop/app/qml/PlanCard.qml",
-   "sha256": "26b9038a56e60fb8c121e82593adae1e81286dd6b66ded3544f939a6e12c7ba2",
-   "bytes": 4969
+   "sha256": "f550638fb7b83cfe93266f2f0267fe57b4c57487759426ffde28ea040b3540c1",
+   "bytes": 4985
+  },
+  {
+   "path": "desktop/app/qml/PlanGate.qml",
+   "sha256": "5ec3e7e3b366f183880360a0952a343d905756fac5570cd1b22c329a66c65175",
+   "bytes": 954
   },
   {
    "path": "desktop/app/qml/PollDialog.qml",
-   "sha256": "7620c12432442ec7b76e71f62addbf3fae396673015134e221b2fc7561670d32",
-   "bytes": 4316
+   "sha256": "eae89758d7e712600381be8694a1ea54789e829973058cc308bbd85917cd16cd",
+   "bytes": 4382
   },
   {
    "path": "desktop/app/qml/PostField.qml",
-   "sha256": "20572a40e57046f118eb95a722bbc1e451b0af3430a14ce287a3a328cc3ad6db",
-   "bytes": 1129
+   "sha256": "77a672ef635edfedfa0d42c140cc640366515c7e8e5aec73b9d8f5c12af163ef",
+   "bytes": 1133
+  },
+  {
+   "path": "desktop/app/qml/QrScanDialog.qml",
+   "sha256": "cdba75e41f3d8ab84087563da597ad8fba2f9fb643873ed2c7200ffb9a518044",
+   "bytes": 4096
   },
   {
    "path": "desktop/app/qml/RecoveryKeyPanel.qml",
-   "sha256": "52f42fd8675403e23cad94ce776ae728220fbd9b89fd5b0df3f1ff635aafbb2d",
-   "bytes": 2866
+   "sha256": "cadee274e23b5d857806a70af5a517e71143842eac1f107b49d4a6d1bad99d84",
+   "bytes": 2908
   },
   {
    "path": "desktop/app/qml/RecoveryKeyView.qml",
-   "sha256": "1aaf795cfd9c200e184e5ce13963dba0e5e500efc12f71f832f5969f65b23257",
-   "bytes": 1023
+   "sha256": "3419943e121a9db38dd4e7c2a17dfde54ee918806b442ec5204a399eb152cc77",
+   "bytes": 1029
   },
   {
    "path": "desktop/app/qml/RelayServersSection.qml",
-   "sha256": "52b74a70149b46f2114349eeed38df8f8b946ce4c67cbe9b3839c1279cf5e6ef",
-   "bytes": 5693
+   "sha256": "c7656831dba75a38c9c1da5cd6a1cf1c39f007523e55bfc97f887c0517c79b31",
+   "bytes": 5735
   },
   {
    "path": "desktop/app/qml/RvButton.qml",
-   "sha256": "b0b5b08be024db3fd6c06b8056dc2defeca17d11d9612ad6d9cc602f26d65b86",
-   "bytes": 2529
+   "sha256": "e2f1d892aa56f97e5739bd69302648473ba9a6b15b567668b520360d4f8dc91d",
+   "bytes": 3444
   },
   {
    "path": "desktop/app/qml/RvChoice.qml",
@@ -3799,63 +3909,63 @@
   },
   {
    "path": "desktop/app/qml/RvDialog.qml",
-   "sha256": "e3d537cecc34c98863d0dfae775598917fe1aab32ed6035efa35859914a0fde7",
-   "bytes": 1447
+   "sha256": "19f1d60f144f59526107d87e426996e7b5f0811d6707e3bcda501dabcc5233c2",
+   "bytes": 1453
   },
   {
    "path": "desktop/app/qml/RvSwitch.qml",
-   "sha256": "98b0c09fdd244d0c27aba95f8cbc41e9a4d84aa87ceee932ce085b29921f6ba9",
-   "bytes": 1903
+   "sha256": "7bad23d3c5779c1ec7561b2c184a6548047f62330e29f68efed76b17d180742a",
+   "bytes": 1907
   },
   {
    "path": "desktop/app/qml/RvTextField.qml",
-   "sha256": "43fd92b429eddcd7acf7568606d0ab6292106c33db290969af772582e64e5d0b",
-   "bytes": 678
+   "sha256": "bac518b3a50b94d7d3b88fd7e256748b526ab6dbbfe0d04e319ff6d4e82199d7",
+   "bytes": 682
   },
   {
    "path": "desktop/app/qml/SafetyNumberDialog.qml",
-   "sha256": "d1ab4138d18d5b0b93139fac0218bb86c274a62743d030baa82f42413323fc62",
-   "bytes": 18027
+   "sha256": "deb4d2cad23ef0542e92442230c049a44b811408be28285e9585677428860498",
+   "bytes": 21184
   },
   {
    "path": "desktop/app/qml/SearchField.qml",
-   "sha256": "c7bdb21c671f1df03989d4c670d64274c1af3b373c9da3005dfe5e0079ca2d2f",
-   "bytes": 978
+   "sha256": "806e727322000543a0c4a68e2e463d21916418ded1b46e790a9ee2bd3f5ba79a",
+   "bytes": 982
   },
   {
    "path": "desktop/app/qml/SendFilesDialog.qml",
-   "sha256": "0b5f03c03316f5c8fc73d77aa7e4357145a54a9936650c2cdadcc0a796f41397",
-   "bytes": 5908
+   "sha256": "276296c3e48788531a72ac21b44ea32051dec79cb56fee63b66432f4705b8425",
+   "bytes": 5962
   },
   {
    "path": "desktop/app/qml/SettingsView.qml",
-   "sha256": "57ca00e3cff0884723e82e05d2dee95951877a657e2cccb34dc5d4ee37c0d455",
-   "bytes": 61572
+   "sha256": "a8e5a8c2b385ff8af2b4513c579b0225944a8d947375e2ff605cf8d3aa6e11cf",
+   "bytes": 69615
   },
   {
    "path": "desktop/app/qml/ShareLinkDialog.qml",
-   "sha256": "63e0e692c6b58e5e9aa30c900c4c97e5e63134745e73481177ec41c16917501d",
-   "bytes": 14594
+   "sha256": "e32dbbc650dce2fd8a90c65b09147ad21e51e54e3358c14fa4a3bf6172dfa0be",
+   "bytes": 14728
   },
   {
    "path": "desktop/app/qml/ShareLinkEditDialog.qml",
-   "sha256": "aa78d17c0cd03715600b7b843a167f2f911988d46e4567d3d8e0485d1ed16dae",
-   "bytes": 10661
+   "sha256": "5b8602d8a4bf4f3363c38b85c207eebcec5761f756c670f7abd177fc02529eed",
+   "bytes": 10841
   },
   {
    "path": "desktop/app/qml/ShareLinksView.qml",
-   "sha256": "66415932831c042442853f79b66c3c3e42f4f2c37cca7725ac60f169fab85016",
-   "bytes": 11304
+   "sha256": "ab53a1aaa4ab55e93e8cf8185775009d44852f339a5f6e039f91b9164c077ff7",
+   "bytes": 11462
   },
   {
    "path": "desktop/app/qml/StickerEditor.qml",
-   "sha256": "6e21087c0a7deb816856e86ec0fad8e07a3dcb3684439b6dcbb63e8427b20e8d",
-   "bytes": 21783
+   "sha256": "d081612d1cf9c2cdc2832db09c3813e5c8c4351f0d97a8f19c6784b189844d36",
+   "bytes": 22011
   },
   {
    "path": "desktop/app/qml/StoryAnswersSheet.qml",
-   "sha256": "5aba1c9a4ff64ec668a28e7a72dbc230f32e626f390f01ef23aa6f9e439dc115",
-   "bytes": 13028
+   "sha256": "fa8231e43cfcc2e2754a00032b72f14baadf3510be30fed0f24fadddc040cc8f",
+   "bytes": 13118
   },
   {
    "path": "desktop/app/qml/StoryCombo.qml",
@@ -3864,8 +3974,8 @@
   },
   {
    "path": "desktop/app/qml/StoryComposer.qml",
-   "sha256": "938116aaea11441a44a426096f4bf5a91adb33ab52ee7db54a697ce1f2b9a4da",
-   "bytes": 58356
+   "sha256": "de10c0d2bbd0d6987a0eb1db4a11b5371f5c848bd44bd3cca4efa2d7d6d510db",
+   "bytes": 58866
   },
   {
    "path": "desktop/app/qml/StoryFrame.qml",
@@ -3874,8 +3984,8 @@
   },
   {
    "path": "desktop/app/qml/StoryReportSheet.qml",
-   "sha256": "b7541f4e915d56244d8dc18ba95182d590fcf3dc624f099d6d8d3b39c47c6237",
-   "bytes": 3963
+   "sha256": "78cd0aa7937bc26ec84dcbc75b01fa166356da855105eed301f9073b313af575",
+   "bytes": 4017
   },
   {
    "path": "desktop/app/qml/StoryRing.qml",
@@ -3884,78 +3994,88 @@
   },
   {
    "path": "desktop/app/qml/StorySettingsSection.qml",
-   "sha256": "6133d17b50b5c0afecf02eb5d8cd63120cd7933ef6333fa1cd49cd8c4a793037",
-   "bytes": 16145
+   "sha256": "7bc121b55611a7e13e3e31a952f688491f8b7be991dcd34b0fe2033c4002f80e",
+   "bytes": 16379
   },
   {
    "path": "desktop/app/qml/StorySheet.qml",
-   "sha256": "3e2ec47cf28ed8f41b927f7f1c2ef94f05a68db4074244b346b85c7dd262c5c5",
-   "bytes": 1979
+   "sha256": "96a6dbaa77ea4c961aeb5ad842104e771e96791c012dc5c3f0d2e281c643b13e",
+   "bytes": 1985
   },
   {
    "path": "desktop/app/qml/StorySticker.qml",
-   "sha256": "efbc66b9f9e1cf7072eb1f1b6681a66ae66ee34987b8bc7d2691659912c4b509",
-   "bytes": 24617
+   "sha256": "4c900b54fc0bd941987e2f9a1c4791b983fc490f78fd5626240859f7a48a9d25",
+   "bytes": 24659
   },
   {
    "path": "desktop/app/qml/StoryTray.qml",
-   "sha256": "5161be15e31e3ab032836d98fe1376a47cc8b75b1005a91e59e2f1ed8faf8c99",
-   "bytes": 4289
+   "sha256": "9835c7498c51727bc2e072d46668b374a9438f474c9cc28311a556f250efb5bd",
+   "bytes": 4323
   },
   {
    "path": "desktop/app/qml/StoryViewer.qml",
-   "sha256": "62710ed97b30734032778b806c25ddbd42d796fc08482336acd2cd3fa8cc32c8",
-   "bytes": 36366
+   "sha256": "7703623b29a302da1c4656fbd6dc3074e1cb8b4f443f468b27080c251e1c0672",
+   "bytes": 36642
   },
   {
    "path": "desktop/app/qml/StrengthBar.qml",
-   "sha256": "3a9eee357f56815277270971971aa808ec30dc2f271a036464112a068e5d4a06",
-   "bytes": 1154
+   "sha256": "c8c82d0943e6082cf9d7a2396095597a573a723d47d00bc91ef21364e3c71718",
+   "bytes": 1160
   },
   {
    "path": "desktop/app/qml/Theme.qml",
-   "sha256": "a53dfc13a7099ad8de95990cc86f4236461d77d5895ac4563cf08cd19c52c6b9",
-   "bytes": 5146
+   "sha256": "1ca118dc080ee6380203913271d37e9eb7992bc43677d4210e6bf8ac94bfa621",
+   "bytes": 9138
   },
   {
    "path": "desktop/app/qml/ThreadView.qml",
-   "sha256": "7441459b53694b9c5eae11e75fb363bacd0860d5f8b7f64753b686a3f74fada2",
-   "bytes": 99570
+   "sha256": "4c666406f8b3db10a55d1fa8feca989e5bada960eec4a3b9660243145ab47fce",
+   "bytes": 106357
   },
   {
    "path": "desktop/app/qml/TipDialog.qml",
-   "sha256": "5f7062576751aaed93463f533699bda12f30b8b709192ea2558058444629f6e6",
-   "bytes": 5769
+   "sha256": "779158db0dbf64af84a0ee025ccd53b909192362842ef982194325215c1e803e",
+   "bytes": 5853
   },
   {
    "path": "desktop/app/qml/TorStatusChip.qml",
-   "sha256": "915e6e2ee3d5dcb59c10013d43b41e8e76cd93cfcb790c18c89935db08b6b252",
-   "bytes": 3099
+   "sha256": "40db6eb93ababb83c0231187df3d142aa5212bd83e264e2dee5f2b0841e88986",
+   "bytes": 3131
   },
   {
    "path": "desktop/app/qml/TransparencyLogView.qml",
-   "sha256": "e8c15c88601bb93c9f4ea7bc15ca65d534253db1e417a992d0d495cb4d03ffb3",
-   "bytes": 31993
+   "sha256": "55886855cda3522c81e669f3890c2d21bfeb3b5a66b8ab8e35490334a18092b5",
+   "bytes": 32279
   },
   {
    "path": "desktop/app/qml/UnlockFileDialog.qml",
-   "sha256": "458cfb9fea5b2749f9bca398713eae305f05a28cd40b05be3a1a5468997e669c",
-   "bytes": 8672
+   "sha256": "57f7ad2ea648118217eeae9fdd967b439fe86ce63f6a055b89061a41f310bdb7",
+   "bytes": 8726
   },
   {
    "path": "desktop/app/qml/UpdateBanner.qml",
-   "sha256": "b7a999c7cfce4ce3532b51dee9735e5120c2d5a62508bdba0f830aba9d71958e",
-   "bytes": 2958
+   "sha256": "2ded571cbe6720b577cd904458978887f29005edeb8213a43eb74c737577e461",
+   "bytes": 3000
+  },
+  {
+   "path": "desktop/app/qml/UpgradeDialog.qml",
+   "sha256": "0b86ce312fa2b2d46d8fe3e87eed1a6955864cda66006d5d7d65dfb011ff3bbb",
+   "bytes": 2907
   },
   {
    "path": "desktop/app/qml/UploadLockDialog.qml",
-   "sha256": "d24d85cba5d2845c70cf79c38db50a52c67159309f2b1b60fb6880a7952ea560",
-   "bytes": 10083
+   "sha256": "3c85edee1df0930b2864b39b6feecec5212b9c5ddf38a4fe1be51c75d183200f",
+   "bytes": 10185
   },
   {
    "path": "desktop/app/qml/VaultItemDialog.qml",
-   "sha256": "6f1873324135ce483699e41b83e7283b6fe9409efbd69bbde0399cd910b756c5",
-   "bytes": 10582
+   "sha256": "456276cbf701d5d6300fdc900a6d6e6bd0d013e3db15d2bf1da27616bd90777f",
+   "bytes": 10756
+  },
+  {
+   "path": "desktop/app/qml/VoicePlayer.qml",
+   "sha256": "1247eba9a3481683dc30c26e6361bcb6d8c8c924a32ef1a7ec7864529bf138ac",
+   "bytes": 3486
   },
   {
    "path": "desktop/app/redvault.rc.in",
@@ -3964,8 +4084,8 @@
   },
   {
    "path": "desktop/app/src/account_session.cpp",
-   "sha256": "839ec24876e2cbd474764bf68c4afe4241357c1ec9232fcb9ffc92dcf73c0d3e",
-   "bytes": 21747
+   "sha256": "332e5339f7e86d26bd9e3fbe36fc1802576f972e8dada3cd59049d594a5e2bff",
+   "bytes": 22087
   },
   {
    "path": "desktop/app/src/account_session.hpp",
@@ -3979,18 +4099,18 @@
   },
   {
    "path": "desktop/app/src/app_controller.hpp",
-   "sha256": "a0691de2a92b3b9ffde2727632fcf24f1c7f9f99ed2b658c807c845f07d95b39",
-   "bytes": 12951
+   "sha256": "d90a055bfe8e79bee03a3c8d6eb5b25781d45ccda70e7b674c0470d647b17121",
+   "bytes": 13523
   },
   {
    "path": "desktop/app/src/app_lock.cpp",
-   "sha256": "880f5c87a53f43886afb75b59090bf67c4a6f79fd087ff6e912d62a35973ad5e",
-   "bytes": 9033
+   "sha256": "5a80e4efd704bded9cdbca11cd4e0751eb90bb9d64c7b9dcdec8e7815cd991d8",
+   "bytes": 10811
   },
   {
    "path": "desktop/app/src/app_lock.hpp",
-   "sha256": "40aa6604e4871cfac3497f993a970d4713c0cf7eb7d058dd120226d3a3f40393",
-   "bytes": 4533
+   "sha256": "8fa1c1dd47c5902b7c279817bf608b9c4fdc545ec65cf5c67ce304c1329ce67f",
+   "bytes": 5504
   },
   {
    "path": "desktop/app/src/async.hpp",
@@ -4074,23 +4194,23 @@
   },
   {
    "path": "desktop/app/src/chat_models.cpp",
-   "sha256": "2d7b232f857014cb5016eb691f5087a110cbb888e82cdcb104d767a368089ac8",
-   "bytes": 22291
+   "sha256": "b737f6d2bdc04cc9fd76458c7cd4ed589bcbd170e3ec53da4109f0941dbb2b90",
+   "bytes": 22867
   },
   {
    "path": "desktop/app/src/chat_models.hpp",
-   "sha256": "e2b631e4f35036f17b47af5d73e8ae889e9f2a4b66f87b25888efae8748791c3",
-   "bytes": 6296
+   "sha256": "92f9197eb8b26f518e8ffd4d738ba66244db35d9585ee79d3a3f188dfcf74a33",
+   "bytes": 6521
   },
   {
    "path": "desktop/app/src/chat_session.cpp",
-   "sha256": "d686ea777f9974e8bd9cc9cba81af309a86cd695d054569c236ef88ecf4ab624",
-   "bytes": 80423
+   "sha256": "a5ef39019679e5ad2f9f963b72099fb9ac02a74612b4cecebcbf4cb703d5a937",
+   "bytes": 83101
   },
   {
    "path": "desktop/app/src/chat_session.hpp",
-   "sha256": "3b14a802acca976b9ddd306736740573d27cedbcdbfeb5f10304063d4a1faf8d",
-   "bytes": 26504
+   "sha256": "33f33969c8f9607c54e216304b7a1cace6827b141af6531b400d045ceb4038dc",
+   "bytes": 27888
   },
   {
    "path": "desktop/app/src/community_admin_session.cpp",
@@ -4114,7 +4234,7 @@
   },
   {
    "path": "desktop/app/src/desktop_shell.cpp",
-   "sha256": "043c6f78f0865c399f27b7c6052fa1fd47cd6a854ce14033eccafa245f8e8488",
+   "sha256": "6f8ea19aa8dd775ab0173c2ce117b54adfc521f005a33573e32d1e8aa2f02af0",
    "bytes": 9877
   },
   {
@@ -4124,13 +4244,13 @@
   },
   {
    "path": "desktop/app/src/device_keys_session.cpp",
-   "sha256": "63e43149811d622357f0be8bcb156b6cb34440b71dffe7014cdab995f1bf6e67",
-   "bytes": 65491
+   "sha256": "3760eedb8ae70d2bae3213928a6246288b5eb507915a26c7f44ff0145246d0d5",
+   "bytes": 66207
   },
   {
    "path": "desktop/app/src/device_keys_session.hpp",
-   "sha256": "e695b801ae433f0aee9a4bc1e360f7d3b4437688dabd9e007329e8cd44cadbdf",
-   "bytes": 21245
+   "sha256": "2a0bbd00400283c672c8970fea5785231d3fe3d0fa9558f4a03068e1315e6397",
+   "bytes": 21457
   },
   {
    "path": "desktop/app/src/earnings_session.cpp",
@@ -4154,7 +4274,7 @@
   },
   {
    "path": "desktop/app/src/files_session.cpp",
-   "sha256": "2736fdf46fd81e7301b48297054db337402dfd7ad579253f11422b2834ad55bc",
+   "sha256": "4e4fe5e46101a87f4f04e74b75b7cac4606d62f79548da3a298acc3b943cb063",
    "bytes": 53843
   },
   {
@@ -4219,8 +4339,8 @@
   },
   {
    "path": "desktop/app/src/main.cpp",
-   "sha256": "ed1c43a781a33b394b476390c6cc9f6036da495b7949a75bfc8d1c6442655865",
-   "bytes": 10194
+   "sha256": "553de139f8858bc0eec8662211e17d93630e5dd9043b7b162bb2b060e84a97d6",
+   "bytes": 10974
   },
   {
    "path": "desktop/app/src/media_io.cpp",
@@ -4234,18 +4354,28 @@
   },
   {
    "path": "desktop/app/src/people_session.cpp",
-   "sha256": "00d7c51b090f6ee84844e50c4ad475ee2b5d69234e9e42e1c66b4fb99274b5bb",
-   "bytes": 9640
+   "sha256": "5550e8819d43249e32fbdd9f7e202697b1d4e1e616e04190bbfb7e5f71891fa4",
+   "bytes": 9923
   },
   {
    "path": "desktop/app/src/people_session.hpp",
-   "sha256": "91ee9c02aae7f84d910463770af301098da7c96f0188f3c7604f95cbd8fc6e60",
-   "bytes": 4112
+   "sha256": "da69e9e90bdb06a5fc4aecee440f65f97796279e4adcf7354f6e835c41a46323",
+   "bytes": 4396
   },
   {
    "path": "desktop/app/src/prefs.hpp",
    "sha256": "91d6bc326a393b3dac31464b66dff37727fc00a8602f619de0cf77f9c8b6eb37",
    "bytes": 8334
+  },
+  {
+   "path": "desktop/app/src/qr_scanner.cpp",
+   "sha256": "18a4c4437653e2e1fc5f1cb157035e9e5b73143e60389bd9117f5e8fd93b8c68",
+   "bytes": 2612
+  },
+  {
+   "path": "desktop/app/src/qr_scanner.hpp",
+   "sha256": "225c80c948bc765037dabfd1530a94d7cf2cb0b8a61a6201b62b8a95c1216507",
+   "bytes": 1686
   },
   {
    "path": "desktop/app/src/security_settings.cpp",
@@ -4326,6 +4456,16 @@
    "path": "desktop/app/src/video_convert.hpp",
    "sha256": "e2bd7e0f0fd62b43792f061335b977313969713eeb041c3a0966b4a77925c7cc",
    "bytes": 1043
+  },
+  {
+   "path": "desktop/app/src/voice_recorder.cpp",
+   "sha256": "6ee6fca9730e261a44140103caf691bc4e654714b04fc5d9c758746348e2f15d",
+   "bytes": 2723
+  },
+  {
+   "path": "desktop/app/src/voice_recorder.hpp",
+   "sha256": "ce41cfd2fa5dbadffddb55d132704395008a56efe0071082b1a87d84de8a5216",
+   "bytes": 2368
   },
   {
    "path": "desktop/app/src/windows_hello.cpp",
@@ -4919,8 +5059,8 @@
   },
   {
    "path": "desktop/core/src/model/plan_choices.cpp",
-   "sha256": "a34fed5832f4797b7ce7f495fc6b638859a23fa88a23c094be0b0bdb5271b56b",
-   "bytes": 7151
+   "sha256": "77a4a7f036540218a7f770d5ff86656660e721e0bdfe8e05088c3ecff4c4e27b",
+   "bytes": 7221
   },
   {
    "path": "desktop/core/src/model/rich_message.cpp",
@@ -5024,8 +5164,8 @@
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/device_store.hpp",
-   "sha256": "a6a64fc7f27192204871dfe1c350dbe41d40cb78418c8bf7cbc4b02c502b2d47",
-   "bytes": 5331
+   "sha256": "35fa005b952da981e0d612e68261dc132d2da651e0221112834200e3202a2a49",
+   "bytes": 5637
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/engine.hpp",
@@ -5059,13 +5199,13 @@
   },
   {
    "path": "desktop/e2ev3/src/device.cpp",
-   "sha256": "b66e9f5d2e59404af85bd1be90ee27c9583350a80046cd0ab4420dcfa15c83ff",
-   "bytes": 23884
+   "sha256": "b71c61c9ab3a11f313e21d66c5b435d1dcc507dd46366fbc67c2f83843ea46b2",
+   "bytes": 24001
   },
   {
    "path": "desktop/e2ev3/src/device_store.cpp",
-   "sha256": "c5a7a7d49f7d8f5bd503d1a77b6b3b6928ad11188e84f85334f3b17f61b81738",
-   "bytes": 14321
+   "sha256": "6936e7b7379886564b3bf6207162d17221bb8c60218a8b64edc63c30ae4366df",
+   "bytes": 14809
   },
   {
    "path": "desktop/e2ev3/src/engine.cpp",
@@ -5168,8 +5308,13 @@
    "bytes": 5622
   },
   {
+   "path": "desktop/packaging/linux/make-deb.sh",
+   "sha256": "1b356d99774bd1edda55d91a59ad5118bb5f1422e2b5ef2856acdb430bc08a17",
+   "bytes": 6080
+  },
+  {
    "path": "desktop/packaging/linux/redvaultmessages.desktop",
-   "sha256": "26b329a1269b8aec09d0e61233f84e94afafc70087428e66cfd339fbfe896985",
+   "sha256": "041632255c512de6edb9759c619291802d786468e8c115f9525e933ec67c8c77",
    "bytes": 190
   },
   {
@@ -5339,13 +5484,13 @@
   },
   {
    "path": "desktop/packaging/package.ps1",
-   "sha256": "7c373ecc09a8407935422708962a724e8c290cac721793714de661a4b189992d",
-   "bytes": 5280
+   "sha256": "4c91928cb4a3301d8aa2fb5a6e34215f982227243a725cda65e8a1cfcbff2c81",
+   "bytes": 10424
   },
   {
    "path": "desktop/packaging/redvault.iss",
-   "sha256": "ef75ff698fea9a54691824d3b510dc607c67e8b45775a6e1a6d6d84b23fca9de",
-   "bytes": 3017
+   "sha256": "ce34bdd0f906df6322f3a622779787aeb45568444a5bdc7da3622d18691156a7",
+   "bytes": 3449
   },
   {
    "path": "desktop/packaging/tor-release-args.ps1",
@@ -5409,8 +5554,8 @@
   },
   {
    "path": "desktop/tests/CMakeLists.txt",
-   "sha256": "3bf7f55038fb1ccbd490dba126bfadeb84c9ce29b2ca672e9f2963377f2dc876",
-   "bytes": 13345
+   "sha256": "a4f5424b428b6c3185f3c580c6c4e1b2a06381e8220a75db2e7837aad93dcf39",
+   "bytes": 13777
   },
   {
    "path": "desktop/tests/account_repository_test.cpp",
@@ -5706,6 +5851,11 @@
    "path": "desktop/tests/qml_stubs/Redvault/qmldir",
    "sha256": "f529aa5b85488021b9890fa5f264d1388c76782597515b351b3f8bdd9212d43c",
    "bytes": 244
+  },
+  {
+   "path": "desktop/tests/qr_scanner_test.cpp",
+   "sha256": "42ed559c17f62c3601672634f50dd6a09a1562984580c33af152411acff2fe5d",
+   "bytes": 2920
   },
   {
    "path": "desktop/tests/recovery_key_test.cpp",
@@ -6159,8 +6309,8 @@
   },
   {
    "path": "tools/compliance/third_party_notices.py",
-   "sha256": "813812290933e007d4988cb1ce8199297f378b2fda66844e2ec346dcd9929bac",
-   "bytes": 12505
+   "sha256": "355ded72fe0007adbc10b6d7ab68ad283a3947d7c9bf3bd59d1220f59e79c8c3",
+   "bytes": 13597
   },
   {
    "path": "tor-core/.gitignore",

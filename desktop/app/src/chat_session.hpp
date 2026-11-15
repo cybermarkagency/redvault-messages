@@ -107,6 +107,8 @@ class ChatSession : public QObject {
     Q_PROPERTY(QVariantList currentPinned READ currentPinned NOTIFY currentChatChanged)
     /// Goes up whenever a picture finishes loading (views re-read imageInfo).
     Q_PROPERTY(int imagesRevision READ imagesRevision NOTIFY imagesChanged)
+    /// Goes up whenever a voice message or other audio file is ready to play (views re-read audioInfo).
+    Q_PROPERTY(int audioRevision READ audioRevision NOTIFY audioChanged)
     /// Messages and files in the Tor outbox, waiting for Tor (docs/tor-routing-plan.md).
     Q_PROPERTY(int queuedCount READ queuedCount NOTIFY queuedChanged)
     /// Of those, how many the server refused for good (they wait for Retry or Discard).
@@ -160,6 +162,15 @@ public:
     /// Only the poll's creator can end it; votes after that don't count.
     Q_INVOKABLE void endPoll(const QString& pollId);
     int imagesRevision() const { return imagesRevision_; }
+    int audioRevision() const { return audioRevision_; }
+    /// Audio in the open chat (a voice message): {state: ""|"loading"|"ready"|"failed", url} (url: the decrypted file).
+    Q_INVOKABLE QVariantMap audioInfo(const QString& messageId) const;
+    /// Decrypts an audio file into the session cache for the inline player. Deleted with the cache at sign-out.
+    Q_INVOKABLE void loadAudio(const QString& messageId);
+    /// A new, empty place for a voice recording (a file:// URL ending in "Voice message.m4a").
+    Q_INVOKABLE QUrl newVoiceFile();
+    /// Sends a finished recording from newVoiceFile() to the open chat, then deletes it.
+    Q_INVOKABLE void sendVoice(const QUrl& file) { attachFile(file); }
     QString currentCommunityId() const;
     QString currentCommunityKind() const;
     QString currentCommunityImage() const;
@@ -269,6 +280,11 @@ public:
     // --- Safety number (the open DM) ---
     /// Remembered on this device only, for the contact's current key.
     Q_INVOKABLE void setCurrentVerified(bool verified);
+    /**
+     * A QR code scanned from their screen (QrScanner): "match" (and the chat is now verified),
+     * "mismatch" (the keys differ: not verified), or "invalid" (not a safety-number code).
+     */
+    Q_INVOKABLE QString checkSafetyQr(const QString& scanned);
 
     QString currentUserId() const;
     bool currentKeyChanged() const;
@@ -338,6 +354,7 @@ signals:
     void unreadTotalChanged();
     void messageRequestsChanged();
     void imagesChanged();
+    void audioChanged();
     /// A send finished; `ok` false means the text should stay in the composer.
     void sent(bool ok);
     void keyProblemChanged();
@@ -417,6 +434,9 @@ private:
     // Picture loading by message id: "loading", "ready", "failed" (the images live in ChatImageCache).
     std::map<std::string, QString> imageStates_;
     int imagesRevision_ = 0;
+    // Audio by message id: "loading", "ready" (with its decrypted file) or "failed".
+    std::map<std::string, std::pair<QString, QUrl>> audioStates_;
+    int audioRevision_ = 0;
     // Survives refreshes, which rebuild messages from the server and would
     // otherwise drop the verification computed for messages sent this session.
     std::map<std::string, data::MessageSecurity> securityById_;

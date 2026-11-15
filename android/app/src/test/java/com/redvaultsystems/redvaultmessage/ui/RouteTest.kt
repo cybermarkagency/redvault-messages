@@ -17,7 +17,7 @@ class RouteTest {
             Route.Thread("c1"), Route.AddFriend, Route.FriendRequests,
             Route.Settings, Route.ChangeUsername, Route.ChangePassword, Route.Mfa,
             Route.Verify("c1"), Route.MessageDetails("c1", "m1"), Route.Transparency, Route.AppLockSettings,
-            Route.PrivacyMode, Route.Blocked, Route.RecoveryKeySettings, Route.DeleteAccount, Route.NewGroup,
+            Route.PrivacyMode, Route.Blocked, Route.Plans, Route.RecoveryKeySettings, Route.DeleteAccount, Route.NewGroup,
             Route.GroupInfo("g1"),
             // Invite links and channels
             Route.JoinGroup("Ab_-9", "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw"), Route.JoinGroup("L1", ""),

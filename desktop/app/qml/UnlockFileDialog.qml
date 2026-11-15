@@ -37,7 +37,7 @@ LockDialog {
         open()
     }
 
-    title: "Unlock " + targetName
+    title: qsTr("Unlock ") + targetName
     iconName: "lock"
     subtitleRich: lockKind === "password" ? "Locked with a password"
                   : "Locked with the key <b><font color=\"" + Theme.text + "\">" + lockKeyName + "</font></b> · <font face=\""
@@ -109,7 +109,7 @@ LockDialog {
             Layout.fillWidth: true
             visible: dialog.mode === "key"
             spacing: 8
-            Text { text: "Key"; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
+            Text { text: qsTr("Key"); color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
             KeyPicker {
                 Layout.fillWidth: true
                 files: dialog.files
@@ -119,7 +119,7 @@ LockDialog {
             Text {
                 Layout.topMargin: 6
                 visible: keyPassword.visible
-                text: "Key password"
+                text: qsTr("Key password")
                 color: Theme.text
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
@@ -154,7 +154,7 @@ LockDialog {
             Layout.fillWidth: true
             visible: dialog.mode === "password"
             spacing: 8
-            Text { text: "File password"; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
+            Text { text: qsTr("File password"); color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
             RvTextField {
                 id: filePassword
                 Layout.fillWidth: true
@@ -174,7 +174,7 @@ LockDialog {
                 visible: dialog.error.indexOf("newer version") >= 0
                 secondary: true
                 implicitHeight: 34
-                text: "Update app"
+                text: qsTr("Update app")
                 onClicked: Updater.check()
             }
         }
@@ -187,7 +187,7 @@ LockDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Unlocks for this session only. The file's key is never saved back to the server unlocked, even if you rename or move the file. Until it's unlocked, it can't be downloaded, shared or given a link."
+                text: qsTr("Unlocks for this session only. The file's key is never saved back to the server unlocked, even if you rename or move the file. Until it's unlocked, it can't be downloaded, shared or given a link.")
                 color: Theme.text
                 font.pixelSize: 13
             }
@@ -198,11 +198,11 @@ LockDialog {
             Layout.topMargin: 4
             spacing: 10
             Item { Layout.fillWidth: true }
-            RvButton { secondary: true; implicitHeight: 46; text: "Cancel"; onClicked: dialog.close() }
+            RvButton { secondary: true; implicitHeight: 46; text: qsTr("Cancel"); onClicked: dialog.close() }
             RvButton {
                 id: unlockButton
                 implicitHeight: 46
-                text: dialog.files.lockBusy ? "Unlocking…" : "Unlock"
+                text: dialog.files.lockBusy ? qsTr("Unlocking…") : qsTr("Unlock")
                 enabled: !dialog.files.lockBusy
                          && (dialog.mode === "password" ? filePassword.text.length > 0
                                                         : dialog.keyId.length > 0 && (!keyPassword.visible || keyPassword.text.length > 0))

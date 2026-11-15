@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -105,16 +106,16 @@ fun SuggestionReview(channels: ChannelSession, channelId: String, onPublished: (
 
     val shown = list
     if (shown == null) {
-        Text("Loading…", color = colors.text3, fontSize = 14.sp)
+        Text(stringResource(R.string.ui_loading), color = colors.text3, fontSize = 14.sp)
         return
     }
     if (shown.isEmpty()) {
-        Text("No suggested posts are waiting.", color = colors.text3, fontSize = 14.sp)
+        Text(stringResource(R.string.ui_no_suggested_posts_are_waiting), color = colors.text3, fontSize = 14.sp)
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            "From followers. Published, they appear as the channel's, marked as suggested; who sent them is never shown.",
+            stringResource(R.string.ui_from_followers_published_they_appear_as),
             color = colors.text2,
             fontSize = 13.sp,
         )
@@ -135,7 +136,7 @@ fun SuggestionReview(channels: ChannelSession, channelId: String, onPublished: (
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = { picking = true }) { Text(if (publishAt == null) "Schedule" else "Change", color = colors.accent) }
-                        if (publishAt != null) TextButton(onClick = { publishAtMs = null }) { Text("Now", color = colors.text2) }
+                        if (publishAt != null) TextButton(onClick = { publishAtMs = null }) { Text(stringResource(R.string.ui_now), color = colors.text2) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PillButton(if (publishAt != null) "Schedule" else "Publish", {
@@ -146,18 +147,18 @@ fun SuggestionReview(channels: ChannelSession, channelId: String, onPublished: (
                                 onPublished(post, at != null)
                             }
                         }, enabled = !busy, busy = busy, height = 40.dp)
-                        PillButton("Cancel", { editing = null }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
+                        PillButton(stringResource(R.string.ui_cancel), { editing = null }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
                     }
                 } else {
                     if (s.body.isNotBlank()) FormattedText(s.body, color = colors.text, onOpenLink = {}, linkColor = colors.accent)
                     Text("Sent ${runCatching { whenText(Instant.parse(s.createdAt)) }.getOrDefault(s.createdAt)}", color = colors.text3, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillButton("Review and publish", {
+                        PillButton(stringResource(R.string.ui_review_and_publish), {
                             editing = s.id
                             draft = TextFieldValue(s.body)
                             publishAtMs = null
                         }, enabled = !busy, height = 40.dp)
-                        PillButton("Turn down", { run { channels.rejectSuggestion(channelId, s.id) } }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
+                        PillButton(stringResource(R.string.ui_turn_down), { run { channels.rejectSuggestion(channelId, s.id) } }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
                     }
                 }
             }
@@ -222,7 +223,7 @@ fun SuggestPost(channels: ChannelSession, channel: ChannelDto, access: String?, 
     ) {
         FormattedField(body, { if (it.text.length <= ChannelPosts.MAX_POST) body = it }, "Your post: fan art, a review, news… *bold*, _italic_ and links work", minHeight = 90.dp)
         UploadList(uploads)
-        Text("The owner sees your post but not who sent it, and may edit it before publishing.", color = colors.text3, fontSize = 12.sp)
+        Text(stringResource(R.string.ui_the_owner_sees_your_post_but), color = colors.text3, fontSize = 12.sp)
         error?.let { Notice(it) }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -236,12 +237,12 @@ fun SuggestPost(channels: ChannelSession, channel: ChannelDto, access: String?, 
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 DsIcon(R.drawable.ui_image, if (uploads.full) colors.text3 else colors.text2, 14.dp)
-                Text("Photos", color = if (uploads.full) colors.text3 else colors.text2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ui_photos), color = if (uploads.full) colors.text3 else colors.text2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
             TextButton(onClick = {
                 open = false
                 uploads.clear()
-            }) { Text("Cancel", color = colors.text2) }
+            }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) }
             Spacer(Modifier.weight(1f))
             PillButton(if (busy) "Sending…" else "Send", {
                 busy = true

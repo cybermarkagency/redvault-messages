@@ -54,7 +54,7 @@ RvDialog {
 
         RvButton {
             Layout.alignment: Qt.AlignRight
-            text: "Done"
+            text: qsTr("Done")
             onClicked: dialog.close()
         }
     }

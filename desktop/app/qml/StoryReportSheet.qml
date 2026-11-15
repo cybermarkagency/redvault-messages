@@ -21,7 +21,7 @@ StorySheet {
     readonly property var reasons: ["Spam", "Harassment or bullying", "Nudity or sexual content", "Violence or threats", "Scam or fraud", "Something else"]
     readonly property string evidence: sheet.story && sheet.visible ? sheet.stories.storyEvidence(sheet.story.id) : ""
 
-    title: "Report this story"
+    title: qsTr("Report this story")
     note: "Reports go to RedVault's admins. They can't open the story themselves: it's encrypted, and only you choose what to share."
 
     onVisibleChanged: {
@@ -43,14 +43,14 @@ StorySheet {
         }
     }
 
-    Text { text: "What's wrong?"; color: Theme.text2; font.pixelSize: Theme.fontSmall }
+    Text { text: qsTr("What's wrong?"); color: Theme.text2; font.pixelSize: Theme.fontSmall }
     StoryCombo {
         id: reason
         Layout.fillWidth: true
         model: sheet.reasons
         Accessible.name: "What's wrong?"
     }
-    Text { text: "Details (optional)"; color: Theme.text2; font.pixelSize: Theme.fontSmall }
+    Text { text: qsTr("Details (optional)"); color: Theme.text2; font.pixelSize: Theme.fontSmall }
     RvTextField {
         id: detail
         Layout.fillWidth: true
@@ -61,10 +61,10 @@ StorySheet {
         id: includeBox
         Layout.fillWidth: true
         visible: sheet.evidence.length > 0
-        text: "Include the words on this story in the report"
+        text: qsTr("Include the words on this story in the report")
         contentItem: Text {
             leftPadding: includeBox.indicator.width + 8
-            text: "Include the words on this story in the report"
+            text: qsTr("Include the words on this story in the report")
             wrapMode: Text.Wrap
             color: Theme.text2
             font.pixelSize: Theme.fontSmall
@@ -83,7 +83,7 @@ StorySheet {
     Text {
         Layout.fillWidth: true
         visible: sheet.evidence.length === 0
-        text: "There's no text on this story to include."
+        text: qsTr("There's no text on this story to include.")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
     }
@@ -99,10 +99,10 @@ StorySheet {
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
-        RvButton { secondary: true; text: "Cancel"; onClicked: sheet.closed() }
+        RvButton { secondary: true; text: qsTr("Cancel"); onClicked: sheet.closed() }
         Item { Layout.fillWidth: true }
         RvButton {
-            text: sheet.sending ? "Sending…" : "Send report"
+            text: sheet.sending ? qsTr("Sending…") : qsTr("Send report")
             enabled: !sheet.sending
             onClicked: {
                 sheet.problem = ""

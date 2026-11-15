@@ -134,8 +134,8 @@ class SecretHandlingSourceTest {
             "onForward = if (!deviceKeyChat &&",
             "onSelect = if (!deviceKeyChat &&",
             "!deviceKeyChat || conversation.disappearing != Disappearing.Off",
-            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onReply)",
-            "canPost && !message.v3 && !deviceKeyChat) TextButton(onClick = onTogglePin)",
+            "canPost && !message.v3 && !deviceKeyChat) add(SheetAction(\"Reply\"",
+            "canPost && !message.v3 && !deviceKeyChat) add(SheetAction(if (pinned)",
         )) assertTrue("ThreadScreen must hide: $hidden", hidden in thread)
         assertTrue("deviceKeyChat = session.chats.onDeviceKeys(conversation.id)" in file("SignedInApp.kt"))
     }

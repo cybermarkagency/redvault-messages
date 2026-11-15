@@ -293,7 +293,7 @@ class PushRegistrar(
 
     private fun usePush(vapid: String) {
         val registered = runCatching {
-            UnifiedPush.register(appContext, messageForDistributor = "RedVault Messages", vapid = vapid)
+            UnifiedPush.register(appContext, messageForDistributor = "RedVaultMessages", vapid = vapid)
         }.isSuccess
         if (!registered) {
             useFallback()

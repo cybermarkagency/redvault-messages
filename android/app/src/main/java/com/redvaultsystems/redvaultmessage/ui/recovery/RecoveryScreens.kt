@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.recovery
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
+import com.redvaultsystems.redvaultmessage.ui.files.DsTextField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,7 +76,7 @@ fun RecoveryKeyIssuedScreen(recoveryKey: String, onDone: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        Text("Your recovery key", style = MaterialTheme.typography.titleLarge, color = RedvaultTheme.colors.text)
+        Text(stringResource(R.string.ui_your_recovery_key), style = MaterialTheme.typography.titleLarge, color = RedvaultTheme.colors.text)
         RecoveryKeyContent(recoveryKey, onDone)
     }
 }
@@ -111,9 +114,9 @@ fun ColumnScope.RecoveryKeyContent(recoveryKey: String, onDone: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = saved, onCheckedChange = { saved = it })
-        Text("I've saved my recovery key somewhere safe", color = colors.text)
+        Text(stringResource(R.string.ui_i_ve_saved_my_recovery_key), color = colors.text)
     }
-    PrimaryButton(text = "Done", enabled = saved, onClick = onDone)
+    PrimaryButton(text = stringResource(R.string.ui_done), enabled = saved, onClick = onDone)
 }
 
 /** "Forgot your password?": recover with the recovery key and choose a new password. */
@@ -137,48 +140,45 @@ fun RecoverAccountForm(
     val valid = handle.isNotBlank() && key.isNotBlank() && password.length >= MIN_PASSWORD_LENGTH && password == confirm &&
         (!state.recoverNeedsCode || code.length == 6)
 
-    Text("Recover your account with your recovery key.", color = colors.text2, textAlign = TextAlign.Center)
+    Text(stringResource(R.string.ui_recover_your_account_with_your_recovery), color = colors.text2, textAlign = TextAlign.Center)
     Column(Modifier.widthIn(max = 420.dp).fillMaxWidth().imePadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            value = handle,
-            onValueChange = { handle = it },
-            label = { Text("Handle") },
-            singleLine = true,
+        DsTextField(
+            handle,
+            { handle = it },
+            "Handle",
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
-            modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
-            value = key,
-            onValueChange = { key = it },
-            label = { Text("Recovery key (XXXX-XXXX-…)") },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+        DsTextField(
+            key,
+            { key = it },
+            "Recovery key (XXXX-XXXX-…)",
+            mono = true,
+            singleLine = false,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false, keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
         )
         PasswordInput(password, { password = it }, "New password (min. $MIN_PASSWORD_LENGTH characters)")
         PasswordInput(confirm, { confirm = it }, "Confirm new password")
         if (state.recoverNeedsCode) {
-            OutlinedTextField(
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit).take(6) },
-                label = { Text("6-digit code from your authenticator app") },
-                singleLine = true,
+            DsTextField(
+                code,
+                { code = it.filter(Char::isDigit).take(6) },
+                "6-digit code from your authenticator app",
+                mono = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (confirm.isNotEmpty() && confirm != password) Notice("Passwords don't match.")
+        if (confirm.isNotEmpty() && confirm != password) Notice(stringResource(R.string.ui_passwords_don_t_match))
         state.error?.let { Notice(it) }
         PrimaryButton(text = if (busy) "Recovering…" else "Recover account", enabled = valid, busy = busy) {
             onRecover(handle.trim(), key, password, code.takeIf { state.recoverNeedsCode })
         }
         Text(
-            "This signs out every other device. Your messages stay readable: the recovery key unlocks the same account key.",
+            stringResource(R.string.ui_this_signs_out_every_other_device),
             color = colors.text3,
             style = MaterialTheme.typography.bodySmall,
         )
     }
-    TextButton(onClick = onBack) { Text("Back to log in") }
+    TextButton(onClick = onBack) { Text(stringResource(R.string.ui_back_to_log_in)) }
 }
 
 /** Settings > Recovery key: create one, or replace the existing one. */
@@ -190,7 +190,7 @@ fun RecoveryKeySettingsScreen(account: AccountSession, profile: Profile, onBack:
     var error by remember { mutableStateOf<String?>(null) }
     var issued by remember { mutableStateOf<String?>(null) }
 
-    SubScreen(title = "Recovery key", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_recovery_key), onBack = onBack) {
         val shown = issued
         if (shown != null) {
             RecoveryKeyContent(shown, onDone = onBack)
@@ -205,7 +205,7 @@ fun RecoveryKeySettingsScreen(account: AccountSession, profile: Profile, onBack:
             color = RedvaultTheme.colors.text2,
             style = MaterialTheme.typography.bodyMedium,
         )
-        if (profile.hasRecoveryKey == false) Notice("Create a recovery key now so you can't lose your account.", NoticeTone.Warn)
+        if (profile.hasRecoveryKey == false) Notice(stringResource(R.string.ui_create_a_recovery_key_now_so), NoticeTone.Warn)
         PasswordInput(password, { password = it }, "Current password")
         error?.let { Notice(it) }
         PrimaryButton(

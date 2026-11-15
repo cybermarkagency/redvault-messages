@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.verify
 
+import androidx.compose.ui.res.stringResource
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -89,7 +90,7 @@ fun VerifyScreen(
         if (outcome == SafetyNumberQr.Result.Match) onSetVerified(true)
     }
 
-    SubScreen(title = "Verify safety number", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_verify_safety_number), onBack = onBack) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Avatar(avatarUrl = conversation.avatarUrl, seed = conversation.handle, size = 64.dp)
             Text(conversation.handle, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleMedium, color = colors.text)
@@ -99,7 +100,7 @@ fun VerifyScreen(
                     conversation.verified -> "Verified on this phone"
                     else -> "Not verified"
                 },
-                color = if (conversation.verified) colors.accent else colors.warn,
+                color = if (conversation.verified) colors.ok else colors.warn,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -141,11 +142,11 @@ fun VerifyScreen(
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Image(
                 bitmap = qr,
-                contentDescription = "Your safety-number QR code for this chat",
+                contentDescription = stringResource(R.string.ui_your_safety_number_qr_code_for),
                 modifier = Modifier.size(220.dp).background(androidx.compose.ui.graphics.Color.White, RoundedCornerShape(12.dp)).padding(8.dp),
             )
         }
-        PrimaryButton(text = "Scan their code", enabled = true) {
+        PrimaryButton(text = stringResource(R.string.ui_scan_their_code), enabled = true) {
             scan.launch(
                 ScanOptions()
                     .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
@@ -169,11 +170,9 @@ fun VerifyScreen(
         )
 
         if (conversation.verified) {
-            TextButton(onClick = { onSetVerified(false) }) { Text("Mark as not verified", color = colors.warn) }
+            TextButton(onClick = { onSetVerified(false) }) { Text(stringResource(R.string.ui_mark_as_not_verified), color = colors.warn) }
         } else {
-            OutlinedButton(onClick = { onSetVerified(true) }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
-                Text("The digits match, mark as verified")
-            }
+            PillButton(stringResource(R.string.ui_the_digits_match_mark_as_verified), onClick = { onSetVerified(true) }, modifier = Modifier.fillMaxWidth(), style = PillStyle.Secondary, height = 46.dp)
         }
 
         // Other numbers (device keys) come after this one and its buttons.
@@ -221,10 +220,10 @@ internal fun qrBitmap(content: String, size: Int = 512): ImageBitmap {
 @Composable
 fun MessageDetailsScreen(message: Message?, onBack: () -> Unit) {
     val colors = RedvaultTheme.colors
-    SubScreen(title = "Verification details", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_verification_details), onBack = onBack) {
         val security = message?.security
         if (security == null) {
-            Text("No verification record for this message yet.", color = colors.text2)
+            Text(stringResource(R.string.ui_no_verification_record_for_this_message), color = colors.text2)
             return@SubScreen
         }
         DetailRow("Public transaction", security.publicTransactionId ?: "—")
@@ -232,9 +231,9 @@ fun MessageDetailsScreen(message: Message?, onBack: () -> Unit) {
         DetailRow("Local commitment", security.localCommitment ?: "—", mono = true)
         DetailRow("Network commitment", security.networkCommitment ?: "—", mono = true)
         when (security.verification) {
-            VerificationStatus.Verified -> Notice("MATCH ✓", NoticeTone.Success)
-            VerificationStatus.Failed -> Notice("MISMATCH ✗: don't trust this message's delivery status.")
-            VerificationStatus.Unavailable -> Notice("Unavailable")
+            VerificationStatus.Verified -> Notice(stringResource(R.string.ui_match), NoticeTone.Success)
+            VerificationStatus.Failed -> Notice(stringResource(R.string.ui_mismatch_don_t_trust_this_message))
+            VerificationStatus.Unavailable -> Notice(stringResource(R.string.ui_unavailable))
         }
         Text(
             "A matching commitment proves the ciphertext this app relayed is byte-identical to what your phone encrypted, " +
@@ -283,7 +282,7 @@ fun TransparencyFeedScreen(loadFeed: suspend (limit: Int) -> List<TransparencyEv
         }
     }
 
-    SubScreen(title = "Live encrypted network", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_live_encrypted_network), onBack = onBack) {
         Text(
             "A public record of messages this server actually relayed. Each entry shows a commitment the server computed, " +
                 "proof the ciphertext wasn't altered, and only for senders who opted in, the ciphertext itself. " +
@@ -297,7 +296,7 @@ fun TransparencyFeedScreen(loadFeed: suspend (limit: Int) -> List<TransparencyEv
         }
         error?.let { Notice(it) }
         if (loaded && error == null && events.isEmpty()) {
-            Text("No public transactions yet.", color = colors.text3)
+            Text(stringResource(R.string.ui_no_public_transactions_yet), color = colors.text3)
         }
         events.forEach { FeedCard(it) }
     }
@@ -324,9 +323,9 @@ private fun FeedCard(event: TransparencyEventDto) {
         FeedLine("Protocol", "E2EE-v${event.protocolVersion}")
         FeedLine("Commitment", event.commitment)
         when {
-            event.expired -> Text("Message expired. Ciphertext no longer stored.", color = colors.text3, style = MaterialTheme.typography.labelSmall)
+            event.expired -> Text(stringResource(R.string.ui_message_expired_ciphertext_no_longer_stored), color = colors.text3, style = MaterialTheme.typography.labelSmall)
             event.ciphertext != null -> {
-                Text("Encrypted content (unreadable without the recipient's key)", color = colors.text3, style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.ui_encrypted_content_unreadable_without_the_recipient), color = colors.text3, style = MaterialTheme.typography.labelSmall)
                 Text(event.ciphertext, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelSmall, color = colors.text2)
             }
         }

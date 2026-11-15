@@ -82,7 +82,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 2
                     Text {
-                        text: root.video ? "Incoming video call" : "Incoming voice call"
+                        text: root.video ? qsTr("Incoming video call") : qsTr("Incoming voice call")
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: 12
@@ -100,7 +100,7 @@ Item {
                     Text {
                         visible: root.calls.isLink
                         Layout.fillWidth: true
-                        text: "Through your link “" + root.calls.linkName + "”"
+                        text: qsTr("Through your link “") + root.calls.linkName + "”"
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text2
@@ -118,8 +118,8 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: root.calls.isLink ? "Sealed with the link's secret · end-to-end encrypted"
-                                            : "Signed by their identity key · end-to-end encrypted"
+                    text: root.calls.isLink ? qsTr("Sealed with the link's secret · end-to-end encrypted")
+                                            : qsTr("Signed by their identity key · end-to-end encrypted")
                     textFormat: Text.PlainText
                     color: Theme.accent
                     font.pixelSize: 12
@@ -133,7 +133,7 @@ Item {
                     danger: true
                     primary: true
                     iconName: "phone-off"
-                    text: "Decline"
+                    text: qsTr("Decline")
                     onClicked: root.calls.decline()
                 }
                 RvButton {
@@ -141,13 +141,13 @@ Item {
                     visible: root.video
                     secondary: true
                     iconName: "phone"
-                    text: "Audio"
+                    text: qsTr("Audio")
                     onClicked: root.calls.accept(true)
                 }
                 RvButton {
                     Layout.fillWidth: true
                     iconName: root.video ? "video" : "phone"
-                    text: "Accept"
+                    text: qsTr("Accept")
                     onClicked: root.calls.accept(false)
                 }
             }
@@ -156,7 +156,7 @@ Item {
                 visible: root.calls.conversationId.length > 0
                 primary: false
                 implicitHeight: 32
-                text: "Message instead"
+                text: qsTr("Message instead")
                 onClicked: {
                     const chat = root.calls.conversationId
                     root.calls.decline()
@@ -251,7 +251,7 @@ Item {
                                 color: Theme.accent
                             }
                             Text {
-                                text: "End-to-end encrypted" + (root.calls.isLink ? " · call link" : "")
+                                text: qsTr("End-to-end encrypted") + (root.calls.isLink ? qsTr(" · call link") : "")
                                 textFormat: Text.PlainText
                                 color: Theme.accent
                                 font.pixelSize: 12
@@ -301,7 +301,7 @@ Item {
                             color: Theme.text3
                         }
                         Text {
-                            text: "Camera off"
+                            text: qsTr("Camera off")
                             color: Theme.text3
                             font.pixelSize: 12
                         }
@@ -329,7 +329,7 @@ Item {
                             color: Theme.accent
                         }
                         Text {
-                            text: root.calls.sharingScreen ? "You're sharing your screen" : root.calls.peerHandle + " is sharing their screen"
+                            text: root.calls.sharingScreen ? qsTr("You're sharing your screen") : root.calls.peerHandle + qsTr(" is sharing their screen")
                             textFormat: Text.PlainText
                             color: Theme.text
                             font.pixelSize: 13
@@ -339,7 +339,7 @@ Item {
                             primary: false
                             danger: true
                             implicitHeight: 28
-                            text: "Stop"
+                            text: qsTr("Stop")
                             onClicked: root.calls.toggleScreenShare()
                         }
                     }
@@ -368,7 +368,7 @@ Item {
                             spacing: 6
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: "Say these words. " + root.calls.peerHandle + " should see the same ones."
+                                text: qsTr("Say these words. ") + root.calls.peerHandle + qsTr(" should see the same ones.")
                                 textFormat: Text.PlainText
                                 color: Theme.text3
                                 font.pixelSize: 12
@@ -446,7 +446,7 @@ Item {
                             implicitWidth: 56; implicitHeight: 56; iconSize: 22
                             iconName: root.calls.muted ? "mic-off" : "mic"
                             toggled: root.calls.muted
-                            tip: root.calls.muted ? "Unmute" : "Mute"
+                            tip: root.calls.muted ? qsTr("Unmute") : qsTr("Mute")
                             onClicked: root.calls.toggleMute()
                         }
                         IconButton {
@@ -455,7 +455,7 @@ Item {
                             implicitWidth: 56; implicitHeight: 56; iconSize: 22
                             iconName: root.calls.cameraOff ? "video-off" : "video"
                             toggled: root.calls.cameraOff
-                            tip: root.calls.cameraOff ? "Turn camera on" : "Turn camera off"
+                            tip: root.calls.cameraOff ? qsTr("Turn camera on") : qsTr("Turn camera off")
                             onClicked: root.calls.toggleCamera()
                         }
                         IconButton {
@@ -465,8 +465,10 @@ Item {
                             iconName: "monitor-up"
                             toggled: root.calls.sharingScreen
                             enabled: root.phase === "active"
-                            tip: root.calls.sharingScreen ? "Stop sharing" : "Share your screen"
+                            tip: root.calls.sharingScreen ? qsTr("Stop sharing") : qsTr("Share your screen") + (locked ? qsTr(" (Premium)") : "")
+                            locked: App.account !== null && !App.account.premium && !root.calls.sharingScreen
                             onClicked: {
+                                if (locked) { PlanGate.ask("premium", "Screen sharing"); return }
                                 const problem = root.calls.toggleScreenShare()
                                 if (problem.length > 0) shareNotice.text = problem
                             }
@@ -477,7 +479,7 @@ Item {
                             implicitWidth: 56; implicitHeight: 56; iconSize: 22
                             iconName: "chat"
                             toggled: root.calls.chatOpen
-                            tip: root.calls.chatOpen ? "Hide chat" : "Show chat"
+                            tip: root.calls.chatOpen ? qsTr("Hide chat") : qsTr("Show chat")
                             onClicked: {
                                 if (!root.calls.chatOpen)
                                     root.chats.openChat(root.calls.conversationId)
@@ -488,7 +490,7 @@ Item {
                             round: true; filled: true
                             implicitWidth: 56; implicitHeight: 56; iconSize: 22
                             iconName: "chevron-down"
-                            tip: "Back to the app (the call continues)"
+                            tip: qsTr("Back to the app (the call continues)")
                             onClicked: {
                                 if (root.calls.conversationId.length > 0)
                                     root.openChat(root.calls.conversationId)
@@ -500,7 +502,7 @@ Item {
                             round: true
                             implicitWidth: 64; implicitHeight: 56; iconSize: 24
                             iconName: "phone-off"
-                            tip: "End call"
+                            tip: qsTr("End call")
                             onClicked: root.calls.hangUp()
                         }
                     }
@@ -521,7 +523,7 @@ Item {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.phase === "ended"
                         primary: false
-                        text: "Close"
+                        text: qsTr("Close")
                         onClicked: root.calls.dismiss()
                     }
                 }

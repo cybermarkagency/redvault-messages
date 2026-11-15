@@ -14,7 +14,7 @@ sealed interface LegalBlock {
 }
 
 /**
- * The RedVault Messages Terms of Service and Privacy Policy: legal/ at the
+ * The RedVaultMessages Terms of Service and Privacy Policy: legal/ at the
  * repository root (shared with the web and desktop apps), bundled as assets
  * by app/build.gradle.kts, so reading them never makes a network request.
  */

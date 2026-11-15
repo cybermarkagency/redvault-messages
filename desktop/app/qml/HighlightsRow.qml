@@ -38,7 +38,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "STORIES"
+        text: qsTr("STORIES")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
         font.weight: Font.DemiBold
@@ -70,7 +70,7 @@ ColumnLayout {
                 Text {
                     width: 64
                     horizontalAlignment: Text.AlignHCenter
-                    text: "Story"
+                    text: qsTr("Story")
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall
                 }
@@ -109,7 +109,7 @@ ColumnLayout {
                     Text {
                         width: 64
                         horizontalAlignment: Text.AlignHCenter
-                        text: highlight.modelData.title.length > 0 ? highlight.modelData.title : "Highlight"
+                        text: highlight.modelData.title.length > 0 ? highlight.modelData.title : qsTr("Highlight")
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text2

@@ -14,7 +14,7 @@ RvDialog {
     id: dialog
     required property ChatSession chats
     required property PeopleSession people
-    title: "Group info"
+    title: qsTr("Group info")
     width: 520
 
     readonly property bool canManage: chats.currentMyRole === "owner" || chats.currentMyRole === "admin"
@@ -60,14 +60,14 @@ RvDialog {
             RvTextField {
                 id: nameField
                 Layout.fillWidth: true
-                placeholderText: "Group name"
+                placeholderText: qsTr("Group name")
                 maximumLength: 100
                 enabled: !dialog.chats.groupBusy
                 onAccepted: renameButton.clicked()
             }
             RvButton {
                 id: renameButton
-                text: "Rename"
+                text: qsTr("Rename")
                 enabled: !dialog.chats.groupBusy && nameField.text.trim().length > 0
                          && nameField.text.trim() !== dialog.chats.currentTitle
                 onClicked: dialog.chats.renameGroup(nameField.text)
@@ -105,13 +105,13 @@ RvDialog {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: member.modelData.handle + (member.modelData.isSelf ? " (you)" : "")
+                        text: member.modelData.handle + (member.modelData.isSelf ? qsTr(" (you)") : "")
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text
                     }
                     Text {
-                        text: member.modelData.role === "owner" ? "Owner" : member.modelData.role === "admin" ? "Admin" : ""
+                        text: member.modelData.role === "owner" ? qsTr("Owner") : member.modelData.role === "admin" ? qsTr("Admin") : ""
                         textFormat: Text.PlainText
                         color: Theme.accent
                         font.pixelSize: Theme.fontSmall
@@ -122,7 +122,7 @@ RvDialog {
                         visible: dialog.isOwner && !member.modelData.isSelf
                         primary: false
                         implicitHeight: 28
-                        text: member.modelData.role === "admin" ? "Make member" : "Make admin"
+                        text: member.modelData.role === "admin" ? qsTr("Make member") : qsTr("Make admin")
                         enabled: !dialog.chats.groupBusy
                         onClicked: dialog.chats.setMemberRole(member.modelData.userId,
                                                               member.modelData.role === "admin" ? "member" : "admin")
@@ -133,7 +133,7 @@ RvDialog {
                         primary: false
                         danger: true
                         implicitHeight: 28
-                        text: "Remove"
+                        text: qsTr("Remove")
                         enabled: !dialog.chats.groupBusy
                         onClicked: dialog.chats.removeMember(member.modelData.userId)
                     }
@@ -145,7 +145,7 @@ RvDialog {
         RvButton {
             visible: dialog.canManage && !dialog.adding
             primary: false
-            text: "Add people"
+            text: qsTr("Add people")
             onClicked: dialog.adding = true
         }
         ColumnLayout {
@@ -155,7 +155,7 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "New members see messages sent from now on, not the history."
+                text: qsTr("New members see messages sent from now on, not the history.")
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
             }
@@ -167,7 +167,7 @@ RvDialog {
             }
             RvButton {
                 Layout.fillWidth: true
-                text: dialog.chats.groupBusy ? "Adding…" : "Add " + picker.selected.length + " to the group"
+                text: dialog.chats.groupBusy ? qsTr("Adding…") : qsTr("Add ") + picker.selected.length + qsTr(" to the group")
                 enabled: !dialog.chats.groupBusy && picker.selected.length > 0
                 onClicked: dialog.chats.addMembers(picker.selected)
             }
@@ -189,7 +189,7 @@ RvDialog {
             primary: false
             danger: true
             iconName: "log-out"
-            text: "Leave group"
+            text: qsTr("Leave group")
             onClicked: dialog.confirmLeave = true
         }
         RowLayout {
@@ -198,16 +198,16 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Leave this group? You'll stop receiving its messages."
+                text: qsTr("Leave this group? You'll stop receiving its messages.")
                 color: Theme.text
             }
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.confirmLeave = false
             }
             RvButton {
-                text: "Leave"
+                text: qsTr("Leave")
                 enabled: !dialog.chats.groupBusy
                 onClicked: dialog.chats.leaveGroup()
             }

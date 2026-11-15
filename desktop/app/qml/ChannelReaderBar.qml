@@ -37,7 +37,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredWidth: 0
             wrapMode: Text.Wrap
-            text: "Only the owner posts here."
+            text: qsTr("Only the owner posts here.")
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
         }
@@ -46,13 +46,13 @@ Rectangle {
             visible: bar.channels.channel.acceptSuggestions === true
             secondary: true
             implicitHeight: 36
-            text: "Suggest a post"
+            text: qsTr("Suggest a post")
             onClicked: bar.suggestRequested()
         }
         IconButton {
             visible: bar.channels.isFollowing
             iconName: bar.channels.isMuted ? "bell-off" : "bell"
-            tip: bar.channels.isMuted ? "Notifications are off for this channel" : "You're notified of new posts"
+            tip: bar.channels.isMuted ? qsTr("Notifications are off for this channel") : qsTr("You're notified of new posts")
             onClicked: bar.channels.toggleMuted()
         }
         RvButton {
@@ -61,7 +61,7 @@ Rectangle {
             secondary: bar.channels.isFollowing
             implicitHeight: 36
             iconName: bar.channels.isFollowing ? "check" : ""
-            text: bar.channels.isFollowing ? "Following" : "Follow"
+            text: bar.channels.isFollowing ? qsTr("Following") : qsTr("Follow")
             Accessible.checked: bar.channels.isFollowing
             onClicked: bar.channels.toggleFollow()
         }

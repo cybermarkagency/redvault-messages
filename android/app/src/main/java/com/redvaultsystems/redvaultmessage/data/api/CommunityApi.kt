@@ -16,8 +16,8 @@ import retrofit2.http.Query
  * of ui/src/lib/communityApi.ts a member's phone needs. Every amount comes from the server in integer minor
  * units; this app never decides a price or whether a payment succeeded.
  *
- * Deliberately absent: checkout and the payment-method portal. This app is distributed through Google Play,
- * whose payments policy doesn't allow selling a digital subscription in the app except through Play Billing,
+ * Deliberately absent: community checkout and the payment-method portal. Should this app go on Google Play,
+ * its payments policy doesn't allow selling a digital subscription in the app except through Play Billing,
  * which isn't built (the server refuses a checkout from "android" anyway). CommunityApiSurfaceTest keeps it so.
  */
 interface CommunityApi {

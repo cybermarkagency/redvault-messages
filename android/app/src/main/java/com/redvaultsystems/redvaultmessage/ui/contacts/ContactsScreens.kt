@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.contacts
 
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -112,13 +113,13 @@ fun ContactsTab(
     val favorites = contacts.filter { it.meta.otherUserId in live.favorites }
 
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
-        TabHeader("Contacts") {
+        TabHeader(stringResource(R.string.ui_contacts)) {
             RoundButton(R.drawable.ui_qr, "Scan contact code", onClick = {
                 scan.launch(
                     ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt("Scan their contact code").setBeepEnabled(false).setOrientationLocked(false),
                 )
             })
-            RoundButton(R.drawable.ui_user_plus, "Add contact", onClick = { onAdd("") }, container = colors.accent, tint = colors.accentContrast)
+            RoundButton(R.drawable.ui_user_plus, "Add contact", onClick = { onAdd("") }, container = colors.accentFill, tint = colors.accentContrast)
         }
         LazyColumn(Modifier.fillMaxSize()) {
             item {
@@ -128,26 +129,26 @@ fun ContactsTab(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF16271F))
-                            .border(1.dp, Color(0xFF244536), RoundedCornerShape(16.dp))
+                            .background(colors.accentSoft)
+                            .border(1.dp, colors.accentBorder, RoundedCornerShape(16.dp))
                             .clickable(role = Role.Button, onClick = onShareCode)
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.accent), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.accentFill), contentAlignment = Alignment.Center) {
                             DsIcon(R.drawable.ui_qr, colors.accentContrast, 20.dp)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Share your contact code", color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            Text("No phone number needed to connect", color = colors.text3, fontSize = 13.sp)
+                            Text(stringResource(R.string.ui_share_your_contact_code), color = colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.ui_no_phone_number_needed_to_connect), color = colors.text3, fontSize = 13.sp)
                         }
                     }
                     scanError?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle) }
                 }
             }
             if (favorites.isNotEmpty() && q.isEmpty()) {
-                item { SectionCaps("Favorites", Modifier.padding(top = 4.dp)) }
+                item { SectionCaps(stringResource(R.string.ui_favorites), Modifier.padding(top = 4.dp)) }
                 item {
                     LazyRow(Modifier.padding(bottom = 6.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         items(favorites, key = { it.id }) { c ->
@@ -166,7 +167,7 @@ fun ContactsTab(
             if (contacts.isEmpty()) {
                 item {
                     Text(
-                        "No contacts yet. Add someone by their username, or share your contact code.",
+                        stringResource(R.string.ui_no_contacts_yet_add_someone_by),
                         color = colors.text3,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center,
@@ -174,7 +175,7 @@ fun ContactsTab(
                     )
                 }
             } else if (shown.isEmpty()) {
-                item { Text("Nobody matches that.", color = colors.text3, fontSize = 14.sp, modifier = Modifier.padding(20.dp)) }
+                item { Text(stringResource(R.string.ui_nobody_matches_that), color = colors.text3, fontSize = 14.sp, modifier = Modifier.padding(20.dp)) }
             }
             // A–Z sections.
             shown.groupBy { it.handle.firstOrNull()?.uppercaseChar()?.takeIf(Char::isLetter) ?: '#' }.toSortedMap().forEach { (letter, group) ->
@@ -210,18 +211,18 @@ private fun ContactRow(c: Conversation, live: LiveState, onCall: ((String) -> Un
             when {
                 c.keyChanged -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     DsIcon(R.drawable.ic_alert, colors.warn, 13.dp)
-                    Text("Safety number changed", color = colors.warn, fontSize = 12.sp)
+                    Text(stringResource(R.string.ui_safety_number_changed), color = colors.warn, fontSize = 12.sp)
                 }
                 userId in live.online -> Text("online", color = colors.accent, fontSize = 12.sp)
                 c.verified -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     DsIcon(R.drawable.ui_shield_check, colors.accent, 13.dp)
-                    Text("Verified", color = colors.accent, fontSize = 12.sp)
+                    Text(stringResource(R.string.ui_verified), color = colors.ok, fontSize = 12.sp)
                 }
                 else -> Text("@${c.handle}", color = colors.text3, fontFamily = MonoFamily, fontSize = 12.sp, maxLines = 1)
             }
         }
-        if (userId in live.muted) DsIcon(R.drawable.ui_bell_off, colors.text3, 18.dp, description = "Muted")
-        if (userId in live.favorites) DsIcon(R.drawable.ui_star, colors.warn, 18.dp, description = "Favorite")
+        if (userId in live.muted) DsIcon(R.drawable.ui_bell_off, colors.text3, 18.dp, description = stringResource(R.string.ui_muted))
+        if (userId in live.favorites) DsIcon(R.drawable.ui_star, colors.warn, 18.dp, description = stringResource(R.string.ui_favorite))
         if (onCall != null) {
             RoundButton(R.drawable.ui_phone, "Call ${c.handle}", onClick = { onCall("voice") }, container = Color.Transparent)
             RoundButton(R.drawable.ui_video, "Video call ${c.handle}", onClick = { onCall("video") }, container = Color.Transparent)
@@ -313,10 +314,10 @@ fun ContactScreen(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (keyChanged) colors.warnSoft else if (conversation.verified) Color(0xFF16271F) else colors.surface)
+                    .background(if (keyChanged) colors.warnSoft else if (conversation.verified) colors.accentSoft else colors.surface)
                     .border(
                         1.dp,
-                        if (keyChanged) colors.warn.copy(alpha = 0.35f) else if (conversation.verified) Color(0xFF244536) else colors.border,
+                        if (keyChanged) colors.warn.copy(alpha = 0.35f) else if (conversation.verified) colors.accentBorder else colors.border,
                         RoundedCornerShape(16.dp),
                     )
                     .clickable(role = Role.Button, onClick = onVerify)
@@ -326,13 +327,13 @@ fun ContactScreen(
             ) {
                 Box(
                     Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(
-                        if (keyChanged) colors.warn.copy(alpha = 0.18f) else if (conversation.verified) colors.accent else colors.surface3,
+                        if (keyChanged) colors.warn.copy(alpha = 0.18f) else if (conversation.verified) colors.okSoft else colors.surface3,
                     ),
                     contentAlignment = Alignment.Center,
                 ) {
                     when {
                         keyChanged -> DsIcon(R.drawable.ic_alert, colors.warn, 20.dp)
-                        conversation.verified -> DsIcon(R.drawable.ui_shield_check, colors.accentContrast, 20.dp)
+                        conversation.verified -> DsIcon(R.drawable.ui_shield_check, colors.ok, 20.dp)
                         else -> DsIcon(R.drawable.ui_shield, colors.text2, 20.dp)
                     }
                 }
@@ -349,7 +350,7 @@ fun ContactScreen(
                             conversation.verified -> "Checked on this phone"
                             else -> "Compare in person or over a call you trust"
                         },
-                        color = if (keyChanged) colors.text2 else if (conversation.verified) Color(0xFFB5D9C5) else colors.text3,
+                        color = if (keyChanged) colors.text2 else if (conversation.verified) colors.ok else colors.text3,
                         fontSize = 12.5.sp,
                     )
                 }
@@ -371,7 +372,7 @@ fun ContactScreen(
             }
             if (muted) {
                 Text(
-                    "Muted: their calls won't ring this phone. Message alerts never say who they're from, so they can't be silenced for one person.",
+                    stringResource(R.string.ui_muted_their_calls_won_t_ring),
                     color = colors.text3,
                     fontSize = 12.5.sp,
                 )
@@ -384,10 +385,10 @@ fun ContactScreen(
                 DangerTile("Report", R.drawable.ui_flag, Modifier.weight(1f)) { reporting = !reporting }
             }
             if (reporting) {
-                Text("Moderators see your report and this account, never your messages: they're end-to-end encrypted.", color = colors.text3, fontSize = 13.sp)
+                Text(stringResource(R.string.ui_moderators_see_your_report_and_this), color = colors.text3, fontSize = 13.sp)
                 DsTextField(reason, { if (it.length <= 1000) reason = it }, "What happened?", singleLine = false, minHeight = 90.dp)
                 PillButton(
-                    "Send report",
+                    stringResource(R.string.ui_send_report),
                     {
                         scope.launch {
                             runCatching { onReport(reason.trim()) }
@@ -409,7 +410,7 @@ fun ContactScreen(
         AlertDialog(
             onDismissRequest = { pickingTimer = false },
             containerColor = colors.surface2,
-            title = { Text("Disappearing messages", color = colors.text) },
+            title = { Text(stringResource(R.string.ui_disappearing_messages), color = colors.text) },
             text = {
                 Column {
                     Disappearing.entries.forEach { d ->
@@ -423,7 +424,7 @@ fun ContactScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { pickingTimer = false }) { Text("Close", color = colors.text2) } },
+            confirmButton = { TextButton(onClick = { pickingTimer = false }) { Text(stringResource(R.string.ui_close), color = colors.text2) } },
         )
     }
     if (confirmBlock) {
@@ -431,14 +432,14 @@ fun ContactScreen(
             onDismissRequest = { confirmBlock = false },
             containerColor = colors.surface2,
             title = { Text("Block ${conversation.handle}?", color = colors.text) },
-            text = { Text("Neither of you will be able to message or call the other until you unblock them.", color = colors.text2) },
+            text = { Text(stringResource(R.string.ui_neither_of_you_will_be_able), color = colors.text2) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmBlock = false
                     scope.launch { runCatching { onSetBlocked(true) }.onSuccess { notice = "Blocked." }.onFailure { error = "Couldn't change that. Try again." } }
-                }) { Text("Block", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_block), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text("Cancel", color = colors.text2) } },
+            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
         )
     }
 }
@@ -520,9 +521,9 @@ fun ContactCodeScreen(handle: String, onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Your contact code", fontFamily = RedvaultFonts.display, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = colors.text)
+            Text(stringResource(R.string.ui_your_contact_code), fontFamily = RedvaultFonts.display, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = colors.text)
             Text(
-                "People add you by your username; no phone number or email is ever involved. Show this code, or send your username.",
+                stringResource(R.string.ui_people_add_you_by_your_username),
                 color = colors.text2,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,

@@ -75,10 +75,13 @@ class V3Device private constructor(
         api.registerDevice(must("prekeys", "count" to count).obj("upload"))
     }
 
-    /** Forgets this device on this phone and in the server's directory. */
+    /**
+     * Forgets this device on this phone and in the server's directory. Only this device: if the phone now holds a
+     * different one (a stale instance from an abandoned pairing, after a set-up replaced it), that one stays.
+     */
     suspend fun forget() {
         runCatching { api.removeDevice(deviceId) }
-        storage.wipe(userId)
+        storage.wipeDevice(userId, deviceId)
     }
 
     /** What protects the key wrapping this device's storage key: "hardware", "software", "unknown" or "none". */

@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.channels
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Matrix
@@ -92,7 +94,7 @@ fun RoundVideoRecorder(onCancel: () -> Unit, onDone: (file: File, durationMs: Lo
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
         ) {
-            Text("Round video", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ui_round_video), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Box(Modifier.size(280.dp).clip(CircleShape).background(colors.surface2), contentAlignment = Alignment.Center) {
                 AndroidView(
                     factory = { ctx -> TextureView(ctx).also(camera::attach) },
@@ -113,15 +115,15 @@ fun RoundVideoRecorder(onCancel: () -> Unit, onDone: (file: File, durationMs: Lo
                 fontSize = 15.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PillButton("Cancel", {
+                PillButton(stringResource(R.string.ui_cancel), {
                     camera.close()
                     onCancel()
                 }, style = PillStyle.Secondary, height = 48.dp)
                 when (phase) {
-                    RoundCamera.Phase.Recording -> PillButton("Stop and add", {
+                    RoundCamera.Phase.Recording -> PillButton(stringResource(R.string.ui_stop_and_add), {
                         camera.stop()?.let { (file, ms) -> onDone(file, ms) } ?: onCancel()
                     }, height = 48.dp)
-                    else -> PillButton("Record", { camera.record() }, enabled = phase == RoundCamera.Phase.Ready, height = 48.dp)
+                    else -> PillButton(stringResource(R.string.ui_record), { camera.record() }, enabled = phase == RoundCamera.Phase.Ready, height = 48.dp)
                 }
             }
         }

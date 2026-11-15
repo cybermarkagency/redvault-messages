@@ -19,9 +19,9 @@ RvDialog {
     property string permission: "viewer"
     property string madeUrl
 
-    title: madeUrl.length > 0 ? "New link ready"
-           : mode === "password" ? (link.hasPassword ? "Change the password" : "Add a password")
-           : mode === "regenerate" ? "Make a new link" : "Link settings"
+    title: madeUrl.length > 0 ? qsTr("New link ready")
+           : mode === "password" ? (link.hasPassword ? qsTr("Change the password") : qsTr("Add a password"))
+           : mode === "regenerate" ? qsTr("Make a new link") : qsTr("Link settings")
     width: 520
 
     function openFor(l, m) {
@@ -79,34 +79,34 @@ RvDialog {
             Layout.fillWidth: true
             visible: dialog.mode === "settings"
             spacing: 12
-            RvTextField { id: labelField; Layout.fillWidth: true; placeholderText: "Name (only you see it)"; maximumLength: 120 }
+            RvTextField { id: labelField; Layout.fillWidth: true; placeholderText: qsTr("Name (only you see it)"); maximumLength: 120 }
             RvSwitch {
                 Layout.fillWidth: true
                 visible: dialog.link.kind === "folder"
-                label: "Recipients can upload"
+                label: qsTr("Recipients can upload")
                 description: dialog.permission === "contributor"
-                             ? "Anyone with this link can view and download files, and upload new files. They cannot delete or replace your files."
-                             : "Anyone with this link can view and download files. Uploading and editing are disabled."
+                             ? qsTr("Anyone with this link can view and download files, and upload new files. They cannot delete or replace your files.")
+                             : qsTr("Anyone with this link can view and download files. Uploading and editing are disabled.")
                 checked: dialog.permission === "contributor"
                 onToggled: (on) => dialog.permission = on ? "contributor" : "viewer"
             }
             InfoCard {
                 Layout.fillWidth: true
                 visible: dialog.link.permission === "contributor" && dialog.permission === "viewer"
-                text: "Uploads stop at once: any still in progress are cancelled. Files already received stay in Incoming."
+                text: qsTr("Uploads stop at once: any still in progress are cancelled. Files already received stay in Incoming.")
             }
             RowLayout {
                 Layout.fillWidth: true
                 visible: dialog.permission === "contributor"
                 spacing: 8
-                RvTextField { id: sizeField; Layout.fillWidth: true; placeholderText: "Largest file (MB)" }
-                RvTextField { id: allowanceField; Layout.fillWidth: true; placeholderText: "Total uploads (MB)" }
-                RvTextField { id: filesField; Layout.fillWidth: true; placeholderText: "Most files" }
+                RvTextField { id: sizeField; Layout.fillWidth: true; placeholderText: qsTr("Largest file (MB)") }
+                RvTextField { id: allowanceField; Layout.fillWidth: true; placeholderText: qsTr("Total uploads (MB)") }
+                RvTextField { id: filesField; Layout.fillWidth: true; placeholderText: qsTr("Most files") }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Text { text: "Expires"; color: Theme.text2 }
+                Text { text: qsTr("Expires"); color: Theme.text2 }
                 RvChoice {
                     id: expiry
                     Layout.fillWidth: true
@@ -114,8 +114,8 @@ RvDialog {
                     Accessible.name: "Expires"
                 }
             }
-            ChannelScheduleField { id: customDate; Layout.fillWidth: true; visible: expiry.currentIndex === 6; label: "Expires at"; Component.onCompleted: reset() }
-            RvTextField { id: downloadsField; Layout.fillWidth: true; placeholderText: "Download limit (empty: no limit)" }
+            ChannelScheduleField { id: customDate; Layout.fillWidth: true; visible: expiry.currentIndex === 6; label: qsTr("Expires at"); Component.onCompleted: reset() }
+            RvTextField { id: downloadsField; Layout.fillWidth: true; placeholderText: qsTr("Download limit (empty: no limit)") }
         }
 
         // --- Password ---
@@ -127,13 +127,13 @@ RvDialog {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Anyone opening the link will need it. The link itself stays the same; people who already downloaded files keep them."
+                text: qsTr("Anyone opening the link will need it. The link itself stays the same; people who already downloaded files keep them.")
                 color: Theme.text2
             }
-            RvTextField { id: passwordField; Layout.fillWidth: true; placeholderText: "At least 8 characters"; echoMode: TextInput.Password }
+            RvTextField { id: passwordField; Layout.fillWidth: true; placeholderText: qsTr("At least 8 characters"); echoMode: TextInput.Password }
             InfoCard {
                 Layout.fillWidth: true
-                text: "The password isn't part of the link. Send it separately (another app, or in person) so one leaked message isn't enough."
+                text: qsTr("The password isn't part of the link. Send it separately (another app, or in person) so one leaked message isn't enough.")
             }
         }
 
@@ -145,22 +145,22 @@ RvDialog {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "The current link stops working at once, including downloads in progress. Its settings and counts stay. Files people already downloaded stay with them."
+                text: qsTr("The current link stops working at once, including downloads in progress. Its settings and counts stay. Files people already downloaded stay with them.")
                 color: Theme.text2
             }
             RvSwitch {
                 id: regenPassword
                 Layout.fillWidth: true
-                label: "Password"
-                description: dialog.link.hasPassword ? "Type it again (or a new one): it isn't stored anywhere." : "Needed to open the new link."
+                label: qsTr("Password")
+                description: dialog.link.hasPassword ? qsTr("Type it again (or a new one): it isn't stored anywhere.") : qsTr("Needed to open the new link.")
             }
-            RvTextField { id: regenPasswordField; Layout.fillWidth: true; visible: regenPassword.checked; placeholderText: "At least 8 characters"; echoMode: TextInput.Password }
+            RvTextField { id: regenPasswordField; Layout.fillWidth: true; visible: regenPassword.checked; placeholderText: qsTr("At least 8 characters"); echoMode: TextInput.Password }
         }
         ColumnLayout {
             Layout.fillWidth: true
             visible: dialog.madeUrl.length > 0
             spacing: 10
-            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: "The old link no longer works. Send this one to the people who should still have access."; color: Theme.text2 }
+            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("The old link no longer works. Send this one to the people who should still have access."); color: Theme.text2 }
             RvTextField { id: newUrl; Layout.fillWidth: true; readOnly: true; text: dialog.madeUrl; onActiveFocusChanged: if (activeFocus) selectAll() }
         }
 
@@ -172,7 +172,7 @@ RvDialog {
                 visible: dialog.mode === "password" && dialog.link.hasPassword && dialog.madeUrl.length === 0
                 primary: false
                 danger: true
-                text: "Remove password"
+                text: qsTr("Remove password")
                 enabled: !dialog.shares.busy
                 onClicked: {
                     dialog.saving = true
@@ -183,7 +183,7 @@ RvDialog {
             RvButton {
                 visible: dialog.madeUrl.length > 0
                 iconName: "copy"
-                text: "Copy link"
+                text: qsTr("Copy link")
                 onClicked: {
                     newUrl.selectAll()
                     newUrl.copy()
@@ -192,7 +192,7 @@ RvDialog {
             }
             RvButton {
                 visible: dialog.madeUrl.length === 0
-                text: dialog.shares.busy ? "Working…" : dialog.mode === "regenerate" ? "Make new link" : "Save"
+                text: dialog.shares.busy ? qsTr("Working…") : dialog.mode === "regenerate" ? qsTr("Make new link") : qsTr("Save")
                 enabled: !dialog.shares.busy
                          && (dialog.mode !== "password" || passwordField.text.length >= 8)
                          && (dialog.mode !== "regenerate" || !regenPassword.checked || regenPasswordField.text.length >= 8)

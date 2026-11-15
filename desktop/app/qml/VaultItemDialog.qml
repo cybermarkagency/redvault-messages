@@ -18,7 +18,7 @@ RvDialog {
     readonly property bool editing: (fields.id || "").length > 0
     property bool showPassword: false
 
-    title: (editing ? "Edit " : "New ") + ({ login: "login", passkey: "passkey", card: "payment card", note: "secure note", wifi: "Wi-Fi network" })[type]
+    title: (editing ? qsTr("Edit ") : qsTr("New ")) + ({ login: "login", passkey: "passkey", card: qsTr("payment card"), note: qsTr("secure note"), wifi: qsTr("Wi-Fi network") })[type]
     width: 520
 
     function openWith(values) {
@@ -63,18 +63,18 @@ RvDialog {
             width: parent.width
             spacing: 8
 
-            Label2 { text: "Name" }
+            Label2 { text: qsTr("Name") }
             RvTextField { id: title_; Layout.fillWidth: true; placeholderText: dialog.type === "wifi" ? "Home Wi-Fi" : "Work email" }
 
             // Login and passkey
-            Label2 { visible: dialog.type === "login" || dialog.type === "passkey"; text: "Username or email" }
+            Label2 { visible: dialog.type === "login" || dialog.type === "passkey"; text: qsTr("Username or email") }
             RvTextField {
                 id: username
                 visible: dialog.type === "login" || dialog.type === "passkey"
                 Layout.fillWidth: true
                 font.family: Theme.monoFamily
             }
-            Label2 { visible: dialog.type === "login"; text: "Password" }
+            Label2 { visible: dialog.type === "login"; text: qsTr("Password") }
             RowLayout {
                 visible: dialog.type === "login"
                 Layout.fillWidth: true
@@ -85,22 +85,22 @@ RvDialog {
                     font.family: Theme.monoFamily
                 }
                 IconButton { iconName: dialog.showPassword ? "eye-off" : "eye"; tip: dialog.showPassword ? "Hide password" : "Show password"; toggled: dialog.showPassword; onClicked: dialog.showPassword = !dialog.showPassword }
-                IconButton { iconName: "refresh"; tip: "Use a generated password"; onClicked: { dialog.vault.regenerate(); password.text = dialog.vault.generated } }
+                IconButton { iconName: "refresh"; tip: qsTr("Use a generated password"); onClicked: { dialog.vault.regenerate(); password.text = dialog.vault.generated } }
             }
             StrengthBar {
                 visible: dialog.type === "login" && password.text.length > 0
                 Layout.fillWidth: true
                 strength: dialog.vault.strengthOf(password.text)
             }
-            Label2 { visible: dialog.type === "login" || dialog.type === "passkey"; text: "Website" }
+            Label2 { visible: dialog.type === "login" || dialog.type === "passkey"; text: qsTr("Website") }
             RvTextField {
                 id: url
                 visible: dialog.type === "login" || dialog.type === "passkey"
                 Layout.fillWidth: true
-                placeholderText: "example.com"
+                placeholderText: qsTr("example.com")
                 font.family: Theme.monoFamily
             }
-            Label2 { visible: dialog.type === "login"; text: "One-time code setup key (optional)" }
+            Label2 { visible: dialog.type === "login"; text: qsTr("One-time code setup key (optional)") }
             RvTextField {
                 id: totp
                 visible: dialog.type === "login"
@@ -108,15 +108,15 @@ RvDialog {
                 placeholderText: "The key or otpauth:// link the site shows"
                 font.family: Theme.monoFamily
             }
-            Label2 { visible: dialog.type === "passkey"; text: "Site (relying party)" }
-            RvTextField { id: passkeyRpId; visible: dialog.type === "passkey"; Layout.fillWidth: true; placeholderText: "example.com"; font.family: Theme.monoFamily }
-            Label2 { visible: dialog.type === "passkey"; text: "Account name on the passkey" }
+            Label2 { visible: dialog.type === "passkey"; text: qsTr("Site (relying party)") }
+            RvTextField { id: passkeyRpId; visible: dialog.type === "passkey"; Layout.fillWidth: true; placeholderText: qsTr("example.com"); font.family: Theme.monoFamily }
+            Label2 { visible: dialog.type === "passkey"; text: qsTr("Account name on the passkey") }
             RvTextField { id: passkeyUser; visible: dialog.type === "passkey"; Layout.fillWidth: true; font.family: Theme.monoFamily }
 
             // Card
-            Label2 { visible: dialog.type === "card"; text: "Name on card" }
+            Label2 { visible: dialog.type === "card"; text: qsTr("Name on card") }
             RvTextField { id: cardHolder; visible: dialog.type === "card"; Layout.fillWidth: true }
-            Label2 { visible: dialog.type === "card"; text: "Card number" }
+            Label2 { visible: dialog.type === "card"; text: qsTr("Card number") }
             RvTextField {
                 id: cardNumber
                 visible: dialog.type === "card"
@@ -129,11 +129,11 @@ RvDialog {
                 visible: dialog.type === "card"
                 Layout.fillWidth: true
                 ColumnLayout {
-                    Label2 { text: "Expires (MM/YY)" }
+                    Label2 { text: qsTr("Expires (MM/YY)") }
                     RvTextField { id: cardExpiry; Layout.fillWidth: true; font.family: Theme.monoFamily; maximumLength: 5 }
                 }
                 ColumnLayout {
-                    Label2 { text: "Security code" }
+                    Label2 { text: qsTr("Security code") }
                     RvTextField {
                         id: cardCvv
                         Layout.fillWidth: true
@@ -142,15 +142,15 @@ RvDialog {
                         echoMode: dialog.showPassword ? TextInput.Normal : TextInput.Password
                     }
                 }
-                IconButton { Layout.alignment: Qt.AlignBottom; iconName: dialog.showPassword ? "eye-off" : "eye"; tip: "Show or hide"; onClicked: dialog.showPassword = !dialog.showPassword }
+                IconButton { Layout.alignment: Qt.AlignBottom; iconName: dialog.showPassword ? "eye-off" : "eye"; tip: qsTr("Show or hide"); onClicked: dialog.showPassword = !dialog.showPassword }
             }
 
             // Wi-Fi
-            Label2 { visible: dialog.type === "wifi"; text: "Network name (SSID)" }
+            Label2 { visible: dialog.type === "wifi"; text: qsTr("Network name (SSID)") }
             RvTextField { id: wifiSsid; visible: dialog.type === "wifi"; Layout.fillWidth: true; font.family: Theme.monoFamily }
-            Label2 { visible: dialog.type === "wifi"; text: "Security" }
-            RvTextField { id: wifiSecurity; visible: dialog.type === "wifi"; Layout.fillWidth: true; placeholderText: "WPA3" }
-            Label2 { visible: dialog.type === "wifi"; text: "Password" }
+            Label2 { visible: dialog.type === "wifi"; text: qsTr("Security") }
+            RvTextField { id: wifiSecurity; visible: dialog.type === "wifi"; Layout.fillWidth: true; placeholderText: qsTr("WPA3") }
+            Label2 { visible: dialog.type === "wifi"; text: qsTr("Password") }
             RowLayout {
                 visible: dialog.type === "wifi"
                 Layout.fillWidth: true
@@ -160,7 +160,7 @@ RvDialog {
                     echoMode: dialog.showPassword ? TextInput.Normal : TextInput.Password
                     font.family: Theme.monoFamily
                 }
-                IconButton { iconName: dialog.showPassword ? "eye-off" : "eye"; tip: "Show or hide"; onClicked: dialog.showPassword = !dialog.showPassword }
+                IconButton { iconName: dialog.showPassword ? "eye-off" : "eye"; tip: qsTr("Show or hide"); onClicked: dialog.showPassword = !dialog.showPassword }
             }
 
             Label2 { text: dialog.type === "note" ? "Note" : "Notes" }
@@ -186,16 +186,16 @@ RvDialog {
                     primary: false
                     danger: true
                     iconName: "trash"
-                    text: "Delete"
+                    text: qsTr("Delete")
                     onClicked: {
                         dialog.vault.deleteItem(dialog.fields.id)
                         dialog.close()
                     }
                 }
                 Item { Layout.fillWidth: true }
-                RvButton { primary: false; text: "Cancel"; onClicked: dialog.close() }
+                RvButton { primary: false; text: qsTr("Cancel"); onClicked: dialog.close() }
                 RvButton {
-                    text: dialog.vault.busy ? "Saving…" : "Save"
+                    text: dialog.vault.busy ? qsTr("Saving…") : qsTr("Save")
                     enabled: !dialog.vault.busy && title_.text.trim().length > 0
                     onClicked: dialog.vault.saveItem({
                         id: dialog.fields.id || "",

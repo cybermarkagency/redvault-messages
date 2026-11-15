@@ -21,7 +21,7 @@ RvDialog {
     property bool deviceKeys: false
     readonly property string activity: dialog.deviceKeys ? App.deviceKeys.chatFileActivity : dialog.chats.fileActivity
     onActivityChanged: if (dialog.activity.length === 0) Qt.callLater(dialog.sendNext)
-    title: files.length > 1 ? "Send " + files.length + " files?" : "Send this file?"
+    title: files.length > 1 ? qsTr("Send ") + files.length + qsTr(" files?") : qsTr("Send this file?")
     width: 460
 
     function openFor(urls) {
@@ -59,7 +59,7 @@ RvDialog {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: "To " + dialog.chats.currentTitle + ". Each file is encrypted on this computer before it's uploaded."
+            text: qsTr("To ") + dialog.chats.currentTitle + qsTr(". Each file is encrypted on this computer before it's uploaded.")
             textFormat: Text.PlainText
             color: Theme.text3
             font.pixelSize: 13
@@ -132,11 +132,11 @@ RvDialog {
             spacing: 8
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.reject()
             }
             RvButton {
-                text: dialog.files.length > 1 ? "Send " + dialog.files.length + " files" : "Send"
+                text: dialog.files.length > 1 ? qsTr("Send ") + dialog.files.length + qsTr(" files") : qsTr("Send")
                 onClicked: {
                     dialog.queueChatId = dialog.chats.currentChatId
                     dialog.queue = dialog.queue.concat(dialog.files)

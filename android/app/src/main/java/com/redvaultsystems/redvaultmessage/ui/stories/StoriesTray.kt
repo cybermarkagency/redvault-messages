@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +57,7 @@ fun StoriesTray(
         item(key = "me") {
             val hasOwn = state.own.isNotEmpty()
             TrayItem(
-                label = "Your story",
+                label = stringResource(R.string.ui_your_story),
                 avatarUrl = selfAvatarUrl,
                 seed = selfHandle,
                 ring = if (hasOwn) Brush.sweepGradient(StoryStyle.ringGradient) else null,
@@ -103,7 +104,7 @@ private fun TrayItem(label: String, avatarUrl: String?, seed: String, ring: Brus
                     Modifier
                         .align(Alignment.BottomEnd)
                         .size(24.dp)
-                        .background(colors.accent, CircleShape)
+                        .background(colors.accentFill, CircleShape)
                         .border(2.dp, colors.bg, CircleShape)
                         .clip(CircleShape)
                         .clickable(role = Role.Button, onClick = onPlus)

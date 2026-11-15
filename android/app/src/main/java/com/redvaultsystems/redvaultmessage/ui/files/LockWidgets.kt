@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.files
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -89,7 +91,7 @@ fun FileTile(name: String, folder: Boolean, lockedNow: Boolean, size: Dp = 44.dp
     val colors = RedvaultTheme.colors
     if (lockedNow) {
         Box(Modifier.size(size).clip(RoundedCornerShape(12.dp)).background(colors.lockBg), contentAlignment = Alignment.Center) {
-            DsIcon(R.drawable.ui_lock, colors.lockText2, 18.dp, description = "Locked")
+            DsIcon(R.drawable.ui_lock, colors.lockText2, 18.dp, description = stringResource(R.string.ui_locked))
         }
         return
     }
@@ -130,6 +132,9 @@ fun DsTextField(
     singleLine: Boolean = true,
     minHeight: Dp = 50.dp,
     label: String = placeholder,
+    /** Overrides the keyboard (digits for codes, no capitals for handles); null: the default for [password]. */
+    keyboardOptions: KeyboardOptions? = null,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val colors = RedvaultTheme.colors
     var focused by remember { mutableStateOf(false) }
@@ -150,7 +155,9 @@ fun DsTextField(
             textStyle = TextStyle(color = colors.text, fontSize = if (mono) 14.sp else 15.sp, fontFamily = if (mono) RedvaultFonts.mono else RedvaultFonts.sans),
             cursorBrush = SolidColor(colors.accent),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = if (password) KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false) else KeyboardOptions.Default,
+            keyboardOptions = keyboardOptions
+                ?: if (password) KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false) else KeyboardOptions.Default,
+            keyboardActions = keyboardActions,
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = label }

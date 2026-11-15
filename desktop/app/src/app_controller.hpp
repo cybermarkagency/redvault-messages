@@ -83,6 +83,9 @@ class AppController : public QObject {
     Q_PROPERTY(redvault::app::CommunityAdminSession* communityAdmin READ communityAdmin NOTIFY stateChanged)
     /// The signed-in account is one of RedVault's super admins (the role the server gave at sign-in).
     Q_PROPERTY(bool superAdmin READ superAdmin NOTIFY stateChanged)
+    /// Communities and creator earnings are shown only in a build that turns them on (REDVAULT_COMMUNITIES / _EARNINGS).
+    Q_PROPERTY(bool communitiesEnabled READ communitiesEnabled CONSTANT)
+    Q_PROPERTY(bool earningsEnabled READ earningsEnabled CONSTANT)
     Q_PROPERTY(redvault::app::StoriesSession* stories READ stories NOTIFY stateChanged)
     Q_PROPERTY(redvault::app::EarningsSession* earnings READ earnings NOTIFY stateChanged)
     Q_PROPERTY(QString userId READ userId NOTIFY stateChanged)
@@ -132,6 +135,16 @@ public:
     CommunitySession* communities() const { return communities_.get(); }
     CommunityAdminSession* communityAdmin() const { return communityAdmin_.get(); }
     bool superAdmin() const { return identity_ && identity_->role == "super_admin"; }
+#ifdef REDVAULT_SHOW_COMMUNITIES
+    bool communitiesEnabled() const { return true; }
+#else
+    bool communitiesEnabled() const { return false; }
+#endif
+#ifdef REDVAULT_SHOW_EARNINGS
+    bool earningsEnabled() const { return true; }
+#else
+    bool earningsEnabled() const { return false; }
+#endif
     StoriesSession* stories() const { return stories_.get(); }
     EarningsSession* earnings() const { return earnings_.get(); }
     QString userId() const { return identity_ ? QString::fromStdString(identity_->userId) : QString(); }

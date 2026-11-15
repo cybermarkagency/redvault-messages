@@ -58,6 +58,10 @@ public:
         CanReactRole,
         CanEditRole,
         CanDeleteRole,
+        /// The text as rich text (bold, links, spoilers hidden), or empty when it's plain, like the other chats.
+        RichTextRole,
+        /// The same with spoilers shown.
+        RichTextRevealedRole,
     };
     using QAbstractListModel::QAbstractListModel;
     int rowCount(const QModelIndex& parent = {}) const override { return parent.isValid() ? 0 : static_cast<int>(rows_.size()); }

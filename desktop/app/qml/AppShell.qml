@@ -79,18 +79,18 @@ Item {
                     color: deviceKeysBanner.link ? Theme.warn : Theme.accent
                     font.pixelSize: Theme.fontSmall + 1
                     text: deviceKeysBanner.link
-                          ? "Link this computer to your other devices to use the Signal protocol here: pair it with a device you already use, or use your recovery key."
-                          : "Create a recovery key so you can restore your device keys on a new phone or computer."
+                          ? qsTr("Link this computer to your other devices to use the Signal protocol here: pair it with a device you already use, or use your recovery key.")
+                          : qsTr("Create a recovery key so you can restore your device keys on a new phone or computer.")
                 }
                 RvButton {
-                    text: deviceKeysBanner.link ? "Link this computer" : "Create recovery key"
+                    text: deviceKeysBanner.link ? qsTr("Link this computer") : qsTr("Create recovery key")
                     primary: true
                     implicitHeight: 30
                     onClicked: App.deviceKeys.showSettings()
                 }
                 RvButton {
                     visible: !deviceKeysBanner.link
-                    text: "Not now"
+                    text: qsTr("Not now")
                     implicitHeight: 30
                     onClicked: App.deviceKeys.dismissRecoveryNotice()
                 }
@@ -98,10 +98,13 @@ Item {
         }
 
         // Tor / call status (docs/tor-routing-plan.md), always visible while it matters.
+        // An open chat shows the Tor part in its own header instead, so the strip
+        // stays away from the Chats page then, unless a call is on.
         Item {
+            readonly property bool chatShowsIt: shell.page === "chats" && shell.session.currentChatId.length > 0 && !statusChip.callActive
             Layout.fillWidth: true
-            implicitHeight: statusChip.visible ? statusChip.implicitHeight + 12 : 0
-            visible: statusChip.visible
+            implicitHeight: visible ? statusChip.implicitHeight + 12 : 0
+            visible: statusChip.visible && !chatShowsIt
             TorStatusChip {
                 id: statusChip
                 anchors.right: parent.right
@@ -149,6 +152,10 @@ Item {
                     session: shell.session
                     people: shell.people
                     account: shell.account
+                    onOpenNetworkSettings: {
+                        settingsView.section = "network"
+                        shell.page = "settings"
+                    }
                 }
                 CallsView {
                     calls: App.calls
@@ -172,6 +179,7 @@ Item {
                 SettingsView {
                     id: settingsView
                     account: shell.account
+                    people: shell.people
                 }
                 FilesView {
                     files: App.files
@@ -188,10 +196,7 @@ Item {
                 ChannelsView {
                     channels: App.channels
                     active: shell.page === "channels"
-                    onOpenPlans: {
-                        settingsView.section = "account"
-                        shell.page = "settings"
-                    }
+                    onOpenPlans: PlanGate.openPlans()
                 }
                 CommunitiesView {
                     communities: App.communities
@@ -229,8 +234,25 @@ Item {
     // A community's page opened from its chat, or its chat opened from its page.
     Connections {
         target: App.communities
-        function onShowRequested() { shell.page = "communities" }
+        function onShowRequested() { if (App.communitiesEnabled) shell.page = "communities" }
         function onShowChatRequested() { shell.page = "chats" }
+    }
+
+    // A paid feature tapped on a plan without it (PlanGate.ask), and "See plans" anywhere.
+    UpgradeDialog {
+        id: upgradeDialog
+        onSeePlans: PlanGate.openPlans()
+    }
+    Connections {
+        target: PlanGate
+        function onUpgradeRequested(tier, feature) { upgradeDialog.show(tier, feature) }
+        function onPlansRequested() {
+            settingsView.section = "account"
+            shell.page = "settings"
+            // From inside a call: shrink it to its bar so the plans are visible.
+            if (App.calls !== null && App.calls.phase.length > 0) App.calls.setMinimized(true)
+            if (App.groupCalls !== null && App.groupCalls.present) App.groupCalls.setMinimized(true)
+        }
     }
 
     // A group invite link, pasted or clicked in a chat.

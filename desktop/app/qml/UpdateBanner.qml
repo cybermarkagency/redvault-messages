@@ -6,7 +6,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Redvault
 
-// "redvaultmessages X is available": shown across the top of the window while an
+// "RedVaultMessages X is available": shown across the top of the window while an
 // update is waiting, downloading or installing.
 Rectangle {
     id: banner
@@ -36,9 +36,9 @@ Rectangle {
             spacing: 0
             Text {
                 Layout.fillWidth: true
-                text: Updater.status === Updater.Downloading ? "Downloading redvaultmessages " + Updater.availableVersion + "…"
-                    : Updater.status === Updater.Installing ? "Installing redvaultmessages " + Updater.availableVersion + ". It will reopen in a moment."
-                    : "redvaultmessages " + Updater.availableVersion + " is available."
+                text: Updater.status === Updater.Downloading ? qsTr("Downloading RedVaultMessages ") + Updater.availableVersion + "…"
+                    : Updater.status === Updater.Installing ? qsTr("Installing RedVaultMessages ") + Updater.availableVersion + qsTr(". It will reopen in a moment.")
+                    : qsTr("RedVaultMessages ") + Updater.availableVersion + qsTr(" is available.")
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: Theme.text
@@ -49,7 +49,7 @@ Rectangle {
                 visible: text.length > 0
                 text: Updater.error.length > 0 ? Updater.error
                     : Updater.status === Updater.Available ? (Updater.notes.length > 0 ? Updater.notes + " " : "")
-                                                             + "Updating signs you out; sign back in afterwards."
+                                                             + qsTr("Updating signs you out; sign back in afterwards.")
                                                              + (Updater.freshnessWarning.length > 0 ? " " + Updater.freshnessWarning : "")
                     : ""
                 textFormat: Text.PlainText
@@ -68,7 +68,7 @@ Rectangle {
             visible: Updater.status === Updater.Available
             implicitHeight: 32
             iconName: "download"
-            text: "Update now"
+            text: qsTr("Update now")
             onClicked: Updater.install()
         }
     }

@@ -3,6 +3,9 @@
 
 package com.redvaultsystems.redvaultmessage.ui.groups
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
+import com.redvaultsystems.redvaultmessage.ui.files.DsTextField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,19 +79,13 @@ fun NewGroupScreen(chats: ChatSession, onBack: () -> Unit, onCreated: (conversat
         }
     }
 
-    SubScreen(title = "New group", onBack = onBack) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { if (it.length <= 100) name = it },
-            label = { Text("Group name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+    SubScreen(title = stringResource(R.string.ui_new_group), onBack = onBack) {
+        DsTextField(name, { if (it.length <= 100) name = it }, "Group name")
         SectionLabel("Members (${selected.size} selected)")
         val list = friends
         when {
-            list == null -> Text("Loading your friends…", color = colors.text3)
-            list.isEmpty() -> Text("Add a friend first: groups can only include your friends.", color = colors.text3)
+            list == null -> Text(stringResource(R.string.ui_loading_your_friends), color = colors.text3)
+            list.isEmpty() -> Text(stringResource(R.string.ui_add_a_friend_first_groups_can), color = colors.text3)
             else -> list.forEach { friend ->
                 val isSelected = friend.userId in selected
                 Row(
@@ -160,25 +157,25 @@ fun GroupInfoScreen(
     fun canRemove(m: GroupMemberView) =
         !m.isSelf && m.role != "owner" && (meta.myRole == "owner" || (meta.myRole == "admin" && m.role == "member"))
 
-    SubScreen(title = "Group info", onBack = onBack) {
+    SubScreen(title = stringResource(R.string.ui_group_info), onBack = onBack) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             GroupAvatar(meta.handle, size = 64.dp)
             val draft = renaming
             if (draft == null) {
                 Text(conversation.handle, style = MaterialTheme.typography.titleLarge, color = colors.text)
-                if (canManage) TextButton(onClick = { renaming = conversation.handle }) { Text("Rename") }
+                if (canManage) TextButton(onClick = { renaming = conversation.handle }) { Text(stringResource(R.string.ui_rename)) }
             } else {
-                OutlinedTextField(value = draft, onValueChange = { if (it.length <= 100) renaming = it }, singleLine = true, label = { Text("Group name") })
+                DsTextField(draft, { if (it.length <= 100) renaming = it }, "Group name")
                 TextButton(enabled = draft.isNotBlank() && !busy, onClick = {
                     run("Couldn't rename the group.") {
                         chats.renameGroup(conversation.id, draft)
                         renaming = null
                     }
-                }) { Text("Save name") }
+                }) { Text(stringResource(R.string.ui_save_name)) }
             }
         }
         com.redvaultsystems.redvaultmessage.ui.components.SettingsRow(
-            title = "Shared media and files",
+            title = stringResource(R.string.ui_shared_media_and_files),
             description = conversation.messages.count { it.kind == com.redvaultsystems.redvaultmessage.data.model.MessageKind.File }.let { if (it == 0) "Nothing shared yet" else "$it shared in this group" },
             onClick = onOpenSharedMedia,
             icon = com.redvaultsystems.redvaultmessage.R.drawable.ui_image,
@@ -205,7 +202,7 @@ fun GroupInfoScreen(
                 if (canRemove(m)) {
                     TextButton(enabled = !busy, onClick = {
                         confirm = "Remove ${m.handle} from the group?" to { chats.removeFromGroup(conversation.id, m.userId) }
-                    }) { Text("Remove", color = colors.danger) }
+                    }) { Text(stringResource(R.string.ui_remove), color = colors.danger) }
                 }
             }
         }
@@ -218,10 +215,10 @@ fun GroupInfoScreen(
                         val inGroup = meta.members.map { it.userId }.toSet()
                         addable = chats.friends().filter { it.userId !in inGroup }
                     }
-                }) { Text("Add friends") }
+                }) { Text(stringResource(R.string.ui_add_friends)) }
             } else {
-                SectionLabel("Add friends")
-                if (candidates.isEmpty()) Text("All your friends are already in this group.", color = colors.text3)
+                SectionLabel(stringResource(R.string.ui_add_friends))
+                if (candidates.isEmpty()) Text(stringResource(R.string.ui_all_your_friends_are_already_in), color = colors.text3)
                 candidates.forEach { friend ->
                     Row(
                         Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -235,10 +232,10 @@ fun GroupInfoScreen(
                                 chats.addToGroup(conversation.id, friend)
                                 addable = addable?.filterNot { it.userId == friend.userId }
                             }
-                        }) { Text("Add") }
+                        }) { Text(stringResource(R.string.ui_add)) }
                     }
                 }
-                Text("New members only see messages sent after they join.", color = colors.text3, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.ui_new_members_only_see_messages_sent), color = colors.text3, style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -253,7 +250,7 @@ fun GroupInfoScreen(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Leave group", color = colors.danger, fontWeight = FontWeight.SemiBold) }
+        ) { Text(stringResource(R.string.ui_leave_group), color = colors.danger, fontWeight = FontWeight.SemiBold) }
     }
 
     confirm?.let { (question, action) ->
@@ -264,9 +261,9 @@ fun GroupInfoScreen(
                 TextButton(onClick = {
                     confirm = null
                     run("That didn't work. Try again.", action)
-                }) { Text("Yes", color = colors.danger) }
+                }) { Text(stringResource(R.string.ui_yes), color = colors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.ui_cancel)) } },
         )
     }
 }

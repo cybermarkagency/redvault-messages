@@ -28,8 +28,21 @@ Item {
     property string fileName: ""
     property string savedNotice: ""
     property string planNotice: ""
+
+    // Voice messages: recorded here, sent like any file (as "Voice message.m4a", which every app plays inline).
+    VoiceRecorder {
+        id: voice
+        onFinished: (file) => root.v3Mode ? App.deviceKeys.sendFile(file) : root.session.sendVoice(file)
+        onDiscarded: if (voice.error.length > 0) root.planNotice = voice.error
+    }
+    /// A group call is going on in this chat: anyone can join it, so its buttons aren't locked.
+    readonly property bool groupCallGoing: App.groupCalls !== null && root.session.currentChatId.length > 0
+                                           && App.groupCalls.activeRevision >= 0
+                                           && Object.keys(App.groupCalls.callIn(root.session.currentChatId)).length > 0
     property bool detailsOpen: true
     signal toggleDetails()
+    /// The Tor chip in the header was clicked: Settings › Network.
+    signal openNetworkSettings()
     // Device keys: this chat uses per-device encryption (Signal), chosen by itself: every member has device keys,
     // or the chat is pinned to them. There's no switch back.
     readonly property bool v3Mode: App.deviceKeys !== null && App.deviceKeys.chatActive
@@ -73,7 +86,7 @@ Item {
             root.session.discardPasted(fileUrl)  // only ever removes a pasted picture's temporary copy
         }
         function onChatFileSaved(path) {
-            root.savedNotice = "Saved to " + path
+            root.savedNotice = qsTr("Saved to ") + path
             savedNoticeTimer.restart()
         }
     }
@@ -173,7 +186,7 @@ Item {
             return
         const going = Object.keys(App.groupCalls.callIn(root.session.currentChatId)).length > 0
         if (!going && !root.account.premium) {
-            root.planNotice = "Only Premium members can start group " + kind + " calls. Anyone in the group can join one."
+            PlanGate.ask("premium", "Starting a group call")
             return
         }
         root.planNotice = App.groupCalls.start(root.session.currentChatId, kind)
@@ -260,7 +273,7 @@ Item {
         if (local.length === 0) return
         if (!root.account.pro) {
             for (const url of local) root.session.discardPasted(String(url))
-            root.planNotice = "Sending files isn't included in your plan. Upgrade to Pro in Settings to send files."
+            PlanGate.ask("pro", "Sending files")
             return
         }
         root.planNotice = ""
@@ -297,7 +310,7 @@ Item {
                     color: Theme.accent
                 }
                 Text {
-                    text: "Drop to send to " + root.session.currentTitle
+                    text: qsTr("Drop to send to ") + root.session.currentTitle
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 16
@@ -348,7 +361,7 @@ Item {
 
     FileDialog {
         id: attachDialog
-        title: "Send a file"
+        title: qsTr("Send a file")
         fileMode: FileDialog.OpenFile
         onAccepted: {
             if (root.v3Mode) App.deviceKeys.sendFile(selectedFile)
@@ -357,7 +370,7 @@ Item {
     }
     FileDialog {
         id: saveDialog
-        title: "Save file"
+        title: qsTr("Save file")
         fileMode: FileDialog.SaveFile
         currentFolder: StandardPaths.writableLocation(StandardPaths.DownloadLocation)
         onAccepted: {
@@ -376,7 +389,7 @@ Item {
         id: fileMenu
         MenuItem {
             icon.source: "image://icon/external-link/" + menuIcon.hex(Theme.text)
-            text: root.session.canOpenFile(root.fileMessageId) ? "Open" : "Open (not allowed for programs)"
+            text: root.session.canOpenFile(root.fileMessageId) ? qsTr("Open") : qsTr("Open (not allowed for programs)")
             enabled: root.session.canOpenFile(root.fileMessageId) && root.session.fileActivity.length === 0
             onTriggered: {
                 App.lock.expectExternalReturn()
@@ -385,7 +398,7 @@ Item {
         }
         MenuItem {
             icon.source: "image://icon/download/" + menuIcon.hex(Theme.text)
-            text: "Save as…"
+            text: qsTr("Save as…")
             enabled: root.session.fileActivity.length === 0
             onTriggered: {
                 saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(root.fileName)
@@ -401,7 +414,7 @@ Item {
         property bool canOpen: false
         MenuItem {
             icon.source: "image://icon/external-link/" + menuIcon.hex(Theme.text)
-            text: v3FileMenu.canOpen ? "Open" : "Open (not allowed for programs)"
+            text: v3FileMenu.canOpen ? qsTr("Open") : qsTr("Open (not allowed for programs)")
             enabled: v3FileMenu.canOpen && root.fileActivity.length === 0
             onTriggered: {
                 App.lock.expectExternalReturn()
@@ -410,7 +423,7 @@ Item {
         }
         MenuItem {
             icon.source: "image://icon/download/" + menuIcon.hex(Theme.text)
-            text: "Save as…"
+            text: qsTr("Save as…")
             enabled: root.fileActivity.length === 0
             onTriggered: {
                 saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(root.fileName)
@@ -440,20 +453,20 @@ Item {
         }
 
         MenuItem {
-            text: "React…"
+            text: qsTr("React…")
             icon.source: "image://icon/smile/" + menuIcon.hex(Theme.text)
             enabled: v3Menu.canReact
             onTriggered: reactionPicker.show(v3Menu.messageId, true)
         }
         MenuItem {
-            text: "Edit"
+            text: qsTr("Edit")
             icon.source: "image://icon/pen/" + menuIcon.hex(Theme.text)
             visible: v3Menu.canEdit
             height: visible ? implicitHeight : 0
             onTriggered: root.startV3Edit(v3Menu.messageId, v3Menu.text)
         }
         MenuItem {
-            text: "Copy text"
+            text: qsTr("Copy text")
             icon.source: "image://icon/copy/" + menuIcon.hex(Theme.text)
             visible: v3Menu.canReact && v3Menu.text.length > 0
             height: visible ? implicitHeight : 0
@@ -464,7 +477,7 @@ Item {
             height: visible ? implicitHeight : 0
         }
         MenuItem {
-            text: "Delete for everyone"
+            text: qsTr("Delete for everyone")
             icon.source: "image://icon/trash/" + menuIcon.hex(Theme.danger)
             visible: v3Menu.canDelete
             height: visible ? implicitHeight : 0
@@ -490,7 +503,7 @@ Item {
         }
 
         MenuItem {
-            text: "Reply"
+            text: qsTr("Reply")
             icon.source: "image://icon/reply/" + menuIcon.hex(Theme.text)
             enabled: messageMenu.readable
             visible: !root.readOnly
@@ -498,7 +511,7 @@ Item {
             onTriggered: root.startReply(messageMenu.messageId)
         }
         MenuItem {
-            text: "Edit"
+            text: qsTr("Edit")
             icon.source: "image://icon/pen/" + menuIcon.hex(Theme.text)
             visible: messageMenu.fromMe && messageMenu.kind === "text" && root.session.canEdit(messageMenu.messageId)
             height: visible ? implicitHeight : 0
@@ -506,7 +519,7 @@ Item {
         }
         MenuItem {
             readonly property bool pinned: messageMenu.messageId.length > 0 && root.session.isPinned(messageMenu.messageId)
-            text: pinned ? "Unpin" : "Pin"
+            text: pinned ? qsTr("Unpin") : qsTr("Pin")
             icon.source: "image://icon/pin/" + menuIcon.hex(Theme.text)
             enabled: messageMenu.readable
             visible: !root.readOnly
@@ -514,18 +527,18 @@ Item {
             onTriggered: pinned ? root.session.unpin(messageMenu.messageId) : root.session.pin(messageMenu.messageId)
         }
         MenuItem {
-            text: "Select"
+            text: qsTr("Select")
             icon.source: "image://icon/check/" + menuIcon.hex(Theme.text)
             onTriggered: root.startSelect(messageMenu.messageId)
         }
         MenuItem {
-            text: "Forward…"
+            text: qsTr("Forward…")
             icon.source: "image://icon/share/" + menuIcon.hex(Theme.text)
             enabled: messageMenu.readable
             onTriggered: forwardDialog.openFor([messageMenu.messageId], messageMenu.kind === "file")
         }
         MenuItem {
-            text: "Copy text"
+            text: qsTr("Copy text")
             icon.source: "image://icon/copy/" + menuIcon.hex(Theme.text)
             visible: messageMenu.kind === "text"
             height: visible ? implicitHeight : 0
@@ -533,21 +546,21 @@ Item {
         }
         MenuItem {
             // Communities: the reporter chooses whether to share the decrypted text.
-            text: "Report…"
+            text: qsTr("Report…")
             icon.source: "image://icon/flag/" + menuIcon.hex(Theme.danger)
-            visible: root.communityId.length > 0 && !messageMenu.fromMe && App.communities !== null
+            visible: App.communitiesEnabled && root.communityId.length > 0 && !messageMenu.fromMe && App.communities !== null
             height: visible ? implicitHeight : 0
             onTriggered: communityReport.reportMessage(root.communityId, messageMenu.messageId, root.session.senderOf(messageMenu.messageId),
                                                        messageMenu.readable ? root.session.textOf(messageMenu.messageId) : "")
         }
         MenuSeparator {}
         MenuItem {
-            text: "Delete for me"
+            text: qsTr("Delete for me")
             icon.source: "image://icon/trash/" + menuIcon.hex(Theme.text)
             onTriggered: deleteForMeDialog.open()
         }
         MenuItem {
-            text: "Delete for everyone"
+            text: qsTr("Delete for everyone")
             icon.source: "image://icon/trash/" + menuIcon.hex(Theme.danger)
             visible: messageMenu.fromMe && messageMenu.readable
             height: visible ? implicitHeight : 0
@@ -559,7 +572,7 @@ Item {
     RvDialog {
         id: historyDialog
         property var versions: []
-        title: "Edit history"
+        title: qsTr("Edit history")
         width: 460
 
         function show(messageId) {
@@ -579,7 +592,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 2
                     Text {
-                        text: (version.modelData.current ? "Latest · " : "") + version.modelData.time
+                        text: (version.modelData.current ? qsTr("Latest · ") : "") + version.modelData.time
                         textFormat: Text.PlainText
                         color: version.modelData.current ? Theme.accent : Theme.text3
                         font.pixelSize: Theme.fontSmall
@@ -600,9 +613,9 @@ Item {
     ConfirmDialog {
         id: linkDialog
         property string url: ""
-        title: "Open this link?"
-        message: linkDialog.url + "\n\nIt opens in your browser. Check the address first: a link can look like one site and go to another."
-        confirmText: "Open link"
+        title: qsTr("Open this link?")
+        message: linkDialog.url + qsTr("\n\nIt opens in your browser. Check the address first: a link can look like one site and go to another.")
+        confirmText: qsTr("Open link")
         function ask(link) {
             // This app's own group call link joins the call here, not in a browser.
             if (App.groupCalls && App.groupCalls.isOwnCallLink(link)) {
@@ -619,7 +632,7 @@ Item {
                 App.channels.openChannelLink(link)
                 return
             }
-            if (App.communities && App.communities.isOwnCommunityLink(link)) {
+            if (App.communitiesEnabled && App.communities && App.communities.isOwnCommunityLink(link)) {
                 App.communities.openLink(link)
                 return
             }
@@ -637,7 +650,7 @@ Item {
     RvDialog {
         id: deleteManyDialog
         readonly property bool allMine: root.session.allFromMe(root.selectedList)
-        title: root.selectedList.length === 1 ? "Delete 1 message?" : "Delete " + root.selectedList.length + " messages?"
+        title: root.selectedList.length === 1 ? qsTr("Delete 1 message?") : qsTr("Delete ") + root.selectedList.length + qsTr(" messages?")
         width: 460
         ColumnLayout {
             anchors.left: parent.left
@@ -647,8 +660,8 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 text: deleteManyDialog.allMine
-                      ? "Delete them from this computer only, or have the server erase them for everyone in the chat (this can't be undone)."
-                      : "They're removed from this computer only; the others in the chat keep them. (Only your own messages can be deleted for everyone.)"
+                      ? qsTr("Delete them from this computer only, or have the server erase them for everyone in the chat (this can't be undone).")
+                      : qsTr("They're removed from this computer only; the others in the chat keep them. (Only your own messages can be deleted for everyone.)")
                 textFormat: Text.PlainText
                 color: Theme.text2
             }
@@ -657,13 +670,13 @@ Item {
                 spacing: 8
                 RvButton {
                     primary: false
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     onClicked: deleteManyDialog.close()
                 }
                 RvButton {
                     primary: !deleteManyDialog.allMine
                     danger: true
-                    text: "Delete for me"
+                    text: qsTr("Delete for me")
                     onClicked: {
                         root.session.deleteManyForMe(root.selectedList)
                         deleteManyDialog.close()
@@ -673,7 +686,7 @@ Item {
                 RvButton {
                     visible: deleteManyDialog.allMine
                     danger: true
-                    text: "Delete for everyone"
+                    text: qsTr("Delete for everyone")
                     onClicked: {
                         root.session.deleteManyForEveryone(root.selectedList)
                         deleteManyDialog.close()
@@ -686,28 +699,28 @@ Item {
 
     ConfirmDialog {
         id: deleteForMeDialog
-        title: "Delete for me?"
+        title: qsTr("Delete for me?")
         message: root.session.currentIsGroup
-                 ? "This message is removed from this computer only. Everyone else in the group still has it."
-                 : "This message is removed from this computer only. " + root.session.currentTitle + " still has it."
-        confirmText: "Delete for me"
+                 ? qsTr("This message is removed from this computer only. Everyone else in the group still has it.")
+                 : qsTr("This message is removed from this computer only. ") + root.session.currentTitle + qsTr(" still has it.")
+        confirmText: qsTr("Delete for me")
         danger: true
         onConfirmed: root.session.deleteForMe(messageMenu.messageId)
     }
     ConfirmDialog {
         id: deleteForEveryoneDialog
-        title: "Delete for everyone?"
-        message: "The server erases this message (and any file in it) for everyone in the chat. This can't be undone."
-        confirmText: "Delete for everyone"
+        title: qsTr("Delete for everyone?")
+        message: qsTr("The server erases this message (and any file in it) for everyone in the chat. This can't be undone.")
+        confirmText: qsTr("Delete for everyone")
         danger: true
         onConfirmed: root.session.deleteForEveryone(messageMenu.messageId)
     }
 
     ConfirmDialog {
         id: v3DeleteDialog
-        title: "Delete for everyone?"
-        message: "This message (and any file in it) is deleted for everyone in the chat, on every device that has it. This can't be undone."
-        confirmText: "Delete for everyone"
+        title: qsTr("Delete for everyone?")
+        message: qsTr("This message (and any file in it) is deleted for everyone in the chat, on every device that has it. This can't be undone.")
+        confirmText: qsTr("Delete for everyone")
         danger: true
         onConfirmed: App.deviceKeys.deleteChat(v3Menu.messageId)
     }
@@ -808,7 +821,7 @@ Item {
             return
         }
         // To someone who charges for messages: the paid message (or free safety contact) this send uses.
-        const paid = App.earnings ? App.earnings.sendOptions() : ({ ok: true })
+        const paid = App.earningsEnabled && App.earnings ? App.earnings.sendOptions() : ({ ok: true })
         if (!paid.ok)
             return  // pay first: the bar above the composer says how
         root.session.sendMessage(text, root.replyToId, paid.entitlementId || "", paid.safetyContact === true)
@@ -817,7 +830,7 @@ Item {
     Connections {
         target: root.session
         function onFileSaved(path) {
-            root.savedNotice = "Saved to " + path
+            root.savedNotice = qsTr("Saved to ") + path
             savedNoticeTimer.restart()
         }
         function onSent(ok) {
@@ -892,65 +905,91 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 1
-                    Text {
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: root.session.currentTitle
-                        textFormat: Text.PlainText
-                        elide: Text.ElideRight
-                        color: Theme.text
-                        font.pixelSize: 17
-                        font.weight: Font.DemiBold
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: implicitWidth
+                            text: root.session.currentTitle
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            color: Theme.text
+                            font.pixelSize: 16
+                            font.weight: Font.DemiBold
+                            Accessible.role: Accessible.Heading
+                        }
+                        // Contact verification, from the chat's own state: shown only once
+                        // the safety number was verified and hasn't changed since.
+                        Pill {
+                            visible: !root.session.currentIsGroup && root.session.currentVerified && !root.session.currentKeyChanged
+                            tone: "ok"
+                            iconName: "shield-check"
+                            text: qsTr("Verified")
+                        }
+                        Item { Layout.fillWidth: true }
                     }
                     RowLayout {
                         spacing: 5
                         Icon {
-                            visible: root.typers.length === 0 && (root.session.currentVerified || root.session.currentKeyChanged)
-                            name: root.session.currentKeyChanged ? "triangle-alert" : "shield-check"
+                            visible: root.typers.length === 0 && root.session.currentKeyChanged
+                            name: "triangle-alert"
                             size: 13
-                            color: root.session.currentKeyChanged ? Theme.warn : Theme.accent
+                            color: Theme.warn
                         }
                         Text {
-                            text: root.typers.length > 0 ? "typing…"
-                                : root.session.currentKeyChanged ? "Safety number changed"
-                                : root.online ? "Online · " + root.session.currentSubtitle
+                            text: root.typers.length > 0 ? qsTr("typing…")
+                                : root.session.currentKeyChanged ? qsTr("Safety number changed")
+                                : root.online ? qsTr("Online · ") + root.session.currentSubtitle
                                 : root.session.currentSubtitle
                             textFormat: Text.PlainText
                             color: root.typers.length > 0 || root.online ? Theme.accent
                                  : root.session.currentKeyChanged ? Theme.warn
-                                 : root.session.currentVerified ? Theme.accent : Theme.text3
+                                 : Theme.text3
                             font.pixelSize: Theme.fontSmall + 1
                         }
                     }
                 }
 
+                // Network routing, from the Tor controller's own state (not the chat's):
+                // "Tor connected" only once it is. Hidden in narrow windows; the app
+                // keeps the same chip above every other page.
+                TorStatusChip {
+                    tor: App.tor
+                    visible: torOn && root.width > 780
+                    onOpenSettings: root.openNetworkSettings()
+                }
+
                 IconButton {
                     visible: !root.session.currentIsGroup && App.calls !== null && App.calls.callsAvailable
                     iconName: "phone"
-                    tip: "Voice call"
+                    tip: qsTr("Voice call")
                     onClicked: root.call("voice")
                 }
                 IconButton {
                     visible: !root.session.currentIsGroup && App.calls !== null && App.calls.callsAvailable
                     iconName: "video"
-                    tip: "Video call"
+                    tip: qsTr("Video call")
                     onClicked: root.call("video")
                 }
                 IconButton {
                     visible: root.session.currentIsGroup && !root.readOnly && App.groupCalls !== null && App.groupCalls.available
                     iconName: "phone"
-                    tip: root.account.premium ? "Group voice call" : "Only Premium members can start group calls"
+                    tip: root.account.premium ? qsTr("Group voice call") : qsTr("Group voice call (Premium to start, anyone can join)")
+                    locked: !root.account.premium && !root.groupCallGoing
                     onClicked: root.groupCall("voice")
                 }
                 IconButton {
                     visible: root.session.currentIsGroup && !root.readOnly && App.groupCalls !== null && App.groupCalls.available
                     iconName: "video"
-                    tip: root.account.premium ? "Group video call" : "Only Premium members can start group calls"
+                    tip: root.account.premium ? qsTr("Group video call") : qsTr("Group video call (Premium to start, anyone can join)")
+                    locked: !root.account.premium && !root.groupCallGoing
                     onClicked: root.groupCall("video")
                 }
                 IconButton {
                     iconName: "search"
                     toggled: root.searchOpen
-                    tip: "Search this chat (Ctrl+F)"
+                    tip: qsTr("Search this chat (Ctrl+F)")
                     onClicked: root.searchOpen ? root.closeSearch() : root.openSearch()
                 }
                 IconButton {
@@ -958,7 +997,7 @@ Item {
                     visible: !root.readOnly && !root.v3Mode
                     iconName: "timer"
                     toggled: root.session.currentDisappearing > 0
-                    tip: "Disappearing messages: " + root.session.currentDisappearingLabel
+                    tip: qsTr("Disappearing messages: ") + root.session.currentDisappearingLabel
                     onClicked: timerMenu.popup(this, 0, height)
 
                     Menu {
@@ -978,20 +1017,20 @@ Item {
                 IconButton {
                     visible: !root.session.currentIsGroup
                     iconName: "shield-check"
-                    iconColor: root.session.currentVerified ? Theme.accent : Theme.text2
-                    tip: root.session.currentVerified ? "Verified: view safety number" : "Verify safety number"
+                    iconColor: root.session.currentVerified ? Theme.ok : Theme.text2
+                    tip: root.session.currentVerified ? qsTr("Verified: view safety number") : qsTr("Verify safety number")
                     onClicked: safetyDialog.open()
                 }
                 IconButton {
                     visible: root.session.currentIsGroup && root.communityId.length === 0
                     iconName: "info"
-                    tip: "Group info"
+                    tip: qsTr("Group info")
                     onClicked: groupDialog.open()
                 }
                 IconButton {
-                    visible: root.communityId.length > 0 && App.communities !== null
+                    visible: App.communitiesEnabled && root.communityId.length > 0 && App.communities !== null
                     iconName: "info"
-                    tip: "Community page"
+                    tip: qsTr("Community page")
                     onClicked: {
                         App.communities.open("community", root.communityId)
                         App.communities.showRequested()
@@ -999,7 +1038,7 @@ Item {
                 }
                 IconButton {
                     iconName: "panel-right"
-                    tip: root.detailsOpen ? "Hide chat details" : "Show chat details"
+                    tip: root.detailsOpen ? qsTr("Hide chat details") : qsTr("Show chat details")
                     toggled: root.detailsOpen
                     onClicked: root.toggleDetails()
                 }
@@ -1061,14 +1100,14 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: root.session.currentTitle + "'s safety number changed. Someone may be intercepting. Sending is paused until you verify it."
+                    text: root.session.currentTitle + qsTr("'s safety number changed. Someone may be intercepting. Sending is paused until you verify it.")
                     textFormat: Text.PlainText
                     color: Theme.warn
                     font.pixelSize: 13
                 }
                 RvButton {
                     primary: false
-                    text: "Verify"
+                    text: qsTr("Verify")
                     implicitHeight: 32
                     onClicked: safetyDialog.open()
                 }
@@ -1127,8 +1166,8 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
                     Text {
-                        text: pinnedBar.pins.length > 1 ? "Pinned message " + (Math.min(root.pinIndex, pinnedBar.pins.length - 1) + 1) + " of " + pinnedBar.pins.length
-                                                        : "Pinned message"
+                        text: pinnedBar.pins.length > 1 ? qsTr("Pinned message ") + (Math.min(root.pinIndex, pinnedBar.pins.length - 1) + 1) + qsTr(" of ") + pinnedBar.pins.length
+                                                        : qsTr("Pinned message")
                         textFormat: Text.PlainText
                         color: Theme.accent
                         font.pixelSize: Theme.fontSmall
@@ -1145,7 +1184,7 @@ Item {
                 }
                 IconButton {
                     iconName: "x"
-                    tip: "Unpin for everyone"
+                    tip: qsTr("Unpin for everyone")
                     onClicked: if (pinnedBar.shown) root.session.unpin(pinnedBar.shown.messageId)
                 }
             }
@@ -1170,12 +1209,12 @@ Item {
                 spacing: 6
                 IconButton {
                     iconName: "x"
-                    tip: "Stop selecting (Esc)"
+                    tip: qsTr("Stop selecting (Esc)")
                     onClicked: root.stopSelect()
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: root.selectedList.length === 0 ? "Select messages" : root.selectedList.length + " selected"
+                    text: root.selectedList.length === 0 ? qsTr("Select messages") : root.selectedList.length + qsTr(" selected")
                     textFormat: Text.PlainText
                     color: Theme.text
                     font.weight: Font.DemiBold
@@ -1183,7 +1222,7 @@ Item {
                 RvButton {
                     primary: false
                     iconName: "share"
-                    text: "Forward"
+                    text: qsTr("Forward")
                     enabled: root.session.forwardable(root.selectedList).length > 0
                     onClicked: {
                         const ids = root.session.forwardable(root.selectedList)
@@ -1194,7 +1233,7 @@ Item {
                     primary: false
                     danger: true
                     iconName: "trash"
-                    text: "Delete"
+                    text: qsTr("Delete")
                     enabled: root.selectedList.length > 0
                     onClicked: deleteManyDialog.open()
                 }
@@ -1221,7 +1260,7 @@ Item {
                 SearchField {
                     id: searchField
                     Layout.fillWidth: true
-                    placeholderText: "Search this chat"
+                    placeholderText: qsTr("Search this chat")
                     onTextChanged: searchDebounce.restart()
                     Keys.onPressed: (event) => {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -1245,8 +1284,8 @@ Item {
                 }
                 Text {
                     visible: searchField.text.trim().length > 0
-                    text: root.searchHits.length === 0 ? "No matches"
-                        : (root.searchIndex + 1) + " of " + root.searchHits.length
+                    text: root.searchHits.length === 0 ? qsTr("No matches")
+                        : (root.searchIndex + 1) + qsTr(" of ") + root.searchHits.length
                     textFormat: Text.PlainText
                     color: Theme.text3
                     font.pixelSize: Theme.fontSmall + 1
@@ -1254,29 +1293,29 @@ Item {
                 IconButton {
                     iconName: "chevron-down"
                     rotation: 180
-                    tip: "Older match (Enter)"
+                    tip: qsTr("Older match (Enter)")
                     enabled: root.searchHits.length > 1
                     onClicked: root.stepSearch(-1)
                 }
                 IconButton {
                     iconName: "chevron-down"
-                    tip: "Newer match (Shift+Enter)"
+                    tip: qsTr("Newer match (Shift+Enter)")
                     enabled: root.searchHits.length > 1
                     onClicked: root.stepSearch(1)
                 }
                 RvButton {
                     visible: root.session.hasOlder && searchField.text.trim().length > 0
                     primary: false
-                    text: root.session.loadingOlder ? "Loading…" : "Search older"
+                    text: root.session.loadingOlder ? qsTr("Loading…") : qsTr("Search older")
                     enabled: !root.session.loadingOlder
                     implicitHeight: 32
                     ToolTip.visible: hovered
-                    ToolTip.text: "Only the messages loaded so far are searched. This loads older ones too."
+                    ToolTip.text: qsTr("Only the messages loaded so far are searched. This loads older ones too.")
                     onClicked: root.session.loadOlder()
                 }
                 IconButton {
                     iconName: "x"
-                    tip: "Close search (Esc)"
+                    tip: qsTr("Close search (Esc)")
                     onClicked: root.closeSearch()
                 }
             }
@@ -1300,8 +1339,8 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Messages you send disappear " + (root.session.currentDisappearing === 1
-                          ? "right after sending" : root.session.currentDisappearingLabel.toLowerCase() + " after sending")
+                    text: qsTr("Messages you send disappear ") + (root.session.currentDisappearing === 1
+                          ? qsTr("right after sending") : root.session.currentDisappearingLabel.toLowerCase() + qsTr(" after sending"))
                     textFormat: Text.PlainText
                     color: Theme.text3
                     font.family: Theme.monoFamily
@@ -1336,22 +1375,22 @@ Item {
                     font.pixelSize: Theme.fontSmall + 1
                     text: root.v3Mode
                           ? (App.deviceKeys && App.deviceKeys.chatProtocol === "signal"
-                             ? "This chat uses the Signal protocol, end to end, to every device in it. "
+                             ? qsTr("This chat uses the Signal protocol, end to end, to every device in it. ")
                              : App.deviceKeys && App.deviceKeys.chatProtocol === "mixed"
-                               ? "Some devices in this chat use the Signal protocol, others the device-key protocol. "
-                               : "This chat uses per-device end-to-end encryption, to every device in it. ")
-                            + "Messages here are kept only on your devices. Replies, forwards, pins, polls and disappearing messages aren't available here yet; older messages are in the normal view."
+                               ? qsTr("Some devices in this chat use the Signal protocol, others the device-key protocol. ")
+                               : qsTr("This chat uses per-device end-to-end encryption, to every device in it. "))
+                            + qsTr("Messages here are kept only on your devices. Replies, forwards, pins, polls and disappearing messages aren't available here yet; older messages are in the normal view.")
                           : root.dkMode === "link"
-                            ? (root.session.currentIsGroup ? "Everyone in this group uses" : root.session.currentTitle + " uses")
-                              + " device keys, and this computer isn't linked to your devices yet. Link it to send here."
+                            ? (root.session.currentIsGroup ? qsTr("Everyone in this group uses") : root.session.currentTitle + qsTr(" uses"))
+                              + qsTr(" device keys, and this computer isn't linked to your devices yet. Link it to send here.")
                             : root.dkMode === "older"
-                              ? (root.session.currentIsGroup ? "Not everyone in this group has" : root.session.currentTitle + " hasn't")
-                                + " set up device keys yet, so this chat uses the earlier end-to-end encryption."
-                              : "Checking how this chat is encrypted…"
+                              ? (root.session.currentIsGroup ? qsTr("Not everyone in this group has") : root.session.currentTitle + qsTr(" hasn't"))
+                                + qsTr(" set up device keys yet, so this chat uses the earlier end-to-end encryption.")
+                              : qsTr("Checking how this chat is encrypted…")
                 }
                 RvButton {
                     visible: root.dkMode === "link"
-                    text: "Link this computer"
+                    text: qsTr("Link this computer")
                     primary: true
                     implicitHeight: 30
                     onClicked: App.deviceKeys.showSettings()
@@ -1366,8 +1405,8 @@ Item {
         Banner {
             Layout.fillWidth: true
             text: root.v3Mode && App.deviceKeys && App.deviceKeys.chatHeld > 0
-                  ? (App.deviceKeys.chatHeld === 1 ? "A message is" : App.deviceKeys.chatHeld + " messages are")
-                    + " on hold because a contact's device keys changed. Compare safety numbers (Verify) before you trust the new keys."
+                  ? (App.deviceKeys.chatHeld === 1 ? qsTr("A message is") : App.deviceKeys.chatHeld + qsTr(" messages are"))
+                    + qsTr(" on hold because a contact's device keys changed. Compare safety numbers (Verify) before you trust the new keys.")
                   : ""
         }
         // M5: some of their devices got no copy of the last message.
@@ -1409,6 +1448,9 @@ Item {
                 required property bool canReact
                 required property bool canEdit
                 required property bool canDelete
+                required property string richText
+                required property string richTextRevealed
+                property bool spoilersShown: false
                 width: v3List.width
                 implicitHeight: bubbleBody.implicitHeight + 4 + (bubbleReactions.visible ? bubbleReactions.implicitHeight + 2 : 0)
 
@@ -1442,8 +1484,14 @@ Item {
                             id: bubbleText
                             width: parent.width
                             visible: !bubble.hasFile
-                            text: bubble.text
-                            textFormat: Text.PlainText
+                            // Formatting is rendered from markup the core builds (everything the sender typed is escaped).
+                            text: bubble.richText.length === 0 ? bubble.text : Theme.themedHtml(bubble.spoilersShown ? bubble.richTextRevealed : bubble.richText)
+                            textFormat: bubble.richText.length === 0 ? Text.PlainText : Text.RichText
+                            onLinkActivated: (link) => {
+                                if (link === "spoiler:") bubble.spoilersShown = true
+                                else linkDialog.ask(link)
+                            }
+                            HoverHandler { cursorShape: bubbleText.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             wrapMode: Text.Wrap
                             color: bubble.deleted ? Theme.text3 : Theme.text
                             font.italic: bubble.deleted
@@ -1508,20 +1556,20 @@ Item {
                             }
                             Text {
                                 visible: bubble.status === "failed"
-                                text: "Not sent"
+                                text: qsTr("Not sent")
                                 color: Theme.danger
                                 font.pixelSize: Theme.fontSmall
                             }
                             // Waiting for Tor (docs/tor-by-default.md): kept encrypted here, sent once Tor connects.
                             Text {
                                 visible: bubble.status === "queued"
-                                text: "Waiting for Tor"
+                                text: qsTr("Waiting for Tor")
                                 color: Theme.warn
                                 font.pixelSize: Theme.fontSmall
                             }
                             Text {
                                 visible: bubble.status === "failed"
-                                text: "Retry"
+                                text: qsTr("Retry")
                                 color: Theme.accent
                                 font.pixelSize: Theme.fontSmall
                                 font.underline: true
@@ -1537,7 +1585,7 @@ Item {
                                 implicitHeight: 18
                                 iconName: "dots"
                                 iconSize: 14
-                                tip: "More"
+                                tip: qsTr("More")
                                 onClicked: bubble.showMenu()
                             }
                         }
@@ -1585,7 +1633,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: v3List.count === 0
-                text: "No device-key messages yet. Say hello."
+                text: qsTr("No device-key messages yet. Say hello.")
                 color: Theme.text3
             }
         }
@@ -1656,7 +1704,7 @@ Item {
                     anchors.centerIn: parent
                     visible: !root.session.loadingOlder
                     primary: false
-                    text: "Load older messages"
+                    text: qsTr("Load older messages")
                     implicitHeight: 30
                     onClicked: messageList.loadOlder()
                 }
@@ -1678,6 +1726,8 @@ Item {
                 selected: root.selectedIds[messageId] === true
                 onSelectToggled: (messageId) => root.toggleSelected(messageId)
                 imageInfo: isImage && root.session.imagesRevision >= 0 ? root.session.imageInfo(messageId) : ({})
+                audioInfo: isAudio && root.session.audioRevision >= 0 ? root.session.audioInfo(messageId) : ({})
+                onAudioLoadRequested: (messageId) => root.session.loadAudio(messageId)
                 onImageLoadRequested: (messageId, force) => root.session.loadImage(messageId, force)
                 onImageOpened: (messageId) => imageViewer.show(messageId, text, sender + " · " + timeText)
                 searchTerm: root.searchOpen ? searchField.text.trim() : ""
@@ -1695,7 +1745,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: messageList.count === 0
-                text: "No messages yet. Say hello."
+                text: qsTr("No messages yet. Say hello.")
                 color: Theme.text3
             }
         }
@@ -1741,7 +1791,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.session.currentIsGroup ? "Someone is typing" : root.session.currentTitle + " is typing"
+                    text: root.session.currentIsGroup ? qsTr("Someone is typing") : root.session.currentTitle + qsTr(" is typing")
                     textFormat: Text.PlainText
                     color: Theme.text3
                     font.pixelSize: 12
@@ -1749,11 +1799,11 @@ Item {
             }
         }
 
-        // --- Composer ---
+        // --- Composer, anchored at the bottom ---
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: composerColumn.implicitHeight + 20
-            color: Theme.bg
+            color: Theme.surface
 
             Rectangle {
                 width: parent.width
@@ -1771,14 +1821,14 @@ Item {
                 Banner {
                     Layout.fillWidth: true
                     text: App.tor && App.tor.enabled && App.tor.state === "unavailable"
-                          ? "Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored."
+                          ? qsTr("Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored.")
                           : ""
                 }
                 Banner {
                     Layout.fillWidth: true
                     error: false
                     text: App.tor && App.tor.enabled && App.tor.state === "connecting" && root.session.queuedCount > 0
-                          ? "Connecting to Tor… Queued messages go out as soon as it's ready."
+                          ? qsTr("Connecting to Tor… Queued messages go out as soon as it's ready.")
                           : ""
                 }
 
@@ -1795,7 +1845,7 @@ Item {
                         iconName: "x"
                         implicitHeight: 30
                         ToolTip.visible: hovered
-                        ToolTip.text: "Dismiss"
+                        ToolTip.text: qsTr("Dismiss")
                         onClicked: root.session.clearError()
                     }
                 }
@@ -1834,7 +1884,7 @@ Item {
                         iconName: "x"
                         implicitHeight: 30
                         ToolTip.visible: hovered
-                        ToolTip.text: "Dismiss"
+                        ToolTip.text: qsTr("Dismiss")
                         onClicked: root.planNotice = ""
                     }
                 }
@@ -1842,7 +1892,7 @@ Item {
                 // Someone who charges for messages: what it costs, Pay, and the free safety contact.
                 PaidMessageBar {
                     Layout.fillWidth: true
-                    earnings: App.earnings
+                    earnings: App.earningsEnabled ? App.earnings : null
                     name: root.session.currentTitle
                 }
 
@@ -1872,8 +1922,8 @@ Item {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "A group " + (joinBanner.going.kind === "video" ? "video" : "voice") + " call is going on"
-                                  + (joinBanner.going.participants > 0 ? " · " + joinBanner.going.participants + " in it" : "")
+                            text: qsTr("A group ") + (joinBanner.going.kind === "video" ? "video" : "voice") + qsTr(" call is going on")
+                                  + (joinBanner.going.participants > 0 ? " · " + joinBanner.going.participants + qsTr(" in it") : "")
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: Theme.accent
@@ -1881,7 +1931,7 @@ Item {
                         }
                         RvButton {
                             implicitHeight: 34
-                            text: "Join"
+                            text: qsTr("Join")
                             onClicked: root.planNotice = App.groupCalls.start(root.session.currentChatId, joinBanner.going.kind)
                         }
                     }
@@ -1955,7 +2005,7 @@ Item {
                         anchors.leftMargin: 36
                         anchors.right: cancelEditButton.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Editing message · Enter saves, Esc cancels"
+                        text: qsTr("Editing message · Enter saves, Esc cancels")
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text2
@@ -1969,7 +2019,7 @@ Item {
                         iconName: "x"
                         implicitHeight: 30
                         ToolTip.visible: hovered
-                        ToolTip.text: "Cancel editing"
+                        ToolTip.text: qsTr("Cancel editing")
                         onClicked: root.cancelEdit()
                     }
                 }
@@ -1996,7 +2046,7 @@ Item {
                         anchors.leftMargin: 20
                         anchors.right: cancelReply.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Replying to: " + root.replyPreview
+                        text: qsTr("Replying to: ") + root.replyPreview
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: Theme.text2
@@ -2010,7 +2060,7 @@ Item {
                         iconName: "x"
                         implicitHeight: 30
                         ToolTip.visible: hovered
-                        ToolTip.text: "Cancel reply"
+                        ToolTip.text: qsTr("Cancel reply")
                         onClicked: {
                             root.replyToId = ""
                             root.replyPreview = ""
@@ -2033,7 +2083,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "Only the creator and staff post in this channel."
+                        text: qsTr("Only the creator and staff post in this channel.")
                         color: Theme.text2
                         font.pixelSize: Theme.fontSmall + 1
                     }
@@ -2049,7 +2099,7 @@ Item {
                         Layout.alignment: Qt.AlignBottom
                         implicitHeight: 42
                         iconName: "smile"
-                        tip: "Emoji (Ctrl+Shift+J)"
+                        tip: qsTr("Emoji (Ctrl+Shift+J)")
                         function togglePicker() {
                             if (emojiPicker.visible) emojiPicker.close()
                             else emojiPicker.open()
@@ -2071,7 +2121,7 @@ Item {
                         implicitHeight: 42
                         iconName: "chart-bar"
                         visible: !root.v3Mode
-                        tip: "Create a poll"
+                        tip: qsTr("Create a poll")
                         onClicked: pollDialog.open()
                     }
                     IconButton {
@@ -2079,11 +2129,12 @@ Item {
                         implicitHeight: 42
                         iconName: "paperclip"
                         enabled: root.fileActivity.length === 0
-                        tip: root.account.pro ? "Send a file (encrypted on this computer first)"
-                                              : "Send a file (Pro)"
+                        tip: root.account.pro ? qsTr("Send a file (encrypted on this computer first)")
+                                              : qsTr("Send a file (Pro)")
+                        locked: !root.account.pro
                         onClicked: {
                             if (!root.account.pro) {
-                                root.planNotice = "Sending files isn't included in your plan. Upgrade to Pro in Settings to send files."
+                                PlanGate.ask("pro", "Sending files")
                                 return
                             }
                             root.planNotice = ""
@@ -2092,13 +2143,42 @@ Item {
                         }
                     }
 
+                    // Recording a voice message: in place of the text box.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 42
+                        visible: voice.recording
+                        spacing: 10
+                        Rectangle {
+                            width: 10; height: 10; radius: 5
+                            color: Theme.danger
+                            SequentialAnimation on opacity {
+                                running: voice.recording
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.25; duration: 600 }
+                                NumberAnimation { to: 1; duration: 600 }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Recording ") + Math.floor(voice.elapsedMs / 60000) + ":" + String(Math.floor(voice.elapsedMs / 1000) % 60).padStart(2, "0")
+                                  + qsTr("  ·  up to 5 minutes")
+                            textFormat: Text.PlainText
+                            color: Theme.text
+                            font.family: Theme.monoFamily
+                        }
+                        RvButton { primary: false; text: qsTr("Cancel"); onClicked: voice.cancel() }
+                        RvButton { iconName: "send"; text: qsTr("Send"); onClicked: voice.stop() }
+                    }
+
                     ScrollView {
+                        visible: !voice.recording
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.min(140, Math.max(40, composer.implicitHeight))
 
                         TextArea {
                             id: composer
-                            placeholderText: "Message"
+                            placeholderText: qsTr("Message")
                             Accessible.name: "Message"
                             onCursorPositionChanged: root.updateMentions()
                             onTextChanged: {
@@ -2112,7 +2192,7 @@ Item {
                             textFormat: TextEdit.PlainText
                             color: Theme.text
                             placeholderTextColor: Theme.placeholder
-                            selectionColor: Theme.accent
+                            selectionColor: Theme.accentFill
                             selectedTextColor: Theme.accentContrast
                             font.pixelSize: Theme.fontSize + 1
                             leftPadding: 14
@@ -2122,13 +2202,13 @@ Item {
                             background: Rectangle {
                                 radius: Theme.radiusCard
                                 color: Theme.surface2
-                                border.width: 1
-                                border.color: composer.activeFocus ? Theme.accentBorder : Theme.surface2
+                                border.width: composer.activeFocus ? 2 : 1
+                                border.color: composer.activeFocus ? Theme.focusRing : Theme.borderStrong
                             }
 
                             ToolTip.visible: hovered && composer.length === 0
                             ToolTip.delay: 1200
-                            ToolTip.text: "*bold*  _italic_  ~strike~  `code`  ||spoiler||   (Ctrl+B, Ctrl+I, Ctrl+Shift+X, Ctrl+E, Ctrl+Shift+B)"
+                            ToolTip.text: qsTr("*bold*  _italic_  ~strike~  `code`  ||spoiler||   (Ctrl+B, Ctrl+I, Ctrl+Shift+X, Ctrl+E, Ctrl+Shift+B)")
 
                             // Enter sends; Shift+Enter starts a new line.
                             Keys.onPressed: (event) => {
@@ -2195,10 +2275,30 @@ Item {
                         }
                     }
 
+                    // Voice message (Pro and Premium): shown while the text box is empty, like the phone.
                     IconButton {
                         Layout.alignment: Qt.AlignBottom
+                        implicitHeight: 42
+                        visible: !voice.recording && composer.text.trim().length === 0 && root.editingId.length === 0
+                        iconName: "mic"
+                        tip: root.account.pro ? qsTr("Record a voice message") : qsTr("Record a voice message (Pro)")
+                        locked: !root.account.pro
+                        enabled: root.fileActivity.length === 0 && !root.dkHold
+                        onClicked: {
+                            if (!root.account.pro) {
+                                PlanGate.ask("pro", "Voice messages")
+                                return
+                            }
+                            root.planNotice = ""
+                            voice.start(root.session.newVoiceFile())
+                        }
+                    }
+
+                    IconButton {
+                        Layout.alignment: Qt.AlignBottom
+                        visible: !voice.recording
                         iconName: "send"
-                        tip: root.session.sending ? "Sending…" : root.editingId.length > 0 ? "Save edit" : "Send"
+                        tip: root.session.sending ? qsTr("Sending…") : root.editingId.length > 0 ? qsTr("Save edit") : qsTr("Send")
                         round: true
                         implicitWidth: 42
                         implicitHeight: 42
@@ -2208,7 +2308,7 @@ Item {
                         onClicked: root.send()
                         background: Rectangle {
                             radius: 21
-                            color: Theme.accent
+                            color: Theme.accentFill
                             opacity: parent.enabled ? 1 : 0.4
                         }
                     }

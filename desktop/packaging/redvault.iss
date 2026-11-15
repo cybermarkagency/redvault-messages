@@ -13,9 +13,9 @@
 [Setup]
 ; Never change the AppId: it's how Windows recognises upgrades of this app.
 AppId={{D794C5BC-79DF-4347-A5CE-28CA72064A23}
-AppName=redvaultmessages
+AppName=RedVaultMessages
 AppVersion={#AppVersion}
-AppVerName=redvaultmessages {#AppVersion}
+AppVerName=RedVaultMessages {#AppVersion}
 AppPublisher=Redvault Systems
 AppPublisherURL=https://www.redvaultsystems.com/
 AppSupportURL=https://www.redvaultsystems.com/
@@ -31,13 +31,19 @@ OutputDir=..\dist
 OutputBaseFilename=redvaultmessages-Setup-{#AppVersion}
 SetupIconFile=..\app\icons\redvault.ico
 UninstallDisplayIcon={app}\bin\redvaultmessages.exe
-UninstallDisplayName=redvaultmessages
+UninstallDisplayName=RedVaultMessages
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ; Closes a running Redvault (via Restart Manager) before replacing its files.
 CloseApplications=yes
 RestartApplications=no
+#ifdef SignInstaller
+; package.ps1 defines the "rvsign" tool (signtool + the code-signing cert)
+; and SignInstaller when a certificate is available. Signs Setup and unins000.exe.
+SignTool=rvsign
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -53,13 +59,16 @@ Source: "..\dist\redvaultmessages\*"; DestDir: "{app}"; Flags: ignoreversion rec
 Type: files; Name: "{app}\bin\Redvault.exe"
 Type: files; Name: "{autoprograms}\Redvault.lnk"
 Type: files; Name: "{autodesktop}\Redvault.lnk"
+; Shortcuts from before the name was written RedVaultMessages (same app, same AppId).
+Type: files; Name: "{autoprograms}\redvaultmessages.lnk"
+Type: files; Name: "{autodesktop}\redvaultmessages.lnk"
 
 [Icons]
-Name: "{autoprograms}\redvaultmessages"; Filename: "{app}\bin\redvaultmessages.exe"
-Name: "{autodesktop}\redvaultmessages"; Filename: "{app}\bin\redvaultmessages.exe"; Tasks: desktopicon
+Name: "{autoprograms}\RedVaultMessages"; Filename: "{app}\bin\redvaultmessages.exe"
+Name: "{autodesktop}\RedVaultMessages"; Filename: "{app}\bin\redvaultmessages.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\bin\redvaultmessages.exe"; Description: "{cm:LaunchProgram,redvaultmessages}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\bin\redvaultmessages.exe"; Description: "{cm:LaunchProgram,RedVaultMessages}"; Flags: nowait postinstall skipifsilent
 ; After an automatic update (which runs this installer silently), start the new version.
 Filename: "{app}\bin\redvaultmessages.exe"; Flags: nowait skipifnotsilent
 

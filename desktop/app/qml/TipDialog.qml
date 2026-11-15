@@ -22,7 +22,7 @@ RvDialog {
     readonly property bool payingHere: earnings !== null && earnings.payContext === "tip"
     readonly property bool done: earnings !== null && earnings.paidProduct === "tip"
 
-    title: "Tip " + name
+    title: qsTr("Tip ") + name
     width: 460
 
     function openFor(userId, displayName) {
@@ -49,7 +49,7 @@ RvDialog {
             Layout.fillWidth: true
             visible: dialog.done
             wrapMode: Text.Wrap
-            text: "Thank you! Your tip went through."
+            text: qsTr("Thank you! Your tip went through.")
             color: Theme.text
             font.pixelSize: Theme.fontSize
         }
@@ -59,7 +59,7 @@ RvDialog {
             Layout.fillWidth: true
             visible: !dialog.done
             wrapMode: Text.Wrap
-            text: "Tips are voluntary and don't unlock anything. You pay on Stripe's page in your browser; RedVault never sees your card."
+            text: qsTr("Tips are voluntary and don't unlock anything. You pay on Stripe's page in your browser; RedVault never sees your card.")
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
         }
@@ -83,7 +83,7 @@ RvDialog {
                 }
             }
             Chip {
-                text: "Other"
+                text: qsTr("Other")
                 checked: dialog.custom
                 onClicked: {
                     dialog.custom = true
@@ -96,7 +96,7 @@ RvDialog {
             id: customField
             Layout.fillWidth: true
             visible: dialog.custom && !dialog.done
-            placeholderText: "Amount in US dollars, like 7.50"
+            placeholderText: qsTr("Amount in US dollars, like 7.50")
             Accessible.name: "Tip amount in US dollars"
         }
 
@@ -108,14 +108,14 @@ RvDialog {
                 id: showName
                 Layout.fillWidth: true
                 checked: true
-                label: "Show " + dialog.name + " who it's from"
+                label: qsTr("Show ") + dialog.name + qsTr(" who it's from")
             }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 text: showName.checked
-                    ? "They'll see your username with the tip."
-                    : "They'll see “a supporter”. RedVault and Stripe still know who paid (for refunds and fraud checks), so this isn't anonymous."
+                    ? qsTr("They'll see your username with the tip.")
+                    : qsTr("They'll see “a supporter”. RedVault and Stripe still know who paid (for refunds and fraud checks), so this isn't anonymous.")
                 textFormat: Text.PlainText
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
@@ -142,7 +142,7 @@ RvDialog {
             RvButton {
                 visible: !dialog.done
                 primary: false
-                text: dialog.payingHere ? "Stop waiting" : "Cancel"
+                text: dialog.payingHere ? qsTr("Stop waiting") : qsTr("Cancel")
                 onClicked: {
                     if (dialog.payingHere) dialog.earnings.cancelPayment()
                     else dialog.close()
@@ -150,13 +150,13 @@ RvDialog {
             }
             RvButton {
                 visible: !dialog.done
-                text: dialog.cents > 0 ? "Tip " + dialog.earnings.formatAmount(dialog.cents) : "Tip"
+                text: dialog.cents > 0 ? qsTr("Tip ") + dialog.earnings.formatAmount(dialog.cents) : qsTr("Tip")
                 enabled: dialog.earnings !== null && !dialog.earnings.paying && dialog.cents > 0
                 onClicked: dialog.earnings.tip(dialog.creatorUserId, dialog.cents, showName.checked)
             }
             RvButton {
                 visible: dialog.done
-                text: "Done"
+                text: qsTr("Done")
                 onClicked: dialog.close()
             }
         }

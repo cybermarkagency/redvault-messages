@@ -12,7 +12,9 @@ import com.redvaultsystems.redvaultmessage.data.api.SetRecoveryRequest
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
 import com.redvaultsystems.redvaultmessage.data.api.ApiService
 import com.redvaultsystems.redvaultmessage.data.api.AvatarUploadRequest
+import com.redvaultsystems.redvaultmessage.data.api.BillingConfigDto
 import com.redvaultsystems.redvaultmessage.data.api.BlockRequest
+import com.redvaultsystems.redvaultmessage.data.api.SwitchPlanRequest
 import com.redvaultsystems.redvaultmessage.data.api.BlockedUserDto
 import com.redvaultsystems.redvaultmessage.data.api.ChangePasswordRequest
 import com.redvaultsystems.redvaultmessage.data.api.MeResult
@@ -53,6 +55,10 @@ class AccountRepository(
     suspend fun cancelPlan(): PlanStatusDto = apiCall(ApiClient.json) { api.cancelPlan() }
 
     suspend fun resumePlan(): PlanStatusDto = apiCall(ApiClient.json) { api.resumePlan() }
+
+    suspend fun billingConfig(): BillingConfigDto = apiCall(ApiClient.json) { api.billingConfig() }
+
+    suspend fun switchPlan(tier: String): PlanStatusDto = apiCall(ApiClient.json) { api.switchPlan(SwitchPlanRequest(tier)) }
 
     suspend fun setAcceptMessageRequests(value: Boolean) {
         apiCall(ApiClient.json) { api.updateSettings(SettingsRequest(acceptMessageRequests = value)) }

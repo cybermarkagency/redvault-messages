@@ -70,7 +70,7 @@ ColumnLayout {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Ready"
+                        text: qsTr("Ready")
                         color: Theme.accent
                         font.pixelSize: Theme.fontSmall
                     }
@@ -91,7 +91,7 @@ ColumnLayout {
                 anchors.verticalCenter: parent.verticalCenter
                 primary: false
                 implicitHeight: 30
-                text: "Remove"
+                text: qsTr("Remove")
                 Accessible.name: "Remove " + row.modelData.name
                 onClicked: list.uploads.remove(row.modelData.key)
             }

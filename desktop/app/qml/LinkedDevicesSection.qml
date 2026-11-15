@@ -18,7 +18,7 @@ ColumnLayout {
     spacing: 12
 
     Text {
-        text: "Linked devices"
+        text: qsTr("Linked devices")
         color: Theme.text
         font.family: Theme.displayFamily
         font.pixelSize: 26
@@ -27,7 +27,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "Everywhere you're signed in. The server keeps no IP address, device details or sign-in time for any of them: only when each sign-in expires. Device names are encrypted by your own devices."
+        text: qsTr("Everywhere you're signed in. The server keeps no IP address, device details or sign-in time for any of them: only when each sign-in expires. Device names are encrypted by your own devices.")
         color: Theme.text2
         font.pixelSize: 14
     }
@@ -42,7 +42,7 @@ ColumnLayout {
 
         Text {
             visible: root.devices !== null && !root.devices.loaded && root.devices.error.length === 0
-            text: "Loading…"
+            text: qsTr("Loading…")
             color: Theme.text3
         }
 
@@ -87,7 +87,7 @@ ColumnLayout {
                         RowLayout {
                             spacing: 8
                             Text {
-                                text: device.modelData.name.length > 0 ? device.modelData.name : "Unnamed device"
+                                text: device.modelData.name.length > 0 ? device.modelData.name : qsTr("Unnamed device")
                                 textFormat: Text.PlainText
                                 color: Theme.text
                                 font.weight: Font.Medium
@@ -101,7 +101,7 @@ ColumnLayout {
                                 Text {
                                     id: thisText
                                     anchors.centerIn: parent
-                                    text: "This device"
+                                    text: qsTr("This device")
                                     color: Theme.accent
                                     font.pixelSize: 11
                                     font.weight: Font.DemiBold
@@ -112,8 +112,8 @@ ColumnLayout {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: device.modelData.awaitingTwoFactor
-                                  ? "Password entered, two-factor code not yet. If this wasn't you, sign it out and change your password."
-                                  : "Signed in until " + device.modelData.expiresOn
+                                  ? qsTr("Password entered, two-factor code not yet. If this wasn't you, sign it out and change your password.")
+                                  : qsTr("Signed in until ") + device.modelData.expiresOn
                             textFormat: Text.PlainText
                             color: device.modelData.awaitingTwoFactor ? Theme.warn : Theme.text3
                             font.pixelSize: 13
@@ -123,7 +123,7 @@ ColumnLayout {
                         id: nameField
                         Layout.fillWidth: true
                         visible: device.modelData.current && root.editing
-                        placeholderText: "Name this device"
+                        placeholderText: qsTr("Name this device")
                         maximumLength: 60
                         onAccepted: saveButton.clicked()
                         Keys.onEscapePressed: root.editing = false
@@ -131,7 +131,7 @@ ColumnLayout {
                     RvButton {
                         id: saveButton
                         visible: device.modelData.current && root.editing
-                        text: "Save"
+                        text: qsTr("Save")
                         enabled: nameField.text.trim().length > 0
                         onClicked: {
                             root.devices.rename(nameField.text)
@@ -141,7 +141,7 @@ ColumnLayout {
                     RvButton {
                         visible: device.modelData.current && !root.editing
                         secondary: true
-                        text: "Rename"
+                        text: qsTr("Rename")
                         implicitHeight: 34
                         onClicked: {
                             nameField.text = device.modelData.name
@@ -153,14 +153,14 @@ ColumnLayout {
                         visible: !device.modelData.current && root.confirmId !== device.modelData.id
                         primary: false
                         danger: true
-                        text: "Sign out"
+                        text: qsTr("Sign out")
                         implicitHeight: 34
                         onClicked: root.confirmId = device.modelData.id
                     }
                     RvButton {
                         visible: !device.modelData.current && root.confirmId === device.modelData.id
                         danger: true
-                        text: "Sign it out"
+                        text: qsTr("Sign it out")
                         implicitHeight: 34
                         onClicked: {
                             root.devices.signOut(device.modelData.id)
@@ -175,7 +175,7 @@ ColumnLayout {
         visible: root.confirmId.length > 0
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "That device will need your password (and two-factor code) to sign in again."
+        text: qsTr("That device will need your password (and two-factor code) to sign in again.")
         color: Theme.text3
         font.pixelSize: 13
     }

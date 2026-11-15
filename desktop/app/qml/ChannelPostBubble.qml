@@ -152,7 +152,7 @@ Item {
                 implicitHeight: 30
                 Accessible.name: "Forward"
                 ToolTip.visible: hovered
-                ToolTip.text: "Forward"
+                ToolTip.text: qsTr("Forward")
                 onClicked: root.forwardRequested(root.post)
             }
             RvButton {
@@ -165,7 +165,7 @@ Item {
                 enabled: !root.session.busy
                 Accessible.name: "Delete post"
                 ToolTip.visible: hovered
-                ToolTip.text: "Delete post"
+                ToolTip.text: qsTr("Delete post")
                 onClicked: root.deleteRequested(root.post.id)
             }
             RvButton {
@@ -175,7 +175,7 @@ Item {
                 implicitHeight: 30
                 Accessible.name: "More actions"
                 ToolTip.visible: hovered
-                ToolTip.text: "More"
+                ToolTip.text: qsTr("More")
                 onClicked: root.menuRequested(root.post)
             }
         }

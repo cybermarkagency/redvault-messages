@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
@@ -51,7 +53,7 @@ internal fun QuestionDialog(sticker: QuestionSticker, onSend: (StoryAnswer.Quest
                 TextField(
                     value = text,
                     onValueChange = { if (it.length <= StickerLimits.MAX_QUESTION_ANSWER) text = it },
-                    placeholder = { Text("Type your answer", color = colors.placeholder) },
+                    placeholder = { Text(stringResource(R.string.ui_type_your_answer), color = colors.placeholder) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = colors.surface2,
                         unfocusedContainerColor = colors.surface2,
@@ -61,7 +63,7 @@ internal fun QuestionDialog(sticker: QuestionSticker, onSend: (StoryAnswer.Quest
                 )
                 if (sticker.anonymous) {
                     Text(
-                        "Sent without your name. RedVault's server can still tell it was you.",
+                        stringResource(R.string.ui_sent_without_your_name_redvault_s),
                         color = colors.text3,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp),
@@ -69,8 +71,8 @@ internal fun QuestionDialog(sticker: QuestionSticker, onSend: (StoryAnswer.Quest
                 }
             }
         },
-        confirmButton = { TextButton(enabled = cleaned.isNotEmpty(), onClick = { onSend(StoryAnswer.Question(cleaned)) }) { Text("Send", color = colors.accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        confirmButton = { TextButton(enabled = cleaned.isNotEmpty(), onClick = { onSend(StoryAnswer.Question(cleaned)) }) { Text(stringResource(R.string.ui_send), color = colors.accent) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -87,15 +89,15 @@ internal fun LinkDialog(url: String, onOpen: () -> Unit, onDismiss: () -> Unit) 
             Column {
                 Text(url, color = colors.text2, fontSize = 13.sp)
                 Text(
-                    "It opens in your browser. The site, and your browser, will see this phone's address.",
+                    stringResource(R.string.ui_it_opens_in_your_browser_the),
                     color = colors.text3,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onOpen) { Text("Open", color = colors.accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Stay here", color = colors.text2) } },
+        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(R.string.ui_open), color = colors.accent) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_stay_here), color = colors.text2) } },
     )
 }
 
@@ -117,7 +119,7 @@ internal fun ReportDialog(title: String, evidenceLabel: String?, onSend: (reason
                 TextField(
                     value = reason,
                     onValueChange = { if (it.length <= 300) reason = it },
-                    placeholder = { Text("What is wrong?", color = colors.placeholder) },
+                    placeholder = { Text(stringResource(R.string.ui_what_is_wrong), color = colors.placeholder) },
                     colors = TextFieldDefaults.colors(focusedContainerColor = colors.surface2, unfocusedContainerColor = colors.surface2, focusedTextColor = colors.text, unfocusedTextColor = colors.text),
                 )
                 if (evidenceLabel != null) {
@@ -128,21 +130,21 @@ internal fun ReportDialog(title: String, evidenceLabel: String?, onSend: (reason
                         androidx.compose.material3.Checkbox(
                             checked = include,
                             onCheckedChange = null,
-                            colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
+                            colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
                         )
                         Text(evidenceLabel, color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
                 Text(
-                    "Only what you type, and what you tick, goes to the moderators. Nothing else from the story is sent.",
+                    stringResource(R.string.ui_only_what_you_type_and_what),
                     color = colors.text3,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
         },
-        confirmButton = { TextButton(enabled = reason.isNotBlank(), onClick = { onSend(reason, include) }) { Text("Report", color = colors.danger) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        confirmButton = { TextButton(enabled = reason.isNotBlank(), onClick = { onSend(reason, include) }) { Text(stringResource(R.string.ui_report), color = colors.danger) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -160,11 +162,11 @@ internal fun AnswersDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
-        title = { Text("Answers", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_answers), color = colors.text) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 if (inbox == null) {
-                    Text("Loading the answers…", color = colors.text2)
+                    Text(stringResource(R.string.ui_loading_the_answers), color = colors.text2)
                 } else {
                     for (sticker in story.answerableStickers()) {
                         val totals = state.totals[sticker.id]
@@ -186,7 +188,7 @@ internal fun AnswersDialog(
                                             fontSize = 13.sp,
                                             modifier = Modifier.weight(1f),
                                         )
-                                        Text("Report", color = colors.danger, fontSize = 12.sp, modifier = Modifier.clickable { onReportAnswer(e) }.padding(8.dp))
+                                        Text(stringResource(R.string.ui_report), color = colors.danger, fontSize = 12.sp, modifier = Modifier.clickable { onReportAnswer(e) }.padding(8.dp))
                                     }
                                 }
                             }
@@ -203,7 +205,7 @@ internal fun AnswersDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done", color = colors.accent) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_done), color = colors.accent) } },
     )
 }
 

@@ -48,7 +48,7 @@ Item {
     RvDialog {
         id: refundDialog
         property var transaction: null
-        title: "Refund this payment?"
+        title: qsTr("Refund this payment?")
         width: 460
         onOpened: {
             refundAmount.text = ""
@@ -64,22 +64,22 @@ Item {
                 wrapMode: Text.Wrap
                 color: Theme.text2
                 text: refundDialog.transaction
-                      ? "Refund how much? Leave it blank to refund the whole " + root.money(refundDialog.transaction.grossAmountMinor, refundDialog.transaction.currency)
-                        + ". The creator's share is taken back from their Stripe balance."
+                      ? qsTr("Refund how much? Leave it blank to refund the whole ") + root.money(refundDialog.transaction.grossAmountMinor, refundDialog.transaction.currency)
+                        + qsTr(". The creator's share is taken back from their Stripe balance.")
                       : ""
                 textFormat: Text.PlainText
             }
             RvTextField {
                 id: refundAmount
                 Layout.fillWidth: true
-                placeholderText: "Amount in USD (blank = all of it)"
+                placeholderText: qsTr("Amount in USD (blank = all of it)")
                 Accessible.name: "Refund amount"
                 maximumLength: 12
             }
             RvTextField {
                 id: refundReason
                 Layout.fillWidth: true
-                placeholderText: "Reason (kept in the audit log)"
+                placeholderText: qsTr("Reason (kept in the audit log)")
                 Accessible.name: "Refund reason"
                 maximumLength: 200
             }
@@ -88,12 +88,12 @@ Item {
                 spacing: 8
                 RvButton {
                     primary: false
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     onClicked: refundDialog.close()
                 }
                 RvButton {
                     danger: true
-                    text: "Refund"
+                    text: qsTr("Refund")
                     enabled: refundReason.text.trim().length > 0 && !root.admin.busy
                     onClicked: {
                         refundDialog.close()
@@ -126,7 +126,7 @@ Item {
             spacing: 14
 
             Text {
-                text: "Admin"
+                text: qsTr("Admin")
                 color: Theme.text
                 font.family: Theme.displayFamily
                 font.pixelSize: 26
@@ -136,7 +136,7 @@ Item {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Communities: commission, money, creators, communities and reports. RedVault staff only; the server records every action here in its audit log. Users, other reports and team messages are on the web admin panel."
+                text: qsTr("Communities: commission, money, creators, communities and reports. RedVault staff only; the server records every action here in its audit log. Users, other reports and team messages are on the web admin panel.")
                 color: Theme.text2
                 font.pixelSize: 13
             }
@@ -166,7 +166,7 @@ Item {
             }
             Text {
                 visible: root.admin !== null && !root.admin.loaded
-                text: "Loading…"
+                text: qsTr("Loading…")
                 color: Theme.text3
             }
 
@@ -254,26 +254,26 @@ Item {
                 Layout.fillWidth: true
                 visible: overview.has && (overview.o.mismatches > 0 || overview.o.unbalancedJournals > 0)
                 tone: "warn"
-                text: overview.has ? overview.o.mismatches + " transaction(s) don't match Stripe and " + overview.o.unbalancedJournals
-                                     + " ledger journal(s) don't balance. See Transactions." : ""
+                text: overview.has ? overview.o.mismatches + qsTr(" transaction(s) don't match Stripe and ") + overview.o.unbalancedJournals
+                                     + qsTr(" ledger journal(s) don't balance. See Transactions.") : ""
             }
 
-            Caption { text: "COMMISSION AND PRICE LIMITS" }
+            Caption { text: qsTr("COMMISSION AND PRICE LIMITS") }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: Theme.text3
                 font.pixelSize: 13
-                text: "A change is a new version for memberships started from now on. Recorded transactions and existing memberships never change."
+                text: qsTr("A change is a new version for memberships started from now on. Recorded transactions and existing memberships never change.")
             }
             GridLayout {
                 Layout.fillWidth: true
                 columns: 3
                 columnSpacing: 10
                 rowSpacing: 6
-                FieldLabel { text: "Commission (10–15%)" }
-                FieldLabel { text: "Minimum monthly price (USD)" }
-                FieldLabel { text: "Maximum monthly price (USD)" }
+                FieldLabel { text: qsTr("Commission (10–15%)") }
+                FieldLabel { text: qsTr("Minimum monthly price (USD)") }
+                FieldLabel { text: qsTr("Maximum monthly price (USD)") }
                 RvTextField {
                     id: rateField
                     Layout.fillWidth: true
@@ -296,7 +296,7 @@ Item {
                     Accessible.name: "Maximum monthly price"
                 }
             }
-            FieldLabel { text: "Note (why, for the audit log)" }
+            FieldLabel { text: qsTr("Note (why, for the audit log)") }
             RvTextField {
                 id: noteField
                 Layout.fillWidth: true
@@ -304,7 +304,7 @@ Item {
                 Accessible.name: "Note"
             }
             RvButton {
-                text: "Save new version"
+                text: qsTr("Save new version")
                 enabled: !root.admin.busy && overview.has
                 onClicked: confirm.ask("New commission version?",
                                        "Set the commission to " + rateField.text.trim() + "% for NEW memberships from now on? Existing memberships keep their rate.",
@@ -342,7 +342,7 @@ Item {
                 RvButton {
                     secondary: true
                     iconName: "refresh"
-                    text: "Reconcile now"
+                    text: qsTr("Reconcile now")
                     enabled: !root.admin.busy
                     onClicked: root.admin.reconcile()
                 }
@@ -373,7 +373,7 @@ Item {
                         height: 30
                         leftPadding: 6
                         verticalAlignment: Text.AlignVCenter
-                        text: "No transactions."
+                        text: qsTr("No transactions.")
                         color: Theme.text3
                         font.pixelSize: 13
                     }
@@ -412,7 +412,7 @@ Item {
             spacing: 8
             Text {
                 visible: root.admin.loaded && root.admin.creators.length === 0
-                text: "No creators yet."
+                text: qsTr("No creators yet.")
                 color: Theme.text3
             }
             Repeater {
@@ -422,12 +422,12 @@ Item {
                     required property var modelData
                     readonly property var c: modelData
                     Layout.fillWidth: true
-                    title: c.displayName + " @" + c.handle + (c.verified ? " · verified" : "")
-                    subtitle: c.status + " · since " + root.date(c.createdAt) + " · payouts: "
-                              + (c.payments ? c.payments.status + (c.payments.requirementsDue ? " (info due)" : "") + (c.payments.livemode ? "" : " · test mode") : "not set up")
+                    title: c.displayName + " @" + c.handle + (c.verified ? qsTr(" · verified") : "")
+                    subtitle: c.status + qsTr(" · since ") + root.date(c.createdAt) + qsTr(" · payouts: ")
+                              + (c.payments ? c.payments.status + (c.payments.requirementsDue ? qsTr(" (info due)") : "") + (c.payments.livemode ? "" : qsTr(" · test mode")) : qsTr("not set up"))
                     RvButton {
                         secondary: true
-                        text: creatorRow.c.verified ? "Remove badge" : "Verify"
+                        text: creatorRow.c.verified ? qsTr("Remove badge") : qsTr("Verify")
                         enabled: !root.admin.busy
                         onClicked: root.admin.setCreatorVerified(creatorRow.c.id, !creatorRow.c.verified)
                     }
@@ -435,7 +435,7 @@ Item {
                         visible: creatorRow.c.status === "active"
                         primary: false
                         danger: true
-                        text: "Suspend"
+                        text: qsTr("Suspend")
                         enabled: !root.admin.busy
                         onClicked: confirm.ask("Suspend this creator?", "Suspend " + creatorRow.c.displayName + "? All their communities are suspended and billing pauses.",
                                                "Suspend", () => root.admin.setCreatorStatus(creatorRow.c.id, "suspended"))
@@ -443,7 +443,7 @@ Item {
                     RvButton {
                         visible: creatorRow.c.status !== "active"
                         secondary: true
-                        text: "Reinstate"
+                        text: qsTr("Reinstate")
                         enabled: !root.admin.busy
                         onClicked: root.admin.setCreatorStatus(creatorRow.c.id, "active")
                     }
@@ -459,7 +459,7 @@ Item {
             spacing: 8
             Text {
                 visible: root.admin.loaded && root.admin.communityList.length === 0
-                text: "No communities yet."
+                text: qsTr("No communities yet.")
                 color: Theme.text3
             }
             Repeater {
@@ -470,11 +470,11 @@ Item {
                     readonly property var c: modelData
                     Layout.fillWidth: true
                     title: c.name
-                    subtitle: c.kind + " · " + c.accessType + " · " + c.status + " · " + c.visibility + " · epoch " + c.keyEpoch
+                    subtitle: c.kind + " · " + c.accessType + " · " + c.status + " · " + c.visibility + qsTr(" · epoch ") + c.keyEpoch
                     RvButton {
                         visible: communityRow.c.status === "suspended"
                         secondary: true
-                        text: "Unsuspend"
+                        text: qsTr("Unsuspend")
                         enabled: !root.admin.busy
                         onClicked: confirm.ask("Lift the suspension?", "Lift the suspension of " + communityRow.c.name + "? Billing resumes.",
                                                "Unsuspend", () => root.admin.communityAction(communityRow.c.id, "unsuspend"))
@@ -483,7 +483,7 @@ Item {
                         visible: communityRow.c.status !== "suspended" && communityRow.c.status !== "closed"
                         primary: false
                         danger: true
-                        text: "Suspend"
+                        text: qsTr("Suspend")
                         enabled: !root.admin.busy
                         onClicked: confirm.ask("Suspend this community?", "Suspend " + communityRow.c.name + "? Nobody can read or post, and billing pauses.",
                                                "Suspend", () => root.admin.communityAction(communityRow.c.id, "suspend"))
@@ -492,7 +492,7 @@ Item {
                         visible: communityRow.c.status !== "closed"
                         primary: false
                         danger: true
-                        text: "Close now"
+                        text: qsTr("Close now")
                         enabled: !root.admin.busy
                         onClicked: confirm.ask("Close this community now?", "Close " + communityRow.c.name + " now? Subscriptions end immediately and every member loses access. Refund separately if owed.",
                                                "Close now", () => root.admin.communityAction(communityRow.c.id, "close"))
@@ -512,11 +512,11 @@ Item {
                 wrapMode: Text.Wrap
                 color: Theme.text3
                 font.pixelSize: 13
-                text: "Reports RedVault reviews: about communities and creators, and every child-safety, non-consensual imagery or other illegal-content report. Message text appears only when the reporter chose to share it."
+                text: qsTr("Reports RedVault reviews: about communities and creators, and every child-safety, non-consensual imagery or other illegal-content report. Message text appears only when the reporter chose to share it.")
             }
             Text {
                 visible: root.admin.loaded && root.admin.reports.length === 0
-                text: "No open reports."
+                text: qsTr("No open reports.")
                 color: Theme.text3
             }
             Repeater {
@@ -575,7 +575,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         visible: !!reportCard.r.evidenceCiphertextSha256
-                        text: "Stored ciphertext SHA-256: " + (reportCard.r.evidenceCiphertextSha256 || "")
+                        text: qsTr("Stored ciphertext SHA-256: ") + (reportCard.r.evidenceCiphertextSha256 || "")
                         textFormat: Text.PlainText
                         wrapMode: Text.WrapAnywhere
                         color: Theme.text3
@@ -584,7 +584,7 @@ Item {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: "Community " + (reportCard.r.communityId || "—") + (reportCard.r.targetUserId ? " · user " + reportCard.r.targetUserId : "")
+                        text: qsTr("Community ") + (reportCard.r.communityId || "—") + (reportCard.r.targetUserId ? qsTr(" · user ") + reportCard.r.targetUserId : "")
                         textFormat: Text.PlainText
                         wrapMode: Text.WrapAnywhere
                         color: Theme.text3
@@ -595,13 +595,13 @@ Item {
                         spacing: 6
                         RvButton {
                             secondary: true
-                            text: "Actioned"
+                            text: qsTr("Actioned")
                             enabled: !root.admin.busy
                             onClicked: root.admin.resolveReport(reportCard.r.id, "actioned")
                         }
                         RvButton {
                             secondary: true
-                            text: "Dismiss"
+                            text: qsTr("Dismiss")
                             enabled: !root.admin.busy
                             onClicked: root.admin.resolveReport(reportCard.r.id, "dismissed")
                         }

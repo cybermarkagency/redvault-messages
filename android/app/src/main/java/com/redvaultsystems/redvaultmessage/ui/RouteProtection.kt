@@ -20,7 +20,7 @@ internal fun Route.holdsSecrets(): Boolean = when (this) {
 
     is Route.Thread, Route.AddFriend, Route.FriendRequests, Route.MessageRequests, Route.Inbox, Route.Settings,
     Route.ChangeUsername, Route.ChangePassword, is Route.Verify, is Route.MessageDetails, Route.Transparency,
-    Route.AppLockSettings, Route.PrivacyMode, Route.Blocked, Route.DeleteAccount, Route.NewGroup,
+    Route.AppLockSettings, Route.PrivacyMode, Route.Blocked, Route.Plans, Route.DeleteAccount, Route.NewGroup,
     is Route.GroupInfo, is Route.JoinGroup, is Route.Channel,
     is Route.StoryViewer, Route.StoryComposer, Route.StorySettings,
     is Route.FileDetail, is Route.ShareFile,
@@ -36,6 +36,7 @@ internal fun Route.holdsSecrets(): Boolean = when (this) {
  * would then silently stop the whole app from responding.
  */
 internal fun Route.guardsTouches(): Boolean = holdsSecrets() || when (this) {
-    Route.DeleteAccount, Route.ChangePassword, Route.AppLockSettings, Route.LinkedDevices, is Route.Verify -> true
+    // Plans: one tap buys, switches or cancels a subscription.
+    Route.DeleteAccount, Route.ChangePassword, Route.AppLockSettings, Route.LinkedDevices, is Route.Verify, Route.Plans -> true
     else -> false
 }

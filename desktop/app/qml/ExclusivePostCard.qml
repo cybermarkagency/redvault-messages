@@ -71,7 +71,7 @@ Card {
         }
         Chip {
             visible: card.post.owned
-            text: "Bought"
+            text: qsTr("Bought")
             checked: true
             enabled: false
         }
@@ -89,7 +89,7 @@ Card {
         visible: card.post.teaser.length > 0
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
-        text: "Public teaser: " + card.post.teaser
+        text: qsTr("Public teaser: ") + card.post.teaser
         color: Theme.text2
         font.pixelSize: Theme.fontSmall + 1
     }
@@ -148,12 +148,12 @@ Card {
             onClicked: player.playbackState === MediaPlayer.PlayingState ? player.pause() : player.play()
         }
         Accessible.role: Accessible.Button
-        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? "Pause video" : "Play video"
+        Accessible.name: player.playbackState === MediaPlayer.PlayingState ? qsTr("Pause video") : qsTr("Play video")
     }
 
     Text {
         visible: card.mediaLoading
-        text: "Decrypting..."
+        text: qsTr("Decrypting...")
         color: Theme.text3
         font.pixelSize: Theme.fontSmall
     }
@@ -161,7 +161,7 @@ Card {
         Layout.fillWidth: true
         visible: card.mediaFailed || card.post.failed
         wrapMode: Text.Wrap
-        text: card.post.failed ? "This post couldn't be opened." : "The photo or video couldn't be opened."
+        text: card.post.failed ? qsTr("This post couldn't be opened.") : qsTr("The photo or video couldn't be opened.")
         textFormat: Text.PlainText
         color: Theme.danger
         font.pixelSize: Theme.fontSmall
@@ -176,8 +176,8 @@ Card {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: card.post.awaitingKey
-                ? "Bought. Your key arrives from the creator's app shortly (or you're refunded after 72 hours)."
-                : "Encrypted. Buy it to read it."
+                ? qsTr("Bought. Your key arrives from the creator's app shortly (or you're refunded after 72 hours).")
+                : qsTr("Encrypted. Buy it to read it.")
             textFormat: Text.PlainText
             color: Theme.text2
             font.pixelSize: Theme.fontSmall + 1
@@ -187,19 +187,19 @@ Card {
             spacing: 8
             RvButton {
                 visible: card.earnings !== null && card.earnings.canBuy
-                text: card.payingHere ? "Waiting for payment..." : "Buy for " + card.post.price
+                text: card.payingHere ? qsTr("Waiting for payment...") : qsTr("Buy for ") + card.post.price
                 enabled: card.earnings !== null && !card.earnings.paying
                 onClicked: card.earnings.buyPost(card.post.id)
             }
             RvButton {
                 visible: card.payingHere
                 secondary: true
-                text: "Stop waiting"
+                text: qsTr("Stop waiting")
                 onClicked: card.earnings.cancelPayment()
             }
             Text {
                 visible: card.earnings !== null && !card.earnings.canBuy
-                text: "Buying isn't available in this app right now."
+                text: qsTr("Buying isn't available in this app right now.")
                 color: Theme.text3
                 font.pixelSize: Theme.fontSmall
             }
@@ -228,14 +228,14 @@ Card {
     RvButton {
         visible: card.post.mine && card.post.status === "published"
         primary: false
-        text: "Stop selling"
+        text: qsTr("Stop selling")
         onClicked: stopDialog.open()
     }
     ConfirmDialog {
         id: stopDialog
-        title: "Stop selling this post?"
-        message: "People who bought it keep it. Nobody new can buy it."
-        confirmText: "Stop selling"
+        title: qsTr("Stop selling this post?")
+        message: qsTr("People who bought it keep it. Nobody new can buy it.")
+        confirmText: qsTr("Stop selling")
         onConfirmed: {
             card.earnings.unpublishPost(card.post.id)
             card.changed()

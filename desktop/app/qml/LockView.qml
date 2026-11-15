@@ -17,7 +17,11 @@ Rectangle {
             App.lock.unlock(pinField.text)
     }
 
-    Component.onCompleted: pinField.forceActiveFocus()
+    Component.onCompleted: {
+        pinField.forceActiveFocus()
+        // Windows Hello, when turned on: ask straight away, with the PIN still there as the fallback.
+        if (App.lock.helloEnabled) Qt.callLater(() => App.lock.unlockWithHello(Window.window))
+    }
 
     Connections {
         target: App.lock
@@ -55,7 +59,7 @@ Rectangle {
                 Layout.preferredWidth: 52
                 Layout.preferredHeight: 52
                 radius: 14
-                color: Theme.accent
+                color: Theme.accentFill
                 Icon {
                     anchors.centerIn: parent
                     name: "lock"
@@ -66,14 +70,14 @@ Rectangle {
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: "redvaultmessages is locked"
+                text: qsTr("RedVaultMessages is locked")
                 color: Theme.text
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: "Signed in as " + App.handle
+                text: qsTr("Signed in as ") + App.handle
                 textFormat: Text.PlainText
                 color: Theme.text2
                 font.pixelSize: Theme.fontSmall + 1
@@ -82,7 +86,7 @@ Rectangle {
             RvTextField {
                 id: pinField
                 Layout.fillWidth: true
-                placeholderText: "PIN"
+                placeholderText: qsTr("PIN")
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{0,12}/ }
@@ -102,16 +106,26 @@ Rectangle {
 
             RvButton {
                 Layout.fillWidth: true
-                text: App.lock.busy ? "Checking…" : "Unlock"
+                text: App.lock.busy ? qsTr("Checking…") : qsTr("Unlock")
                 enabled: !App.lock.busy && pinField.text.length > 0
                 onClicked: root.submit()
             }
 
             RvButton {
                 Layout.fillWidth: true
+                visible: App.lock.helloEnabled
+                secondary: true
+                iconName: "fingerprint"
+                text: qsTr("Unlock with Windows Hello")
+                enabled: !App.lock.busy
+                onClicked: App.lock.unlockWithHello(Window.window)
+            }
+
+            RvButton {
+                Layout.fillWidth: true
                 visible: !root.confirmForget
                 primary: false
-                text: "Forgot your PIN?"
+                text: qsTr("Forgot your PIN?")
                 onClicked: root.confirmForget = true
             }
             ColumnLayout {
@@ -122,7 +136,7 @@ Rectangle {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Sign out to remove the PIN. You'll sign back in with your password; nothing is lost."
+                    text: qsTr("Sign out to remove the PIN. You'll sign back in with your password; nothing is lost.")
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall + 1
                 }
@@ -130,7 +144,7 @@ Rectangle {
                     Layout.fillWidth: true
                     danger: true
                     primary: false
-                    text: "Sign out and remove PIN"
+                    text: qsTr("Sign out and remove PIN")
                     onClicked: {
                         App.lock.disable()
                         App.signOut()

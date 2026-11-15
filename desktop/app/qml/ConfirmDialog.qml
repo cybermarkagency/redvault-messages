@@ -34,7 +34,7 @@ RvDialog {
             spacing: 8
             RvButton {
                 primary: false
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: dialog.close()
             }
             RvButton {

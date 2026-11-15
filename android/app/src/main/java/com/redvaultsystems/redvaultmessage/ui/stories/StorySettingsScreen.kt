@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -122,7 +123,7 @@ fun StorySettingsScreen(session: StoriesSession, state: StoriesState, onBack: ()
         )
         if (!state.prefsReadable) {
             Callout(
-                "Your story settings can't be opened on this phone, so nothing here can be changed and nothing is posted until they can. Try again later.",
+                stringResource(R.string.ui_your_story_settings_can_t_be),
                 CalloutTone.Warn,
                 R.drawable.ui_alert_circle,
                 Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -132,7 +133,7 @@ fun StorySettingsScreen(session: StoriesSession, state: StoriesState, onBack: ()
         val prefs = state.prefs
         when (page) {
             Page.Main -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionCaps("What others see of you")
+                SectionCaps(stringResource(R.string.ui_what_others_see_of_you))
                 SwitchCard(
                     "Share that you viewed",
                     "People see you watched their story. Off: this phone never tells the server, and you can't see who watched yours.",
@@ -147,11 +148,11 @@ fun StorySettingsScreen(session: StoriesSession, state: StoriesState, onBack: ()
                     { v -> change { it.copy(allowReplies = v) } },
                     Modifier.padding(horizontal = 20.dp),
                 )
-                SectionCaps("Who sees your stories")
+                SectionCaps(stringResource(R.string.ui_who_sees_your_stories))
                 NavRow("Close friends", countText(prefs.closeFriends, state), onClick = { page = Page.Close })
                 NavRow("Hide stories from", countText(prefs.hideFrom, state), onClick = { page = Page.Hide })
                 NavRow("Muted", countText(prefs.muted, state) + " · their stories stay out of your tray", onClick = { page = Page.Muted })
-                SectionCaps("Keeping stories")
+                SectionCaps(stringResource(R.string.ui_keeping_stories))
                 SwitchCard(
                     "Save to archive",
                     "Stories that run out are kept for you alone. Off: they're deleted when their time is up.",
@@ -226,7 +227,7 @@ private fun FriendPicker(friends: List<StoryFriend>, chosen: Set<String>, note: 
     val colors = RedvaultTheme.colors
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Text(note, color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
-        if (friends.isEmpty()) Text("You have no friends yet.", color = colors.text3, modifier = Modifier.padding(20.dp))
+        if (friends.isEmpty()) Text(stringResource(R.string.ui_you_have_no_friends_yet), color = colors.text3, modifier = Modifier.padding(20.dp))
         for (friend in friends.sortedBy { it.handle.lowercase() }) {
             val on = friend.userId in chosen
             Row(
@@ -243,7 +244,7 @@ private fun FriendPicker(friends: List<StoryFriend>, chosen: Set<String>, note: 
                     checked = on,
                     onCheckedChange = null,
                     enabled = enabled,
-                    colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
+                    colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
                 )
             }
         }
@@ -280,12 +281,12 @@ private fun ArchivePage(session: StoriesSession, onOpenList: () -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Text("Your stories that ran out or sit in a highlight, only for you. A story from another app that this app can't show isn't listed.", color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        Text(stringResource(R.string.ui_your_stories_that_ran_out_or), color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         error?.let { Text(it, color = colors.danger, modifier = Modifier.padding(20.dp)) }
         val list = stories
         when {
-            list == null && error == null -> Text("Loading…", color = colors.text3, modifier = Modifier.padding(20.dp))
-            list != null && list.isEmpty() -> Text("Nothing is kept yet. Turn on Save to archive and your stories stay here after their time is up.", color = colors.text3, modifier = Modifier.padding(20.dp))
+            list == null && error == null -> Text(stringResource(R.string.ui_loading), color = colors.text3, modifier = Modifier.padding(20.dp))
+            list != null && list.isEmpty() -> Text(stringResource(R.string.ui_nothing_is_kept_yet_turn_on), color = colors.text3, modifier = Modifier.padding(20.dp))
             list != null -> list.forEachIndexed { i, story ->
                 Text(
                     storyLine(story),
@@ -323,8 +324,8 @@ private fun HighlightsPage(session: StoriesSession, onNew: () -> Unit, onEdit: (
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Highlights keep chosen stories on your profile after their 24 hours. Friends who could see a story can see it here.", color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
-        PillButton("New highlight", onNew, modifier = Modifier.padding(horizontal = 20.dp), height = 46.dp)
+        Text(stringResource(R.string.ui_highlights_keep_chosen_stories_on_your), color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        PillButton(stringResource(R.string.ui_new_highlight), onNew, modifier = Modifier.padding(horizontal = 20.dp), height = 46.dp)
         error?.let { Text(it, color = colors.danger, modifier = Modifier.padding(20.dp)) }
         for (h in list.orEmpty()) {
             Row(
@@ -340,9 +341,9 @@ private fun HighlightsPage(session: StoriesSession, onNew: () -> Unit, onEdit: (
                     Text(h.title ?: "Highlight", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text(if (h.stories.size == 1) "1 story" else "${h.stories.size} stories", color = colors.text2, fontSize = 13.sp)
                 }
-                PillButton("Edit", { onEdit(h) }, style = PillStyle.Quiet, height = 40.dp)
+                PillButton(stringResource(R.string.ui_edit), { onEdit(h) }, style = PillStyle.Quiet, height = 40.dp)
                 PillButton(
-                    "Delete",
+                    stringResource(R.string.ui_delete),
                     {
                         scope.launch {
                             try {
@@ -360,7 +361,7 @@ private fun HighlightsPage(session: StoriesSession, onNew: () -> Unit, onEdit: (
                 )
             }
         }
-        if (list != null && list.orEmpty().isEmpty()) Text("No highlights yet.", color = colors.text3, modifier = Modifier.padding(20.dp))
+        if (list != null && list.orEmpty().isEmpty()) Text(stringResource(R.string.ui_no_highlights_yet), color = colors.text3, modifier = Modifier.padding(20.dp))
     }
 }
 
@@ -391,15 +392,15 @@ private fun HighlightEditor(session: StoriesSession, state: StoriesState, editin
         TextField(
             value = title,
             onValueChange = { if (it.length <= StoryCrypto.MAX_HIGHLIGHT_TITLE) title = it },
-            placeholder = { Text("Name", color = colors.placeholder) },
+            placeholder = { Text(stringResource(R.string.ui_name), color = colors.placeholder) },
             singleLine = true,
             colors = TextFieldDefaults.colors(focusedContainerColor = colors.surface2, unfocusedContainerColor = colors.surface2, focusedTextColor = colors.text, unfocusedTextColor = colors.text),
             modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
         )
-        SectionCaps("Stories")
+        SectionCaps(stringResource(R.string.ui_stories))
         val list = candidates
-        if (list == null) Text("Loading…", color = colors.text3, modifier = Modifier.padding(20.dp))
-        if (list != null && list.isEmpty()) Text("You have no stories to choose from. Turn on Save to archive first.", color = colors.text3, modifier = Modifier.padding(20.dp))
+        if (list == null) Text(stringResource(R.string.ui_loading), color = colors.text3, modifier = Modifier.padding(20.dp))
+        if (list != null && list.isEmpty()) Text(stringResource(R.string.ui_you_have_no_stories_to_choose), color = colors.text3, modifier = Modifier.padding(20.dp))
         for (story in list.orEmpty()) {
             val on = story.id in chosen
             Row(
@@ -413,7 +414,7 @@ private fun HighlightEditor(session: StoriesSession, state: StoriesState, editin
                 Checkbox(
                     checked = on,
                     onCheckedChange = null,
-                    colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
+                    colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3),
                 )
                 Text(storyLine(story), color = colors.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (on) {
@@ -429,7 +430,7 @@ private fun HighlightEditor(session: StoriesSession, state: StoriesState, editin
         }
         error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle, Modifier.padding(horizontal = 20.dp)) }
         PillButton(
-            "Save highlight",
+            stringResource(R.string.ui_save_highlight),
             {
                 val picked = list.orEmpty().filter { it.id in chosen }
                 val coverStory = picked.firstOrNull { it.id == (cover ?: chosen.firstOrNull()) } ?: picked.firstOrNull()
@@ -473,7 +474,7 @@ fun StoryHighlightsRow(session: StoriesSession, state: StoriesState, userId: Str
     }
     if (list.isEmpty()) return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("HIGHLIGHTS", color = colors.text3, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
+        Text(stringResource(R.string.ui_highlights), color = colors.text3, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             items(list, key = { it.id }) { h ->
                 Column(

@@ -117,14 +117,14 @@ Item {
             spacing: 14
 
             Text {
-                text: "Earnings"
+                text: qsTr("Earnings")
                 color: Theme.text
                 font.family: Theme.displayFamily
                 font.pixelSize: 26
                 font.weight: Font.Bold
             }
             Para {
-                text: "Paid messages, tips and exclusive posts. Paying happens on Stripe's page in your browser; RedVault never sees cards or bank details, and paying never lets anyone read your messages."
+                text: qsTr("Paid messages, tips and exclusive posts. Paying happens on Stripe's page in your browser; RedVault never sees cards or bank details, and paying never lets anyone read your messages.")
             }
 
             Flow {
@@ -146,14 +146,14 @@ Item {
                 Layout.fillWidth: true
                 visible: root.earnings !== null && root.settings.loaded === true && !root.earnings.enabled && root.tab !== "library"
                 error: false
-                text: "Paid messages, tips and exclusive posts aren't switched on on this server yet. Nothing can be charged until they are."
+                text: qsTr("Paid messages, tips and exclusive posts aren't switched on on this server yet. Nothing can be charged until they are.")
             }
             Banner {
                 Layout.fillWidth: true
                 visible: root.earnings !== null && root.earnings.enabled && root.settings.loaded === true && !root.settings.creatorReady
                          && ["paid-messages", "tips", "posts", "overview"].indexOf(root.tab) >= 0
                 error: false
-                text: "Finish payout setup (Payouts tab) before charging for anything. Stripe verifies who you are; RedVault never sees your bank details."
+                text: qsTr("Finish payout setup (Payouts tab) before charging for anything. Stripe verifies who you are; RedVault never sees your bank details.")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -168,7 +168,7 @@ Item {
                     iconName: "x"
                     implicitHeight: 30
                     ToolTip.visible: hovered
-                    ToolTip.text: "Dismiss"
+                    ToolTip.text: qsTr("Dismiss")
                     onClicked: root.earnings.clearMessages()
                 }
             }
@@ -181,9 +181,9 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Stat { label: "Gross"; value: root.dash.gross || "$0.00" }
-                    Stat { label: "RedVault fees"; value: root.dash.fees || "$0.00" }
-                    Stat { label: "Your earnings"; value: root.dash.net || "$0.00" }
+                    Stat { label: qsTr("Gross"); value: root.dash.gross || "$0.00" }
+                    Stat { label: qsTr("RedVault fees"); value: root.dash.fees || "$0.00" }
+                    Stat { label: qsTr("Your earnings"); value: root.dash.net || "$0.00" }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -191,11 +191,11 @@ Item {
                     Banner {
                         Layout.fillWidth: true
                         error: false
-                        text: root.dash.awaitingKeys + " buyer(s) are waiting for a post key. This app sends them within a minute while it's open."
+                        text: root.dash.awaitingKeys + qsTr(" buyer(s) are waiting for a post key. This app sends them within a minute while it's open.")
                     }
                     RvButton {
                         secondary: true
-                        text: "Send now"
+                        text: qsTr("Send now")
                         onClicked: root.earnings.deliverKeys()
                     }
                 }
@@ -219,8 +219,8 @@ Item {
                                 spacing: 2
                                 Text { textFormat: Text.PlainText; text: productCard.modelData.name; color: Theme.text; font.weight: Font.DemiBold }
                                 Text {
-                                    text: productCard.modelData.count + " sold · RedVault keeps " + productCard.modelData.percent + "% · refunded " + productCard.modelData.refunded
-                                          + (productCard.modelData.disputes > 0 ? " · " + productCard.modelData.disputes + " disputed" : "")
+                                    text: productCard.modelData.count + qsTr(" sold · RedVault keeps ") + productCard.modelData.percent + qsTr("% · refunded ") + productCard.modelData.refunded
+                                          + (productCard.modelData.disputes > 0 ? " · " + productCard.modelData.disputes + qsTr(" disputed") : "")
                                     textFormat: Text.PlainText
                                     color: Theme.text3
                                     font.pixelSize: Theme.fontSmall
@@ -230,13 +230,13 @@ Item {
                                 Layout.preferredWidth: 120
                                 spacing: 2
                                 Text { textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; text: productCard.modelData.net; color: Theme.text; font.weight: Font.Bold }
-                                Text { textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; text: "of " + productCard.modelData.gross; color: Theme.text3; font.pixelSize: Theme.fontSmall }
+                                Text { textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; text: qsTr("of ") + productCard.modelData.gross; color: Theme.text3; font.pixelSize: Theme.fontSmall }
                             }
                         }
                     }
                 }
                 Para {
-                    text: "Your earnings are what's left after RedVault's fee; RedVault pays Stripe's processing fees. Refunds and disputes take a sale back out. Money reaches your bank on Stripe's payout schedule (Payouts tab)."
+                    text: qsTr("Your earnings are what's left after RedVault's fee; RedVault pays Stripe's processing fees. Refunds and disputes take a sale back out. Money reaches your bank on Stripe's payout schedule (Payouts tab).")
                 }
             }
 
@@ -255,12 +255,12 @@ Item {
                     }
                 }
                 Para {
-                    text: "Charge people who aren't your friends to message you. Friends, people you let in, and chats you started are always free. Blocking and reporting are always free, and nobody can pay their way past a block. Messages stay end-to-end encrypted: paying never lets anyone (RedVault or Stripe) read them."
+                    text: qsTr("Charge people who aren't your friends to message you. Friends, people you let in, and chats you started are always free. Blocking and reporting are always free, and nobody can pay their way past a block. Messages stay end-to-end encrypted: paying never lets anyone (RedVault or Stripe) read them.")
                 }
                 Banner {
                     Layout.fillWidth: true
                     visible: root.settings.loaded === true && root.settings.acceptsMessageRequests === false
-                    text: "You don't accept message requests, so strangers can't start a chat with you at all. Turn them on in Privacy settings."
+                    text: qsTr("You don't accept message requests, so strangers can't start a chat with you at all. Turn them on in Privacy settings.")
                 }
                 Repeater {
                     model: [["off", "Off", "Anyone who can message you does so for free."],
@@ -291,7 +291,7 @@ Item {
                 }
                 Field {
                     visible: paidTab.mode !== "off"
-                    label: "Price (USD)"
+                    label: qsTr("Price (USD)")
                     RvTextField {
                         id: priceField
                         Layout.preferredWidth: 160
@@ -299,27 +299,27 @@ Item {
                         Accessible.name: "Price in US dollars"
                     }
                     Text {
-                        text: "Between " + (root.earnings ? root.earnings.rates.messageMin : "") + " and " + (root.earnings ? root.earnings.rates.messageMax : "")
-                              + ". RedVault keeps " + root.product("paid_message").percent + "% of each paid message."
+                        text: qsTr("Between ") + (root.earnings ? root.earnings.rates.messageMin : "") + qsTr(" and ") + (root.earnings ? root.earnings.rates.messageMax : "")
+                              + qsTr(". RedVault keeps ") + root.product("paid_message").percent + qsTr("% of each paid message.")
                         textFormat: Text.PlainText
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
                     }
                 }
                 RvButton {
-                    text: "Save"
+                    text: qsTr("Save")
                     enabled: root.earnings !== null && !root.earnings.busy
                     onClicked: root.earnings.saveMessageSettings(paidTab.mode, priceField.text)
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Stat { label: "Paid messages"; value: String(root.product("paid_message").count) }
-                    Stat { label: "Your earnings"; value: root.product("paid_message").net }
-                    Stat { label: "Exempt people"; value: String(root.settings.exemptCount || 0); hint: "Add them from a chat's details" }
+                    Stat { label: qsTr("Paid messages"); value: String(root.product("paid_message").count) }
+                    Stat { label: qsTr("Your earnings"); value: root.product("paid_message").net }
+                    Stat { label: qsTr("Exempt people"); value: String(root.settings.exemptCount || 0); hint: qsTr("Add them from a chat's details") }
                 }
                 Para {
-                    text: "Unused paid messages are refunded after 14 days. A safety contact (once every 30 days per person) always gets through for free, so nobody has to pay to warn you about something urgent; misuse can be reported."
+                    text: qsTr("Unused paid messages are refunded after 14 days. A safety contact (once every 30 days per person) always gets through for free, so nobody has to pay to warn you about something urgent; misuse can be reported.")
                 }
             }
 
@@ -329,24 +329,24 @@ Item {
                 visible: root.tab === "tips"
                 spacing: 12
                 Para {
-                    text: "Tips are voluntary thank-yous: they don't unlock anything, and nobody has to tip to talk to you. People choose $1, $3, $5, $10 or another amount, and can tip without showing you who they are (RedVault and Stripe still know who paid). RedVault keeps "
-                          + root.product("tip").percent + "% of each tip."
+                    text: qsTr("Tips are voluntary thank-yous: they don't unlock anything, and nobody has to tip to talk to you. People choose $1, $3, $5, $10 or another amount, and can tip without showing you who they are (RedVault and Stripe still know who paid). RedVault keeps ")
+                          + root.product("tip").percent + qsTr("% of each tip.")
                 }
                 RvButton {
                     secondary: root.settings.tipsEnabled === true
-                    text: root.settings.tipsEnabled === true ? "Stop taking tips" : "Take tips"
+                    text: root.settings.tipsEnabled === true ? qsTr("Stop taking tips") : qsTr("Take tips")
                     enabled: root.earnings !== null && !root.earnings.busy
                     onClicked: root.earnings.setTipsEnabled(!root.settings.tipsEnabled)
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Stat { label: "Tips"; value: String(root.product("tip").count) }
-                    Stat { label: "Your earnings"; value: root.product("tip").net }
+                    Stat { label: qsTr("Tips"); value: String(root.product("tip").count) }
+                    Stat { label: qsTr("Your earnings"); value: root.product("tip").net }
                 }
                 Text {
                     visible: root.earnings !== null && root.earnings.tips.length === 0
-                    text: "No tips yet."
+                    text: qsTr("No tips yet.")
                     color: Theme.text3
                 }
                 Repeater {
@@ -359,7 +359,7 @@ Item {
                         Text { textFormat: Text.PlainText; text: tipRow.modelData.amount; color: Theme.text; font.weight: Font.DemiBold }
                         Text {
                             Layout.fillWidth: true
-                            text: (tipRow.modelData.from === "A supporter" ? "From a supporter" : "From " + tipRow.modelData.from) + " · " + tipRow.modelData.when
+                            text: (tipRow.modelData.from === "A supporter" ? qsTr("From a supporter") : qsTr("From ") + tipRow.modelData.from) + " · " + tipRow.modelData.when
                             textFormat: Text.PlainText
                             color: Theme.text2
                             elide: Text.ElideRight
@@ -387,34 +387,34 @@ Item {
                     }
                 }
                 Para {
-                    text: "Sell a post once to each buyer. It's encrypted with its own key on this computer; the server stores only ciphertext. After a payment is confirmed, this app seals the key to the buyer (while it's open: keep it running now and then). A buyer who doesn't get the key within 72 hours is refunded automatically. RedVault keeps "
-                          + root.product("exclusive_post").percent + "%. Anyone who can see a post can still photograph their screen."
+                    text: qsTr("Sell a post once to each buyer. It's encrypted with its own key on this computer; the server stores only ciphertext. After a payment is confirmed, this app seals the key to the buyer (while it's open: keep it running now and then). A buyer who doesn't get the key within 72 hours is refunded automatically. RedVault keeps ")
+                          + root.product("exclusive_post").percent + qsTr("%. Anyone who can see a post can still photograph their screen.")
                 }
                 Field {
-                    label: "Post (encrypted)"
+                    label: qsTr("Post (encrypted)")
                     PostField {
                         id: postText
                         Layout.fillWidth: true
                         limit: 10000
-                        placeholderText: "What buyers get"
+                        placeholderText: qsTr("What buyers get")
                     }
                 }
                 Field {
                     visible: root.earnings !== null && root.earnings.postMedia
-                    label: "Photo or video (optional, encrypted)"
+                    label: qsTr("Photo or video (optional, encrypted)")
                     RowLayout {
                         spacing: 8
                         RvButton {
                             secondary: true
                             iconName: "paperclip"
-                            text: postsTab.fileName.length > 0 ? "Change" : "Add a photo or video"
+                            text: postsTab.fileName.length > 0 ? qsTr("Change") : qsTr("Add a photo or video")
                             onClicked: postFileDialog.open()
                         }
                         Text { textFormat: Text.PlainText; visible: postsTab.fileName.length > 0; text: postsTab.fileName; color: Theme.text2; elide: Text.ElideMiddle; Layout.maximumWidth: 280 }
                         RvButton {
                             visible: postsTab.fileName.length > 0
                             primary: false
-                            text: "Remove"
+                            text: qsTr("Remove")
                             onClicked: {
                                 postsTab.file = ""
                                 postsTab.fileName = ""
@@ -422,13 +422,13 @@ Item {
                         }
                     }
                     Text {
-                        text: "Photos are redrawn here, which leaves location and camera details behind. Videos are encrypted as they are."
+                        text: qsTr("Photos are redrawn here, which leaves location and camera details behind. Videos are encrypted as they are.")
                         color: Theme.text3
                         font.pixelSize: Theme.fontSmall
                     }
                 }
                 Field {
-                    label: "Public teaser (optional)"
+                    label: qsTr("Public teaser (optional)")
                     RvTextField {
                         id: teaserField
                         Layout.fillWidth: true
@@ -438,11 +438,11 @@ Item {
                     Para {
                         font.pixelSize: Theme.fontSmall
                         color: Theme.text3
-                        text: "Not encrypted: anyone who can see your posts can read it, and so can the server. Leave it empty to show only the price."
+                        text: qsTr("Not encrypted: anyone who can see your posts can read it, and so can the server. Leave it empty to show only the price.")
                     }
                 }
                 Field {
-                    label: "Price (USD)"
+                    label: qsTr("Price (USD)")
                     RvTextField {
                         id: postPrice
                         Layout.preferredWidth: 160
@@ -451,7 +451,7 @@ Item {
                     }
                 }
                 RvButton {
-                    text: root.earnings && root.earnings.publishStage.length > 0 ? "Encrypting and uploading..." : "Publish"
+                    text: root.earnings && root.earnings.publishStage.length > 0 ? qsTr("Encrypting and uploading...") : qsTr("Publish")
                     enabled: root.earnings !== null && root.earnings.publishStage.length === 0 && root.earnings.enabled && root.settings.creatorReady === true
                              && !postText.tooLong
                     onClicked: root.earnings.publishPost(postText.text, teaserField.text, postPrice.text, postsTab.file)
@@ -459,12 +459,12 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Stat { label: "Sold"; value: String(root.product("exclusive_post").count) }
-                    Stat { label: "Your earnings"; value: root.product("exclusive_post").net }
+                    Stat { label: qsTr("Sold"); value: String(root.product("exclusive_post").count) }
+                    Stat { label: qsTr("Your earnings"); value: root.product("exclusive_post").net }
                 }
                 Text {
                     visible: root.earnings !== null && root.earnings.myPosts.length === 0
-                    text: "No posts yet."
+                    text: qsTr("No posts yet.")
                     color: Theme.text3
                 }
                 Repeater {
@@ -477,7 +477,7 @@ Item {
                 }
                 FileDialog {
                     id: postFileDialog
-                    title: "Add a photo or video"
+                    title: qsTr("Add a photo or video")
                     fileMode: FileDialog.OpenFile
                     nameFilters: ["Photos and videos (*.jpg *.jpeg *.png *.webp *.gif *.bmp *.mp4 *.webm *.mov)"]
                     onAccepted: {
@@ -495,8 +495,8 @@ Item {
                 }
                 ConfirmDialog {
                     id: fileProblem
-                    title: "Can't use that file"
-                    confirmText: "OK"
+                    title: qsTr("Can't use that file")
+                    confirmText: qsTr("OK")
                 }
             }
 
@@ -508,18 +508,18 @@ Item {
                 property string refundId: ""
                 property string refundAmount: ""
                 Para {
-                    text: "Each payment from Stripe, as confirmed by its webhook. RedVault's fee is taken from each payment; Stripe's processing fees are RedVault's to pay."
+                    text: qsTr("Each payment from Stripe, as confirmed by its webhook. RedVault's fee is taken from each payment; Stripe's processing fees are RedVault's to pay.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Stat { label: "Gross"; value: root.dash.gross || "$0.00" }
-                    Stat { label: "RedVault fees"; value: root.dash.fees || "$0.00" }
-                    Stat { label: "Your earnings"; value: root.dash.net || "$0.00" }
+                    Stat { label: qsTr("Gross"); value: root.dash.gross || "$0.00" }
+                    Stat { label: qsTr("RedVault fees"); value: root.dash.fees || "$0.00" }
+                    Stat { label: qsTr("Your earnings"); value: root.dash.net || "$0.00" }
                 }
                 Text {
                     visible: (root.dash.transactions || []).length === 0
-                    text: "No payments yet."
+                    text: qsTr("No payments yet.")
                     color: Theme.text3
                 }
                 Repeater {
@@ -542,7 +542,7 @@ Item {
                                 spacing: 2
                                 Text { textFormat: Text.PlainText; text: txRow.modelData.productName + " · " + txRow.modelData.amount; color: Theme.text; font.weight: Font.DemiBold }
                                 Text {
-                                    text: txRow.modelData.when + " · from " + txRow.modelData.from + " · RedVault fee " + txRow.modelData.fee
+                                    text: txRow.modelData.when + qsTr(" · from ") + txRow.modelData.from + qsTr(" · RedVault fee ") + txRow.modelData.fee
                                     textFormat: Text.PlainText
                                     color: Theme.text3
                                     font.pixelSize: Theme.fontSmall
@@ -552,10 +552,10 @@ Item {
                             RvButton {
                                 visible: txRow.modelData.refundable
                                 primary: false
-                                text: "Refund"
+                                text: qsTr("Refund")
                                 onClicked: {
                                     refundDialog.purchaseId = txRow.modelData.id
-                                    refundDialog.message = "Refund " + txRow.modelData.amount + "? The buyer gets it all back and your share is taken back."
+                                    refundDialog.message = qsTr("Refund ") + txRow.modelData.amount + "? The buyer gets it all back and your share is taken back."
                                     refundDialog.open()
                                 }
                             }
@@ -565,8 +565,8 @@ Item {
                 ConfirmDialog {
                     id: refundDialog
                     property string purchaseId: ""
-                    title: "Refund this payment?"
-                    confirmText: "Refund"
+                    title: qsTr("Refund this payment?")
+                    confirmText: qsTr("Refund")
                     danger: true
                     onConfirmed: root.earnings.refund(purchaseId)
                 }
@@ -581,7 +581,7 @@ Item {
 
                 Text {
                     visible: root.creator.loaded !== true
-                    text: "Loading..."
+                    text: qsTr("Loading...")
                     color: Theme.text3
                 }
 
@@ -591,20 +591,20 @@ Item {
                     visible: root.creator.loaded === true && root.creator.exists !== true
                     spacing: 10
                     Para {
-                        text: "To be paid, create a creator profile, then verify your identity and bank details with Stripe; RedVault never sees them. Your creator handle is public and separate from your private RedVault username."
+                        text: qsTr("To be paid, create a creator profile, then verify your identity and bank details with Stripe; RedVault never sees them. Your creator handle is public and separate from your private RedVault username.")
                     }
                     Field {
-                        label: "Creator handle (public)"
+                        label: qsTr("Creator handle (public)")
                         RvTextField {
                             id: handleField
                             Layout.preferredWidth: 280
                             maximumLength: 32
-                            placeholderText: "a-z, 0-9, _"
+                            placeholderText: qsTr("a-z, 0-9, _")
                             onTextChanged: if (text !== text.toLowerCase()) text = text.toLowerCase()
                         }
                     }
                     Field {
-                        label: "Display name"
+                        label: qsTr("Display name")
                         RvTextField {
                             id: displayNameField
                             Layout.preferredWidth: 280
@@ -614,11 +614,11 @@ Item {
                     ConsentBox {
                         id: termsBox
                         Layout.fillWidth: true
-                        label: "I accept the creator terms (version " + (root.creator.termsVersion || "current")
-                               + "): I'm responsible for what I publish; no illegal content, scams, sexual content involving minors, intimate images shared without consent, or other prohibited material; RedVault keeps a commission on each payment as shown when I set a price; payouts need Stripe's identity checks; RedVault can suspend creators who break the rules."
+                        label: qsTr("I accept the creator terms (version ") + (root.creator.termsVersion || "current")
+                               + qsTr("): I'm responsible for what I publish; no illegal content, scams, sexual content involving minors, intimate images shared without consent, or other prohibited material; RedVault keeps a commission on each payment as shown when I set a price; payouts need Stripe's identity checks; RedVault can suspend creators who break the rules.")
                     }
                     RvButton {
-                        text: "Create creator profile"
+                        text: qsTr("Create creator profile")
                         enabled: root.earnings !== null && !root.earnings.busy && termsBox.checked && handleField.text.length >= 3 && displayNameField.text.trim().length > 0
                         onClicked: root.earnings.becomeCreator(handleField.text, displayNameField.text)
                     }
@@ -639,17 +639,17 @@ Item {
                         Layout.fillWidth: true
                         visible: root.creator.paymentsEnabled !== true
                         error: false
-                        text: "Payouts aren't available on this server yet."
+                        text: qsTr("Payouts aren't available on this server yet.")
                     }
                     Banner {
                         Layout.fillWidth: true
                         visible: root.creator.paymentsEnabled === true
                         error: root.creator.status === "rejected"
-                        text: root.creator.ready === true ? "Payouts are set up. You can charge for messages, take tips and sell posts."
-                            : root.creator.status === "not_started" ? "Verify your identity and add a bank account with Stripe. RedVault never sees those details. (This also lets you publish paid communities in the web app.)"
-                            : root.creator.status === "rejected" ? "Stripe can't offer payouts to this account."
-                            : root.creator.requirementsDue === true ? "Stripe needs more information before you can be paid."
-                            : "Stripe is reviewing your details."
+                        text: root.creator.ready === true ? qsTr("Payouts are set up. You can charge for messages, take tips and sell posts.")
+                            : root.creator.status === "not_started" ? qsTr("Verify your identity and add a bank account with Stripe. RedVault never sees those details. (This also lets you publish paid communities in the web app.)")
+                            : root.creator.status === "rejected" ? qsTr("Stripe can't offer payouts to this account.")
+                            : root.creator.requirementsDue === true ? qsTr("Stripe needs more information before you can be paid.")
+                            : qsTr("Stripe is reviewing your details.")
                     }
                     RowLayout {
                         visible: root.creator.paymentsEnabled === true && root.creator.ready !== true && root.creator.status !== "rejected"
@@ -678,14 +678,14 @@ Item {
                             }
                         }
                         RvButton {
-                            text: root.creator.status === "not_started" ? "Set up payouts with Stripe" : "Continue with Stripe"
+                            text: root.creator.status === "not_started" ? qsTr("Set up payouts with Stripe") : qsTr("Continue with Stripe")
                             enabled: root.earnings !== null && !root.earnings.busy
                             onClicked: root.earnings.startPayoutSetup(countryBox.currentValue || "us")
                         }
                         RvButton {
                             visible: root.creator.status !== "not_started"
                             secondary: true
-                            text: "Check status"
+                            text: qsTr("Check status")
                             enabled: root.earnings !== null && !root.earnings.busy
                             onClicked: root.earnings.refreshPayoutSetup()
                         }
@@ -694,19 +694,19 @@ Item {
                         visible: root.creator.ready === true
                         secondary: true
                         iconName: "external"
-                        text: "Open your Stripe dashboard"
+                        text: qsTr("Open your Stripe dashboard")
                         onClicked: root.earnings.openStripeDashboard()
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         visible: root.dash.hasBalance === true
                         spacing: 10
-                        Stat { label: "Available"; value: root.dash.balanceAvailable || "$0.00" }
-                        Stat { label: "On the way"; value: root.dash.balancePending || "$0.00" }
+                        Stat { label: qsTr("Available"); value: root.dash.balanceAvailable || "$0.00" }
+                        Stat { label: qsTr("On the way"); value: root.dash.balancePending || "$0.00" }
                     }
                     SectionLabel {
                         visible: (root.dash.payouts || []).length > 0
-                        text: "RECENT PAYOUTS"
+                        text: qsTr("RECENT PAYOUTS")
                     }
                     Repeater {
                         model: root.dash.payouts || []
@@ -720,7 +720,7 @@ Item {
                         }
                     }
                     Para {
-                        text: "Payouts follow Stripe's schedule. Taxes, refunds and disputes can change what you receive; see the creator terms."
+                        text: qsTr("Payouts follow Stripe's schedule. Taxes, refunds and disputes can change what you receive; see the creator terms.")
                     }
                 }
             }
@@ -731,11 +731,11 @@ Item {
                 visible: root.tab === "library"
                 spacing: 12
                 Para {
-                    text: "Exclusive posts you bought. Each opens with a key the creator's app sealed to you; RedVault can't open them."
+                    text: qsTr("Exclusive posts you bought. Each opens with a key the creator's app sealed to you; RedVault can't open them.")
                 }
                 Text {
                     visible: root.earnings !== null && root.earnings.libraryLoaded && root.earnings.library.length === 0
-                    text: "Nothing here yet. Exclusive posts you buy show up here."
+                    text: qsTr("Nothing here yet. Exclusive posts you buy show up here.")
                     color: Theme.text3
                 }
                 Repeater {

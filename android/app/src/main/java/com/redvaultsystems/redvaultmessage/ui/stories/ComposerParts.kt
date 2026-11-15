@@ -3,6 +3,8 @@
 
 package com.redvaultsystems.redvaultmessage.ui.stories
 
+import androidx.compose.ui.res.stringResource
+import com.redvaultsystems.redvaultmessage.R
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.Image
@@ -161,13 +163,13 @@ internal fun SlideEditor(
                     modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = width * 0.08f),
                 )
             }
-            slide.thumbnail != null -> Image(slide.thumbnail, contentDescription = "Your photo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+            slide.thumbnail != null -> Image(slide.thumbnail, contentDescription = stringResource(R.string.ui_your_photo), contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             slide.media?.kind == StoryKind.Video -> Text(
                 "Video · ${(slide.media.durationMs ?: 0) / 1000} s",
                 color = Color.White,
                 modifier = Modifier.align(Alignment.Center),
             )
-            else -> Text("Choose a photo or video below", color = StoryStyle.track, modifier = Modifier.align(Alignment.Center))
+            else -> Text(stringResource(R.string.ui_choose_a_photo_or_video_below), color = StoryStyle.track, modifier = Modifier.align(Alignment.Center))
         }
         slide.overlays.forEachIndexed { i, o ->
             EditorItem(
@@ -290,8 +292,8 @@ internal fun OverlayDialog(initial: StoryOverlay?, onDone: (StoryOverlay) -> Uni
                 }
                 ChipRow(options = StoryFont.entries.toList(), selected = font, label = { StoryStyle.label(it) }, onSelect = { font = it }, edge = 0.dp)
                 Row(Modifier.clickable { boxed = !boxed }, verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = boxed, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
-                    Text("Put it in a box", color = colors.text2, modifier = Modifier.padding(start = 8.dp))
+                    Checkbox(checked = boxed, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
+                    Text(stringResource(R.string.ui_put_it_in_a_box), color = colors.text2, modifier = Modifier.padding(start = 8.dp))
                 }
             }
         },
@@ -304,9 +306,9 @@ internal fun OverlayDialog(initial: StoryOverlay?, onDone: (StoryOverlay) -> Uni
                             ?: StoryOverlay(false, text.trim(), 0.5, 0.5, 1.0, 0.0, color, boxed, font, null),
                     )
                 },
-            ) { Text("Done", color = colors.accent) }
+            ) { Text(stringResource(R.string.ui_done), color = colors.accent) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }
 
@@ -423,17 +425,17 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
                             options.forEachIndexed { i, o ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (k == StickerKind.Quiz) {
-                                        Checkbox(checked = correct == i, onCheckedChange = { correct = i }, colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
+                                        Checkbox(checked = correct == i, onCheckedChange = { correct = i }, colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
                                     }
                                     StyledTextField(o, { v -> if (v.length <= StickerLimits.MAX_STICKER_OPTION) options = options.mapIndexed { j, x -> if (j == i) v else x } }, "Option ${i + 1}", Modifier.weight(1f))
                                 }
                             }
-                            if (options.size < 4) Text("+ Add an option", color = colors.accent, modifier = Modifier.clickable { options = options + "" }.padding(6.dp))
+                            if (options.size < 4) Text(stringResource(R.string.ui_add_an_option), color = colors.accent, modifier = Modifier.clickable { options = options + "" }.padding(6.dp))
                             if (k == StickerKind.Quiz) {
-                                Text("Tick the right answer.", color = colors.text3, fontSize = 12.sp)
+                                Text(stringResource(R.string.ui_tick_the_right_answer), color = colors.text3, fontSize = 12.sp)
                                 StyledTextField(explanation, { if (it.length <= StickerLimits.MAX_STICKER_TEXT) explanation = it }, "Explanation (optional)")
                             } else {
-                                Text("Voting ends after", color = colors.text3, fontSize = 12.sp)
+                                Text(stringResource(R.string.ui_voting_ends_after), color = colors.text3, fontSize = 12.sp)
                                 ChipRow(options = DEADLINES, selected = DEADLINES.first { it.first == deadline }, label = { it.second }, onSelect = { deadline = it.first }, edge = 0.dp)
                             }
                             ToggleRow("Only I see the results", onlyMe) { onlyMe = it }
@@ -441,7 +443,7 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
                         StickerKind.Question -> {
                             StyledTextField(question, { if (it.length <= StickerLimits.MAX_STICKER_TEXT) question = it }, "Ask a question")
                             ToggleRow("Answers come without a name", anonymous) { anonymous = it }
-                            if (anonymous) Text("The server can still tell who sent an answer; only you can't see.", color = colors.text3, fontSize = 12.sp)
+                            if (anonymous) Text(stringResource(R.string.ui_the_server_can_still_tell_who), color = colors.text3, fontSize = 12.sp)
                         }
                         StickerKind.Slider -> {
                             StyledTextField(question, { if (it.length <= StickerLimits.MAX_STICKER_TEXT) question = it }, "Prompt")
@@ -450,16 +452,16 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
                         }
                         StickerKind.Countdown -> {
                             StyledTextField(question, { if (it.length <= 60) question = it }, "What is it counting to?")
-                            Text("Ends in", color = colors.text3, fontSize = 12.sp)
+                            Text(stringResource(R.string.ui_ends_in), color = colors.text3, fontSize = 12.sp)
                             ChipRow(options = COUNTDOWNS, selected = COUNTDOWNS.first { it.first == duration }, label = { it.second }, onSelect = { duration = it.first }, edge = 0.dp)
                         }
                         StickerKind.Link -> {
                             StyledTextField(url, { url = it }, "https://example.com")
                             StyledTextField(label, { if (it.length <= 40) label = it }, "Label")
-                            Text("Only https links. Friends are asked before they leave the app.", color = colors.text3, fontSize = 12.sp)
+                            Text(stringResource(R.string.ui_only_https_links_friends_are_asked), color = colors.text3, fontSize = 12.sp)
                         }
                         StickerKind.Mention -> {
-                            if (friends.isEmpty()) Text("You have no friends to mention yet.", color = colors.text3)
+                            if (friends.isEmpty()) Text(stringResource(R.string.ui_you_have_no_friends_to_mention), color = colors.text3)
                             for (f in friends.sortedBy { it.handle.lowercase() }) {
                                 Text(
                                     "@" + f.handle,
@@ -468,12 +470,12 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
                                     modifier = Modifier.fillMaxWidth().clickable { mention = f.userId }.padding(vertical = 10.dp, horizontal = 6.dp),
                                 )
                             }
-                            Text("Nobody is notified; they see it only if they can see the story.", color = colors.text3, fontSize = 12.sp)
+                            Text(stringResource(R.string.ui_nobody_is_notified_they_see_it), color = colors.text3, fontSize = 12.sp)
                         }
                         StickerKind.Date -> {
                             Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(whenMs)), color = colors.text)
                             Text(
-                                "Pick date and time",
+                                stringResource(R.string.ui_pick_date_and_time),
                                 color = colors.accent,
                                 modifier = Modifier.clickable {
                                     val cal = Calendar.getInstance().apply { timeInMillis = whenMs }
@@ -513,7 +515,7 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
                     } else {
                         onDone(sticker)
                     }
-                }) { Text("Add", color = colors.accent) }
+                }) { Text(stringResource(R.string.ui_add), color = colors.accent) }
             }
         },
         dismissButton = { TextButton(onClick = { if (kind != null) kind = null else onDismiss() }) { Text(if (kind != null) "Back" else "Cancel", color = colors.text2) } },
@@ -524,7 +526,7 @@ internal fun StickerDialog(friends: List<StoryFriend>, interactive: Boolean, onD
 private fun ToggleRow(text: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val colors = RedvaultTheme.colors
     Row(Modifier.clickable { onChange(!on) }, verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = on, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
+        Checkbox(checked = on, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
         Text(text, color = colors.text2, modifier = Modifier.padding(start = 8.dp))
     }
 }
@@ -538,24 +540,24 @@ internal fun PeopleDialog(friends: List<StoryFriend>, hidden: Set<String>, chose
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
-        title = { Text("Choose people", color = colors.text) },
+        title = { Text(stringResource(R.string.ui_choose_people), color = colors.text) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                if (shown.isEmpty()) Text("You have no friends to choose from.", color = colors.text3)
+                if (shown.isEmpty()) Text(stringResource(R.string.ui_you_have_no_friends_to_choose), color = colors.text3)
                 for (f in shown) {
                     val on = f.userId in picked
                     Row(
                         Modifier.fillMaxWidth().clickable { picked = if (on) picked - f.userId else picked + f.userId }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Checkbox(checked = on, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
+                        Checkbox(checked = on, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = colors.accentFill, checkmarkColor = colors.accentContrast, uncheckedColor = colors.text3))
                         Text(f.handle, color = colors.text, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
-                Text("Friends you hide stories from are not listed.", color = colors.text3, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(stringResource(R.string.ui_friends_you_hide_stories_from_are), color = colors.text3, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(picked) }) { Text("Done", color = colors.accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.text2) } },
+        confirmButton = { TextButton(onClick = { onDone(picked) }) { Text(stringResource(R.string.ui_done), color = colors.accent) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ui_cancel), color = colors.text2) } },
     )
 }

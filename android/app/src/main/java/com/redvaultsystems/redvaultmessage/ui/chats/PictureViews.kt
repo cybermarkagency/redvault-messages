@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui.chats
 
+import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -221,7 +222,7 @@ internal fun PictureViewer(descriptor: FileDescriptor, pictures: ChatPictures, s
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onClose) {
-                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Close", tint = Color.White)
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.ui_close), tint = Color.White)
                 }
                 Column(Modifier.weight(1f)) {
                     Text(descriptor.filename, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -230,7 +231,7 @@ internal fun PictureViewer(descriptor: FileDescriptor, pictures: ChatPictures, s
                 TextButton(enabled = bytes != null, onClick = {
                     appLock?.expectExternalReturn()
                     save.launch(descriptor.filename)
-                }) { Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                }) { Text(stringResource(R.string.ui_save), color = Color.White, fontWeight = FontWeight.SemiBold) }
                 TextButton(enabled = bytes != null, onClick = {
                     val original = bytes ?: return@TextButton
                     scope.launch {
@@ -244,7 +245,7 @@ internal fun PictureViewer(descriptor: FileDescriptor, pictures: ChatPictures, s
                             error = "Couldn't open the picture."
                         }
                     }
-                }) { Text("Open", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                }) { Text(stringResource(R.string.ui_open), color = Color.White, fontWeight = FontWeight.SemiBold) }
             }
             error?.let { Text(it, color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(24.dp)) }
         }

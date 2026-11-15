@@ -22,8 +22,8 @@ CheckBox {
         implicitWidth: 18
         implicitHeight: 18
         radius: 4
-        color: box.checked ? Theme.accent : "transparent"
-        border.color: box.checked ? Theme.accent : (box.visualFocus || box.hovered ? Theme.text2 : Theme.text3)
+        color: box.checked ? Theme.accentFill : "transparent"
+        border.color: box.checked ? Theme.accentFill : (box.visualFocus || box.hovered ? Theme.text2 : Theme.text3)
         border.width: 1.5
 
         Icon {

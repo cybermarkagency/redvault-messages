@@ -34,7 +34,7 @@ ListView {
             width: 70
             height: parent.height
             padding: 0
-            Accessible.name: tray.stories && tray.stories.ownCount > 0 ? "Your story" : "Add to your story"
+            Accessible.name: tray.stories && tray.stories.ownCount > 0 ? qsTr("Your story") : qsTr("Add to your story")
             onClicked: {
                 if (!tray.stories) return
                 if (tray.stories.ownCount > 0) tray.stories.openAuthor("me")
@@ -57,7 +57,7 @@ ListView {
                 Text {
                     width: 70
                     horizontalAlignment: Text.AlignHCenter
-                    text: "Your story"
+                    text: qsTr("Your story")
                     elide: Text.ElideRight
                     color: Theme.text2
                     font.pixelSize: Theme.fontSmall
@@ -70,7 +70,7 @@ ListView {
             width: 20
             height: 20
             radius: 10
-            color: Theme.accent
+            color: Theme.accentFill
             border.width: 2
             border.color: Theme.panel
             Icon {
@@ -96,7 +96,7 @@ ListView {
         height: tray.height
         padding: 0
         background: null
-        Accessible.name: item.modelData.handle + "'s story" + (item.modelData.unseen > 0 ? ", " + item.modelData.unseen + " new" : "")
+        Accessible.name: item.modelData.handle + qsTr("'s story") + (item.modelData.unseen > 0 ? ", " + item.modelData.unseen + qsTr(" new") : "")
         onClicked: tray.stories.openAuthor(item.modelData.authorId)
         contentItem: Column {
             spacing: 4

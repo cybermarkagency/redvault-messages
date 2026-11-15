@@ -43,10 +43,10 @@ LockDialog {
 
     showIcon: purpose === "change"
     iconName: "lock"
-    title: purpose === "upload" ? (described.length === 1 ? "Upload 1 file" : "Upload " + described.length + " files")
-                                : currentLock.length > 0 ? "Change the lock" : "Add a lock"
-    subtitle: purpose === "upload" ? (described.length === 1 ? "Encrypted and hashed on this PC before it leaves it."
-                                                               : "Encrypted and hashed on this PC before they leave it.")
+    title: purpose === "upload" ? (described.length === 1 ? qsTr("Upload 1 file") : qsTr("Upload ") + described.length + qsTr(" files"))
+                                : currentLock.length > 0 ? qsTr("Change the lock") : qsTr("Add a lock")
+    subtitle: purpose === "upload" ? (described.length === 1 ? qsTr("Encrypted and hashed on this PC before it leaves it.")
+                                                               : qsTr("Encrypted and hashed on this PC before they leave it."))
                                    : targetName
     width: 620
 
@@ -140,7 +140,7 @@ LockDialog {
             }
         }
 
-        Text { Layout.topMargin: 4; text: "Extra lock"; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { Layout.topMargin: 4; text: qsTr("Extra lock"); color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold }
 
         Choice {
             value: "none"
@@ -170,7 +170,7 @@ LockDialog {
                 visible: dialog.files.keys, dialog.files.keyNeedsPassword(dialog.keyId)
                 implicitHeight: 44
                 echoMode: TextInput.Password
-                placeholderText: "Key password"
+                placeholderText: qsTr("Key password")
                 Accessible.name: "Key password"
             }
         }
@@ -185,7 +185,7 @@ LockDialog {
             Layout.leftMargin: 30
             active: dialog.mode === "password"
             visible: active
-            sourceComponent: LockPasswordField { files: dialog.files; label: "File password" }
+            sourceComponent: LockPasswordField { files: dialog.files; label: qsTr("File password") }
         }
 
         InfoCard {
@@ -196,7 +196,7 @@ LockDialog {
         }
         InfoCard {
             Layout.fillWidth: true
-            text: "The lock wraps each file's own key. Our servers and the storage provider see no difference between locked and unlocked files. You can add, change or remove a lock later without re-uploading."
+            text: qsTr("The lock wraps each file's own key. Our servers and the storage provider see no difference between locked and unlocked files. You can add, change or remove a lock later without re-uploading.")
         }
 
         RowLayout {
@@ -204,13 +204,13 @@ LockDialog {
             Layout.topMargin: 4
             spacing: 10
             Item { Layout.fillWidth: true }
-            RvButton { secondary: true; implicitHeight: 46; text: "Cancel"; onClicked: dialog.close() }
+            RvButton { secondary: true; implicitHeight: 46; text: qsTr("Cancel"); onClicked: dialog.close() }
             RvButton {
                 implicitHeight: 46
                 danger: dialog.purpose === "change" && dialog.mode === "none"
-                text: dialog.files.lockBusy ? "Working…"
-                      : dialog.purpose === "upload" ? (dialog.mode === "none" ? "Upload" : "Upload and lock")
-                      : dialog.mode === "none" ? "Remove lock" : "Save lock"
+                text: dialog.files.lockBusy ? qsTr("Working…")
+                      : dialog.purpose === "upload" ? (dialog.mode === "none" ? qsTr("Upload") : qsTr("Upload and lock"))
+                      : dialog.mode === "none" ? qsTr("Remove lock") : qsTr("Save lock")
                 enabled: !dialog.files.lockBusy
                          && (dialog.mode !== "key" || (dialog.keyId.length > 0 && (!keyPassword.visible || keyPassword.text.length > 0)))
                          && (dialog.mode !== "password" || (passwordLoader.item && passwordLoader.item.acceptable))

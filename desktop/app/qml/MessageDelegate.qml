@@ -38,6 +38,7 @@ Item {
     required property string richText
     required property string richTextRevealed
     required property bool isImage
+    required property bool isAudio
     required property var poll
     required property string noticeText
     // Forwarded from a channel (all empty otherwise).
@@ -53,6 +54,9 @@ Item {
     // For pictures: {state, width, height} from the chat session (the thread passes it in).
     property var imageInfo: ({})
     readonly property string imageState: imageInfo && imageInfo.state ? imageInfo.state : ""
+    // For voice messages: {state, url} from the chat session.
+    property var audioInfo: ({})
+    signal audioLoadRequested(string messageId)
     // A spoiler in this message was clicked: show them all.
     property bool spoilersShown: false
 
@@ -109,8 +113,8 @@ Item {
         width: 22
         height: 22
         radius: 11
-        color: root.selected ? Theme.accent : "transparent"
-        border.color: root.selected ? Theme.accent : Theme.borderStrong
+        color: root.selected ? Theme.accentFill : "transparent"
+        border.color: root.selected ? Theme.accentFill : Theme.borderStrong
         border.width: 2
         Icon {
             anchors.centerIn: parent
@@ -163,7 +167,7 @@ Item {
             Layout.topMargin: 2
             Layout.bottomMargin: 2
             horizontalAlignment: Text.AlignHCenter
-            text: "\u{1F4CC} " + root.noticeText + " \u00B7 " + root.timeText
+            text: qsTr("\u{1F4CC} ") + root.noticeText + qsTr(" \u00B7 ") + root.timeText
             textFormat: Text.PlainText
             elide: Text.ElideRight
             color: Theme.text3
@@ -184,15 +188,22 @@ Item {
                 Layout.maximumWidth: root.maxBubbleWidth
                 implicitWidth: Math.min(root.maxBubbleWidth, bubbleColumn.implicitWidth + 24)
                 implicitHeight: bubbleColumn.implicitHeight + 16
-                radius: Theme.radiusCard
+                radius: Theme.radiusBubble
+                // Burgundy for yours, charcoal for theirs; a warning tint for one that
+                // couldn't be decrypted.
+                readonly property bool onFill: root.fromMe && root.kind !== "undecryptable"
                 color: root.kind === "undecryptable" ? Theme.warnSoft
-                     : root.fromMe ? Theme.bubbleOut : Theme.selected
-                border.width: root.highlighted ? 2 : 0
-                border.color: Theme.accent
+                     : root.fromMe ? Theme.bubbleOut : Theme.bubbleIn
+                border.width: root.highlighted ? 2 : (bubble.onFill ? 0 : 1)
+                border.color: root.highlighted ? (bubble.onFill ? Theme.bubbleOutText : Theme.focusRing)
+                            : root.kind === "undecryptable" ? Theme.warnBorder : Theme.bubbleInBorder
 
                 readonly property color ink: root.kind === "undecryptable" ? Theme.warn
-                                           : Theme.text
-                readonly property color inkSoft: root.fromMe ? Theme.text2 : Theme.text3
+                                           : bubble.onFill ? Theme.bubbleOutText : Theme.text
+                readonly property color inkSoft: bubble.onFill ? Theme.bubbleOutMeta : Theme.text3
+                /// Links, mentions and accents inside the bubble: white on burgundy.
+                readonly property color accentInk: bubble.onFill ? Theme.bubbleOutText : Theme.accent
+                readonly property color dangerInk: bubble.onFill ? "#FFD9CF" : Theme.danger
 
                 TapHandler {
                     acceptedButtons: Qt.RightButton
@@ -211,7 +222,7 @@ Item {
                         visible: root.showSender
                         text: root.sender
                         textFormat: Text.PlainText
-                        color: Theme.accent
+                        color: bubble.accentInk
                         font.pixelSize: Theme.fontSmall
                         font.weight: Font.DemiBold
                     }
@@ -219,9 +230,9 @@ Item {
                     // No signature where their apps now sign: an older app of theirs, or someone else made it.
                     Text {
                         visible: root.unverifiedSender
-                        text: "⚠ Sender not verified"
+                        text: qsTr("⚠ Sender not verified")
                         textFormat: Text.PlainText
-                        color: Theme.danger
+                        color: bubble.dangerInk
                         font.pixelSize: Theme.fontSmall
                         font.weight: Font.DemiBold
                         Accessible.name: "Sender not verified: this message has no signature, so it may come from an older app of theirs or from someone else"
@@ -238,7 +249,7 @@ Item {
                             color: bubble.inkSoft
                         }
                         Text {
-                            text: root.channelName.length > 0 ? "Forwarded from " + root.channelName : "Forwarded"
+                            text: root.channelName.length > 0 ? qsTr("Forwarded from ") + root.channelName : qsTr("Forwarded")
                             textFormat: Text.PlainText
                             color: bubble.inkSoft
                             font.pixelSize: Theme.fontSmall
@@ -287,7 +298,7 @@ Item {
                             width: 3
                             height: parent.height
                             radius: 2
-                            color: Theme.accent
+                            color: bubble.accentInk
                         }
                         Text {
                             id: quote
@@ -296,7 +307,7 @@ Item {
                             anchors.right: parent.right
                             anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            text: (root.replyFromMe ? "You: " : "") + root.replyPreview
+                            text: (root.replyFromMe ? qsTr("You: ") : "") + root.replyPreview
                             textFormat: Text.PlainText
                             maximumLineCount: 2
                             wrapMode: Text.Wrap
@@ -324,7 +335,7 @@ Item {
                                 color: bubble.inkSoft
                             }
                             Text {
-                                text: pollCard.p.closed ? "Poll · ended" : pollCard.p.multiple ? "Poll · pick any" : "Poll · pick one"
+                                text: pollCard.p.closed ? qsTr("Poll · ended") : pollCard.p.multiple ? qsTr("Poll · pick any") : qsTr("Poll · pick one")
                                 textFormat: Text.PlainText
                                 color: bubble.inkSoft
                                 font.pixelSize: Theme.fontSmall
@@ -360,13 +371,13 @@ Item {
                                 background: Rectangle {
                                     radius: 8
                                     color: Qt.alpha(Theme.bg, pollOption.hovered && pollOption.enabled ? 0.55 : 0.35)
-                                    border.color: pollOption.modelData.mine ? Theme.accent : "transparent"
+                                    border.color: pollOption.modelData.mine ? bubble.accentInk : "transparent"
                                     // How much of the vote this option has.
                                     Rectangle {
                                         height: parent.height
                                         width: pollCard.total > 0 ? parent.width * pollOption.modelData.count / pollCard.total : 0
                                         radius: 8
-                                        color: Qt.alpha(Theme.accent, 0.18)
+                                        color: Qt.alpha(bubble.accentInk, 0.18)
                                     }
                                 }
                                 contentItem: RowLayout {
@@ -376,8 +387,8 @@ Item {
                                         implicitWidth: 16
                                         implicitHeight: 16
                                         radius: pollCard.p.multiple ? 4 : 8
-                                        color: pollOption.modelData.mine ? Theme.accent : "transparent"
-                                        border.color: pollOption.modelData.mine ? Theme.accent : bubble.inkSoft
+                                        color: pollOption.modelData.mine ? bubble.accentInk : "transparent"
+                                        border.color: pollOption.modelData.mine ? bubble.accentInk : bubble.inkSoft
                                         border.width: 2
                                     }
                                     Text {
@@ -401,7 +412,7 @@ Item {
                             Layout.fillWidth: true
                             Text {
                                 Layout.fillWidth: true
-                                text: pollCard.total === 1 ? "1 person voted" : pollCard.total + " people voted"
+                                text: pollCard.total === 1 ? qsTr("1 person voted") : pollCard.total + qsTr(" people voted")
                                 textFormat: Text.PlainText
                                 color: bubble.inkSoft
                                 font.pixelSize: Theme.fontSmall
@@ -409,7 +420,7 @@ Item {
                             RvButton {
                                 visible: root.fromMe && !pollCard.p.closed
                                 primary: false
-                                text: "End poll"
+                                text: qsTr("End poll")
                                 implicitHeight: 28
                                 onClicked: root.endPollRequested(root.messageId)
                             }
@@ -427,7 +438,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.maximumWidth: root.maxBubbleWidth - 24
                         // Formatting is rendered from markup the core builds (everything the sender typed is escaped).
-                        text: root.richText.length === 0 ? root.text : root.spoilersShown ? root.richTextRevealed : root.richText
+                        text: root.richText.length === 0 ? root.text : Theme.themedHtml(root.spoilersShown ? root.richTextRevealed : root.richText, bubble.onFill ? Theme.bubbleOutText : undefined)
                         textFormat: root.richText.length === 0 ? TextEdit.PlainText : TextEdit.RichText
                         readOnly: true
                         onLinkActivated: (link) => {
@@ -440,8 +451,8 @@ Item {
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
                         color: bubble.ink
-                        selectionColor: Theme.accent
-                        selectedTextColor: Theme.accentContrast
+                        selectionColor: bubble.onFill ? Theme.bubbleOutText : Theme.accentFill
+                        selectedTextColor: bubble.onFill ? Theme.bubbleOut : Theme.accentContrast
                         font.pixelSize: Theme.fontSize
                         font.italic: root.kind === "undecryptable"
                     }
@@ -488,9 +499,9 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     horizontalAlignment: Text.AlignHCenter
-                                    text: root.imageState === "large" ? root.fileSize + " · click to load"
-                                        : root.imageState === "failed" ? "Couldn't show this picture. Click to try again."
-                                        : "Decrypting…"
+                                    text: root.imageState === "large" ? root.fileSize + qsTr(" · click to load")
+                                        : root.imageState === "failed" ? qsTr("Couldn't show this picture. Click to try again.")
+                                        : qsTr("Decrypting…")
                                     textFormat: Text.PlainText
                                     wrapMode: Text.Wrap
                                     color: bubble.inkSoft
@@ -526,26 +537,65 @@ Item {
                         }
                     }
 
-                    // File: its (sanitized) name and size; click for Open / Save as.
-                    RowLayout {
-                        visible: root.kind === "file"
-                        spacing: 8
+                    // A voice message (or other audio): played right here.
+                    VoicePlayer {
+                        visible: root.isAudio
+                        info: root.audioInfo
+                        ink: bubble.ink
+                        inkSoft: bubble.inkSoft
+                        onLoadRequested: root.audioLoadRequested(root.messageId)
+                    }
+
+                    // File: a card with its type, (sanitized) name and size; click for Open / Save as.
+                    Rectangle {
+                        id: fileCard
+                        visible: root.kind === "file" && !root.isAudio
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: Math.min(240, root.maxBubbleWidth - 24)
+                        implicitWidth: fileRow.implicitWidth + 20
+                        implicitHeight: fileRow.implicitHeight + 16
+                        radius: 10
+                        color: bubble.onFill ? Qt.alpha("#000000", fileHover.hovered ? 0.30 : 0.22)
+                                             : (fileHover.hovered ? Theme.surface3 : Theme.surface)
+                        border.width: 1
+                        border.color: bubble.onFill ? Qt.alpha("#FFFFFF", 0.18) : Theme.border
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("File %1, %2. Open or save").arg(root.text).arg(root.fileSize)
 
                         TapHandler {
                             onTapped: root.fileRequested(root.messageId, root.text)
                         }
                         HoverHandler {
+                            id: fileHover
                             cursorShape: Qt.PointingHandCursor
                         }
-                        Icon {
-                            name: "file"
-                            size: 22
-                            color: bubble.ink
+                    RowLayout {
+                        id: fileRow
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        spacing: 10
+
+                        Rectangle {
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            radius: 8
+                            color: bubble.onFill ? Qt.alpha("#FFFFFF", 0.14) : Theme.accentSoft
+                            Icon {
+                                anchors.centerIn: parent
+                                name: "file"
+                                size: 18
+                                color: bubble.onFill ? Theme.bubbleOutText : Theme.accent
+                            }
                         }
                         ColumnLayout {
-                            spacing: 0
+                            Layout.fillWidth: true
+                            spacing: 1
                             Text {
-                                Layout.maximumWidth: root.maxBubbleWidth - 70
+                                Layout.fillWidth: true
+                                Layout.maximumWidth: root.maxBubbleWidth - 110
                                 text: root.text
                                 textFormat: Text.PlainText
                                 elide: Text.ElideMiddle
@@ -560,6 +610,12 @@ Item {
                                 font.pixelSize: Theme.fontSmall
                             }
                         }
+                        Icon {
+                            name: "download"
+                            size: 16
+                            color: bubble.inkSoft
+                        }
+                    }
                     }
 
                     // Time, delivery and verification.
@@ -570,12 +626,12 @@ Item {
                             visible: root.verification === "failed"
                             name: "triangle-alert"
                             size: 13
-                            color: Theme.danger
+                            color: bubble.dangerInk
                         }
                         Text {
                             visible: root.verification === "failed"
-                            text: "Server's copy differs"
-                            color: Theme.danger
+                            text: qsTr("Server's copy differs")
+                            color: bubble.dangerInk
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
@@ -611,7 +667,7 @@ Item {
                         }
                         Text {
                             visible: root.fromMe && root.status === "queued"
-                            text: root.queueHeld ? "Not sent" : "Queued"
+                            text: root.queueHeld ? qsTr("Not sent") : qsTr("Queued")
                             textFormat: Text.PlainText
                             color: bubble.inkSoft
                             font.pixelSize: 11
@@ -621,7 +677,7 @@ Item {
                         }
                         Text {
                             visible: root.fromMe && root.status === "queued"
-                            text: root.queueHeld ? "Retry" : ""
+                            text: root.queueHeld ? qsTr("Retry") : ""
                             textFormat: Text.PlainText
                             color: bubble.inkSoft
                             font.pixelSize: 11
@@ -630,7 +686,7 @@ Item {
                         }
                         Text {
                             visible: root.fromMe && root.status === "queued"
-                            text: "Discard"
+                            text: qsTr("Discard")
                             color: bubble.inkSoft
                             font.pixelSize: 11
                             font.underline: true
@@ -644,7 +700,7 @@ Item {
                         }
                         Text {
                             visible: root.fromMe && root.status === "seen"
-                            text: "Seen"
+                            text: qsTr("Seen")
                             color: bubble.inkSoft
                             font.pixelSize: 11
                         }
@@ -666,7 +722,7 @@ Item {
                     iconSize: 16
                     implicitHeight: 30
                     ToolTip.visible: hovered
-                    ToolTip.text: "Reply"
+                    ToolTip.text: qsTr("Reply")
                     onClicked: root.replyRequested(root.messageId)
                 }
                 RvButton {
@@ -676,7 +732,7 @@ Item {
                     iconSize: 16
                     implicitHeight: 30
                     ToolTip.visible: hovered && !reactMenu.visible
-                    ToolTip.text: "React"
+                    ToolTip.text: qsTr("React")
                     onClicked: reactMenu.open()
 
                     Popup {
@@ -716,7 +772,7 @@ Item {
                                 font.pixelSize: 18
                                 Accessible.name: "More reactions"
                                 ToolTip.visible: hovered
-                                ToolTip.text: "More reactions"
+                                ToolTip.text: qsTr("More reactions")
                                 onClicked: {
                                     reactMenu.close()
                                     root.reactPickerRequested(root.messageId)
@@ -731,7 +787,7 @@ Item {
                     iconSize: 16
                     implicitHeight: 30
                     ToolTip.visible: hovered
-                    ToolTip.text: "More"
+                    ToolTip.text: qsTr("More")
                     Accessible.name: "More actions"
                     onClicked: root.menuRequested(root.messageId, root.fromMe, root.kind, root.text)
                 }

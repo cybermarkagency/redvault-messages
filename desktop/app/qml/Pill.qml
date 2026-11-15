@@ -3,27 +3,47 @@
 
 import QtQuick
 
-// A small status label: "accent" (good), "warn", "danger" or "plain".
+// A small status label: "ok" (confirmed: Verified, connected), "accent",
+// "warn", "danger", "lock" or "plain", with an optional Lucide icon so the
+// state never rests on its colour alone.
 Rectangle {
     id: pill
     property string text
     property string tone: "plain"
+    property string iconName: ""
 
-    implicitWidth: label.implicitWidth + 20
-    implicitHeight: 24
-    radius: 12
-    color: tone === "accent" ? Theme.accentSoft : tone === "warn" ? Theme.warnSoft : tone === "danger" ? Theme.dangerSoft : Theme.surface2
-    border.color: tone === "accent" ? Theme.accentBorder : tone === "warn" ? "#4A3F28" : tone === "danger" ? "#5A2D28" : Theme.border
+    readonly property color ink: tone === "ok" ? Theme.ok : tone === "accent" ? Theme.accent : tone === "warn" ? Theme.warn
+                               : tone === "danger" ? Theme.danger : tone === "lock" ? Theme.lockText : Theme.text2
+
+    implicitWidth: row.implicitWidth + 18
+    implicitHeight: 22
+    radius: 11
+    color: tone === "ok" ? Theme.okSoft : tone === "accent" ? Theme.accentSoft : tone === "warn" ? Theme.warnSoft
+         : tone === "danger" ? Theme.dangerSoft : tone === "lock" ? Theme.lockBg : Theme.surface2
+    border.color: tone === "ok" ? Theme.okBorder : tone === "accent" ? Theme.accentBorder : tone === "warn" ? Theme.warnBorder
+                : tone === "danger" ? Theme.dangerBorder : tone === "lock" ? Theme.lockBorder : Theme.border
     Accessible.role: Accessible.StaticText
     Accessible.name: text
 
-    Text {
-        id: label
+    Row {
+        id: row
         anchors.centerIn: parent
-        text: pill.text
-        textFormat: Text.PlainText
-        color: pill.tone === "accent" ? Theme.accent : pill.tone === "warn" ? Theme.warn : pill.tone === "danger" ? Theme.danger : Theme.text2
-        font.pixelSize: 12
-        font.weight: Font.Medium
+        spacing: 4
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: pill.iconName.length > 0
+            name: pill.iconName
+            size: 12
+            color: pill.ink
+        }
+        Text {
+            id: label
+            anchors.verticalCenter: parent.verticalCenter
+            text: pill.text
+            textFormat: Text.PlainText
+            color: pill.ink
+            font.pixelSize: 12
+            font.weight: Font.Medium
+        }
     }
 }

@@ -28,7 +28,7 @@ Popup {
     padding: 0
     closePolicy: Popup.CloseOnEscape
     background: Rectangle {
-        color: "#F20A0D0C"
+        color: "#F20B0C0F"
     }
     onClosed: media = null
 
@@ -55,7 +55,7 @@ Popup {
         Text {
             anchors.centerIn: parent
             visible: full.status === Image.Error
-            text: "Couldn't load the photo. Reload the channel and try again."
+            text: qsTr("Couldn't load the photo. Reload the channel and try again.")
             color: "#FFFFFF"
         }
         RowLayout {
@@ -75,7 +75,7 @@ Popup {
             RvButton {
                 secondary: true
                 iconName: "download"
-                text: "Save"
+                text: qsTr("Save")
                 onClicked: viewer.saveRequested(viewer.media)
             }
             RvButton {

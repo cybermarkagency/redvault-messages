@@ -45,7 +45,7 @@ Rectangle {
             IconButton {
                 visible: sheet.closable
                 iconName: "close"
-                tip: "Close"
+                tip: qsTr("Close")
                 onClicked: sheet.closed()
             }
         }
