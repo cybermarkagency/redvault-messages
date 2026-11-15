@@ -30,7 +30,10 @@ const CONTROL_PORT = 3057;
 const SERVER = `http://127.0.0.1:${PORT}`;
 const WORK = mkdtempSync(join(tmpdir(), "rv-signal-m4-"));
 const WIN_PROBE = process.env.SIGNAL_WIN_PROBE ?? join(ROOT, "desktop", "build-signal", "tools", "v3_probe", "redvault_v3_probe.exe");
-const LINUX_PROBE = process.env.SIGNAL_LINUX_PROBE ?? "/home/winchester/rv-signal-m4/build/tools/v3_probe/redvault_v3_probe";
+// The WSL user's home (the Linux probe and its data folders live under ~/rv-signal-m4 there).
+const WSL_HOME = spawnSync("wsl.exe", ["-d", "Ubuntu", "--", "printenv", "HOME"], { encoding: "utf8", windowsHide: true }).stdout?.trim() || "~";
+const WSL_RUN = `${WSL_HOME}/rv-signal-m4/run`;
+const LINUX_PROBE = process.env.SIGNAL_LINUX_PROBE ?? `${WSL_HOME}/rv-signal-m4/build/tools/v3_probe/redvault_v3_probe`;
 const SERIAL = process.env.SIGNAL_ADB_SERIAL ?? "emulator-5580";
 const ADB = join(process.env.LOCALAPPDATA, "Android", "Sdk", "platform-tools", "adb.exe");
 const APK_DIR = join(ROOT, "android", "app", "build", "outputs", "apk");
@@ -189,7 +192,7 @@ class Desktop {
       this.dataDir = join(WORK, name);
       mkdirSync(this.dataDir, { recursive: true });
     } else {
-      this.dataDir = `/home/winchester/rv-signal-m4/run/${name}-${hex(3)}`;
+      this.dataDir = `${WSL_RUN}/${name}-${hex(3)}`;
       sh("wsl.exe", ["-d", "Ubuntu", "--", "mkdir", "-p", this.dataDir]);
     }
     this.start();
@@ -593,7 +596,7 @@ try {
   kill(tunnelWsl);
   // "[w]sl_tunnel" so the pattern never matches pkill's own command line.
   sh("wsl.exe", ["-d", "Ubuntu", "--", "pkill", "-f", "[w]sl_tunnel.py wsl"]);
-  sh("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-rf", "/home/winchester/rv-signal-m4/run"]);
+  sh("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-rf", WSL_RUN]);
   stopServer();
   await db?.end();
   if (pgProcess) sh(pgTool("pg_ctl"), ["-D", PGDATA, "-m", "immediate", "stop"]);
