@@ -6,6 +6,12 @@
 # configure step rather than shipping a broken or non-https link. Also runs as a script, for the tests:
 #   cmake -DREDVAULT_SOURCE_CODE_URL=... -DREDVAULT_SOURCE_CONTACT=... -P source_info.cmake
 
+# The public source repository (AGPL-3.0-only). packaging/package.ps1 and packaging/package-linux.sh pass this to
+# every published build unless REDVAULT_SOURCE_CODE_URL is set. Each desktop release needs the tag
+# desktop-v<version> there before it is published (Android uses android-v<version>: the two apps' version numbers
+# overlap, so a plain v<version> could name the other app's source). Developer builds keep the empty default.
+set(REDVAULT_OFFICIAL_SOURCE_CODE_URL "https://github.com/cybermarkagency/redvault-messages/tree/desktop-v{version}")
+
 function(redvault_check_source_settings url contact)
     if(NOT url STREQUAL "" AND
        NOT url MATCHES "^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/+=@{}-]*)?$")

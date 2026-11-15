@@ -98,7 +98,14 @@ try {
     # the Terms of Service contact). Always passed, so a value left in the build cache from an earlier run can't stick.
     # Release builds carry device keys with Signal sessions: the release preset sets both, and they're passed for the same reason.
     # Tor by default (docs/tor-by-default.md): every published build is Tor-only at the official onion service.
-    $sourceArgs = @("-DREDVAULT_SOURCE_CODE_URL=$env:REDVAULT_SOURCE_CODE_URL", "-DREDVAULT_SOURCE_CONTACT=$env:REDVAULT_SOURCE_CONTACT",
+    # Without REDVAULT_SOURCE_CODE_URL: the official public repository from cmake/source_info.cmake.
+    $sourceUrl = $env:REDVAULT_SOURCE_CODE_URL
+    if (-not $sourceUrl) {
+        $urlMatch = Select-String -Path (Join-Path $PSScriptRoot "..\cmake\source_info.cmake") -Pattern 'set\(REDVAULT_OFFICIAL_SOURCE_CODE_URL "([^"]+)"\)'
+        if (-not $urlMatch) { throw "No REDVAULT_OFFICIAL_SOURCE_CODE_URL in cmake/source_info.cmake" }
+        $sourceUrl = $urlMatch.Matches[0].Groups[1].Value
+    }
+    $sourceArgs = @("-DREDVAULT_SOURCE_CODE_URL=$sourceUrl", "-DREDVAULT_SOURCE_CONTACT=$env:REDVAULT_SOURCE_CONTACT",
         "-DREDVAULT_E2E_V3=ON", "-DREDVAULT_E2E_SIGNAL=ON") + (& (Join-Path $PSScriptRoot "tor-release-args.ps1"))
     if (-not $SignOnly) {
         Invoke-Step "Configure (release)" { cmake --preset release @sourceArgs }
