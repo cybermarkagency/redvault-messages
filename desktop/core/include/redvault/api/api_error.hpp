@@ -17,15 +17,19 @@ namespace redvault::api {
  */
 class ApiError : public std::runtime_error {
 public:
-    ApiError(int status, std::string code, const std::string& message)
-        : std::runtime_error(message), status_(status), code_(std::move(code)) {}
+    ApiError(int status, std::string code, const std::string& message, std::string details = {})
+        : std::runtime_error(message), status_(status), code_(std::move(code)), details_(std::move(details)) {}
 
     int status() const noexcept { return status_; }
     const std::string& code() const noexcept { return code_; }
+    /// The body's `details` object as JSON text ("" when there is none), e.g. {"userIds": [...]} on a 409
+    /// recipient_not_entitled (docs/signal-integration/11-part-c2-communities.md). Never message content.
+    const std::string& details() const noexcept { return details_; }
 
 private:
     int status_;
     std::string code_;
+    std::string details_;
 };
 
 /// An error whose message is written for the person using the app, safe to show as-is.

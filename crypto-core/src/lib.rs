@@ -29,6 +29,13 @@ pub(crate) mod signal;
 #[cfg(feature = "signal")]
 pub(crate) mod signal_group;
 
+/// Sealed requests for the backup route (Oblivious HTTP): docs/tor-sealed-fallback.md.
+#[cfg(feature = "sealed-transport")]
+pub mod sealed;
+
+#[cfg(all(feature = "sealed-transport", feature = "wasm"))]
+compile_error!("the sealed backup route is for the desktop and Android apps, not the web build");
+
 #[cfg(feature = "ffi")]
 pub mod ffi;
 

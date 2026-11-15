@@ -242,7 +242,7 @@ StorySheet {
                                     onClicked: {
                                         row.problem = ""
                                         row.sending = true
-                                        sheet.stories.reportAnswer(sheet.story.id, row.modelData.stickerId, row.modelData.envelope, reason.text, row.modelData.text, row.share)
+                                        sheet.stories.reportAnswer(sheet.story.id, row.modelData.stickerId, row.modelData.envelope, reason.text, row.modelData.text, row.share, row.modelData.responderId || "")
                                     }
                                 }
                             }

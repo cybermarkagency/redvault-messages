@@ -84,6 +84,21 @@ public:
 };
 
 /**
+ * Marks a send on this thread that is never queued, even inside a chat send: a call's set-up
+ * (docs/signal-integration/09-part-b-calls.md). With Tor down it fails at once ("tor_unavailable")
+ * and the call fails, as it would without a connection.
+ */
+class NoQueueScope {
+public:
+    NoQueueScope() = default;
+    NoQueueScope(const NoQueueScope&) = delete;
+    NoQueueScope& operator=(const NoQueueScope&) = delete;
+
+private:
+    SendScope scope_{"", ""};  // a scope with no record: QueueingV3Server sends it straight away
+};
+
+/**
  * The server, with the chat sends queued instead of lost while Tor is down. Every
  * call goes to `inner` (the app's HttpV3Server, over the Tor transport) unchanged,
  * except sendMessages and sendGroupMessage inside a SendScope: those are queued,
@@ -141,6 +156,9 @@ public:
     Json signalClaim(const std::string& conversationId, const Json& devices) override { return inner_->signalClaim(conversationId, devices); }
     Json rosters(const std::string& conversationId, int afterEpoch = 0) override { return inner_->rosters(conversationId, afterEpoch); }
     Json postRoster(const std::string& conversationId, const Json& roster) override { return inner_->postRoster(conversationId, roster); }
+    Json signalCertificates(const std::string& userId, const std::string& conversationId = {}) override {
+        return inner_->signalCertificates(userId, conversationId);
+    }
 
 private:
     void sendOrQueue(QueuedSend item);

@@ -74,8 +74,11 @@ net::HttpResponse ApiClient::perform(const net::HttpRequest& request, const net:
 
     if (response.status < 200 || response.status > 299) {
         ErrorBody parsed;
+        std::string details;
         try {
-            parsed = Json::parse(response.body).get<ErrorBody>();
+            const Json body = Json::parse(response.body);
+            parsed = body.get<ErrorBody>();
+            if (const auto it = body.find("details"); it != body.end() && it->is_object()) details = it->dump();
         } catch (const Json::exception&) {
             // Not the usual error shape (a proxy's HTML page, say): fall back to the status.
         }
@@ -83,7 +86,8 @@ net::HttpResponse ApiClient::perform(const net::HttpRequest& request, const net:
         const bool proxyDown = response.status >= 502 && response.status <= 504;
         throw ApiError(response.status, parsed.error.value_or("unknown_error"),
                        parsed.message.value_or(proxyDown ? "The server is restarting or unavailable. Try again in a minute."
-                                                         : "Request failed (HTTP " + std::to_string(response.status) + ")"));
+                                                         : "Request failed (HTTP " + std::to_string(response.status) + ")"),
+                       std::move(details));
     }
     return response;
 }

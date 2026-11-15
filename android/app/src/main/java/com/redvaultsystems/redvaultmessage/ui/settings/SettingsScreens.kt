@@ -141,6 +141,8 @@ fun SettingsScreen(
     onRingtoneChange: (Boolean) -> Unit = {},
     echoCancellation: Boolean = true,
     onEchoCancellationChange: (Boolean) -> Unit = {},
+    /** Story settings; null while the server has Stories off (then there is nothing to show). */
+    onOpenStorySettings: (() -> Unit)? = null,
     /** Settings › Plans: compare plans, buy, switch or cancel. */
     onOpenPlans: () -> Unit = {},
     /** Files (the encrypted drive) in use and its limit, in bytes; null until it has loaded. Every plan has some. */
@@ -386,6 +388,10 @@ fun SettingsScreen(
             onClick = onOpenInbox,
             icon = R.drawable.ui_bell,
         )
+
+        if (onOpenStorySettings != null) {
+            SettingsRow(title = stringResource(R.string.ui_stories), description = stringResource(R.string.ui_who_sees_your_stories_archive_and), onClick = onOpenStorySettings, icon = R.drawable.ui_image)
+        }
 
         SectionLabel(stringResource(R.string.ui_account))
         SettingsRow(title = stringResource(R.string.ui_handle), description = profile.handle, onClick = onOpenChangeUsername, icon = R.drawable.ui_user)

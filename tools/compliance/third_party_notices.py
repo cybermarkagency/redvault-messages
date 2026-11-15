@@ -38,8 +38,8 @@ OUTPUTS = {
 # CMakeLists, android/app/build.gradle.kts).
 RUST = {
     "web": [("crypto-core", "wasm", "wasm32-unknown-unknown")],
-    "desktop": [("crypto-core", "ffi,signal", "x86_64-pc-windows-gnu"), ("tor-core", "ffi", "x86_64-pc-windows-gnu")],
-    "android": [("crypto-core", "jni,signal", "aarch64-linux-android"), ("tor-core", "jni", "aarch64-linux-android")],
+    "desktop": [("crypto-core", "ffi,signal,sealed-transport", "x86_64-pc-windows-gnu"), ("tor-core", "ffi", "x86_64-pc-windows-gnu")],
+    "android": [("crypto-core", "jni,signal,sealed-transport", "aarch64-linux-android"), ("tor-core", "jni", "aarch64-linux-android")],
 }
 LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING|NOTICE|AUTHORS|COPYRIGHT|UNLICENSE)([-._].*)?$", re.I)
 OWN_CRATES = {"redvault-e2ee", "redvault-tor"}

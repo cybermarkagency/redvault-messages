@@ -37,6 +37,7 @@ import com.redvaultsystems.redvaultmessage.data.api.TOR_UNAVAILABLE_MESSAGE
 import com.redvaultsystems.redvaultmessage.tor.TorController
 import com.redvaultsystems.redvaultmessage.tor.TorState
 import com.redvaultsystems.redvaultmessage.tor.TorStatus
+import com.redvaultsystems.redvaultmessage.ui.components.DsSwitch
 import com.redvaultsystems.redvaultmessage.ui.components.Callout
 import com.redvaultsystems.redvaultmessage.ui.components.CalloutTone
 import com.redvaultsystems.redvaultmessage.ui.components.RoundButton
@@ -56,6 +57,9 @@ fun NetworkRoutingScreen(
 ) {
     val colors = RedvaultTheme.colors
     val status: TorStatus? = tor?.status?.collectAsStateWithLifecycle()?.value
+    val backupRoute = tor?.backupRoute?.collectAsStateWithLifecycle()?.value == true
+    val onionOnly = tor?.onionOnly?.collectAsStateWithLifecycle()?.value == true
+    val backupAvailable = tor?.backupRouteAvailable == true
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundButton(R.drawable.ui_chevron_left, "Back", onClick = onBack, container = Color.Transparent, iconSize = 24.dp)
@@ -88,7 +92,8 @@ fun NetworkRoutingScreen(
             if (tor != null) {
                 SectionCaps(stringResource(R.string.ui_tor), edge = 0.dp)
                 Card {
-                    val (label, tone) = torLabel(status)
+                    val (plainLabel, tone) = torLabel(status)
+                    val label = if (backupRoute && status?.state == TorState.Connected) "Connected (backup route)" else plainLabel
                     Line("Tor connection", status?.detail?.takeIf { it.isNotBlank() } ?: "Built into this app", label, tone)
                     if (queued > 0) {
                         Divider()
@@ -96,11 +101,49 @@ fun NetworkRoutingScreen(
                     }
                 }
                 if (status?.state == TorState.Unavailable) Callout(TOR_UNAVAILABLE_MESSAGE, CalloutTone.Warn, R.drawable.ui_alert_circle)
+                if (backupAvailable) {
+                    // The sealed backup route (docs/tor-sealed-fallback.md).
+                    SectionCaps("Backup route", edge = 0.dp)
+                    Card {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Only use the onion address", color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "When the onion address can't be reached, the app normally switches to a backup route: still through Tor, " +
+                                        "to the website, with every request sealed so only RedVault's server can read it. Cloudflare, which runs " +
+                                        "in front of the website, can then see that someone uses the backup route, when and how much, but not who " +
+                                        "or what. Turn this on to wait for the onion address instead.",
+                                    color = colors.text2, fontSize = 13.sp,
+                                )
+                            }
+                            DsSwitch(onionOnly, { tor?.setOnionOnly(it) }, "Only use the onion address")
+                        }
+                        if (backupRoute) {
+                            Divider()
+                            Text(
+                                "In use now: the onion address isn't answering. The app checks it every minute and moves back as soon as it does.",
+                                color = colors.text2, fontSize = 13.sp, modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
+                }
                 Text(
-                    "Messages, files and your account reach the service only through Tor, at its onion address. There's no setting that sends " +
-                        "them another way: if Tor can't connect, they wait here, encrypted, and go out once it does. They're never shown as sent " +
-                        "before the server has them. Notifications come from the app's own background connection, through Tor too: no push " +
-                        "service run by anyone else is used.",
+                    if (backupAvailable) {
+                        "Messages, files and your account reach the service only through Tor: at its onion address, or by the sealed backup " +
+                            "route while the onion can't be reached. Nothing ever goes without Tor: if Tor itself can't connect, they wait " +
+                            "here, encrypted, and go out once it does. They're never shown as sent before the server has them. " +
+                            "Notifications come from the app's own background connection, through Tor too: no push service run by anyone " +
+                            "else is used."
+                    } else {
+                        "Messages, files and your account reach the service only through Tor, at its onion address. There's no setting that sends " +
+                            "them another way: if Tor can't connect, they wait here, encrypted, and go out once it does. They're never shown as sent " +
+                            "before the server has them. Notifications come from the app's own background connection, through Tor too: no push " +
+                            "service run by anyone else is used."
+                    },
                     color = colors.text2, fontSize = 14.sp,
                 )
             }
@@ -156,10 +199,10 @@ private fun Line(title: String, detail: String, value: String, tone: Color) {
  * waiting, and, during a call, that it goes WebRTC through the TURN relay rather than Tor.
  */
 @Composable
-fun TorStatusStrip(status: TorStatus, queued: Int, pausedUploads: Int, callActive: Boolean) {
+fun TorStatusStrip(status: TorStatus, queued: Int, pausedUploads: Int, callActive: Boolean, backupRoute: Boolean = false) {
     val colors = RedvaultTheme.colors
     val (text, tone) = when (status.state) {
-        TorState.Connected -> "Tor connected" to colors.ok
+        TorState.Connected -> (if (backupRoute) "Tor connected (backup route)" else "Tor connected") to colors.ok
         TorState.Connecting -> "Connecting through Tor… ${status.progress}%" to colors.warn
         TorState.Unavailable -> "Can't reach Tor" to colors.danger
     }

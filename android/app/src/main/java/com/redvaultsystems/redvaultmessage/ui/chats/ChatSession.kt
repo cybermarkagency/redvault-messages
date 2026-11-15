@@ -5,8 +5,11 @@ package com.redvaultsystems.redvaultmessage.ui.chats
 
 import com.redvaultsystems.redvaultmessage.devicekeys.ChatOp
 import com.redvaultsystems.redvaultmessage.devicekeys.EngineException
+import com.redvaultsystems.redvaultmessage.devicekeys.MessageExtras
+import com.redvaultsystems.redvaultmessage.devicekeys.chatReply
 import com.redvaultsystems.redvaultmessage.devicekeys.OlderProtocolOnly
 import com.redvaultsystems.redvaultmessage.devicekeys.SendOutcome
+import com.redvaultsystems.redvaultmessage.devicekeys.CommunityContext
 import com.redvaultsystems.redvaultmessage.devicekeys.V3Chat
 import android.util.Log
 import com.redvaultsystems.redvaultmessage.BuildConfig
@@ -93,6 +96,9 @@ data class ChatsState(
     val v3Held: Int = 0,
 )
 
+/** Part C2: a community takes messages on device keys only. */
+private const val COMMUNITY_NEEDS_DEVICE_KEYS = "communities use device keys, and they aren't available on this phone right now. Nothing was sent."
+
 private const val KEY_CHANGE_PAUSED = "Sending is paused because this contact's safety number changed. Verify it first."
 
 /**
@@ -143,6 +149,12 @@ class ChatSession(
 
     /** Pictures shown in chats: decrypted on this phone and kept in memory only. */
     val pictures = ChatPictures(download = ::downloadFile, writeDecrypted = files::writeDecrypted)
+
+    // Device keys (part A): the received messages each open chat has on screen, for "read" receipts; and the timer
+    // that erases the next disappearing message when its time comes.
+    private val onScreen = ConcurrentHashMap<String, List<String>>()
+    private var expiryJob: kotlinx.coroutines.Job? = null
+    private var expiryAt = Long.MAX_VALUE
 
     // The outbox, oldest first, as last read; and whether a drain is running (one at a time, in order).
     @Volatile private var queuedItems: List<OutboxItem> = emptyList()
@@ -204,6 +216,7 @@ class ChatSession(
     /** Chats no longer open anywhere go back to their newest page (as the desktop does on leaving a chat). */
     fun keepWindows(openConversationIds: Set<String>) {
         windows.keys.retainAll(openConversationIds)
+        onScreen.keys.retainAll(openConversationIds)
     }
 
     private fun windowOf(conversationId: String): Int = windows[conversationId] ?: MessagePaging.PAGE_SIZE
@@ -231,8 +244,6 @@ class ChatSession(
                 fromMe = it.fromMe,
             )
         }
-        // Replies don't exist on device keys yet.
-        if (target != null && refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Reply)) return onResult(false)
         if (outbox != null) {
             // Sealed in the outbox first; it goes out over Tor (now, or once Tor is back) and stays until stored. The drain
             // sends it on device keys when the chat is on them, the usual way otherwise (docs/tor-by-default.md rule 5).
@@ -249,9 +260,14 @@ class ChatSession(
         scope.launch {
             if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
             // Device keys first, when this chat is on them: it never also goes out the usual way.
-            if (v3 != null && meta.community == null && target == null) {
+            // Part C2: a community is device keys only; without them on this phone nothing goes out (the server refuses).
+            if (v3 == null && meta.community != null) {
+                reportV3(conversationId, "v3_unavailable", COMMUNITY_NEEDS_DEVICE_KEYS)
+                return@launch onResult(false)
+            }
+            if (v3 != null) {
                 val sentV3 = try {
-                    sendV3(conversationId, meta, text, v3)
+                    sendV3(conversationId, meta, text, v3, target?.let { chatReply(it.ref.messageId, it.ref.preview) })
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: EngineException) {
@@ -285,17 +301,14 @@ class ChatSession(
         return true
     }
 
-    /** New content whose form or sheet shows the problem itself: a refused key, the key pause, or a chat on device keys. Null: it may go out. */
-    private fun contentRefusal(conversationId: String, what: OlderProtocolOnly): String? {
-        sendRefusal(conversationId)?.let { return it }
-        return v3?.olderProtocolRefusal(conversationId, what)?.let { "Not sent: $it" }
-    }
-
     /**
-     * Whether this chat is on device keys (it has sent or received on them here): the thread screen hides what
-     * device keys can't carry yet (replies, forwarding, polls, pins, the timer, selecting). Step 2 brings them back.
+     * Whether this chat is on device keys (it has sent or received on them here). Since part A they carry replies,
+     * forwards, polls, pins, receipts and the timer, so the thread screen offers everything in it.
      */
     fun onDeviceKeys(conversationId: String): Boolean = v3?.pinned(conversationId) == true
+
+    /** The chat's own disappearing timer, carried by each device-key message it sends (part A). */
+    private fun expSeconds(conversationId: String): Long? = conversation(conversationId)?.disappearing?.seconds?.toLong()
 
     /** Retry of a device-key send that failed: encrypted again (never the same ciphertext) and sent with the same message id. */
     private fun retryV3(record: com.redvaultsystems.redvaultmessage.devicekeys.ChatRecord) {
@@ -303,9 +316,7 @@ class ChatSession(
         val chat = v3 ?: return
         scope.launch {
             try {
-                val file = record.file
-                if (file != null) chat.sendFile(record.conversationId, meta.isGroup, meta.otherUserId, file, record.id)
-                else chat.send(record.conversationId, meta.isGroup, meta.otherUserId, record.text, record.id)
+                chat.retry(record, meta.isGroup, meta.otherUserId)
                 showV3(record.conversationId)
             } catch (e: CancellationException) {
                 throw e
@@ -334,15 +345,20 @@ class ChatSession(
         "signal_keys_missing" -> "Not sent: one of their devices uses Signal sessions, but the server didn't hand out its keys. Try again later."
         "identity_changed", "certificate_mismatch", "untrusted_identity" ->
             "Not sent: one of this contact's devices has new Signal keys. Compare the safety number (Verify) before trusting them."
+        // Part C2: communities.
+        "membership_expired" -> "Not sent: your membership has ended. Renew it to post again."
+        "cannot_post" -> "Not sent: " + (message ?: "you can't post here.")
+        "community_closed" -> "Not sent: this community is closed."
+        "community_suspended" -> "Not sent: this community is suspended."
+        "community_not_ready", "signal_required" -> "Not sent: " + (message ?: "this community isn't ready on device keys yet.")
         "network_error" -> "Not sent: no connection." + if (typed) " Your text is still in the box." else ""
         "v3_unavailable", "phone_not_linked" -> "Not sent: " + (message ?: "device keys aren't available.")
         else -> "Not sent: " + (message ?: "something went wrong") + "."
     }
 
     /** True when [text] went out on device keys; false means "send it the usual way". A pinned chat that can't throws. */
-    private suspend fun sendV3(conversationId: String, meta: ConversationMeta, text: String, v3: V3Chat): Boolean {
-        if (timerKeepsOffV3(conversationId, v3)) return false
-        val outcome = v3.send(conversationId, meta.isGroup, meta.otherUserId, text)
+    private suspend fun sendV3(conversationId: String, meta: ConversationMeta, text: String, v3: V3Chat, reply: com.redvaultsystems.redvaultmessage.devicekeys.ChatReply? = null): Boolean {
+        val outcome = v3.send(conversationId, meta.isGroup, meta.otherUserId, text, extras = MessageExtras(reply = reply, exp = expSeconds(conversationId)))
         if (outcome == null) {
             refuseIfV3Expected(conversationId, v3)
             return false
@@ -352,14 +368,6 @@ class ChatSession(
         if (!meta.isGroup) {
             v3.protocol(conversationId, meta.otherUserId)?.let { p -> _state.update { it.copy(v3Protocols = it.v3Protocols + (conversationId to p)) } }
         }
-        return true
-    }
-
-    /** A disappearing timer is on: the usual way, or a refusal in a chat that has used device keys. */
-    private fun timerKeepsOffV3(conversationId: String, v3: V3Chat): Boolean {
-        val timer = conversation(conversationId)?.disappearing ?: Disappearing.Off
-        if (timer == Disappearing.Off) return false
-        if (v3.pinned(conversationId)) throw EngineException("no_disappearing", "Device keys don't support disappearing messages yet. Turn the timer off to send.")
         return true
     }
 
@@ -383,15 +391,14 @@ class ChatSession(
      */
     private suspend fun sendFileV3(conversationId: String, meta: ConversationMeta, onStage: (FileSendStage) -> Unit, pick: suspend () -> PickedFile): Boolean {
         val chat = v3 ?: return false
-        if (meta.community != null) return false
         try {
             if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
-            if (timerKeepsOffV3(conversationId, chat)) return false
             val onKeys = chat.usesDeviceKeys(conversationId, meta.isGroup, meta.otherUserId)
             if (onKeys == null) refuseIfV3Expected(conversationId, chat)
             if (onKeys != true) return false
             val descriptor = files.uploadForDeviceKeys(meta.id, pick(), onStage)
-            val outcome = chat.sendUploaded(conversationId, meta.isGroup, meta.otherUserId, descriptor, deleteUpload = ::deleteUploadBestEffort)
+            val extras = MessageExtras(exp = expSeconds(conversationId))
+            val outcome = chat.sendUploaded(conversationId, meta.isGroup, meta.otherUserId, descriptor, extras = extras, deleteUpload = ::deleteUploadBestEffort)
             if (outcome !is SendOutcome.Sent) throw EngineException("v3_unavailable", "device keys stopped being available for this chat")
             return true
         } catch (e: EngineException) {
@@ -442,17 +449,41 @@ class ChatSession(
     /** Brings an open list up to date with this phone's device-key history. */
     private fun showV3(conversationId: String) {
         updateConversation(conversationId) { it.copy(messages = withV3(conversationId, it.messages)) }
+        scheduleExpiry()
     }
 
     /** [messages] with this chat's device-key messages as they stand now (kept on this phone), oldest first. */
     private fun withV3(conversationId: String, messages: List<Message>): List<Message> {
         val shown = v3?.shown(conversationId).orEmpty()
-        if (shown.isEmpty()) return messages
-        // Rebuilt each time: a reaction, edit or delete changes a message already in the list.
+        // Rebuilt each time: a reaction, edit, delete, vote, pin, receipt or the end of a timer changes what's shown.
         val others = messages.filterNot { it.v3 }
+        if (shown.isEmpty()) return others
         val known = others.mapTo(HashSet()) { it.id.lowercase() }
-        val extra = shown.filter { it.record.id !in known }.map { V3Messages.toMessage(it, identity.userId) }
+        val hidden = hiddenMessages.load(identity.userId)
+        val byId = shown.associateBy { it.record.id }
+        val extra = shown.filter { it.record.id !in known && it.record.id !in hidden }.map { V3Messages.toMessage(it, identity.userId, byId) }
         return (others + extra).sortedBy { it.createdAtMs }
+    }
+
+    /**
+     * Disappearing messages on device keys (part A): when the next one's time comes, it's erased from this phone (its
+     * text, file key and everything that refers to it) and leaves every open list.
+     */
+    private fun scheduleExpiry() {
+        val chat = v3 ?: return
+        val now = System.currentTimeMillis()
+        val next = _state.value.conversations.asSequence().flatMap { it.messages.asSequence() }
+            .filter { it.v3 }.mapNotNull { it.deleteAtMs }.filter { it > now }.minOrNull() ?: return
+        if (expiryJob?.isActive == true && expiryAt <= next) return
+        expiryJob?.cancel()
+        expiryAt = next
+        expiryJob = scope.launch {
+            delay(next - System.currentTimeMillis())
+            expiryAt = Long.MAX_VALUE
+            expiryJob = null
+            withContext(Dispatchers.IO) { chat.eraseExpired() }
+            metas.keys.forEach(::showV3)
+        }
     }
 
     /**
@@ -473,6 +504,10 @@ class ChatSession(
         try {
             val report = v3?.receive()
             if (report != null) _state.update { it.copy(v3Held = report.held.size) }
+            // "Delivered" for what was just stored here (part A); never for receipts, votes, pins or ends.
+            // Chats whose receipts had to wait last time go again.
+            val owing = report?.received?.filter { it.direction == "in" && it.op == null }?.map { it.conversationId }.orEmpty()
+            (owing + v3?.receiptsWaiting().orEmpty()).distinct().forEach { sendReceipts(it) }
             val note = if (report != null && (report.dropped.isNotEmpty() || report.held.isNotEmpty())) "Device-key mailbox: dropped=${report.dropped} held=${report.held.size}" else null
             if (BuildConfig.DEBUG) note?.let { Log.w(TAG, it) }
         } catch (e: CancellationException) {
@@ -482,15 +517,39 @@ class ChatSession(
         }
     }
 
-    /** Sends a reply or a reaction to a story to the friend who posted it (a plain chat message that names the story). */
+    /**
+     * Sends a reply or a reaction to a story to the friend who posted it (a plain chat message that names the story).
+     * Part D: in a chat on device keys it goes as a device-key text with the `storyReply` field (never the story's key);
+     * otherwise the chat's own rule decides (step 1), as for any message.
+     */
     fun sendStoryReply(authorId: String, text: String, ref: StoryReplyRef, onResult: (sent: Boolean) -> Unit) {
         val meta = metas.values.firstOrNull { !it.isGroup && it.otherUserId == authorId } ?: return onResult(false)
         sendRefusal(meta.id)?.let { why ->
             _state.update { it.copy(sendError = why, sendErrorChat = meta.id) }
             return onResult(false)
         }
-        if (refusedOnDeviceKeys(meta.id, OlderProtocolOnly.StoryReply)) return onResult(false)
         scope.launch {
+            val chat = v3
+            if (chat != null) {
+                val storyReply = com.redvaultsystems.redvaultmessage.devicekeys.chatStoryReply(ref.authorId, ref.storyId, ref.kind, ref.preview, ref.reaction)
+                    ?: return@launch onResult(false)
+                try {
+                    val outcome = chat.send(meta.id, false, authorId, text.trim(), extras = MessageExtras(exp = expSeconds(meta.id), storyReply = storyReply))
+                    if (outcome == null) refuseIfV3Expected(meta.id, chat)
+                    if (outcome is SendOutcome.Sent) {
+                        showV3(meta.id)
+                        return@launch onResult(true)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: EngineException) {
+                    reportV3(meta.id, e.code, e.message, typed = false)
+                    return@launch onResult(false)
+                } catch (e: ApiException) {
+                    if (e.status == 401) onSessionExpired() else reportV3(meta.id, e.code, e.message, typed = false)
+                    return@launch onResult(false)
+                }
+            }
             val ok = guarded {
                 val message = repository.sendStoryReply(meta, text, ref)
                 updateConversation(meta.id) { conversation ->
@@ -685,18 +744,26 @@ class ChatSession(
         val items = messages.filter(MessageSelection::canForward).sortedBy { it.createdAtMs }
         if (items.isEmpty() || targets.isEmpty()) return onResult(null)
         // Before anything goes out, so a chat that can't take it doesn't leave the rest half done.
-        targets.firstNotNullOfOrNull { contentRefusal(it.id, OlderProtocolOnly.Forward) }?.let { return onResult(it) }
+        targets.firstNotNullOfOrNull { sendRefusal(it.id) }?.let { return onResult(it) }
         scope.launch {
             try {
+                // Each chat's own rule picks the protocol (step 1); decided before anything goes out.
+                val onKeys = targets.filterTo(ArrayList()) { forwardsOnDeviceKeys(it) }
+                val usual = targets.filter { it !in onKeys }
                 for (message in items) {
                     val descriptor = message.file
                     if (descriptor != null) {
-                        files.forwardToMany(targets, descriptor) { meta, sent -> showSent(meta.id, sent) }
+                        if (usual.isNotEmpty()) files.forwardToMany(usual, descriptor) { meta, sent -> showSent(meta.id, sent) }
+                        if (onKeys.isNotEmpty()) forwardFileV3(onKeys, descriptor)
                         continue
                     }
                     // A post forwarded from a channel stays one, so every copy keeps counting toward its views.
                     val channelPost = message.channelPost
                     for (meta in targets) {
+                        if (meta in onKeys) {
+                            forwardTextV3(meta, message.text)
+                            continue
+                        }
                         val sent = if (channelPost != null) repository.sendChannelForward(meta, message.text, channelPost)
                         else repository.sendForwarded(meta, message.text)
                         showSent(meta.id, sent)
@@ -705,6 +772,8 @@ class ChatSession(
                 onResult(null)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: EngineException) {
+                onResult(v3SendProblem(e.code, e.message, typed = false))
             } catch (e: ApiException) {
                 if (e.status == 401) onSessionExpired()
                 onResult("Couldn't forward it. Try again.")
@@ -722,9 +791,14 @@ class ChatSession(
     fun forwardChannelPost(toConversationId: String, text: String, ref: ChannelPostRef, onResult: (error: String?) -> Unit) {
         val meta = metas[toConversationId] ?: return onResult("That chat isn't loaded yet. Try again.")
         if (text.trimStart('\u0000').isBlank()) return onResult("There's no text in this post to forward.")
-        contentRefusal(toConversationId, OlderProtocolOnly.Forward)?.let { return onResult(it) }
+        sendRefusal(toConversationId)?.let { return onResult(it) }
         scope.launch {
             try {
+                // Into a chat on device keys it goes as forwarded text: channels stay on protocol 1 (part A).
+                if (forwardsOnDeviceKeys(meta)) {
+                    forwardTextV3(meta, text.trimStart('\u0000'))
+                    return@launch onResult(null)
+                }
                 val sent = repository.sendChannelForward(meta, text, ref)
                 sent.security?.let { securityById[sent.id] = it }
                 updateConversation(toConversationId) { conversation ->
@@ -734,6 +808,8 @@ class ChatSession(
                 onResult(null)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: EngineException) {
+                onResult(v3SendProblem(e.code, e.message, typed = false))
             } catch (e: ApiException) {
                 if (e.status == 401) onSessionExpired()
                 onResult("Couldn't forward it. Try again.")
@@ -743,10 +819,51 @@ class ChatSession(
         }
     }
 
+    /** Whether something forwarded into [meta] goes on device keys, by the chat's own rule. Throws like a send that can't. */
+    private suspend fun forwardsOnDeviceKeys(meta: ConversationMeta): Boolean {
+        val chat = v3 ?: return false
+        val onKeys = chat.usesDeviceKeys(meta.id, meta.isGroup, meta.otherUserId)
+        if (onKeys == null) refuseIfV3Expected(meta.id, chat)
+        return onKeys == true
+    }
+
+    /** Forwarded text on device keys, with the target chat's own timer. */
+    private suspend fun forwardTextV3(meta: ConversationMeta, text: String) {
+        val chat = v3 ?: throw EngineException("v3_unavailable", "device keys aren't available on this phone right now")
+        val outcome = chat.send(meta.id, meta.isGroup, meta.otherUserId, text, extras = MessageExtras(forwarded = true, exp = expSeconds(meta.id)))
+        if (outcome !is SendOutcome.Sent) throw EngineException("v3_unavailable", "device keys stopped being available for this chat")
+        showV3(meta.id)
+    }
+
+    /**
+     * A file forwarded into chats on device keys: decrypted once on this phone, then encrypted and uploaded again under
+     * a new key for each chat (a descriptor is never reused in another chat), and sent marked as forwarded.
+     */
+    private suspend fun forwardFileV3(targets: List<ConversationMeta>, descriptor: FileDescriptor) {
+        val chat = v3 ?: throw EngineException("v3_unavailable", "device keys aren't available on this phone right now")
+        val plain = files.download(descriptor) {}
+        try {
+            for (meta in targets) {
+                val outcome = chat.forwardFile(
+                    meta.id, meta.isGroup, meta.otherUserId, descriptor, expSeconds(meta.id),
+                    reupload = { files.uploadForDeviceKeys(meta.id, PickedFile(descriptor.filename, descriptor.mimeType, plain.length()) { plain.inputStream() }) {} },
+                    deleteUpload = ::deleteUploadBestEffort,
+                )
+                if (outcome !is SendOutcome.Sent) throw EngineException("v3_unavailable", "device keys stopped being available for this chat")
+                showV3(meta.id)
+            }
+        } finally {
+            plain.delete()
+            plain.parentFile?.delete()
+        }
+    }
+
     /** Pins the message for everyone in the chat, or unpins it if it's pinned. */
     fun togglePin(conversationId: String, message: Message) {
+        // Device keys (part A): any member pins or unpins; the latest pin op stands.
+        if (message.v3) return sendV3Op(conversationId, ChatOp.pin(message.id, !message.pinned))
         val meta = metas[conversationId] ?: return
-        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Pin)) return
+        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.OlderMessageChange)) return
         val pinned = MessageFolding.pinnedFrom(conversation(conversationId)?.messages.orEmpty()).any { it.messageId == message.id.lowercase() }
         val preview = when {
             message.kind == MessageKind.File -> "📎 ${message.text}"
@@ -762,8 +879,11 @@ class ChatSession(
     }
 
     fun unpin(conversationId: String, messageId: String) {
+        if (conversation(conversationId)?.messages?.firstOrNull { it.id.equals(messageId, ignoreCase = true) }?.v3 == true) {
+            return sendV3Op(conversationId, ChatOp.pin(messageId.lowercase(), false))
+        }
         val meta = metas[conversationId] ?: return
-        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Pin)) return
+        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.OlderMessageChange)) return
         scope.launch {
             guarded {
                 repository.sendUnpin(meta, messageId)
@@ -778,8 +898,20 @@ class ChatSession(
         if (runCatching { RichMessage.serializePoll(question, options, multiple) }.isFailure) {
             return onResult("A poll needs a question and 2 to 10 different options.")
         }
-        contentRefusal(conversationId, OlderProtocolOnly.Poll)?.let { return onResult(it) }
+        sendRefusal(conversationId)?.let { return onResult(it) }
         scope.launch {
+            // Device keys first, when this chat is on them (part A): it never also goes out the usual way.
+            val onKeys = try {
+                pollV3(meta, question, options, multiple)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: EngineException) {
+                return@launch onResult(reportV3(conversationId, e.code, e.message, typed = false))
+            } catch (e: ApiException) {
+                if (e.status == 401) onSessionExpired()
+                return@launch onResult(reportV3(conversationId, e.code, e.message, typed = false))
+            }
+            if (onKeys) return@launch onResult(null)
             val ok = guarded {
                 repository.sendPoll(meta, question, options, multiple)
                 refreshThread(conversationId)
@@ -788,11 +920,25 @@ class ChatSession(
         }
     }
 
+    /** True when the poll went out on device keys; false means "send it the usual way". */
+    private suspend fun pollV3(meta: ConversationMeta, question: String, options: List<String>, multiple: Boolean): Boolean {
+        val chat = v3 ?: return false
+        if (_state.value.sendError != null) _state.update { it.copy(sendError = null, sendErrorChat = null) }
+        val onKeys = chat.usesDeviceKeys(meta.id, meta.isGroup, meta.otherUserId)
+        if (onKeys == null) refuseIfV3Expected(meta.id, chat)
+        if (onKeys != true) return false
+        val outcome = chat.sendPoll(meta.id, meta.isGroup, meta.otherUserId, question, options, multiple, expSeconds(meta.id))
+        showV3(meta.id)
+        if (outcome !is SendOutcome.Sent) throw EngineException("v3_unavailable", "device keys stopped being available for this chat")
+        return true
+    }
+
     /** Replaces this user's vote with [options] (empty takes it back). */
     fun vote(conversationId: String, poll: Message, options: List<Int>) {
+        if (poll.v3) return sendV3Op(conversationId, ChatOp.vote(poll.id, options.distinct().sorted()))
         val meta = metas[conversationId] ?: return
         val labels = poll.poll?.options ?: return
-        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Vote)) return
+        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.OlderMessageChange)) return
         scope.launch {
             guarded {
                 repository.sendVote(meta, poll.id, options, labels)
@@ -803,8 +949,9 @@ class ChatSession(
 
     /** Only the poll's creator can end it; everyone else ignores an end from anyone else. */
     fun endPoll(conversationId: String, pollId: String) {
+        if (conversation(conversationId)?.messages?.firstOrNull { it.id == pollId }?.v3 == true) return sendV3Op(conversationId, ChatOp.end(pollId))
         val meta = metas[conversationId] ?: return
-        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.Vote)) return
+        if (refusedOnDeviceKeys(conversationId, OlderProtocolOnly.OlderMessageChange)) return
         scope.launch {
             guarded {
                 repository.sendEndPoll(meta, pollId)
@@ -859,7 +1006,11 @@ class ChatSession(
 
     /** Several of your own ticked messages, deleted for everyone with their edits and pin notices (others' are skipped). */
     fun deleteManyForEveryone(conversationId: String, messageIds: Set<String>) {
-        val ids = MessageSelection.deletions(conversation(conversationId)?.messages.orEmpty(), messageIds)
+        val messages = conversation(conversationId)?.messages.orEmpty()
+        val all = MessageSelection.deletions(messages, messageIds)
+        // Device-key messages: a delete op each, which erases them (and their file keys) on every device.
+        val (onKeys, ids) = all.partition { id -> messages.firstOrNull { it.id == id }?.v3 == true }
+        onKeys.forEach { delete(conversationId, it) }
         if (ids.isEmpty()) return
         scope.launch {
             val gone = HashSet<String>()
@@ -1141,18 +1292,19 @@ class ChatSession(
      */
     private suspend fun sendQueuedOnDeviceKeys(item: OutboxItem, meta: ConversationMeta, box: Outbox): QueuedV3 {
         val chat = v3 ?: return QueuedV3.UsualWay
-        if (meta.community != null || item.replyToId != null) return QueuedV3.UsualWay
         try {
-            if (timerKeepsOffV3(item.conversationId, chat)) return QueuedV3.UsualWay
+            // Part A: a reply and the chat's timer go on device keys too.
+            val reply = item.replyToId?.let { chatReply(it, item.replyPreview.orEmpty()) }
+            val extras = MessageExtras(reply = reply, exp = expSeconds(item.conversationId))
             val outcome = if (item.kind == "text") {
-                chat.send(item.conversationId, meta.isGroup, meta.otherUserId, item.text, item.id)
+                chat.send(item.conversationId, meta.isGroup, meta.otherUserId, item.text, item.id, extras)
             } else {
                 when (chat.usesDeviceKeys(item.conversationId, meta.isGroup, meta.otherUserId)) {
                     true -> {
                         val descriptor = files.uploadFromOutboxForDeviceKeys(meta.id, item.text, item.mimeType ?: "application/octet-stream") { plain ->
                             box.openFile(item, plain)
                         }
-                        chat.sendUploaded(item.conversationId, meta.isGroup, meta.otherUserId, descriptor, item.id, ::deleteUploadBestEffort)
+                        chat.sendUploaded(item.conversationId, meta.isGroup, meta.otherUserId, descriptor, item.id, MessageExtras(exp = extras.exp), ::deleteUploadBestEffort)
                     }
                     false -> SendOutcome.Protocol1
                     null -> null
@@ -1285,6 +1437,7 @@ class ChatSession(
         val requests = loadAll(requestDtos)
         val liveIds = (dtos + requestDtos).mapTo(HashSet()) { it.id }
         metas.keys.retainAll(liveIds)
+        v3?.keepCommunities(dtos.filter { it.community != null }.mapTo(HashSet()) { it.id })
         _state.update { state ->
             state.copy(
                 conversations = conversations.sortedByDescending { it.lastActivityMs },
@@ -1293,6 +1446,7 @@ class ChatSession(
                 error = null,
             )
         }
+        scheduleExpiry()
     }
 
     private suspend fun loadAll(dtos: List<ConversationDto>): List<Conversation> = coroutineScope {
@@ -1371,11 +1525,15 @@ class ChatSession(
             return null
         }
         metas[dto.id] = loaded
+        // Part C2: its messages are on device keys, kept on this phone; older protocol-1 ones (if any) read only.
+        loaded.community?.let { c ->
+            v3?.setCommunity(CommunityContext(c.id, dto.id, c.kind, CommunityContext.isStaffRole(c.role)))
+        }
         return Conversation(
             meta = loaded,
             disappearing = Disappearing.fromSeconds(dto.disappearingSeconds),
-            messages = result.messages.withKnownSecurity(),
-            unread = result.unread,
+            messages = withV3(dto.id, withQueued(dto.id, result.messages.withKnownSecurity())),
+            unread = result.unread + (v3?.unread(dto.id) ?: 0),
             verified = false,
             hasOlder = result.hasOlder,
         )
@@ -1405,10 +1563,34 @@ class ChatSession(
         val result = repository.fetchMessages(meta, identity.userId, windowOf(conversationId))
         if (result.unread > 0) repository.markRead(conversationId, _state.value.readReceipts)
         v3?.markRead(conversationId)
+        sendReceipts(conversationId)
         val named = withPosters(meta, result.messages)
         if (named !== meta) metas[conversationId] = named
         updateConversation(conversationId) {
             it.copy(meta = named, messages = withV3(conversationId, withQueued(conversationId, result.messages.withKnownSecurity())), unread = 0, hasOlder = result.hasOlder, keyProblem = repository.keyProblem(conversationId))
+        }
+    }
+
+    /**
+     * The received device-key messages now on screen in an open chat: "read" receipts go out for them, but only while
+     * the person allows read receipts. "Delivered" ones go out whatever the setting.
+     */
+    fun messagesOnScreen(conversationId: String, messageIds: List<String>) {
+        if (v3 == null || !_state.value.readReceipts) return
+        onScreen[conversationId] = messageIds
+        scope.launch { sendReceipts(conversationId) }
+    }
+
+    /** What this chat owes in receipts (part A), batched and rate-limited by V3Chat. Never fails a refresh. */
+    private suspend fun sendReceipts(conversationId: String) {
+        val chat = v3 ?: return
+        val read = if (_state.value.readReceipts) onScreen[conversationId].orEmpty() else emptyList()
+        try {
+            chat.sendReceipts(conversationId, read)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.w(TAG, "Device-key receipts failed: ${e.javaClass.name}")
         }
     }
 

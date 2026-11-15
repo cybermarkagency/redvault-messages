@@ -33,7 +33,17 @@ require(webAppBase.startsWith("https://") || !torOnly) { "redvaultWebAppBase mus
 val e2eV3: Boolean = (project.findProperty("redvaultE2eV3") as String?)?.let { it == "true" } ?: true
 val e2eSignal: Boolean = (project.findProperty("redvaultE2eSignal") as String?)?.let { it == "true" } ?: e2eV3
 require(!e2eSignal || e2eV3) { "redvaultE2eSignal needs redvaultE2eV3=true" }
-val e2eFeatures: String = if (e2eSignal) "jni signal" else "jni"
+val e2eFeatures: String = if (e2eSignal) "jni signal sealed-transport" else "jni sealed-transport"
+// The sealed backup route (docs/tor-sealed-fallback.md): the gateway's current public KeyConfig (hex, as
+// `redvault-ohttp-gateway public` prints it). Empty: no backup route, the app stays onion-only.
+val sealedKeyConfig: String = ((project.findProperty("redvaultSealedKeyConfig") as String?) ?: "").trim()
+val sealedGatewayUrl: String = ((project.findProperty("redvaultSealedGatewayUrl") as String?)
+    ?: "https://www.redvaultsystems.com/redvaultmessages/ohttp").trim()
+require(sealedKeyConfig.isEmpty() || Regex("^[0-9a-f]{2}0020[0-9a-f]{64}000400010003$").matches(sealedKeyConfig)) {
+    "redvaultSealedKeyConfig isn't an X25519/HKDF-SHA256/ChaCha20-Poly1305 KeyConfig in lowercase hex"
+}
+require(sealedKeyConfig.isEmpty() || e2eV3) { "The sealed backup route is built into the device-key engine: it needs redvaultE2eV3" }
+require(Regex("^https://[a-z0-9.-]+/.*").matches(sealedGatewayUrl)) { "redvaultSealedGatewayUrl must be an https address" }
 
 // Communities (paid channels and groups, docs/paid-communities.md): turned off for now. The code stays; with this off
 // the app shows no way into them (chats the person already belongs to keep working). -PredvaultCommunities=true
@@ -82,8 +92,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // redvaultTestVersionCode: for testing in-app updates only (a "newer" debug APK); never set for a release.
-        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 12
-        versionName = "0.6.2"
+        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 14
+        versionName = "0.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
@@ -92,6 +102,8 @@ android {
         buildConfigField("boolean", "E2E_V3", e2eV3.toString())
         // A test key for in-app updates (base64 Ed25519 public key). Only a debug build uses it (update/AppUpdates.kt).
         buildConfigField("String", "UPDATE_TEST_KEY", "\"${((project.findProperty("redvaultUpdateTestKey") as String?) ?: "").trim()}\"")
+        buildConfigField("String", "SEALED_KEY_CONFIG", "\"$sealedKeyConfig\"")
+        buildConfigField("String", "SEALED_GATEWAY_URL", "\"$sealedGatewayUrl\"")
         buildConfigField("boolean", "E2E_SIGNAL", e2eSignal.toString())
         buildConfigField("boolean", "COMMUNITIES", communities.toString())
         buildConfigField("boolean", "SELL_PLANS", sellPlans.toString())
@@ -297,7 +309,11 @@ val checkTorOnlyRelease = tasks.register("checkTorOnlyRelease") {
     val base = apiBase
     val onion = torOnly
     val netConfig = file("src/main/res/xml/network_security_config.xml")
+    val sealedKey = sealedKeyConfig
     doLast {
+        require(sealedKey.isNotEmpty()) {
+            "A release build carries the sealed backup route: redvaultSealedKeyConfig (gradle.properties) must be set"
+        }
         require(onion && base.startsWith("http://")) {
             "A release build must use the onion API base (http://<v3>.onion/.../api/), not '$base'. " +
                 "-PredvaultApiBase with another server is for debug builds only."

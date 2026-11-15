@@ -12,6 +12,8 @@ import Redvault
 RvDialog {
     id: dialog
     required property ChatSession chats
+    // A device-key chat: the poll goes through DeviceKeysSession (part A).
+    property bool deviceKeys: false
     property var options: ["", ""]
     property string error: ""
     property bool busy: false
@@ -30,13 +32,20 @@ RvDialog {
         question.forceActiveFocus()
     }
 
+    function done(error) {
+        dialog.busy = false
+        if (error.length > 0) dialog.error = error
+        else dialog.close()
+    }
     Connections {
         target: dialog.chats
-        function onPollDone(error) {
-            dialog.busy = false
-            if (error.length > 0) dialog.error = error
-            else dialog.close()
-        }
+        enabled: !dialog.deviceKeys
+        function onPollDone(error) { dialog.done(error) }
+    }
+    Connections {
+        target: App.deviceKeys
+        enabled: dialog.deviceKeys
+        function onPollDone(error) { dialog.done(error) }
     }
 
     contentItem: ColumnLayout {
@@ -128,7 +137,9 @@ RvDialog {
                 onClicked: {
                     dialog.busy = true
                     dialog.error = ""
-                    dialog.chats.createPoll(question.text, dialog.options.filter(o => o.trim().length > 0), multiple.checked)
+                    const picked = dialog.options.filter(o => o.trim().length > 0)
+                    if (dialog.deviceKeys) App.deviceKeys.createPoll(question.text, picked, multiple.checked)
+                    else dialog.chats.createPoll(question.text, picked, multiple.checked)
                 }
             }
         }

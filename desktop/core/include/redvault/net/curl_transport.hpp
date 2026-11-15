@@ -54,6 +54,13 @@ public:
          * fallback to a direct connection.
          */
         std::function<std::optional<SocksEndpoint>()> torGate;
+        /**
+         * The sealed backup route (docs/tor-sealed-fallback.md): with torGate set, this transport
+         * instead talks https (never http) to `allowedHost`, a normal host name, through the same
+         * Tor gate and socket guard, with the system's certificate checks. Only the sealed route's
+         * own transport sets it; everything it carries is already sealed to the gateway's key.
+         */
+        bool httpsOverTor = false;
     };
 
     CurlTransport();

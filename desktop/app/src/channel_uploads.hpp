@@ -47,8 +47,18 @@ public:
     ChannelUploads(std::shared_ptr<api::ApiClient> api, int max, bool photosOnly, QObject* parent = nullptr);
     ~ChannelUploads() override;
 
+    /// Starts an encrypted upload of a blob this big (a private channel, Part C1).
+    using EncryptedStarter = std::function<api::channels::StartedUpload(std::int64_t size)>;
+
     /// Where new uploads go (the channel shown); clears what was there.
     void setStarter(Starter starter);
+    /**
+     * A private channel: each file is encrypted on the fly with its own key
+     * as it's sent, so the server only gets an opaque blob; its key and real
+     * name, type and size go inside the encrypted post (readyMedia()).
+     */
+    void setEncryptedStarter(EncryptedStarter starter);
+    bool encrypted() const { return static_cast<bool>(encryptedStarter_); }
 
     QVariantList items() const;
     int count() const { return static_cast<int>(uploads_.size()); }
@@ -57,6 +67,8 @@ public:
     bool full() const { return count() >= max_; }
     /// The finished uploads' ids, in the order they were added.
     std::vector<std::string> ready() const;
+    /// Encrypted mode: the finished uploads with their keys and real details, in order.
+    std::vector<api::channels::Media> readyMedia() const;
 
     /// Picked files; `kind` "file" sends them as files, otherwise pictures go as photos, videos as videos and audio as audio.
     Q_INVOKABLE void addFiles(const QList<QUrl>& files, const QString& kind = QString());
@@ -79,6 +91,8 @@ private:
         qint64 size = 0;
         double progress = 0;
         std::optional<std::string> mediaId;
+        /// Encrypted mode: what the post says about it (key included).
+        std::optional<api::channels::Media> sealed;
         QString error;
         std::optional<std::int64_t> durationMs;
         std::optional<int> width;
@@ -93,6 +107,7 @@ private:
     int max_;
     bool photosOnly_;
     Starter starter_;
+    EncryptedStarter encryptedStarter_;
     int generation_ = 0;
     int nextKey_ = 1;
     std::vector<Upload> uploads_;

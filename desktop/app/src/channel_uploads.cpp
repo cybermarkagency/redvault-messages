@@ -14,8 +14,10 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 
 #include "async.hpp"
+#include "redvault/data/private_channels.hpp"
 #include "redvault/model/channel_posts.hpp"
 #include "redvault/model/file_message.hpp"
 
@@ -77,6 +79,15 @@ ChannelUploads::~ChannelUploads() {
 
 void ChannelUploads::setStarter(Starter starter) {
     starter_ = std::move(starter);
+    encryptedStarter_ = {};
+    ++generation_;
+    uploads_.clear();
+    emit changed();
+}
+
+void ChannelUploads::setEncryptedStarter(EncryptedStarter starter) {
+    starter_ = {};
+    encryptedStarter_ = std::move(starter);
     ++generation_;
     uploads_.clear();
     emit changed();
@@ -105,6 +116,14 @@ std::vector<std::string> ChannelUploads::ready() const {
     std::vector<std::string> out;
     for (const auto& u : uploads_) {
         if (u.mediaId) out.push_back(*u.mediaId);
+    }
+    return out;
+}
+
+std::vector<channels::Media> ChannelUploads::readyMedia() const {
+    std::vector<channels::Media> out;
+    for (const auto& u : uploads_) {
+        if (u.mediaId && u.sealed) out.push_back(*u.sealed);
     }
     return out;
 }
@@ -147,7 +166,7 @@ void ChannelUploads::add(Upload upload) {
     if (upload.error.isEmpty() && photosOnly_ && !posts::isPhotoMime(upload.mime)) {
         upload.error = QStringLiteral("Suggested posts can include photos only.");
     }
-    if (upload.error.isEmpty() && !starter_) upload.error = QStringLiteral("The upload failed.");
+    if (upload.error.isEmpty() && !starter_ && !encryptedStarter_) upload.error = QStringLiteral("The upload failed.");
     const int key = upload.key;
     const bool start = upload.error.isEmpty();
     const std::string kind = upload.kind;
@@ -187,11 +206,47 @@ void ChannelUploads::begin(int key) {
     const qint64 size = u->size;
     auto api = api_;
     auto starter = starter_;
+    auto encryptedStarter = encryptedStarter_;
     const int generation = generation_;
     QPointer<ChannelUploads> self(this);
+    struct Done {
+        std::string id;
+        std::optional<channels::Media> sealed;
+    };
     runInBackground(
         pool_, this,
-        [api, starter, meta, path, size, self, key, generation] {
+        [api, starter, encryptedStarter, meta, path, size, self, key, generation] {
+            if (encryptedStarter) {
+                std::ifstream file(path, std::ios::binary);
+                if (!file) throw redvault::api::UserFacingError("Couldn't read that file.");
+                channels::Media plain;
+                plain.kind = meta.kind;
+                plain.mime = meta.mime;
+                plain.size = size;
+                plain.filename = meta.filename;
+                plain.durationMs = meta.durationMs;
+                plain.width = meta.width;
+                plain.height = meta.height;
+                const std::int64_t blob = static_cast<std::int64_t>(crypto::files::encryptedSizeFor(static_cast<std::uint64_t>(size)));
+                std::int64_t lastSent = 0;
+                auto sealed = data::private_channels::uploadEncrypted(*api, encryptedStarter, file, std::move(plain), [&](std::int64_t sent) {
+                    if (sent - lastSent < blob / 100 && sent < blob) return;
+                    lastSent = sent;
+                    const double progress = static_cast<double>(sent) / static_cast<double>(std::max<std::int64_t>(1, blob));
+                    QMetaObject::invokeMethod(
+                        qApp,
+                        [self, key, generation, progress] {
+                            if (!self || generation != self->generation_) return;
+                            if (auto* upload = self->find(key)) {
+                                upload->progress = std::min(progress, 0.99);
+                                emit self->changed();
+                            }
+                        },
+                        Qt::QueuedConnection);
+                });
+                const std::string id = sealed.id;
+                return Done{id, std::move(sealed)};
+            }
             const auto started = starter(meta);
             qint64 lastReported = 0;
             channels::uploadMedia(*api, started.uploadUrl, path, size, [&](std::int64_t sent) {
@@ -210,12 +265,13 @@ void ChannelUploads::begin(int key) {
                     },
                     Qt::QueuedConnection);
             });
-            return started.id;
+            return Done{started.id, std::nullopt};
         },
-        [this, key, generation](std::string id) {
+        [this, key, generation](Done done) {
             if (generation != generation_) return;
             if (auto* upload = find(key)) {
-                upload->mediaId = std::move(id);
+                upload->sealed = std::move(done.sealed);
+                upload->mediaId = std::move(done.id);
                 upload->progress = 1;
                 emit changed();
             }

@@ -44,7 +44,8 @@ Rectangle {
         }
         Text {
             visible: chip.torOn
-            text: chip.torState === "connected" ? qsTr("Tor connected")
+            text: chip.torState === "connected" && chip.tor.backupRoute ? qsTr("Tor connected (backup route)")
+                  : chip.torState === "connected" ? qsTr("Tor connected")
                   : chip.torState === "connecting" ? qsTr("Connecting through Tor… ") + chip.tor.progress + "%"
                   : qsTr("Can't reach Tor")
             textFormat: Text.PlainText

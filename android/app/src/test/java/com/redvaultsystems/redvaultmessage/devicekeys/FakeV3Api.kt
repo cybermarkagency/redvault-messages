@@ -64,6 +64,57 @@ class FakeV3Server {
     /** M6: conversation -> signed rosters, oldest first. Only the next epoch is accepted (the real checks are the server's). */
     val rosters = HashMap<String, MutableList<JsonObject>>()
 
+    /** Part C2: per conversation, accounts that aren't entitled. A send addressing one is refused whole (409 recipient_not_entitled). */
+    val notEntitled = HashMap<String, MutableSet<String>>()
+
+    /** Part C2: per community conversation, who may issue a roster (owner and staff); others get 403 not_community_staff. */
+    val rosterIssuers = HashMap<String, Set<String>>()
+
+    /** How many device copies each send request carried, in order (group messages and pairwise batches). */
+    val requestSizes = mutableListOf<Int>()
+
+    /**
+     * Part D: device-keys stories by id, with their author and the accounts with an access row (the author included).
+     * A send addressed with a story id follows the server's story mailbox rule, and a list lookup, key claim or
+     * certificate lookup with a story id follows `StoryService.mayUseDevicesOf` (docs/signal-integration/12-part-d-stories.md).
+     */
+    class FakeStory(
+        val author: String,
+        val access: MutableSet<String>,
+        var expiresAt: Long = Long.MAX_VALUE,
+        var highlighted: Boolean = false,
+        var published: Boolean = true,
+        var deleted: Boolean = false,
+    ) {
+        val live get() = expiresAt > System.currentTimeMillis()
+    }
+
+    val stories = HashMap<String, FakeStory>()
+
+    /** Part D: every conversation id a key claim (one-time keys or Signal bundles) named, in order. */
+    val claimedUnder = mutableListOf<String?>()
+
+    /**
+     * The server's rule for a story id S on device lists, claims and certificates: not deleted; the author and an account
+     * with access, either way, while the story is live or in a highlight; a viewer to the author while it's published and
+     * live; nobody else. (Blocks aren't modelled here.)
+     */
+    fun mayUseDevicesOf(requester: String, target: String, story: FakeStory): Boolean {
+        if (requester == target) return true
+        if (story.deleted) return false
+        if (requester == story.author && target in story.access || target == story.author && requester in story.access && requester != story.author) {
+            if (requester == story.author) return story.live || story.highlighted
+            return story.published && story.live
+        }
+        return false
+    }
+
+    /** Part D: the 1:1 conversations both accounts are in, for key claims that name one ("a|b" sorted). */
+    val directChats = HashMap<String, Pair<String, String>>()
+
+    /** Every send fails as if Tor were down (nothing reaches the server). */
+    var offline = false
+
     /** The account no longer lists any device, as after it was reset. */
     fun dropDeviceList(userId: String) {
         lists.remove(userId)
@@ -104,7 +155,13 @@ class FakeV3Server {
             devices.remove(key(userId, deviceId))
         }
 
-        override suspend fun deviceList(userId: String, conversationId: String?) = ListView(lists[userId], null)
+        override suspend fun deviceList(userId: String, conversationId: String?): ListView {
+            val story = conversationId?.let { stories[it] }
+            if (story != null && !mayUseDevicesOf(this.userId0, userId, story)) throw ApiException(404, "not_found", "No device list")
+            return ListView(lists[userId], null)
+        }
+
+        private val userId0 get() = userId
 
         override suspend fun putDeviceList(deviceList: JsonObject, rotationProof: String?) {
             rec(deviceList.toString())
@@ -146,7 +203,26 @@ class FakeV3Server {
         }
 
         override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+            if (offline) throw ApiException(0, "network_error", "offline")
             rec(messages.joinToString { it.third })
+            requestSizes += messages.size
+            stories[conversationId]?.let { story ->
+                val addressed = messages.map { it.first }.toSet()
+                val ok = !story.deleted && if (userId == story.author) {
+                    (story.live || story.highlighted) && addressed.all { it == story.author || it in story.access }
+                } else {
+                    story.published && story.live && userId in story.access && addressed.all { it == story.author || it == userId }
+                }
+                if (!ok) throw ApiException(404, "story_recipient_refused", "refused")
+            }
+            if (messages.size > 100) throw ApiException(400, "validation_error", "at most 100 devices per request")
+            val refused = conversationId?.let { notEntitled[it] }.orEmpty().let { bad -> messages.map { it.first }.filter { it in bad && it != userId }.distinct().sorted() }
+            if (refused.isNotEmpty()) {
+                throw ApiException(
+                    409, "recipient_not_entitled", "not entitled",
+                    kotlinx.serialization.json.buildJsonObject { put("userIds", kotlinx.serialization.json.JsonArray(refused.map { kotlinx.serialization.json.JsonPrimitive(it) })) },
+                )
+            }
             if (failNext) {
                 failNext = false
                 throw ApiException(409, "mailbox_full", "full")
@@ -184,7 +260,21 @@ class FakeV3Server {
             backups[userId] = backup
         }
 
-        override suspend fun claimKeys(conversationId: String?, devices: List<Pair<String, String>>): List<JsonObject> = devices.map { (u, d) ->
+        private fun mayClaim(conversationId: String?, target: String) {
+            if (target == userId) return
+            val story = conversationId?.let { stories[it] }
+            if (story != null) {
+                if (!mayUseDevicesOf(userId, target, story)) throw ApiException(404, "not_found", "Device not found")
+                return
+            }
+            if (directChats.isEmpty() && stories.isEmpty()) return
+            val chat = conversationId?.let { directChats[it] }
+            if (chat == null || (userId != chat.first && userId != chat.second) || (target != chat.first && target != chat.second)) {
+                throw ApiException(404, "not_found", "Device not found")
+            }
+        }
+
+        override suspend fun claimKeys(conversationId: String?, devices: List<Pair<String, String>>): List<JsonObject> = devices.onEach { claimedUnder += conversationId; mayClaim(conversationId, it.first) }.map { (u, d) ->
             val upload = devices0[key(u, d)] ?: throw ApiException(404, "not_found", "no such device")
             val ones = upload["oneTimeKeys"]!!.jsonArray
             val used = claimed.getOrPut(key(u, d)) { 0 }
@@ -216,6 +306,7 @@ class FakeV3Server {
             rosters[conversationId].orEmpty().filter { it["epoch"]!!.jsonPrimitive.content.toInt() > after }
 
         override suspend fun postRoster(conversationId: String, roster: JsonObject) {
+            rosterIssuers[conversationId]?.let { if (userId !in it) throw ApiException(403, "not_community_staff", "only owner and staff issue rosters") }
             val chain = rosters.getOrPut(conversationId) { mutableListOf() }
             if (roster["epoch"]!!.jsonPrimitive.content.toInt() != chain.size + 1) throw ApiException(409, "stale_roster", "stale")
             chain += roster
@@ -238,7 +329,19 @@ class FakeV3Server {
 
         override suspend fun signalStatus(deviceId: String): JsonObject = counts(signal[key(userId, deviceId)])
 
-        override suspend fun signalClaim(conversationId: String?, devices: List<Pair<String, String>>): List<JsonObject> = devices.map { (u, d) ->
+        override suspend fun signalCertificates(userId: String, conversationId: String?): List<Pair<String, JsonObject>> {
+            if (!signalOn) throw ApiException(503, "e2e_signal_disabled", "off")
+            val story = conversationId?.let { stories[it] }
+            if (story != null && !mayUseDevicesOf(this.userId0, userId, story)) throw ApiException(404, "not_found", "No device list")
+            val listed = lists[userId]?.get("devices")?.jsonArray?.map { it.jsonObject["deviceId"]!!.jsonPrimitive.content }.orEmpty().toSet()
+            return signal.filterKeys { it.startsWith("$userId/") }.mapNotNull { (k, e) ->
+                val device = k.substringAfter('/')
+                if (userId != this.userId0 && device !in listed) return@mapNotNull null
+                device to e.upload["certificate"]!!.jsonObject
+            }
+        }
+
+        override suspend fun signalClaim(conversationId: String?, devices: List<Pair<String, String>>): List<JsonObject> = devices.onEach { claimedUnder += conversationId; mayClaim(conversationId, it.first) }.map { (u, d) ->
             val e = signal[key(u, d)].takeUnless { withholdSignal }
             kotlinx.serialization.json.buildJsonObject {
                 put("userId", kotlinx.serialization.json.JsonPrimitive(u))

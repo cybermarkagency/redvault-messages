@@ -57,6 +57,15 @@ class V3Device private constructor(
         return mac.doFinal("redvault-v3-history-v1".toByteArray())
     }
 
+    /** Part D: the key the local story-key store is encrypted under, derived from the storage key like [historyKey]. */
+    fun storyStoreKey(): ByteArray {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        val raw = Base64.getDecoder().decode(storageKey)
+        mac.init(javax.crypto.spec.SecretKeySpec(raw, "HmacSHA256"))
+        raw.fill(0)
+        return mac.doFinal("redvault-v3-story-keys-v1".toByteArray())
+    }
+
     /** The engine state now, to put back with [rollback] when a change this device signed never reached the server. */
     @Synchronized
     fun snapshot(): String = state

@@ -452,6 +452,30 @@ if(REDVAULT_E2E_V3)
     target_compile_definitions(redvault_desktop PRIVATE REDVAULT_HAS_E2E_V3=1)
 endif()
 
+# The sealed backup route (docs/tor-sealed-fallback.md): needs the engine above and the gateway's public key
+# configuration, pinned at build time (the hex `redvault-ohttp-gateway public` prints for the current key).
+# Without a key the app has no backup route and stays onion-only.
+set(REDVAULT_SEALED_KEY_CONFIG "" CACHE STRING "The sealed-route gateway's current public KeyConfig, hex (empty: no backup route)")
+set(REDVAULT_SEALED_GATEWAY_URL "https://www.redvaultsystems.com/redvaultmessages/ohttp" CACHE STRING "Where sealed requests go")
+if(REDVAULT_SEALED_KEY_CONFIG)
+    if(NOT REDVAULT_E2E_V3)
+        message(FATAL_ERROR "The sealed backup route is built into the device-key engine: it needs REDVAULT_E2E_V3=ON")
+    endif()
+    # One RFC 9458 KeyConfig: key id, KEM 0x0020 (X25519), 32-byte key, then the suites (HKDF-SHA256, ChaCha20-Poly1305).
+    if(NOT REDVAULT_SEALED_KEY_CONFIG MATCHES "^[0-9a-f][0-9a-f]0020[0-9a-f]+000400010003$")
+        message(FATAL_ERROR "REDVAULT_SEALED_KEY_CONFIG isn't an X25519/HKDF-SHA256/ChaCha20-Poly1305 KeyConfig in lowercase hex")
+    endif()
+    if(NOT REDVAULT_SEALED_GATEWAY_URL MATCHES "^https://[a-z0-9.-]+/")
+        message(FATAL_ERROR "REDVAULT_SEALED_GATEWAY_URL must be an https address")
+    endif()
+    target_compile_definitions(redvault_desktop PRIVATE REDVAULT_HAS_SEALED_ROUTE=1
+        REDVAULT_SEALED_KEY_CONFIG="${REDVAULT_SEALED_KEY_CONFIG}"
+        REDVAULT_SEALED_GATEWAY_URL="${REDVAULT_SEALED_GATEWAY_URL}")
+    message(STATUS "Sealed backup route: on, gateway ${REDVAULT_SEALED_GATEWAY_URL}")
+else()
+    message(STATUS "Sealed backup route: off (no REDVAULT_SEALED_KEY_CONFIG)")
+endif()
+
 # The Tor gateway (tor-core), when built in: see ../tor/CMakeLists.txt.
 if(REDVAULT_TOR)
     target_link_libraries(redvault_desktop PRIVATE redvault_tor)

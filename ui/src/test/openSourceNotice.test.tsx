@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
 
-// The "Open-Source Licenses and Source Code" section (Settings > About and the sign-in screens).
+// The "Open-Source Licenses and Source Code" section (the website's footer).
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App.js";
 import { OpenSourceNotice } from "../components/OpenSourceNotice.js";
 import { SourceCodeLink } from "../components/OpenSourceDialog.js";
 import { resolveSourceOffer } from "../lib/sourceOffer.js";
-import { AboutSettings } from "../screens/settings/GeneralSettings.js";
-import { resetFakeBackend } from "./fakeApiBackend.js";
+import { installFakeSite, resetFakeSite } from "./fakeSiteServer.js";
 
-vi.mock("../lib/api.js", async () => {
-  const backend = await import("./fakeApiBackend.js");
-  return backend.fakeApiModule;
-});
 
 const LICENCE = "RedVault Messages is free software, licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). It comes with no warranty.";
 
@@ -47,19 +42,15 @@ describe("open-source notice", () => {
     expect(screen.getByRole("link", { name: "Source code" })).toHaveAttribute("href", "https://code.example.org/rv");
   });
 
-  it("is part of Settings > About", () => {
-    render(<AboutSettings />);
-    const section = screen.getByRole("region", { name: "Open-Source Licenses and Source Code" });
-    expect(within(section).getByText(LICENCE)).toBeInTheDocument();
-  });
-
   describe("in the app", () => {
     beforeEach(() => {
-      resetFakeBackend();
+      resetFakeSite();
+      installFakeSite();
       localStorage.clear();
     });
+    afterEach(() => vi.unstubAllGlobals());
 
-    it("is reachable from the sign-up screen without an account", async () => {
+    it("is reachable from the website's footer without an account", async () => {
       const user = userEvent.setup();
       render(<App />);
       await user.click(screen.getByRole("button", { name: "Source code" }));

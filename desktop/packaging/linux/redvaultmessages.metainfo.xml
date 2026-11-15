@@ -59,6 +59,20 @@
   </content_rating>
 
   <releases>
+    <release version="0.8.0" date="2026-11-14">
+      <description>
+        <p>Ready for per-device encryption keys in chats, channels and communities, and
+        for Stories protected by those keys. Each turns on once RedVault switches it on
+        for your account.</p>
+      </description>
+    </release>
+    <release version="0.7.3" date="2026-11-14">
+      <description>
+        <p>A backup route: when Tor can't reach the onion service, the app still
+        connects through Tor, to the website, with every request sealed so that
+        only our server can read it. You can turn it off in Settings.</p>
+      </description>
+    </release>
     <release version="0.7.2" date="2026-11-14">
       <description>
         <p>A cleaner layout: the side bar runs the full height of the window, and

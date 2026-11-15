@@ -301,7 +301,15 @@ std::optional<ConversationMeta> ConversationRepository::hydrateCommunity(const a
                                                                          const SelfIdentity& identity) {
     if (!communityKeys_) return std::nullopt;  // never listed without the keys; nothing to read it with
     const auto& info = *dto.community;
-    const auto ring = communityKeys_->ensure(info.id, dto.id, info.keyEpoch, info.rekeyRequired);
+    // Part C2: new messages are device-key (Signal) messages; the epoch keys only open old protocol-1 rows, read-only.
+    // A community made without one (device-key apps leave wrappedKey out), or keys that can't be read, still lists.
+    CommunityKeyStore::Ring ring;
+    try {
+        ring = communityKeys_->ensure(info.id, dto.id, info.keyEpoch, info.rekeyRequired);
+    } catch (const api::ApiError& e) {
+        if (e.status() == 401) throw;
+    } catch (const crypto::CryptoError&) {
+    }
 
     ConversationMeta meta;
     meta.id = dto.id;
@@ -311,8 +319,8 @@ std::optional<ConversationMeta> ConversationRepository::hydrateCommunity(const a
     meta.myRole = dto.role;
     meta.community = CommunityLink{info.id, info.name, info.kind, info.role, info.canPost, info.status, info.hasAvatar};
     // The current epoch's key (or the newest held) stands in as the chat's key, as on the web.
-    const crypto::SecretBytes* key = ring->key(ring->currentEpoch);
-    if (key == nullptr && !ring->keys.empty()) key = &ring->keys.rbegin()->second;
+    const crypto::SecretBytes* key = ring ? ring->key(ring->currentEpoch) : nullptr;
+    if (key == nullptr && ring && !ring->keys.empty()) key = &ring->keys.rbegin()->second;
     meta.conversationKey = key != nullptr ? crypto::SecretBytes::copyOf(*key) : crypto::generateConversationKey();
     meta.members.push_back(GroupMemberView{identity.userId, identity.handle, identity.avatarUrl, dto.role,
                                            base64Encode(identity.publicKey), true});
@@ -896,45 +904,14 @@ Message ConversationRepository::sendEnvelope(const ConversationMeta& meta, const
 Message ConversationRepository::sendToCommunity(const ConversationMeta& meta, const std::string& plaintext,
                                                 const std::optional<std::vector<std::string>>& attachments,
                                                 const std::optional<std::string>& clientMessageId) {
-    const std::string& communityId = meta.community->id;
-    const auto reload = [&] { return communityKeys_->load(communityId, meta.id); };
-    for (int attempt = 0;; ++attempt) {
-        auto ring = communityKeys_->ring(meta.id);
-        if (!ring) ring = reload();
-        if (!ring->hasCurrentKey()) {
-            // Maybe only this copy of the keys is behind: look once more before giving up.
-            ring = reload();
-            if (!ring->hasCurrentKey()) throw api::UserFacingError("You don't have the community's current key yet.");
-        }
-        const auto sealed = crypto::community::encryptForCommunity(*ring, plaintext);
-        const std::string ciphertextB64 = base64Encode(sealed.body.ciphertext);
-        const std::string nonceB64 = base64Encode(sealed.body.nonce);
-        try {
-            api::SendMessageRequest request{.ciphertext = ciphertextB64, .nonce = nonceB64, .attachments = attachments};
-            request.keyEpoch = static_cast<int>(sealed.keyEpoch);
-            request.clientMessageId = clientMessageId;
-            const auto dto = api_->sendMessage(meta.id, request);
-            return sentMessage(dto, sealed.body, ciphertextB64, nonceB64);
-        } catch (const api::ApiError& e) {
-            if (attempt >= 2) throw;
-            if (e.code() == "rekey_required") {
-                // Someone left: make the next epoch, sealed only to who remains. If another app got
-                // there first, or this member can't rotate, the reloaded keys say what to use.
-                try {
-                    communityKeys_->rotate(communityId, meta.id);
-                } catch (const api::ApiError& rotateError) {
-                    if (rotateError.status() == 401) throw;
-                    reload();
-                } catch (const crypto::CryptoError&) {
-                    reload();
-                }
-            } else if (e.code() == "stale_key_epoch") {
-                reload();
-            } else {
-                throw;
-            }
-        }
-    }
+    // Part C2 (docs/signal-integration/11-part-c2-communities.md): the server takes no new protocol-1 community
+    // messages (409 community_device_keys_only), and this app no longer rotates or enrolls epoch keys. Community
+    // messages go over device keys (DeviceKeysSession); old rows stay readable.
+    (void)meta;
+    (void)plaintext;
+    (void)attachments;
+    (void)clientMessageId;
+    throw api::UserFacingError("Communities send with device keys only. Link this computer in Settings > Devices & encryption.");
 }
 
 MessageSecurity ConversationRepository::verify(const Message& message) {

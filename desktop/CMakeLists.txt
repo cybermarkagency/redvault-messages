@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-project(RedvaultDesktop VERSION 0.7.2 LANGUAGES CXX)
+project(RedvaultDesktop VERSION 0.8.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -102,6 +102,9 @@ if(REDVAULT_BUILD_TOOLS)
     endif()
     if(REDVAULT_TOR)
         add_subdirectory(tools/tor_routing_check)
+        if(REDVAULT_E2E_V3)
+            add_subdirectory(tools/sealed_route_check)
+        endif()
     endif()
     if(REDVAULT_BUILD_CALLS)
         add_subdirectory(tools/rtc_interop)

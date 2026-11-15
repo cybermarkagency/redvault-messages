@@ -16,6 +16,7 @@ add_library(redvault_core STATIC
     src/group_call_crypto.cpp
     src/group_invite_crypto.cpp
     src/channel_crypto.cpp
+    src/channel_e2ee.cpp
     src/community_crypto.cpp
     src/story_crypto.cpp
     src/post_crypto.cpp
@@ -49,6 +50,7 @@ add_library(redvault_core STATIC
     src/data/transfer.cpp
     src/data/drive_repository.cpp
     src/data/share_repository.cpp
+    src/data/private_channels.cpp
     src/data/file_key_repository.cpp
     src/data/file_lock.cpp
     src/data/story_drafts.cpp

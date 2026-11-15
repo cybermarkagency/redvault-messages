@@ -163,7 +163,8 @@ Rectangle {
             HighlightsRow {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                stories: App.stories
+                visible: App.stories !== null && App.stories.enabled
+                stories: App.stories && App.stories.enabled ? App.stories : null
                 userId: root.isGroup ? "" : root.userId
             }
 

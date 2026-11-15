@@ -221,3 +221,45 @@ fn a_sender_key_from_someone_outside_the_roster_is_refused() {
     // mallory isn't a member: her engine won't share, and bob wouldn't take her key.
     assert_eq!(mallory.d.op("groupSignalShare", json!({ "groupId": "g1", "recipients": [] }))["error"], "not_a_member");
 }
+
+/// Part C2 (docs/signal-integration/11-part-c2-communities.md): a roster holds up to 1,100 accounts.
+#[test]
+fn a_roster_holds_up_to_1100_accounts() {
+    let mut a = Device::account("alice", "phone");
+    let mut members: Vec<String> = (0..1099).map(|i| format!("member-{i:04}")).collect();
+    members.push("alice".to_owned());
+    let r = a.ok("rosterCreate", json!({ "groupId": "big", "members": members }));
+    assert_eq!(r["roster"]["members"].as_array().unwrap().len(), 1100);
+    members.push("member-9999".to_owned());
+    let refused = a.op("rosterCreate", json!({ "groupId": "bigger", "members": members }));
+    assert_eq!(refused["ok"], false, "{refused}");
+}
+
+/// Part C2: a paid channel. Its roster lists only its senders (alice, staff); bob and carol are readers the server
+/// names. With "audience": "recipients" alice's key reaches them; they read her posts; they can't post themselves,
+/// and without the audience flag the engine still refuses non-members.
+#[test]
+fn a_channel_sender_shares_its_key_with_readers_outside_the_roster() {
+    let (mut a, mut b, mut c) = (member("alice", "phone"), member("bob", "laptop"), member("carol", "pc"));
+    know_all(&mut [&mut a, &mut b, &mut c]);
+    let r1 = a.d.ok("rosterCreate", json!({ "groupId": "ch1", "members": ["alice"] }))["roster"].clone();
+    for m in [&mut b, &mut c] {
+        assert_eq!(verify(m, "ch1", &[&r1])["epoch"], 1);
+    }
+    let readers = json!([{ "identity": b.d.identity, "signalBundle": bundle(&b.upload, 0) }]);
+    let refused = a.d.ok("groupSignalShare", json!({ "groupId": "ch1", "recipients": readers }));
+    assert_eq!(refused["results"][0]["error"], "not_a_member", "{refused}");
+    assert_eq!(a.d.op("groupSignalShare", json!({ "groupId": "ch1", "recipients": [], "audience": "everyone" }))["error"], "bad_request");
+
+    let recipients: Vec<Value> = [&b, &c].iter().map(|m| json!({ "identity": m.d.identity, "signalBundle": bundle(&m.upload, 1) })).collect();
+    let shared = a.d.ok("groupSignalShare", json!({ "groupId": "ch1", "recipients": recipients, "audience": "recipients" }));
+    for (i, m) in [&mut b, &mut c].into_iter().enumerate() {
+        let got = m.d.op("decrypt", json!({ "sender": a.d.identity, "message": shared["results"][i]["message"] }));
+        assert_eq!(got["kind"], "senderKey", "{got}");
+    }
+    let post = send(&mut a, "ch1", "for paying readers");
+    assert_eq!(read(&mut b, &a, &post)["plaintext"], "for paying readers");
+    assert_eq!(read(&mut c, &a, &post)["plaintext"], "for paying readers");
+    // A reader isn't in the roster: it can't share a key, so it can't post.
+    assert_eq!(b.d.op("groupSignalShare", json!({ "groupId": "ch1", "recipients": [], "audience": "recipients" }))["error"], "not_a_member");
+}

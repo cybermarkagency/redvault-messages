@@ -34,6 +34,7 @@ namespace redvault::app {
 
 class AudioIo;
 class ChatSession;
+class DeviceKeysSession;
 class GroupCallController;
 class LiveSession;
 class VideoIo;
@@ -48,7 +49,10 @@ class VideoIo;
  *     by DTLS-SRTP.
  *   - Setup: offer and answer are sealed end to end (identity keys for a
  *     contact, the link's secret for a call link), so the server can't
- *     slip into the call. Once connected, both screens show the same four
+ *     slip into the call. In a chat on device keys they travel as device-key
+ *     messages instead (docs/signal-integration/09-part-b-calls.md): the
+ *     offer to every device of the callee, the answer to the offering device
+ *     only, and the server just marks each step. Once connected, both screens show the same four
  *     words from both fingerprints.
  *   - Plans: one-to-one voice and video calls with a contact are free.
  *     Call links need Pro (voice) or Premium (video), and a link's owner
@@ -101,6 +105,11 @@ public:
 
     /// Group calls are separate, but nobody is in two calls at once: each side asks the other.
     void setGroupCalls(GroupCallController* groupCalls) { groupCalls_ = groupCalls; }
+    /// Device keys (part B): calls in chats on them are set up with device-key messages.
+    void setDeviceKeys(DeviceKeysSession* keys) { deviceKeys_ = keys; }
+    /// A checked call envelope for the call going on (DeviceKeysSession hands them out, UI thread).
+    void onDeviceCallSignal(const std::string& callId, const std::string& fromDeviceId, const std::string& step, const std::string& kind,
+                            const std::string& sdp);
     /// A one-to-one call is going on (or ringing).
     bool onCall() const { return session_ != nullptr; }
     /// The ringing / dialing sound, shared with group calls.
@@ -181,6 +190,8 @@ signals:
 private:
     struct Session;
     void onLiveEvent(const api::live::LiveEvent& event);
+    /// Part B: the offer (callee) or the answer (caller) didn't arrive through the mailbox in time.
+    void onSetupTimeout();
     void ring(std::shared_ptr<Session> session);
     void startMedia(bool withVideo);
     void runOutgoing(std::shared_ptr<Session> session, std::function<api::live::StartedCall()> reserve);
@@ -198,12 +209,15 @@ private:
     QPointer<LiveSession> live_;
     QPointer<ChatSession> chats_;
     QPointer<GroupCallController> groupCalls_;
+    QPointer<DeviceKeysSession> deviceKeys_;
     TierProvider tier_;
     QThreadPool pool_;
     QThread audioThread_;
     QSoundEffect tone_;
     QTimer disconnectTimer_;
     QTimer endedTimer_;
+    /// Part B: 20 s for the offer or the answer to come through the mailbox.
+    QTimer setupTimer_;
 
     std::shared_ptr<Session> session_;
     std::shared_ptr<rtc::CallMedia> media_;

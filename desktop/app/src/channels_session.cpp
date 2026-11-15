@@ -8,18 +8,22 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QLocale>
+#include <QPointer>
 #include <QSettings>
 
 #include <QQmlEngine>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 #include <utility>
 
 #include "async.hpp"
 #include "avatar_jpeg.hpp"
+#include "channel_media.hpp"
 #include "file_safety.hpp"
 #include "prefs.hpp"
 #include "redvault/crypto/channel_crypto.hpp"
@@ -35,6 +39,7 @@ namespace channels = api::channels;
 namespace follows = model::channels;
 namespace links = crypto::channels;
 namespace posts = model::channel_posts;
+namespace pc = data::private_channels;
 
 constexpr const char* kFollowedKey = "followedChannels";
 /// Which new posts were already notified (per account; the web app keeps it in localStorage).
@@ -88,6 +93,53 @@ std::optional<std::string> futureTime(const QString& iso) {
     return iso.toStdString();
 }
 
+/// The composer's poll, quiz or checklist (a plain post's shape; a private post carries the same inside).
+void fillExtra(channels::NewPost& post, const QVariantMap& extra) {
+    const QString type = extra.value(QStringLiteral("type")).toString();
+    if (type == QStringLiteral("poll") || type == QStringLiteral("quiz")) {
+        channels::NewPost::NewPoll poll;
+        poll.question = extra.value(QStringLiteral("question")).toString().toStdString();
+        poll.options = trimmedList(extra.value(QStringLiteral("options")));
+        poll.multiple = type == QStringLiteral("poll") && extra.value(QStringLiteral("multiple")).toBool();
+        if (type == QStringLiteral("quiz")) {
+            poll.quiz = channels::NewPost::NewPoll::Quiz{extra.value(QStringLiteral("correct")).toInt(),
+                                                         extra.value(QStringLiteral("explanation")).toString().toStdString()};
+        }
+        post.poll = std::move(poll);
+    } else if (type == QStringLiteral("checklist")) {
+        post.checklist = channels::NewPost::NewChecklist{extra.value(QStringLiteral("title")).toString().toStdString(),
+                                                         trimmedList(extra.value(QStringLiteral("items"))),
+                                                         extra.value(QStringLiteral("collaborative")).toBool()};
+    }
+}
+
+/// What an opened post says, to send it again re-encrypted (an edit keeps its poll, checklist and media).
+pc::Content contentOf(const channels::Post& post, const std::string& body) {
+    pc::Content c;
+    c.body = body;
+    if (post.poll) {
+        channels::NewPost::NewPoll poll{post.poll->question, post.poll->options, post.poll->multiple, std::nullopt};
+        if (post.poll->quiz) {
+            poll.quiz = channels::NewPost::NewPoll::Quiz{post.poll->sealedCorrect.value_or(-1), post.poll->sealedExplanation.value_or("")};
+        }
+        c.poll = std::move(poll);
+    } else if (post.checklist) {
+        channels::NewPost::NewChecklist list{post.checklist->title, {}, post.checklist->collaborative};
+        for (const auto& item : post.checklist->items) list.items.push_back(item.text);
+        c.checklist = std::move(list);
+    } else {
+        c.media = post.media;
+    }
+    return c;
+}
+
+std::optional<channels::Channel> ownCopy(api::ApiClient& api, const std::string& id) {
+    for (auto& c : channels::mine(api)) {
+        if (c.id == id) return c;
+    }
+    return std::nullopt;
+}
+
 QVariantMap suggestionOf(const channels::Suggestion& s) {
     QVariantList photos;
     for (const auto& m : s.media) photos.append(ChannelPostModel::mediaOf(m));
@@ -97,6 +149,7 @@ QVariantMap suggestionOf(const channels::Suggestion& s) {
     return {{"id", qs(s.id)},
             {"body", qs(s.body)},
             {"bodyRich", qs(model::text_format::toHtml(s.body))},
+            {"locked", s.locked},
             {"sent", ChannelPostModel::when(s.createdAt)},
             {"status", status},
             {"photos", photos}};
@@ -137,8 +190,136 @@ ChannelsSession::ChannelsSession(std::shared_ptr<api::ApiClient> api, std::share
 }
 
 ChannelsSession::~ChannelsSession() {
+    stopConversion();
     pool_.clear();
     pool_.waitForDone();
+    // Signing out forgets every media key this session opened.
+    channel_media_keys::forget();
+}
+
+channels::Post ChannelsSession::opened(channels::Post post) const {
+    if (post.encrypted && keys_) post = pc::open(std::move(post), *keys_, channelId_);
+    channel_media_keys::remember(post.media);
+    return post;
+}
+
+channels::Suggestion ChannelsSession::opened(channels::Suggestion suggestion) const {
+    if (suggestion.encrypted && keys_) suggestion = pc::open(std::move(suggestion), *keys_, channelId_);
+    channel_media_keys::remember(suggestion.media);
+    return suggestion;
+}
+
+pc::Refetch ChannelsSession::refetcher() const {
+    auto api = api_;
+    auto identity = identity_;
+    const std::string id = channelId_;
+    if (isMine_) {
+        return [api, identity, id]() -> pc::KeyringPtr {
+            const auto own = ownCopy(*api, id);
+            if (!own) return nullptr;
+            return std::make_shared<pc::Keyring>(pc::ownerKeys(*api, *own, identity->publicKey, identity->privateKey));
+        };
+    }
+    const auto secret = secret_;
+    return [api, id, secret]() -> pc::KeyringPtr {
+        if (!secret) return nullptr;
+        return std::make_shared<pc::Keyring>(pc::readerKeys(*api, id, *secret));
+    };
+}
+
+void ChannelsSession::setUploadStarters() {
+    postUploads_->setStarter({});
+    suggestionUploads_->setStarter({});
+    if (!channel_) return;
+    auto api = api_;
+    const std::string id = channel_->id;
+    const auto access = accessFor(secret_);
+    // Uploads go to this channel: the owner's or an admin's for posts, a follower's photos for suggestions.
+    // In a private channel each file is encrypted on this computer before it leaves.
+    if (canManage()) {
+        if (channel_->isPrivate) {
+            postUploads_->setEncryptedStarter([api, id](std::int64_t size) { return channels::startEncryptedMedia(*api, id, size); });
+        } else {
+            postUploads_->setStarter([api, id](const channels::UploadMeta& meta) { return channels::startMedia(*api, id, meta); });
+        }
+    } else if (channel_->acceptSuggestions) {
+        if (channel_->isPrivate) {
+            suggestionUploads_->setEncryptedStarter(
+                [api, id, access](std::int64_t size) { return channels::startEncryptedSuggestionMedia(*api, id, size, access); });
+        } else {
+            suggestionUploads_->setStarter(
+                [api, id, access](const channels::UploadMeta& meta) { return channels::startSuggestionMedia(*api, id, meta, access); });
+        }
+    }
+}
+
+void ChannelsSession::stopConversion() {
+    if (conversionCancel_) conversionCancel_->store(true);
+    conversionCancel_.reset();
+    if (converting_ || !conversionStatus_.isEmpty()) {
+        converting_ = false;
+        conversionStatus_.clear();
+        emit conversionChanged();
+    }
+}
+
+void ChannelsSession::startConversion() {
+    if (converting_ || !keys_ || !channel_ || !isMine_) return;
+    // Converting into ciphertext needs the newest key; back into plain text, the keys the old posts are under.
+    if (channel_->isPrivate && !keys_->canSeal()) return;
+    auto cancel = std::make_shared<std::atomic_bool>(false);
+    conversionCancel_ = cancel;
+    converting_ = true;
+    conversionStatus_.clear();
+    emit conversionChanged();
+    auto api = api_;
+    auto keys = keys_;
+    const std::string id = channelId_;
+    const int generation = channelGeneration_;
+    QPointer<ChannelsSession> self(this);
+    runInBackground(
+        pool_, this,
+        [api, keys, id, cancel, self, generation] {
+            pc::ConversionHooks hooks;
+            hooks.cancelled = [cancel] { return cancel->load(); };
+            // The server's limits (120 edits a minute, 100 uploads an hour): wait a minute and go on (5 times at most, then next time).
+            hooks.backOff = [cancel](int) {
+                const int waitMs = 60000;
+                for (int waited = 0; waited < waitMs && !cancel->load(); waited += 200) std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            };
+            hooks.progress = [self, generation](int converted) {
+                QMetaObject::invokeMethod(
+                    qApp,
+                    [self, generation, converted] {
+                        if (!self || generation != self->channelGeneration_) return;
+                        self->conversionStatus_ = QStringLiteral("Converting older posts… %1 done").arg(converted);
+                        emit self->conversionChanged();
+                    },
+                    Qt::QueuedConnection);
+            };
+            return pc::convert(*api, id, *keys, hooks);
+        },
+        [this, generation, cancel](pc::ConversionResult result) {
+            if (generation != channelGeneration_ || cancel->load()) return;
+            converting_ = false;
+            conversionCancel_.reset();
+            conversionStatus_ = result.stuck > 0 ? QStringLiteral("%1 older posts couldn't be converted on this computer.").arg(result.stuck) : QString();
+            emit conversionChanged();
+            // Show the posts as they are now.
+            if (result.converted > 0) openChannel(qs(channelId_));
+        },
+        [this, generation, cancel](const Failure& failure) {
+            if (generation != channelGeneration_ || cancel->load()) return;
+            converting_ = false;
+            conversionCancel_.reset();
+            if (failure.status == 401) {
+                emit sessionExpired();
+                return;
+            }
+            conversionStatus_ = QStringLiteral("Converting older posts stopped (%1). It carries on next time you open the channel.")
+                                    .arg(worded(failure, QStringLiteral("couldn't reach the server")));
+            emit conversionChanged();
+        });
 }
 
 bool ChannelsSession::canCreate() const {
@@ -203,7 +384,11 @@ QVariantMap ChannelsSession::rowOf(const channels::Channel& c, const std::option
 QVariantMap ChannelsSession::channel() const {
     if (!channel_) return {};
     const auto shareable = link();
+    const bool e2ee = channel_->isPrivate && channel_->keyEpoch.has_value();
+    const bool cantOpen = e2ee && !(keys_ && keys_->key(*channel_->keyEpoch));
     return {{"id", qs(channel_->id)},
+            {"e2ee", e2ee},
+            {"cantOpen", cantOpen},
             {"name", qs(channel_->name)},
             {"description", qs(channel_->description)},
             {"isPrivate", channel_->isPrivate},
@@ -443,7 +628,15 @@ void ChannelsSession::checkFollowed() {
                     try {
                         const auto page = channels::posts(*api, job.followed.id, std::nullopt, job.access, 1);
                         if (!page.empty()) latest = page.front();
+                        // A private channel's post is opened here for its preview (nothing of it is kept).
+                        if (latest && latest->encrypted) {
+                            latest = job.followed.secret
+                                         ? pc::open(*latest, pc::readerKeys(*api, job.followed.id, *job.followed.secret), job.followed.id)
+                                         : *latest;
+                            if (latest->locked || !job.followed.secret) latest.reset();
+                        }
                     } catch (const std::exception&) {
+                        latest.reset();
                     }
                     out.notifications.push_back({job.followed.id, channel.name, posts::postPreview(latest ? &*latest : nullptr)});
                 } catch (const std::exception&) {
@@ -481,10 +674,12 @@ void ChannelsSession::checkFollowed() {
 // --- One channel ---
 
 void ChannelsSession::openChannel(const QString& id, const QString& secret) {
+    stopConversion();
     const int generation = ++channelGeneration_;
     channelId_ = id.toStdString();
     channel_.reset();
     secret_.reset();
+    keys_.reset();
     posts_->reset({});
     scheduled_.clear();
     suggestions_.clear();
@@ -512,6 +707,10 @@ void ChannelsSession::openChannel(const QString& id, const QString& secret) {
         std::vector<channels::Post> posts;
         std::vector<channels::Post> scheduled;
         std::optional<std::string> secret;
+        pc::KeyringPtr keys;
+        /// The owner's computer set up keys for an old private channel just now.
+        bool keysSetUp = false;
+        QString keysProblem;
     };
     auto api = api_;
     auto identity = identity_;
@@ -526,6 +725,7 @@ void ChannelsSession::openChannel(const QString& id, const QString& secret) {
         [api, identity, channelId, linkSecret, followedSecret, admin = isAdmin()] {
             Loaded out;
             std::optional<std::string> ownSecret;
+            std::optional<channels::Channel> ownChannel;
             bool own = false;
             try {
                 std::vector<OwnChannel> mine;
@@ -534,6 +734,7 @@ void ChannelsSession::openChannel(const QString& id, const QString& secret) {
                     if (c.id == channelId) {
                         ownSecret = opened;
                         own = true;
+                        ownChannel = c;
                     }
                     mine.push_back(OwnChannel{std::move(c), opened ? std::optional<std::string>(links::accessToken(*opened)) : std::nullopt});
                 }
@@ -546,10 +747,30 @@ void ChannelsSession::openChannel(const QString& id, const QString& secret) {
             if (known && !links::secretFromFragment(*known)) known.reset();
             const auto access = known ? std::optional<std::string>(links::accessToken(*known)) : std::nullopt;
             out.channel = channels::get(*api, channelId, access);
-            out.posts = channels::posts(*api, channelId, std::nullopt, access);
+            // The keys (Part C1). The owner's come from their own sealed secret; an old private channel without
+            // any gets epoch 1 here, under the link followers already hold. A reader's come from the link.
+            try {
+                if (ownChannel) {
+                    if (pc::needsKeys(*ownChannel)) {
+                        auto set = pc::setUpKeys(*api, *ownChannel, identity->publicKey, identity->privateKey);
+                        out.channel.keyEpoch = set.channel.keyEpoch;
+                        out.keys = std::move(set.keys);
+                        out.keysSetUp = true;
+                    } else if (ownChannel->keyEpoch) {
+                        out.keys = std::make_shared<pc::Keyring>(pc::ownerKeys(*api, *ownChannel, identity->publicKey, identity->privateKey));
+                    }
+                } else if (out.channel.isPrivate && known && out.channel.keyEpoch) {
+                    out.keys = std::make_shared<pc::Keyring>(pc::readerKeys(*api, channelId, *known));
+                }
+            } catch (const std::exception&) {
+                out.keysProblem = QStringLiteral("Couldn't get this channel's keys. Try again.");
+            }
+            auto posts = channels::posts(*api, channelId, std::nullopt, access);
+            out.posts = out.keys ? pc::open(std::move(posts), *out.keys, channelId) : std::move(posts);
             if (own || admin) {
                 try {
-                    out.scheduled = channels::scheduled(*api, channelId);
+                    auto scheduled = channels::scheduled(*api, channelId);
+                    out.scheduled = out.keys ? pc::open(std::move(scheduled), *out.keys, channelId) : std::move(scheduled);
                 } catch (const api::ApiError&) {
                 }
             }
@@ -562,27 +783,27 @@ void ChannelsSession::openChannel(const QString& id, const QString& secret) {
             isMine_ = std::find(mineIds_.begin(), mineIds_.end(), channelId_) != mineIds_.end();
             secret_ = std::move(loaded.secret);
             channel_ = std::move(loaded.channel);
+            keys_ = std::move(loaded.keys);
             hasOlder_ = static_cast<int>(loaded.posts.size()) == channels::kPageSize;
             QStringList seen;
-            for (const auto& p : loaded.posts) seen.append(qs(p.id));
+            for (const auto& p : loaded.posts) {
+                seen.append(qs(p.id));
+                channel_media_keys::remember(p.media);
+            }
+            for (const auto& p : loaded.scheduled) channel_media_keys::remember(p.media);
             posts_->reset(std::move(loaded.posts));
             scheduled_ = std::move(loaded.scheduled);
-            // Uploads go to this channel: the owner's or an admin's for posts, a follower's photos for suggestions.
-            auto api = api_;
-            const std::string id = channel_->id;
-            const auto access = accessFor(secret_);
-            if (canManage()) {
-                postUploads_->setStarter([api, id](const channels::UploadMeta& meta) { return channels::startMedia(*api, id, meta); });
-            } else if (channel_->acceptSuggestions) {
-                suggestionUploads_->setStarter(
-                    [api, id, access](const channels::UploadMeta& meta) { return channels::startSuggestionMedia(*api, id, meta, access); });
-            }
+            setUploadStarters();
             countViews(seen);
             markSeen();
             loadSuggestions();
+            if (!loaded.keysProblem.isEmpty()) setMessages(loaded.keysProblem, {});
+            if (loaded.keysSetUp) setMessages({}, QStringLiteral("This channel's posts are now end-to-end encrypted with its link. Older posts are being converted."));
             emit channelChanged();
             emit postsChanged();
             emit scheduledChanged();
+            // The owner: posts left in the other format after a switch (or from before keys) are converted now.
+            if (isMine_ && keys_) startConversion();
         },
         [this, generation](const Failure& failure) {
             if (generation != channelGeneration_) return;
@@ -602,6 +823,7 @@ void ChannelsSession::loadSuggestions() {
         pool_, this, [api, id, own] { return own ? channels::suggestions(*api, id) : channels::mySuggestions(*api, id); },
         [this, generation, own](std::vector<channels::Suggestion> list) {
             if (generation != channelGeneration_) return;
+            for (auto& s : list) s = opened(std::move(s));
             (own ? suggestions_ : mySuggestions_) = std::move(list);
             emit suggestionsChanged();
         },
@@ -611,10 +833,12 @@ void ChannelsSession::loadSuggestions() {
 }
 
 void ChannelsSession::closeChannel() {
+    stopConversion();
     ++channelGeneration_;
     channelId_.clear();
     channel_.reset();
     secret_.reset();
+    keys_.reset();
     posts_->reset({});
     scheduled_.clear();
     suggestions_.clear();
@@ -646,7 +870,10 @@ void ChannelsSession::loadOlder() {
             loadingOlder_ = false;
             hasOlder_ = static_cast<int>(page.size()) == channels::kPageSize;
             QStringList seen;
-            for (const auto& p : page) seen.append(qs(p.id));
+            for (auto& p : page) {
+                p = opened(std::move(p));
+                seen.append(qs(p.id));
+            }
             posts_->append(std::move(page));
             countViews(seen);
             emit postsChanged();
@@ -695,26 +922,24 @@ void ChannelsSession::submitPost(const QString& body, const QVariantMap& extra, 
     if (posting_ || !channel_) return;
     channels::NewPost post;
     post.body = body.toStdString();
-    const QString type = extra.value(QStringLiteral("type")).toString();
-    if (type == QStringLiteral("poll") || type == QStringLiteral("quiz")) {
-        channels::NewPost::NewPoll poll;
-        poll.question = extra.value(QStringLiteral("question")).toString().toStdString();
-        poll.options = trimmedList(extra.value(QStringLiteral("options")));
-        poll.multiple = type == QStringLiteral("poll") && extra.value(QStringLiteral("multiple")).toBool();
-        if (type == QStringLiteral("quiz")) {
-            poll.quiz = channels::NewPost::NewPoll::Quiz{extra.value(QStringLiteral("correct")).toInt(),
-                                                         extra.value(QStringLiteral("explanation")).toString().toStdString()};
-        }
-        post.poll = std::move(poll);
-    } else if (type == QStringLiteral("checklist")) {
-        post.checklist = channels::NewPost::NewChecklist{extra.value(QStringLiteral("title")).toString().toStdString(),
-                                                         trimmedList(extra.value(QStringLiteral("items"))),
-                                                         extra.value(QStringLiteral("collaborative")).toBool()};
-    } else {
-        post.media = postUploads_->ready();
-    }
+    fillExtra(post, extra);
+    if (!post.poll && !post.checklist) post.media = postUploads_->ready();
     post.publishAt = futureTime(publishAt);
     const bool isScheduled = post.publishAt.has_value();
+    // A private channel: the whole post (text, poll, checklist, the media's keys) is sealed here, under the newest key.
+    const bool sealed = channel_->isPrivate;
+    pc::Draft draft;
+    if (sealed) {
+        draft.content.body = post.body;
+        draft.content.poll = post.poll;
+        draft.content.checklist = post.checklist;
+        if (!post.poll && !post.checklist) draft.content.media = postUploads_->readyMedia();
+        draft.publishAt = post.publishAt;
+    }
+    struct Sent {
+        channels::Post post;
+        pc::KeyringPtr keys;
+    };
 
     posting_ = true;
     composerError_.clear();
@@ -724,13 +949,19 @@ void ChannelsSession::submitPost(const QString& body, const QVariantMap& extra, 
     const std::string channelId = channel_->id;
     const int generation = channelGeneration_;
     runInBackground(
-        pool_, this, [api, channelId, post] { return channels::post(*api, channelId, post); },
-        [this, generation, isScheduled](channels::Post made) {
+        pool_, this,
+        [api, channelId, post, sealed, draft, keys = keys_, refetch = refetcher()]() mutable {
+            if (!sealed) return Sent{channels::post(*api, channelId, post), keys};
+            auto made = pc::send(*api, channelId, draft, keys, refetch);
+            return Sent{pc::open(std::move(made), *keys, channelId), keys};
+        },
+        [this, generation, isScheduled](Sent sent) {
             posting_ = false;
             emit busyChanged();
             if (generation != channelGeneration_ || !channel_) return;
+            if (sent.keys) keys_ = sent.keys;
             postUploads_->clear();
-            added(std::move(made), isScheduled);
+            added(opened(std::move(sent.post)), isScheduled);
             emit posted();
         },
         [this](const Failure& failure) {
@@ -782,6 +1013,59 @@ void ChannelsSession::deletePost(const QString& postId) {
         [this](const Failure& failure) { fail(failure, QStringLiteral("Couldn't delete the post.")); });
 }
 
+void ChannelsSession::editPost(const QString& postId, const QString& body) {
+    if (posting_ || !channel_ || !isMine_ || !channel_->isPrivate) return;
+    const std::string id = postId.toStdString();
+    const channels::Post* existing = posts_->find(id);
+    const auto scheduledIt = std::find_if(scheduled_.begin(), scheduled_.end(), [&](const channels::Post& p) { return p.id == id; });
+    if (!existing && scheduledIt != scheduled_.end()) existing = &*scheduledIt;
+    // Only an encrypted post this computer opened can be edited (public posts can't be edited at all).
+    if (!existing || !existing->encrypted || existing->locked) return;
+    pc::Draft draft{contentOf(*existing, body.toStdString()), std::nullopt};
+    struct Sent {
+        channels::Post post;
+        pc::KeyringPtr keys;
+    };
+    posting_ = true;
+    composerError_.clear();
+    emit busyChanged();
+    emit composerChanged();
+    auto api = api_;
+    const std::string channelId = channel_->id;
+    const int generation = channelGeneration_;
+    runInBackground(
+        pool_, this,
+        [api, channelId, id, draft, keys = keys_, refetch = refetcher()]() mutable {
+            auto made = pc::send(*api, channelId, draft, keys, refetch, id);
+            return Sent{pc::open(std::move(made), *keys, channelId), keys};
+        },
+        [this, generation, id](Sent sent) {
+            posting_ = false;
+            emit busyChanged();
+            if (generation != channelGeneration_ || !channel_) return;
+            if (sent.keys) keys_ = sent.keys;
+            channels::Post post = opened(std::move(sent.post));
+            if (posts_->find(id)) {
+                posts_->replace(post);
+            } else {
+                for (auto& p : scheduled_) {
+                    if (p.id == id) p = post;
+                }
+                emit scheduledChanged();
+            }
+            emit edited();
+        },
+        [this](const Failure& failure) {
+            posting_ = false;
+            emit busyChanged();
+            if (failure.status == 401) {
+                emit sessionExpired();
+                return;
+            }
+            setMessages(worded(failure, QStringLiteral("Couldn't save the edit. Try again.")), {});
+        });
+}
+
 void ChannelsSession::saveDetails(const QString& name, const QString& description) {
     if (busy_ || !channel_) return;
     setBusy(true);
@@ -809,35 +1093,55 @@ void ChannelsSession::setPrivate(bool makePrivate) {
     if (busy_ || !channel_ || !isMine_) return;
     setBusy(true);
     setMessages({}, {});
+    stopConversion();
     struct Changed {
         channels::Channel channel;
         std::optional<std::string> secret;
+        pc::KeyringPtr keys;
+        bool wasPrivate = false;
     };
     auto api = api_;
     auto identity = identity_;
     const std::string channelId = channel_->id;
+    const bool wasPrivate = channel_->isPrivate;
     const int generation = channelGeneration_;
     runInBackground(
         pool_, this,
-        [api, identity, channelId, makePrivate] {
-            if (!makePrivate) return Changed{channels::setPublic(*api, channelId), std::nullopt};
-            // A fresh link: the server gets its token and the secret sealed to this account, never the secret itself.
-            std::string fresh = links::newSecret();
-            channels::Channel updated =
-                channels::setPrivate(*api, channelId, links::accessToken(fresh), links::sealSecret(fresh, identity->publicKey));
-            return Changed{std::move(updated), std::move(fresh)};
+        [api, identity, channelId, makePrivate, wasPrivate] {
+            if (!makePrivate) {
+                // Public: the keys stay with the owner (opened with the former link) to turn old posts back into plain text.
+                auto updated = channels::setPublic(*api, channelId);
+                auto keys = std::make_shared<pc::Keyring>(pc::ownerKeys(*api, updated, identity->publicKey, identity->privateKey));
+                return Changed{std::move(updated), std::nullopt, std::move(keys), wasPrivate};
+            }
+            // A fresh link and a new key epoch; every older key re-wrapped under it. The server gets the link's token, the
+            // secret sealed to this account and the wrapped keys, never the secret or a key itself.
+            const auto own = ownCopy(*api, channelId);
+            if (!own) throw api::UserFacingError("Couldn't find your channel. Try again.");
+            auto switched = pc::makePrivate(*api, *own, identity->publicKey, identity->privateKey);
+            return Changed{std::move(switched.channel), std::move(switched.secret), std::move(switched.keys), wasPrivate};
         },
-        [this, generation](Changed changed) {
+        [this, generation, makePrivate](Changed changed) {
             setBusy(false);
             if (generation != channelGeneration_) return;
             channel_ = std::move(changed.channel);
             secret_ = std::move(changed.secret);
+            keys_ = std::move(changed.keys);
             if (secret_ && follows::isFollowing(followed_, channel_->id)) {
                 fetched_[channel_->id] = channel_;
                 saveFollowed(follows::markSeen(followed_, *channel_, secret_));
             }
+            setUploadStarters();
+            if (makePrivate && changed.wasPrivate) {
+                setMessages({}, QStringLiteral("New link made. Share it again: the old one stopped working and can't open new posts."));
+            } else if (makePrivate) {
+                setMessages({}, QStringLiteral("The channel is private and end-to-end encrypted with its link. Older posts are being converted."));
+            } else {
+                setMessages({}, QStringLiteral("The channel is public. Older posts are being published as plain text."));
+            }
             emit channelChanged();
             refreshMine();
+            startConversion();
         },
         [this](const Failure& failure) { fail(failure, QStringLiteral("Couldn't change who can read the channel.")); });
 }
@@ -961,6 +1265,8 @@ void ChannelsSession::vote(const QString& postId, const QVariantList& options) {
             if (generation != channelGeneration_) return;
             const auto* post = posts_->find(id);
             if (!post) return;
+            // An encrypted poll's answer has counts only; the texts (and a quiz's answer, now you've answered) are this computer's.
+            if (post->encrypted && post->poll) result.poll = pc::mergePoll(*post->poll, result.poll, !result.mine.empty());
             // What this computer remembers: your choice, and a quiz's right answer as you were shown it.
             std::optional<posts::RememberedVote> remembered;
             if (!result.mine.empty()) {
@@ -997,6 +1303,7 @@ void ChannelsSession::closePoll(const QString& postId) {
         [this, generation, id](channels::Post closed) {
             setBusy(false);
             if (generation != channelGeneration_) return;
+            closed = opened(std::move(closed));
             if (const auto* post = posts_->find(id); post && closed.poll) {
                 channels::Post updated = *post;
                 updated.poll = closed.poll;
@@ -1030,6 +1337,7 @@ void ChannelsSession::tick(const QString& postId, int index) {
             if (generation != channelGeneration_) return;
             if (const auto* current = posts_->find(id)) {
                 channels::Post updated = *current;
+                if (current->encrypted && current->checklist) checklist = pc::mergeChecklist(*current->checklist, checklist);
                 updated.checklist = std::move(checklist);
                 posts_->replace(updated);
             }
@@ -1061,7 +1369,7 @@ void ChannelsSession::publishScheduled(const QString& postId) {
             if (generation != channelGeneration_) return;
             std::erase_if(scheduled_, [&](const channels::Post& p) { return p.id == id; });
             emit scheduledChanged();
-            added(std::move(published), false);
+            added(opened(std::move(published)), false);
         },
         [this](const Failure& failure) { fail(failure, QStringLiteral("Couldn't publish it.")); });
 }
@@ -1095,13 +1403,32 @@ void ChannelsSession::approveSuggestion(const QString& suggestionId, const QStri
     const std::string text = body.toStdString();
     const auto at = futureTime(publishAt);
     const int generation = channelGeneration_;
+    // A private channel: the owner's (possibly edited) text is sealed again here with the photos' keys, under the newest key.
+    std::optional<pc::Content> sealed;
+    if (channel_->isPrivate) {
+        const auto it = std::find_if(suggestions_.begin(), suggestions_.end(), [&](const channels::Suggestion& s) { return s.id == id; });
+        if (it == suggestions_.end() || it->locked) {
+            setBusy(false);
+            setMessages(QStringLiteral("This suggestion can't be opened on this computer, so it can't be published. Turn it down instead."), {});
+            return;
+        }
+        pc::Content content;
+        content.body = text;
+        content.media = it->media;
+        sealed = std::move(content);
+    }
     runInBackground(
-        pool_, this, [api, channelId, id, text, at] { return channels::approveSuggestion(*api, channelId, id, text, at); },
+        pool_, this,
+        [api, channelId, id, text, at, sealed, keys = keys_] {
+            if (!sealed) return channels::approveSuggestion(*api, channelId, id, text, at);
+            if (!keys) throw api::UserFacingError("This computer doesn't have the channel's key. Reload the channel and try again.");
+            return channels::approveSuggestionSealed(*api, channelId, id, pc::sealSuggestion(*sealed, *keys, channelId), at);
+        },
         [this, generation, isScheduled = at.has_value()](channels::Post post) {
             setBusy(false);
             if (generation != channelGeneration_) return;
             emit suggestionDecided();
-            added(std::move(post), isScheduled);
+            added(opened(std::move(post)), isScheduled);
             loadSuggestions();
         },
         [this](const Failure& failure) {
@@ -1141,12 +1468,25 @@ void ChannelsSession::sendSuggestion(const QString& body) {
     const auto media = suggestionUploads_->ready();
     const auto access = accessFor(secret_);
     const int generation = channelGeneration_;
+    // A private channel: the text and the photos' keys are sealed here, under the newest key the link opens.
+    std::optional<pc::Content> sealed;
+    if (channel_->isPrivate) {
+        pc::Content content;
+        content.body = text;
+        content.media = suggestionUploads_->readyMedia();
+        sealed = std::move(content);
+    }
     runInBackground(
-        pool_, this, [api, channelId, text, media, access] { return channels::suggest(*api, channelId, text, media, access); },
+        pool_, this,
+        [api, channelId, text, media, access, sealed, keys = keys_] {
+            if (!sealed) return channels::suggest(*api, channelId, text, media, access);
+            if (!keys) throw api::UserFacingError("This channel's posts can't be opened with this link.");
+            return channels::suggest(*api, channelId, pc::sealSuggestion(*sealed, *keys, channelId), media, access);
+        },
         [this, generation](channels::Suggestion suggestion) {
             setBusy(false);
             if (generation != channelGeneration_) return;
-            mySuggestions_.insert(mySuggestions_.begin(), std::move(suggestion));
+            mySuggestions_.insert(mySuggestions_.begin(), opened(std::move(suggestion)));
             suggestionUploads_->clear();
             suggestionSent_ = true;
             emit suggestionsChanged();
@@ -1176,15 +1516,21 @@ void ChannelsSession::saveMedia(const QString& url, const QUrl& destination) {
     setMessages({}, QStringLiteral("Saving…"));
     auto api = api_;
     const std::string link = url.toStdString();
+    // A private channel's file is decrypted as it's written there (only where you chose to save it).
+    const auto sealed = channel_media_keys::find(url);
     // UTF-16 to a path, so names outside the ANSI code page work on Windows too.
     const std::filesystem::path target(path.toStdU16String());
     runInBackground(
         pool_, this,
-        [api, link, target] {
+        [api, link, target, sealed] {
             std::ofstream out(target, std::ios::binary | std::ios::trunc);
             if (!out) throw api::UserFacingError("Couldn't write the file there.");
             try {
-                channels::downloadMedia(*api, link, out);
+                if (sealed) {
+                    pc::downloadDecrypted(*api, *sealed, out);
+                } else {
+                    channels::downloadMedia(*api, link, out);
+                }
                 out.close();
                 if (!out) throw api::UserFacingError("Couldn't write the file there.");
                 file_safety::markFromInternet(target);

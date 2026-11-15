@@ -19,17 +19,23 @@ $settings = Join-Path (Split-Path -Parent $PSScriptRoot) "cmake\tor_settings.cma
 $match = Select-String -Path $settings -Pattern 'set\(REDVAULT_OFFICIAL_ONION_API_BASE "(http://[a-z2-7]{56}\.onion/[^"]*)"\)'
 if (-not $match) { throw "No official onion service in $settings" }
 $onion = $match.Matches[0].Groups[1].Value
+# The sealed backup route's pinned gateway key (docs/tor-sealed-fallback.md), from the same file.
+$keyMatch = Select-String -Path $settings -Pattern 'set\(REDVAULT_OFFICIAL_SEALED_KEY_CONFIG "([0-9a-f]+)"\)'
+if (-not $keyMatch) { throw "No sealed backup route key in $settings" }
+$sealedKey = $keyMatch.Matches[0].Groups[1].Value
 
 if (-not $Verify) {
-    return @("-DREDVAULT_TOR=ON", "-DREDVAULT_TOR_ONLY=ON", "-DREDVAULT_ONION_API_BASE=$onion", "-DREDVAULT_RELEASE_BUILD=ON")
+    return @("-DREDVAULT_TOR=ON", "-DREDVAULT_TOR_ONLY=ON", "-DREDVAULT_ONION_API_BASE=$onion", "-DREDVAULT_RELEASE_BUILD=ON",
+        "-DREDVAULT_SEALED_KEY_CONFIG=$sealedKey")
 }
 
 if (-not (Test-Path $Verify)) { throw "$Verify is missing: configure the release build first" }
 $cache = Get-Content $Verify
-$expected = @("REDVAULT_TOR:BOOL=ON", "REDVAULT_TOR_ONLY:BOOL=ON", "REDVAULT_ONION_API_BASE:STRING=$onion", "REDVAULT_RELEASE_BUILD:BOOL=ON")
+$expected = @("REDVAULT_TOR:BOOL=ON", "REDVAULT_TOR_ONLY:BOOL=ON", "REDVAULT_ONION_API_BASE:STRING=$onion", "REDVAULT_RELEASE_BUILD:BOOL=ON",
+    "REDVAULT_SEALED_KEY_CONFIG:STRING=$sealedKey")
 foreach ($line in $expected) {
     if (-not ($cache -contains $line)) {
         throw "This build isn't Tor-only at the official onion service ($line missing from $Verify). A published build never is anything else."
     }
 }
-Write-Host "Tor-only release build: $onion" -ForegroundColor Green
+Write-Host "Tor-only release build: $onion, with the sealed backup route" -ForegroundColor Green

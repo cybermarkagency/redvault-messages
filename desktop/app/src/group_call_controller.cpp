@@ -14,6 +14,7 @@
 
 #include "call_controller.hpp"
 #include "chat_session.hpp"
+#include "device_keys_session.hpp"
 #include "live_session.hpp"
 #include "media_io.hpp"
 #include "prefs.hpp"
@@ -102,6 +103,7 @@ GroupCallController::GroupCallController(std::shared_ptr<api::ApiClient> api, st
         if (!meta || !meta->isGroup) return std::nullopt;
         lk::GroupCallSession::GroupInfo group;
         group.label = meta->handle;
+        group.community = meta->community.has_value();
         for (const auto& m : meta->members) {
             lk::GroupCallSession::Member member;
             member.userId = m.userId;
@@ -117,6 +119,35 @@ GroupCallController::GroupCallController(std::shared_ptr<api::ApiClient> api, st
     };
     env.tier = tier_;
     env.otherCallActive = [this] { return calls_ && calls_->onCall(); };
+    // Part B: a group on device keys (its chat's own rule) hands room keys out as device-key messages. A group whose
+    // rule says device keys but that this computer can't use yet still never falls back to /keys.
+    env.deviceKeys = [this](const std::string& conversationId) {
+        if (!deviceKeys_) return false;
+        QString refusal;
+        return deviceKeys_->callsOverDeviceKeys(QString::fromStdString(conversationId), &refusal) || !refusal.isEmpty();
+    };
+    env.sendDeviceKey = [this](const std::string& callId, const std::string& conversationId, std::int64_t epoch,
+                               std::shared_ptr<const crypto::SecretBytes> key, std::vector<std::string> userIds,
+                               std::function<void(std::string)> done) {
+        if (!deviceKeys_) {
+            done("no device keys");
+            return;
+        }
+        deviceKeys_->sendCallKey(conversationId, callId, epoch, std::move(key), std::move(userIds),
+                                 [done](const QString& error) { done(error.toStdString()); });
+    };
+    // Part C2: a community's call takes room keys from whoever its own roster lists (members don't see each other).
+    env.deviceKeyMembers = [this](const std::string& callId, const std::string& conversationId, const std::vector<std::string>& members) {
+        if (deviceKeys_) deviceKeys_->setGroupCallMembers(callId, conversationId, members);
+    };
+    env.deviceKeyCall = [this](const std::string& callId, const std::string& conversationId, bool on) {
+        if (!deviceKeys_) return;
+        if (on) {
+            deviceKeys_->expectGroupCall(callId, conversationId);
+        } else {
+            deviceKeys_->forgetCall(callId);
+        }
+    };
     env.post = [this](std::function<void()> fn) { QMetaObject::invokeMethod(this, [fn = std::move(fn)] { fn(); }, Qt::QueuedConnection); };
     // The starter's link goes into the group chat as an ordinary end-to-end encrypted message (on the session's worker thread).
     env.announce = [this, repository, chatSession](const std::string& conversationId, const std::string& text) {
@@ -302,6 +333,12 @@ QString GroupCallController::start(const QString& chatId, const QString& kindIn)
         // Nothing goes into a chat that can't take it: the link is simply not posted, and the call screen says so.
         announceMeta_ = chats_->sendRefusal(meta->id, device_key_refusal::kMessage).isEmpty() ? meta : nullptr;
     }
+    if (deviceKeys_) {
+        // Part B: a group on device keys that this computer can't use for it right now gets no call from here.
+        QString refusal;
+        deviceKeys_->callsOverDeviceKeys(chatId, &refusal);
+        if (!refusal.isEmpty()) return refusal;
+    }
     const std::string kind = kindIn == QStringLiteral("video") ? "video" : "voice";
     return QString::fromStdString(session_->start(meta->id, kind));
 }
@@ -390,6 +427,11 @@ void GroupCallController::setCamera(const QString& id) {
     prefs::setText(identity_->userId, "cameraId", id);
     emit devicesChanged();
     if (video_ && cameraRunning_) video_->startCamera(id.toUtf8());
+}
+
+void GroupCallController::onDeviceCallKey(const std::string& callId, const std::string& conversationId, std::int64_t epoch,
+                                          const std::string& fromUserId, std::shared_ptr<const crypto::SecretBytes> key) {
+    session_->onDeviceKey(callId, conversationId, epoch, fromUserId, std::move(key));
 }
 
 // --- Pictures ---

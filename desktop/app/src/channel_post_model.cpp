@@ -223,6 +223,9 @@ QVariantMap ChannelPostModel::rowOf(const channels::Post& post, const std::optio
             {"time", ms ? formatClock(*ms) : QString()},
             {"views", viewsLabel(post.views)},
             {"suggested", post.suggested},
+            // A private channel's post: encrypted with the link (the owner may edit it), or one this computer can't open.
+            {"encrypted", post.encrypted.has_value()},
+            {"locked", post.locked},
             {"body", qs(post.body)},
             {"bodyRich", qs(model::text_format::toHtml(post.body, hidden))},
             {"bodyRevealed", qs(model::text_format::toHtml(post.body, shown))},

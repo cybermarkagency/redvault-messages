@@ -78,6 +78,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.redvaultsystems.redvaultmessage.R
 import com.redvaultsystems.redvaultmessage.data.api.ChannelChecklistDto
 import com.redvaultsystems.redvaultmessage.data.api.ChannelDto
+import com.redvaultsystems.redvaultmessage.data.PrivateChannels
 import com.redvaultsystems.redvaultmessage.data.api.ChannelMediaDto
 import com.redvaultsystems.redvaultmessage.data.api.ChannelPollDto
 import com.redvaultsystems.redvaultmessage.data.api.ChannelPostDto
@@ -183,6 +184,8 @@ fun PostContent(
                 modifier = Modifier.background(colors.accentSoft, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp),
             )
         }
+        // A private channel's post this link's keys can't open (Part C1).
+        if (post.locked) Text(PrivateChannels.LOCKED_MESSAGE, color = colors.text3, fontSize = 14.sp)
         if (post.media.isNotEmpty()) MediaGallery(channels, post.media)
         if (post.body.isNotBlank()) {
             FormattedText(post.body, color = colors.text, onOpenLink = onOpenLink, linkColor = colors.accent, style = androidx.compose.ui.text.TextStyle(fontSize = 15.sp))
@@ -317,7 +320,7 @@ private fun PhotoViewer(channels: ChannelSession, media: ChannelMediaDto, onClos
 private fun rememberPlayer(channels: ChannelSession, media: ChannelMediaDto, podcast: Boolean = false): ChannelPlayer {
     val player = remember(media.id) {
         ChannelPlayer(
-            source = { channels.rangeSource(media.url, media.size) },
+            source = { channels.sourceFor(media) },
             resumeAtSeconds = if (podcast) channels.position(media.id) else 0,
             onPosition = if (podcast) ({ seconds -> channels.savePosition(media.id, seconds) }) else null,
         )

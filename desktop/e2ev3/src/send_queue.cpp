@@ -7,7 +7,9 @@
 
 #include <algorithm>
 
+#include "batches.hpp"
 #include "fs_util.hpp"
+#include "redvault/e2ev3/community.hpp"
 #include "redvault/api/api_error.hpp"
 #include "redvault/util/text.hpp"
 
@@ -165,7 +167,8 @@ void QueueingV3Server::sendNow(const QueuedSend& item) {
 void QueueingV3Server::sendOrQueue(QueuedSend item) {
     const SendScope* scope = SendScope::current();
     const auto queue = this->queue();
-    if (scope == nullptr || !queue) return sendNow(item);
+    // No scope (or a NoQueueScope, which has no record): never queued.
+    if (scope == nullptr || scope->recordId.empty() || !queue) return sendNow(item);
     item.recordId = scope->recordId;
     item.carriesRecord = item.kind == scope->carrierKind;
     // Earlier requests still wait: this one goes behind them, so nothing overtakes.
@@ -230,3 +233,83 @@ QueueingV3Server::Flushed QueueingV3Server::flush() {
 }
 
 }  // namespace redvault::e2ev3
+
+// --- Batches (Part C2) ---
+
+namespace redvault::e2ev3::detail {
+
+std::set<std::string> refusedAccounts(const api::ApiError& error) {
+    std::set<std::string> out;
+    if (error.status() != 409 || error.code() != "recipient_not_entitled") return out;
+    const Json details = Json::parse(error.details(), nullptr, false);
+    if (!details.is_object()) return out;
+    for (const Json& id : details.value("userIds", Json::array())) {
+        if (id.is_string()) out.insert(id.get<std::string>());
+    }
+    return out;
+}
+
+namespace {
+
+bool briefly(const api::ApiError& error) {
+    if (error.code() == "tor_unavailable") return false;
+    return error.status() == 0 || error.status() >= 500 || error.status() == 429;
+}
+
+}  // namespace
+
+int sendInBatches(const Json& items, const std::function<void(const Json& batch)>& send, bool dropOnce, std::set<std::string>* dropped) {
+    std::vector<Json> rest(items.begin(), items.end());
+    std::set<std::string> gone;
+    bool dropUsed = !dropOnce;
+    bool queued = false;
+    int sent = 0;
+    std::size_t at = 0;
+    while (at < rest.size()) {
+        Json batch = Json::array();
+        const std::size_t end = std::min(rest.size(), at + kMaxDevicesPerRequest);
+        for (std::size_t i = at; i < end; ++i) batch.push_back(rest[i]);
+        try {
+            for (int attempt = 1;; ++attempt) {
+                try {
+                    send(batch);
+                    break;
+                } catch (const api::ApiError& error) {
+                    if (briefly(error) && attempt < kBatchAttempts) continue;
+                    throw;
+                }
+            }
+            sent += static_cast<int>(batch.size());
+            at = end;
+        } catch (const SendQueued&) {
+            queued = true;  // the queue keeps it; the later batches go behind it
+            at = end;
+        } catch (const api::ApiError& error) {
+            const auto refused = refusedAccounts(error);
+            if (dropUsed || refused.empty()) throw;
+            dropUsed = true;
+            gone.insert(refused.begin(), refused.end());
+            if (dropped) dropped->insert(refused.begin(), refused.end());
+            // Drop the named accounts from this batch and every later one, then try this batch again.
+            std::vector<Json> kept(rest.begin(), rest.begin() + static_cast<std::ptrdiff_t>(at));
+            for (std::size_t i = at; i < rest.size(); ++i) {
+                if (!gone.count(rest[i].value("userId", std::string()))) kept.push_back(rest[i]);
+            }
+            rest = std::move(kept);
+        }
+    }
+    if (queued) throw SendQueued();
+    return sent;
+}
+
+Json claimInBatches(const Json& devices, const std::function<Json(const Json& batch)>& claim) {
+    Json out = Json::array();
+    for (std::size_t at = 0; at < devices.size(); at += kMaxDevicesPerRequest) {
+        Json batch = Json::array();
+        for (std::size_t i = at; i < std::min(devices.size(), at + kMaxDevicesPerRequest); ++i) batch.push_back(devices[i]);
+        for (const Json& answer : claim(batch)) out.push_back(answer);
+    }
+    return out;
+}
+
+}  // namespace redvault::e2ev3::detail

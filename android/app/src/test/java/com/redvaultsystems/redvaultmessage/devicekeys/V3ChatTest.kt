@@ -201,7 +201,7 @@ class V3ChatTest {
             assertTrue(refusal, refusal.endsWith("Nothing was sent."))
         }
         // Another chat isn't affected.
-        assertNull(a.olderProtocolRefusal("11111111-1111-4111-8111-111111111111", OlderProtocolOnly.Reply))
+        assertNull(a.olderProtocolRefusal("11111111-1111-4111-8111-111111111111", OlderProtocolOnly.OlderMessageChange))
 
         a.useOlderProtocol(chat)
         for (what in OlderProtocolOnly.entries) assertNull(a.olderProtocolRefusal(chat, what))
@@ -212,7 +212,7 @@ class V3ChatTest {
         account(bob, "b")
         assertTrue(a.send(chat, isGroup = false, contactUserId = bob, text = "first") is SendOutcome.Sent)
         val restarted = V3Chat(DeviceKeysSession(alice, ::legacy, DeviceStorage(File(folder.root, "empty"), SoftwareKeyWrapper()), engine, server.api(alice)), alice, File(folder.root, "a-history"))
-        assertTrue(restarted.olderProtocolRefusal(chat, OlderProtocolOnly.Poll) != null)
+        assertTrue(restarted.olderProtocolRefusal(chat, OlderProtocolOnly.OlderMessageChange) != null)
     }
 
     private val upload = com.redvaultsystems.redvaultmessage.data.model.FileDescriptor(

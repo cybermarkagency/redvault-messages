@@ -1,0 +1,5 @@
+{
+  "note": "Test key only (secret in crypto-core/tests/sealed.rs, key id 1). Never used on the live gateway.",
+  "keyId": 1,
+  "keyConfigHex": "0100208cfd57b6e65ffdbfbb5087ff6665b7122e1fee211913dee4ced8a3357cdfa079000400010003"
+}

@@ -61,6 +61,8 @@ public:
     virtual Json rosters(const std::string& conversationId, int afterEpoch = 0);
     /// M6: stores the next roster; ApiError "stale_roster" when another member's came first.
     virtual Json postRoster(const std::string& conversationId, const Json& roster);
+    /// [{deviceId, certificate}] for an account's listed Signal devices (Part D: the keys an anonymous answer is sealed to).
+    virtual Json signalCertificates(const std::string& userId, const std::string& conversationId = {});
 };
 
 /// The real thing, over the app's signed-in ApiClient.
@@ -95,6 +97,7 @@ public:
     Json signalClaim(const std::string& conversationId, const Json& devices) override;
     Json rosters(const std::string& conversationId, int afterEpoch = 0) override;
     Json postRoster(const std::string& conversationId, const Json& roster) override;
+    Json signalCertificates(const std::string& userId, const std::string& conversationId = {}) override;
 
 private:
     std::shared_ptr<api::ApiClient> api_;

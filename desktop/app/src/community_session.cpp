@@ -104,11 +104,8 @@ CommunitySession::CommunitySession(std::shared_ptr<api::ApiClient> api, std::sha
       chats_(chats),
       webAppBase_(std::move(webAppBase)) {
     pool_.setMaxThreadCount(3);
-    // Key upkeep: soon after signing in, then every 20 s, like the web app.
-    upkeepTimer_.setInterval(kUpkeepMs);
-    connect(&upkeepTimer_, &QTimer::timeout, this, [this] { runUpkeep(false); });
-    upkeepTimer_.start();
-    QTimer::singleShot(kFirstUpkeepMs, this, [this] { runUpkeep(false); });
+    // Part C2: no key upkeep here any more (no /key-tasks, /enrollments or /rotate). Communities are Signal groups on
+    // device keys, and the owner's and staff's devices run the membership tasks (DeviceKeysSession, every 30 s).
     confirmTimer_.setInterval(kConfirmMs);
     connect(&confirmTimer_, &QTimer::timeout, this, &CommunitySession::pollConfirmation);
 }
@@ -511,10 +508,10 @@ void CommunitySession::create(const QVariantMap& fields) {
     auto identity = identity_;
     act(
         [api, identity, input]() mutable {
-            // The community's first key is made here, sealed to you; the server never sees it. The id is
-            // chosen here too, so epoch 0's copy is bound to this community like every later one.
+            // Part C2: no epoch key any more (wrappedKey is left out): messages go device to device under Signal
+            // sender keys, and the owner's device issues the community's roster once members come.
+            (void)identity;
             input.id = util::randomUuid();
-            input.wrappedKey = crypto::community::newCommunityKey(input.id, identity->publicKey).wrappedKey;
             community_api::create(*api, input);
             return input.id;
         },
@@ -686,38 +683,9 @@ void CommunitySession::deliverKeysNow() {
 }
 
 void CommunitySession::runUpkeep(bool reportResult) {
-    if (upkeepRunning_) {
-        if (reportResult) setMessages({}, QStringLiteral("Already checking keys…"));
-        return;
-    }
-    upkeepRunning_ = true;
-    if (reportResult) setBusy(true);
-    auto keys = keys_;
-    runInBackground(
-        pool_, this, [keys] { return keys->runMaintenance(); },
-        [this, reportResult](data::CommunityKeyStore::Upkeep done) {
-            upkeepRunning_ = false;
-            if (reportResult) {
-                setBusy(false);
-                setMessages({}, QStringLiteral("Keys are up to date."));
-            }
-            if (done.rotated + done.enrolled > 0) {
-                if (chats_) chats_->refreshNow();
-                if (page_ == QStringLiteral("community") || page_ == QStringLiteral("manage")) reloadCommunity();
-                if (page_ == QStringLiteral("manage")) loadMembers(memberFilter_);
-            }
-        },
-        [this, reportResult](const Failure& failure) {
-            upkeepRunning_ = false;
-            if (failure.status == 401) {
-                emit sessionExpired();
-                return;
-            }
-            if (reportResult) {
-                setBusy(false);
-                fail(failure);
-            }
-        });
+    // Part C2: admitting members, rosters and sender-key rotation happen on this device's device-key side.
+    if (membershipNow_) membershipNow_();
+    if (reportResult) setMessages({}, QStringLiteral("Checking memberships now. This app admits waiting members and updates the group by itself."));
 }
 
 void CommunitySession::saveSettings(const QVariantMap& fields) {
@@ -824,11 +792,11 @@ void CommunitySession::removeMember(const QString& userId, bool ban, const QStri
     const auto why = optionalText(reason);
     act([api, id, user, ban, why] { community_api::removeMember(*api, id, user, ban, why); },
         [this, ban] {
-            setMessages({}, ban ? QStringLiteral("Banned. The next post switches to a new key they never get.")
-                                : QStringLiteral("Removed. The next post switches to a new key they never get."));
+            setMessages({}, ban ? QStringLiteral("Banned. New messages use keys they never get.")
+                                : QStringLiteral("Removed. New messages use keys they never get."));
             loadMembers(memberFilter_);
             reloadCommunity();
-            // Rotate now rather than at the next post: nothing new is readable with a key they kept.
+            // Issue the next roster or rotate now rather than at the next post.
             runUpkeep(false);
         });
 }
@@ -847,7 +815,7 @@ void CommunitySession::decideRequest(const QString& userId, bool approve) {
     act([api, id, user, approve] { community_api::decideJoinRequest(*api, id, user, approve); },
         [this, approve] {
             loadMembers(memberFilter_);
-            if (approve) runUpkeep(false);  // they're waiting for the key now: deliver it
+            if (approve) runUpkeep(false);  // they're waiting to be admitted now
         });
 }
 

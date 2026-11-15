@@ -165,7 +165,7 @@ Item {
 
                 StoryTray {
                     Layout.fillWidth: true
-                    visible: App.stories !== null
+                    visible: App.stories !== null && App.stories.enabled
                     stories: App.stories
                     account: root.account
                 }

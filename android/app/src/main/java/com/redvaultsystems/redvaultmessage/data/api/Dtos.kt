@@ -167,7 +167,7 @@ data class MeResult(
 
 /** Error body shape for every non-2xx response: `{"error": "<code>", "message": "..."}`. */
 @Serializable
-data class ErrorBody(val error: String? = null, val message: String? = null)
+data class ErrorBody(val error: String? = null, val message: String? = null, val details: kotlinx.serialization.json.JsonObject? = null)
 
 // --- Conversations and messages ---
 

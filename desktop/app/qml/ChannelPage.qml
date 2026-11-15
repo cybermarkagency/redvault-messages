@@ -45,6 +45,50 @@ Item {
         function onPosted() { Qt.callLater(thread.positionViewAtBeginning) }
     }
 
+    // The owner editing a private channel's post: only its text; it's encrypted again on this computer.
+    RvDialog {
+        id: editDialog
+        property string postId: ""
+        title: "Edit post"
+        width: 520
+        onOpened: editField.forceActiveFocus()
+        ColumnLayout {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            spacing: 12
+            PostField {
+                id: editField
+                objectName: "channelEditField"
+                Layout.fillWidth: true
+                limit: page.channels.maxPostLength
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                RvButton {
+                    primary: false
+                    text: "Cancel"
+                    onClicked: editDialog.close()
+                }
+                RvButton {
+                    text: "Save"
+                    enabled: !editField.tooLong && !page.channels.posting
+                    onClicked: page.channels.editPost(editDialog.postId, editField.text)
+                }
+            }
+        }
+    }
+    Connections {
+        target: page.channels
+        ignoreUnknownSignals: true
+        function onEdited() { editDialog.close() }
+    }
+    function askEdit(post) {
+        editDialog.postId = post.id
+        editField.text = post.body
+        editDialog.open()
+    }
+
     ConfirmDialog {
         id: deletePostDialog
         title: qsTr("Delete this post?")
@@ -148,7 +192,15 @@ Item {
             onTriggered: App.copySecret(postMenu.post.body)
         }
         MenuItem {
-            text: qsTr("Delete post")
+            text: "Edit post"
+            icon.source: "image://icon/pen/" + menuIcon.hex(Theme.text)
+            // Only a private channel's posts (encrypted with the link) can be edited, by their owner.
+            visible: page.channels.isMine && postMenu.post.encrypted === true && postMenu.post.locked !== true
+            height: visible ? implicitHeight : 0
+            onTriggered: page.askEdit(postMenu.post)
+        }
+        MenuItem {
+            text: "Delete post"
             icon.source: "image://icon/trash/" + menuIcon.hex(Theme.danger)
             visible: page.canManage
             height: visible ? implicitHeight : 0
@@ -223,7 +275,9 @@ Item {
                             objectName: "channelSubtitle"
                             Layout.fillWidth: true
                             visible: page.loaded
-                            text: (page.isPrivate ? qsTr("Private channel") : qsTr("Public channel")) + qsTr(" · not end-to-end encrypted")
+                            // A private channel with keys is encrypted with its link; one made before that, until its owner's app sets them up, isn't.
+                            text: page.isPrivate && page.channels.channel.e2ee === true ? "Private channel · end-to-end encrypted with its link"
+                                  : (page.isPrivate ? "Private channel" : "Public channel") + " · not end-to-end encrypted"
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: Theme.text3
@@ -300,6 +354,27 @@ Item {
                     text: qsTr("No posts yet.")
                     color: Theme.text3
                 }
+            }
+
+            // --- A private channel this link can't open, and the owner's conversion after a switch ---
+            Banner {
+                objectName: "channelCantOpen"
+                Layout.fillWidth: true
+                Layout.leftMargin: 18
+                Layout.rightMargin: 18
+                Layout.bottomMargin: 8
+                visible: page.loaded && page.channels.channel.cantOpen === true
+                error: true
+                text: "This channel's posts can't be opened with this link"
+            }
+            Banner {
+                objectName: "channelConversion"
+                Layout.fillWidth: true
+                Layout.leftMargin: 18
+                Layout.rightMargin: 18
+                Layout.bottomMargin: 8
+                visible: page.loaded && (page.channels.conversionStatus || "").length > 0
+                text: page.channels.conversionStatus || ""
             }
 
             // --- Problems and confirmations ---

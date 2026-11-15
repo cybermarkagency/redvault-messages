@@ -128,6 +128,7 @@ async fn main() {
         state_dir: args.state,
         cache_dir: args.cache,
         allowed_targets: vec![args.target.clone()],
+        allowed_exit_targets: Vec::new(),
         #[cfg(feature = "test-hooks")]
         test_blocked_network: args.blocked,
     })

@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import * as api from "../lib/api.js";
-import { credentialFor, newCredential, pinSignInKeys } from "../lib/authKey.js";
+import { credentialFor, pinSignInKeys } from "../lib/authKey.js";
 import * as crypto from "../lib/e2eCrypto.js";
 
 vi.mock("../lib/api.js", async (importOriginal) => ({
@@ -19,17 +19,12 @@ beforeAll(async () => {
 });
 
 describe("sign-in key pins", () => {
-  it("hold for any spelling of the username, and follow a rename", async () => {
-    const { movePin, pinSignInKeys } = await import("../lib/authKey.js");
+  it("hold for any spelling of the username", () => {
     localStorage.clear();
     pinSignInKeys("Alice");
     expect(localStorage.getItem("redvaultsystem:signInKeys:alice")).toBe("1");
     pinSignInKeys("  BOB ");
     expect(localStorage.getItem("redvaultsystem:signInKeys:bob")).toBe("1");
-    movePin("ALICE", "Carol");
-    expect(localStorage.getItem("redvaultsystem:signInKeys:carol")).toBe("1");
-    movePin("nobody", "dave");
-    expect(localStorage.getItem("redvaultsystem:signInKeys:dave")).toBeNull();
     localStorage.clear();
   });
 });
@@ -91,13 +86,6 @@ describe("sign-in keys", () => {
     vi.mocked(api.preLogin).mockResolvedValue(answer(1, true));
     await expect(credentialFor("carol", "a password")).rejects.toThrow(/wasn't sent/);
     vi.mocked(api.preLogin).mockResolvedValue(answer(1, false));
-    await expect(newCredential("carol", "a password", salt)).rejects.toThrow(/wasn't sent/);
-  });
-
-  it("uses a new account's sign-in key once the server allows it", async () => {
-    vi.mocked(api.preLogin).mockResolvedValue(answer(2, true));
-    expect((await newCredential("dave", "a password", salt)).authVersion).toBe(2);
-    vi.mocked(api.preLogin).mockResolvedValue(answer(1, false));
-    expect(await newCredential("erin", "a password", salt)).toEqual({ password: "a password" });
+    await expect(credentialFor("carol", "a password")).rejects.toThrow(/wasn't sent/);
   });
 });

@@ -62,6 +62,21 @@ Roster roster(ApiClient& api, const std::string& communityId);
 std::int64_t rotate(ApiClient& api, const std::string& communityId, std::int64_t fromEpoch,
                     const std::vector<crypto::community::WrappedForMember>& keys);
 
+// --- Part C2: communities on the device-key group path (docs/signal-integration/11-part-c2-communities.md) ---
+// These replace keyTasks, keys, pendingEnrollments, enroll, roster and rotate above, which the desktop no
+// longer calls for new messages (GET /keys stays only to open old protocol-1 rows, read-only).
+
+/// GET /communities/membership-tasks: [{communityId, conversationId, kind, latestSeq, waiting}] for owner/staff.
+Json membershipTasks(ApiClient& api);
+/// GET /communities/:id/membership-tasks?after=&limit=: {cursor, hasMore, events, waiting, lapsed, kind, ...}.
+Json membershipTasksFor(ApiClient& api, const std::string& communityId, std::int64_t after, int limit = 200);
+/// POST /communities/:id/members/:userId/admit: a pending_enrollment member becomes active (no key involved).
+Json admit(ApiClient& api, const std::string& communityId, const std::string& userId);
+/// GET /communities/:id/recipients (owner/staff): {communityId, conversationId, userIds} of entitled accounts.
+Json recipients(ApiClient& api, const std::string& communityId);
+/// The active owner, admins and moderators (paged GET /communities/:id/members?status=active; staff only).
+std::vector<std::string> staffAccounts(ApiClient& api, const std::string& communityId);
+
 // --- Config, creator profile, payouts ---
 
 Json config(ApiClient& api);

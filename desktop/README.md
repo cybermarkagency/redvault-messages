@@ -241,6 +241,27 @@ AppImage as a build artifact; it runs on glibc 2.39+ distributions. On Linux the
 is no "Hide from screenshots" setting, since Linux has no way for a window to opt out
 of capture. TLS uses the distribution's CA certificates.
 
+### Linux (Snap Store / Ubuntu App Center)
+
+Ubuntu's App Center lists snaps from the Snap Store. The snap is made from the
+released AppImage, like the `.deb`:
+
+```sh
+sudo snap install snapcraft --classic        # plus LXD, or pass --destructive-mode on Ubuntu 24.04
+bash packaging/linux/make-snap.sh dist/redvaultmessages-x.y.z-x86_64.AppImage
+snapcraft upload --release=edge dist/redvaultmessages_x.y.z_amd64.snap   # test, then:
+snapcraft release redvaultmessages <revision> stable
+```
+
+`packaging/snap/snap/snapcraft.yaml` is strict confinement on core24 with the
+gnome extension; the store listing text comes from it and from
+`packaging/linux/redvaultmessages.metainfo.xml` (AppStream; add a `<release>`
+entry for each version, `make-snap.sh` refuses without one). Camera and microphone
+are not connected automatically in a strict snap: until the store grants
+auto-connection (asked for on forum.snapcraft.io), users turn them on in App
+Center's Permissions or with `snap connect redvaultmessages:camera`.
+The in-app updater is off inside a snap (`$SNAP`); the store updates it.
+
 ## Automatic updates
 
 Installed copies check
@@ -272,6 +293,7 @@ manifest and product name, so neither can be handed the other's file:
   `pkexec apt-get install`, which shows the system's own password prompt; the app
   restarts when apt is done. Without a password prompt on that desktop it's opened
   in the software installer instead.
+- **Snap** (`$SNAP` is set): no update check; the Snap Store updates it.
 - Anything else (built from source, unpacked by hand): no update check.
 
 A manifest carries a signed `expires` date, 90 days out unless `sign` is given

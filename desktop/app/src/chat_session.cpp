@@ -151,6 +151,14 @@ std::shared_ptr<const data::ConversationMeta> ChatSession::currentMetaShared() c
     return it == metas_.end() ? nullptr : it->second;
 }
 
+std::vector<std::shared_ptr<const data::ConversationMeta>> ChatSession::communityMetas() const {
+    std::vector<std::shared_ptr<const data::ConversationMeta>> out;
+    for (const auto& [id, meta] : metas_) {
+        if (meta && meta->community) out.push_back(meta);
+    }
+    return out;
+}
+
 std::shared_ptr<const data::ConversationMeta> ChatSession::metaFor(const std::string& chatId) const {
     const auto it = metas_.find(chatId);
     return it == metas_.end() ? nullptr : it->second;
@@ -895,18 +903,18 @@ void ChatSession::pin(const QString& messageId) {
     const std::string preview = message->kind == data::MessageKind::File ? kPaperclip + message->text
                               : message->kind == data::MessageKind::Poll ? "\xF0\x9F\x93\x8A " + message->text
                                                                          : message->text;
-    sendControl(device_key_refusal::kPin, [id, preview](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendPin(meta, id, preview); });
+    sendControl(device_key_refusal::kMessage, [id, preview](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendPin(meta, id, preview); });
 }
 
 void ChatSession::unpin(const QString& messageId) {
     const std::string id = messageId.toStdString();
-    sendControl(device_key_refusal::kPin, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendUnpin(meta, id); });
+    sendControl(device_key_refusal::kMessage, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendUnpin(meta, id); });
 }
 
 void ChatSession::createPoll(const QString& question, const QStringList& options, bool multiple) {
     const auto meta = currentMetaShared();
     if (!meta) return;
-    if (const QString why = sendRefusal(meta->id, device_key_refusal::kPoll); !why.isEmpty()) {
+    if (const QString why = sendRefusal(meta->id, device_key_refusal::kMessage); !why.isEmpty()) {
         emit pollDone(why);
         return;
     }
@@ -936,7 +944,7 @@ void ChatSession::vote(const QString& pollId, const QVariantList& options) {
     const auto* message = messages_.find(pollId.toStdString());
     if (!message || !message->poll || message->poll->closed) return;
     // Before the count on screen moves: a vote that can't go out mustn't look as if it did.
-    if (const QString why = sendRefusal(currentChatId_, device_key_refusal::kVote); !why.isEmpty()) return setError(why);
+    if (const QString why = sendRefusal(currentChatId_, device_key_refusal::kMessage); !why.isEmpty()) return setError(why);
     std::vector<int> picked;
     for (const auto& option : options) picked.push_back(option.toInt());
     const data::Message poll = *message;
@@ -952,14 +960,14 @@ void ChatSession::vote(const QString& pollId, const QVariantList& options) {
         }
         showThread(chat->meta, chat->messages);
     }
-    sendControl(device_key_refusal::kVote, [poll, picked](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendVote(meta, poll, picked); });
+    sendControl(device_key_refusal::kMessage, [poll, picked](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendVote(meta, poll, picked); });
 }
 
 void ChatSession::endPoll(const QString& pollId) {
     const auto* message = messages_.find(pollId.toStdString());
     if (!message || !message->poll || !message->fromMe || message->poll->closed) return;
     const std::string id = message->id;
-    sendControl(device_key_refusal::kVote, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendEndPoll(meta, id); });
+    sendControl(device_key_refusal::kMessage, [id](data::ConversationRepository& repo, const data::ConversationMeta& meta) { repo.sendEndPoll(meta, id); });
 }
 
 QVariantList ChatSession::messageRequests() const {
@@ -1000,6 +1008,11 @@ void ChatSession::respondToRequest(const QString& chatId, bool accept) {
             refreshAll();
         },
         [this](const Failure& failure) { fail(failure); });
+}
+
+int ChatSession::disappearingFor(const std::string& chatId) const {
+    const auto* chat = chatList_.find(chatId);
+    return chat ? data::Disappearing::fromSeconds(chat->disappearingSeconds).seconds.value_or(0) : 0;
 }
 
 int ChatSession::currentDisappearing() const {
@@ -1066,25 +1079,56 @@ void ChatSession::forwardMessages(const QStringList& messageIds, const QStringLi
     std::vector<Item> items;
     for (const auto& id : messageIds) {
         const auto* message = messages_.find(id.toStdString());
-        if (!message || message->kind == data::MessageKind::Undecryptable) continue;
+        if (!message) {
+            // A message of the open device-key chat (part A): it can go anywhere, each target by its own protocol.
+            if (deviceKeyLookup_) {
+                if (auto item = deviceKeyLookup_(id.toStdString())) items.push_back(Item{std::move(item->text), std::move(item->file), item->at, std::nullopt});
+            }
+            continue;
+        }
+        if (message->kind == data::MessageKind::Undecryptable) continue;
         if (message->kind == data::MessageKind::File && !message->file) continue;
         items.push_back(Item{message->text, message->file, message->createdAtMs, message->channelPost});
     }
     std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.at < b.at; });
-    std::vector<std::shared_ptr<const data::ConversationMeta>> targets;
+    std::vector<std::shared_ptr<const data::ConversationMeta>> chosen;
     for (const auto& chatId : chatIds) {
-        if (auto meta = metaFor(chatId.toStdString())) targets.push_back(std::move(meta));
+        if (auto meta = metaFor(chatId.toStdString())) chosen.push_back(std::move(meta));
     }
-    if (items.empty() || targets.empty()) {
+    if (items.empty() || chosen.empty()) {
         emit forwardDone(0, {});
         return;
     }
-    // Before anything goes out, so a chat that can't take it doesn't leave the rest half done.
-    for (const auto& meta : targets) {
-        if (const QString why = sendRefusal(meta->id, device_key_refusal::kForward); !why.isEmpty()) {
+    // Each target by its own rule (step 1): a chat pinned to device keys gets the forward there, the others on the
+    // older protocol. Checked before anything goes out, so a chat that can't take it doesn't leave the rest half done.
+    std::vector<std::shared_ptr<const data::ConversationMeta>> targets;
+    std::vector<std::string> deviceKeyTargets;
+    for (const auto& meta : chosen) {
+        if (chatPinnedToDeviceKeys_ && chatPinnedToDeviceKeys_(meta->id)) {
+            const QString reason = deviceKeyReason_ ? deviceKeyReason_(meta->id) : QString();
+            if (!reason.isEmpty() || !deviceKeyForward_) {
+                emit forwardDone(0, reason.isEmpty() ? QString::fromUtf8(device_key_refusal::kMessage) : reason);
+                return;
+            }
+            deviceKeyTargets.push_back(meta->id);
+            continue;
+        }
+        if (const QString why = sendRefusal(meta->id, device_key_refusal::kMessage); !why.isEmpty()) {
             emit forwardDone(0, why);
             return;
         }
+        targets.push_back(meta);
+    }
+    // Into device-key chats: their files are uploaded again there, with new keys (DeviceKeysSession::forwardInto).
+    for (const std::string& chatId : deviceKeyTargets) {
+        std::vector<DeviceKeyForward> forwarded;
+        for (const auto& item : items) forwarded.push_back(DeviceKeyForward{item.text, item.file, item.at});
+        deviceKeyForward_(chatId, std::move(forwarded));
+    }
+    const int handedOver = static_cast<int>(items.size() * deviceKeyTargets.size());
+    if (targets.empty()) {
+        emit forwardDone(handedOver, {});
+        return;
     }
     auto repository = repository_;
     auto files = files_;
@@ -1115,8 +1159,8 @@ void ChatSession::forwardMessages(const QStringList& messageIds, const QStringLi
             }
             return sent;
         },
-        [this](int sent) {
-            emit forwardDone(sent, {});
+        [this, handedOver](int sent) {
+            emit forwardDone(sent + handedOver, {});
             refreshAll();
         },
         [this](const Failure& failure) {
@@ -1140,7 +1184,7 @@ void ChatSession::forwardChannelPost(const QString& text, const QString& channel
         return;
     }
     for (const auto& meta : targets) {
-        if (const QString why = sendRefusal(meta->id, device_key_refusal::kForward); !why.isEmpty()) {
+        if (const QString why = sendRefusal(meta->id, device_key_refusal::kChannelPost); !why.isEmpty()) {
             emit forwardDone(0, why);
             return;
         }

@@ -45,25 +45,7 @@ function fromPreLogin(pre: api.PreLoginResult, handle: string, password: string)
   return pre.upgrade ? { password, upgradeAuthKey: signInKey } : { password };
 }
 
-/** The account has a new name: the pin goes with it. */
-export function movePin(oldHandle: string, newHandle: string): void {
-  if (pinned(oldHandle)) pinSignInKeys(newHandle);
-}
-
 /** What to send to prove this password, at sign-in or when an action re-checks it. */
 export async function credentialFor(handle: string, password: string): Promise<Credential> {
   return fromPreLogin(await api.preLogin(handle), handle, password);
-}
-
-/** The current-password value for a re-check while signed in. */
-export async function passwordProof(handle: string, password: string): Promise<string> {
-  return (await credentialFor(handle, password)).password;
-}
-
-/** What to send for a new password wrapped with `kdfSalt`: at sign-up, password change and recovery. */
-export async function newCredential(handle: string, password: string, kdfSalt: Uint8Array): Promise<{ password: string; authVersion?: 2 }> {
-  const pre = await api.preLogin(handle);
-  if (pre.authVersion === 2 || pre.upgrade) return { password: crypto.deriveSignInKey(password, kdfSalt, crypto.KDF_CURRENT), authVersion: 2 };
-  if (pinned(handle)) throw new Error("This account's sign-in details look wrong. Your password wasn't sent.");
-  return { password };
 }

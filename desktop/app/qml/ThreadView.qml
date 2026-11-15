@@ -50,11 +50,14 @@ Item {
     // older protocol while it isn't known, or while this computer isn't linked to a chat whose members all have device keys.
     readonly property string dkMode: App.deviceKeys !== null ? App.deviceKeys.chatMode : ""
     readonly property bool dkHold: root.dkMode === "checking" || root.dkMode === "link"
+    // Part C2: a community on device keys (a full Signal group). Its old protocol-1 messages, if any, can be shown read-only.
+    readonly property bool dkCommunity: App.deviceKeys !== null && App.deviceKeys.chatCommunity
+    property bool communityOlder: false
     // The file in progress, whichever way this chat sends them.
     readonly property string fileActivity: root.v3Mode ? App.deviceKeys.chatFileActivity : root.session.fileActivity
     // The chat a device-key message is being edited in (those messages aren't in root.session).
     property string editingV3Chat: ""
-    // Replies and selecting don't exist on device keys yet, and an edit in progress belongs to the other list.
+    // A reply, an edit or a selection in progress belongs to the other list's messages.
     onV3ModeChanged: {
         root.replyToId = ""
         root.replyPreview = ""
@@ -63,6 +66,7 @@ Item {
     }
 
     function syncDeviceKeys() {
+        root.communityOlder = false
         if (!App.deviceKeys) return
         const id = root.session.currentChatId
         if (id.length === 0) App.deviceKeys.closeChat()
@@ -81,6 +85,8 @@ Item {
             composer.text = ""
             root.editingId = ""
             root.editingV3Chat = ""
+            root.replyToId = ""
+            root.replyPreview = ""
         }
         function onChatFileDone(fileUrl) {
             root.session.discardPasted(fileUrl)  // only ever removes a pasted picture's temporary copy
@@ -219,6 +225,7 @@ Item {
     PollDialog {
         id: pollDialog
         chats: root.session
+        deviceKeys: root.v3Mode
     }
 
     // "+" in a message's reaction bar: react with any emoji.
@@ -249,6 +256,14 @@ Item {
     // Which pinned message the bar shows (it cycles through them on click).
     property int pinIndex: 0
     function showMessage(messageId) {
+        if (root.v3Mode) {
+            const at = App.deviceKeys.chat.indexOf(messageId)
+            if (at < 0) return
+            v3List.positionViewAtIndex(at, ListView.Center)
+            flashTimer.messageId = messageId
+            flashTimer.restart()
+            return
+        }
         const row = root.session.messages.indexOf(messageId)
         if (row < 0) {
             root.session.loadOlder()
@@ -322,7 +337,7 @@ Item {
 
     ImageViewer {
         id: imageViewer
-        canOpen: root.session.canOpenFile(imageViewer.messageId)
+        canOpen: root.v3Mode || root.session.canOpenFile(imageViewer.messageId)
         onSaveRequested: (messageId) => {
             imageViewer.close()
             root.fileMessageId = messageId
@@ -333,7 +348,8 @@ Item {
         }
         onOpenRequested: (messageId) => {
             App.lock.expectExternalReturn()
-            root.session.openFile(messageId)
+            if (root.v3Mode) App.deviceKeys.openFile(messageId)
+            else root.session.openFile(messageId)
         }
     }
 
@@ -433,8 +449,7 @@ Item {
         }
     }
 
-    // What you can do with one device-key message. Reply, forward and pin have no envelope on device keys yet (step 2),
-    // so they aren't offered here.
+    // What you can do with one device-key message (docs/signal-integration/08-part-a-chat-features.md).
     Menu {
         id: v3Menu
         property string messageId: ""
@@ -442,18 +457,32 @@ Item {
         property bool canReact: false
         property bool canEdit: false
         property bool canDelete: false
+        property bool canPin: false
+        property bool pinned: false
+        property bool isFile: false
+        property bool canForward: false
 
-        function show(messageId, text, canReact, canEdit, canDelete) {
-            v3Menu.messageId = messageId
-            v3Menu.text = text
-            v3Menu.canReact = canReact
-            v3Menu.canEdit = canEdit
-            v3Menu.canDelete = canDelete
+        function show(row) {
+            v3Menu.messageId = row.messageId
+            v3Menu.text = row.deleted || row.kind !== "text" ? "" : row.text
+            v3Menu.canReact = row.canReact
+            v3Menu.canEdit = row.canEdit
+            v3Menu.canDelete = row.canDelete
+            v3Menu.canPin = row.canPin
+            v3Menu.pinned = row.pinned
+            v3Menu.isFile = row.kind === "file"
+            v3Menu.canForward = App.deviceKeys.forwardable([row.messageId]).length > 0
             popup()
         }
 
         MenuItem {
-            text: qsTr("React…")
+            text: "Reply"
+            icon.source: "image://icon/reply/" + menuIcon.hex(Theme.text)
+            enabled: v3Menu.canReact
+            onTriggered: root.startReply(v3Menu.messageId)
+        }
+        MenuItem {
+            text: "React…"
             icon.source: "image://icon/smile/" + menuIcon.hex(Theme.text)
             enabled: v3Menu.canReact
             onTriggered: reactionPicker.show(v3Menu.messageId, true)
@@ -466,7 +495,24 @@ Item {
             onTriggered: root.startV3Edit(v3Menu.messageId, v3Menu.text)
         }
         MenuItem {
-            text: qsTr("Copy text")
+            text: v3Menu.pinned ? "Unpin" : "Pin"
+            icon.source: "image://icon/pin/" + menuIcon.hex(Theme.text)
+            enabled: v3Menu.canPin
+            onTriggered: App.deviceKeys.pinChat(v3Menu.messageId, !v3Menu.pinned)
+        }
+        MenuItem {
+            text: "Select"
+            icon.source: "image://icon/check/" + menuIcon.hex(Theme.text)
+            onTriggered: root.startSelect(v3Menu.messageId)
+        }
+        MenuItem {
+            text: "Forward…"
+            icon.source: "image://icon/share/" + menuIcon.hex(Theme.text)
+            enabled: v3Menu.canForward
+            onTriggered: forwardDialog.openFor([v3Menu.messageId], v3Menu.isFile)
+        }
+        MenuItem {
+            text: "Copy text"
             icon.source: "image://icon/copy/" + menuIcon.hex(Theme.text)
             visible: v3Menu.canReact && v3Menu.text.length > 0
             height: visible ? implicitHeight : 0
@@ -649,8 +695,8 @@ Item {
     // Deleting several selected messages: for everyone only when they're all yours.
     RvDialog {
         id: deleteManyDialog
-        readonly property bool allMine: root.session.allFromMe(root.selectedList)
-        title: root.selectedList.length === 1 ? qsTr("Delete 1 message?") : qsTr("Delete ") + root.selectedList.length + qsTr(" messages?")
+        readonly property bool allMine: root.v3Mode ? App.deviceKeys.allFromMe(root.selectedList) : root.session.allFromMe(root.selectedList)
+        title: root.selectedList.length === 1 ? "Delete 1 message?" : "Delete " + root.selectedList.length + " messages?"
         width: 460
         ColumnLayout {
             anchors.left: parent.left
@@ -659,9 +705,13 @@ Item {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: deleteManyDialog.allMine
-                      ? qsTr("Delete them from this computer only, or have the server erase them for everyone in the chat (this can't be undone).")
-                      : qsTr("They're removed from this computer only; the others in the chat keep them. (Only your own messages can be deleted for everyone.)")
+                text: root.v3Mode
+                      ? (deleteManyDialog.allMine
+                         ? "They're deleted for everyone in the chat, on every device that has them. This can't be undone."
+                         : "Only your own messages can be deleted here, and only for everyone. Select just yours to delete them.")
+                      : deleteManyDialog.allMine
+                      ? "Delete them from this computer only, or have the server erase them for everyone in the chat (this can't be undone)."
+                      : "They're removed from this computer only; the others in the chat keep them. (Only your own messages can be deleted for everyone.)"
                 textFormat: Text.PlainText
                 color: Theme.text2
             }
@@ -674,6 +724,7 @@ Item {
                     onClicked: deleteManyDialog.close()
                 }
                 RvButton {
+                    visible: !root.v3Mode
                     primary: !deleteManyDialog.allMine
                     danger: true
                     text: qsTr("Delete for me")
@@ -688,7 +739,8 @@ Item {
                     danger: true
                     text: qsTr("Delete for everyone")
                     onClicked: {
-                        root.session.deleteManyForEveryone(root.selectedList)
+                        if (root.v3Mode) App.deviceKeys.deleteMany(root.selectedList)
+                        else root.session.deleteManyForEveryone(root.selectedList)
                         deleteManyDialog.close()
                         root.stopSelect()
                     }
@@ -734,7 +786,7 @@ Item {
     function startReply(messageId) {
         if (root.editingId.length > 0) root.cancelEdit()
         root.replyToId = messageId
-        root.replyPreview = root.session.previewOf(messageId)
+        root.replyPreview = root.v3Mode ? App.deviceKeys.previewOf(messageId) : root.session.previewOf(messageId)
         composer.forceActiveFocus()
     }
 
@@ -813,7 +865,7 @@ Item {
             return
         if (root.v3Mode) {
             if (root.editingId.length > 0) App.deviceKeys.editChat(root.editingId, text)
-            else App.deviceKeys.sendChat(text)
+            else App.deviceKeys.sendChat(text, root.replyToId)
             return
         }
         if (root.editingId.length > 0) {
@@ -850,7 +902,8 @@ Item {
             // A group: is a call going on there? (The Join button below.)
             if (root.session.currentIsGroup && App.groupCalls) App.groupCalls.refreshActive()
             // A different chat: drop a reply target that isn't in it, and start at its latest message.
-            if (root.replyToId.length > 0 && root.session.previewOf(root.replyToId).length === 0) {
+            if (root.replyToId.length > 0 && root.session.previewOf(root.replyToId).length === 0
+                    && !(root.v3Mode && App.deviceKeys.previewOf(root.replyToId).length > 0)) {
                 root.replyToId = ""
                 root.replyPreview = ""
             }
@@ -993,8 +1046,8 @@ Item {
                     onClicked: root.searchOpen ? root.closeSearch() : root.openSearch()
                 }
                 IconButton {
-                    // Disappearing messages have no device-key version yet (step 2).
-                    visible: !root.readOnly && !root.v3Mode
+                    // Your timer: on device keys each message you send carries it (part A).
+                    visible: !root.readOnly
                     iconName: "timer"
                     toggled: root.session.currentDisappearing > 0
                     tip: qsTr("Disappearing messages: ") + root.session.currentDisappearingLabel
@@ -1118,9 +1171,9 @@ Item {
         Rectangle {
             id: pinnedBar
             Layout.fillWidth: true
-            readonly property var pins: root.session.currentPinned
+            readonly property var pins: root.v3Mode ? (App.deviceKeys ? App.deviceKeys.chatPins : []) : root.session.currentPinned
             readonly property var shown: pins.length > 0 ? pins[Math.min(root.pinIndex, pins.length - 1)] : null
-            visible: pins.length > 0 && !root.selecting && !root.v3Mode
+            visible: pins.length > 0 && !root.selecting
             implicitHeight: 48
             color: Theme.surface
             Rectangle {
@@ -1184,8 +1237,12 @@ Item {
                 }
                 IconButton {
                     iconName: "x"
-                    tip: qsTr("Unpin for everyone")
-                    onClicked: if (pinnedBar.shown) root.session.unpin(pinnedBar.shown.messageId)
+                    tip: "Unpin for everyone"
+                    onClicked: {
+                        if (!pinnedBar.shown) return
+                        if (root.v3Mode) App.deviceKeys.pinChat(pinnedBar.shown.messageId, false)
+                        else root.session.unpin(pinnedBar.shown.messageId)
+                    }
                 }
             }
         }
@@ -1222,11 +1279,11 @@ Item {
                 RvButton {
                     primary: false
                     iconName: "share"
-                    text: qsTr("Forward")
-                    enabled: root.session.forwardable(root.selectedList).length > 0
+                    text: "Forward"
+                    enabled: (root.v3Mode ? App.deviceKeys.forwardable(root.selectedList) : root.session.forwardable(root.selectedList)).length > 0
                     onClicked: {
-                        const ids = root.session.forwardable(root.selectedList)
-                        forwardDialog.openFor(ids, root.session.anyFile(ids))
+                        const ids = root.v3Mode ? App.deviceKeys.forwardable(root.selectedList) : root.session.forwardable(root.selectedList)
+                        forwardDialog.openFor(ids, root.v3Mode ? App.deviceKeys.anyFile(ids) : root.session.anyFile(ids))
                     }
                 }
                 RvButton {
@@ -1321,11 +1378,10 @@ Item {
             }
         }
 
-        // Your timer is on: say so, since it changes what happens to everything you send. Not in a device-key chat:
-        // the timer doesn't apply to its messages yet, so the line would claim something that doesn't happen.
+        // Your timer is on: say so, since it changes what happens to everything you send (on device keys too).
         Rectangle {
             Layout.fillWidth: true
-            visible: root.session.currentDisappearing > 0 && !root.v3Mode
+            visible: root.session.currentDisappearing > 0
             implicitHeight: 30
             color: Theme.surface
             Row {
@@ -1373,13 +1429,18 @@ Item {
                     textFormat: Text.PlainText
                     color: root.v3Mode ? Theme.accent : root.dkMode === "link" ? Theme.warn : Theme.text3
                     font.pixelSize: Theme.fontSmall + 1
-                    text: root.v3Mode
+                    text: root.v3Mode && root.dkCommunity
+                          ? "This community uses the Signal protocol, end to end, to every member's devices. "
+                            + "The server keeps no history: messages are only on the devices that received them."
+                          : root.v3Mode
                           ? (App.deviceKeys && App.deviceKeys.chatProtocol === "signal"
                              ? qsTr("This chat uses the Signal protocol, end to end, to every device in it. ")
                              : App.deviceKeys && App.deviceKeys.chatProtocol === "mixed"
-                               ? qsTr("Some devices in this chat use the Signal protocol, others the device-key protocol. ")
-                               : qsTr("This chat uses per-device end-to-end encryption, to every device in it. "))
-                            + qsTr("Messages here are kept only on your devices. Replies, forwards, pins, polls and disappearing messages aren't available here yet; older messages are in the normal view.")
+                               ? "Some devices in this chat use the Signal protocol, others the device-key protocol. "
+                               : "This chat uses per-device end-to-end encryption, to every device in it. ")
+                            + "Messages here are kept only on your devices; older messages are in the normal view."
+                          : root.dkMode === "link" && root.dkCommunity
+                            ? "Communities use device keys, and this computer isn't linked to your devices yet. Link it to read and post here."
                           : root.dkMode === "link"
                             ? (root.session.currentIsGroup ? qsTr("Everyone in this group uses") : root.session.currentTitle + qsTr(" uses"))
                               + qsTr(" device keys, and this computer isn't linked to your devices yet. Link it to send here.")
@@ -1416,219 +1477,135 @@ Item {
             text: root.v3Mode && App.deviceKeys ? App.deviceKeys.chatNotice : ""
         }
 
+        // Part C2: a community's old protocol-1 messages, read only, and the way back.
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root.v3Mode && root.communityOlder
+            implicitHeight: 36
+            color: Theme.surface
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 24
+                anchors.rightMargin: 16
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    color: Theme.text3
+                    font.pixelSize: Theme.fontSmall + 1
+                    text: "Earlier messages, sent before this community moved to device keys. Read only."
+                }
+                RvButton {
+                    text: "Back to the chat"
+                    implicitHeight: 28
+                    onClicked: root.communityOlder = false
+                }
+            }
+        }
+
         // --- Device-key messages (shown instead of the normal list while the chat is in device-key mode) ---
         ListView {
             id: v3List
             objectName: "v3List"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.v3Mode
+            visible: root.v3Mode && !root.communityOlder
             clip: true
             model: App.deviceKeys ? App.deviceKeys.chat : null
+            // Part C2: nothing from before this device joined a community is on the server, so the chat says so.
+            header: Item {
+                width: v3List.width
+                height: root.dkCommunity ? topNotice.implicitHeight + 40 : 0
+                visible: root.dkCommunity
+                Column {
+                    id: topNotice
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 32, 520)
+                    spacing: 4
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        color: Theme.text3
+                        font.pixelSize: Theme.fontSmall
+                        text: App.deviceKeys && App.deviceKeys.chatTopNotice.length > 0
+                              ? App.deviceKeys.chatTopNotice : "Messages from before you joined aren't available"
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        textFormat: Text.PlainText
+                        color: Theme.accent
+                        font.pixelSize: Theme.fontSmall
+                        font.underline: olderArea.containsMouse
+                        text: "Show earlier messages sent the older way (read only)"
+                        MouseArea {
+                            id: olderArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.communityOlder = true
+                        }
+                    }
+                }
+            }
             spacing: 6
             topMargin: 12
             bottomMargin: 12
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
             onCountChanged: Qt.callLater(positionViewAtEnd)
-            delegate: Item {
-                id: bubble
-                required property string messageId
-                required property string text
-                required property bool fromMe
-                required property string time
-                required property string status
+            // Coming back to the app: what's on screen now counts as read.
+            Connections {
+                target: Qt.application
+                function onStateChanged() {
+                    if (Qt.application.state !== Qt.ApplicationActive || !root.v3Mode) return
+                    for (const item of v3List.contentItem.children) {
+                        if (item.messageId !== undefined && !item.fromMe) App.deviceKeys.markShown(item.messageId)
+                    }
+                }
+            }
+            // The same bubble as the other chats (formatting, quotes, polls, ticks, pictures), wired to device keys.
+            delegate: MessageDelegate {
+                id: v3Row
+                required property string replyTo
                 required property bool deleted
-                required property bool edited
-                required property var reactions
-                required property bool hasFile
-                required property string fileName
-                required property string fileSize
-                required property bool canOpen
                 required property bool canReact
                 required property bool canEdit
                 required property bool canDelete
-                required property string richText
-                required property string richTextRevealed
-                property bool spoilersShown: false
+                required property bool canPin
+                required property bool pinned
+                required property bool canOpen
+                required property bool hasFile
+                required property bool isVoice
+                required property bool canDiscard
                 width: v3List.width
-                implicitHeight: bubbleBody.implicitHeight + 4 + (bubbleReactions.visible ? bubbleReactions.implicitHeight + 2 : 0)
-
-                function showMenu() {
-                    if (bubble.status === "failed" || bubble.status === "queued") return
-                    v3Menu.show(bubble.messageId, bubble.deleted ? "" : bubble.text, bubble.canReact, bubble.canEdit, bubble.canDelete)
-                }
-
-                Rectangle {
-                    id: bubbleBody
-                    anchors.right: bubble.fromMe ? parent.right : undefined
-                    anchors.left: bubble.fromMe ? undefined : parent.left
-                    anchors.margins: 24
-                    width: Math.min(bubble.width * 0.7, Math.max(bubbleText.implicitWidth, bubbleMeta.implicitWidth, bubbleFile.implicitWidth) + 24)
-                    implicitHeight: bubbleColumn.implicitHeight + 16
-                    radius: Theme.radiusCard
-                    color: bubble.fromMe ? Theme.accentSoft : Theme.surface2
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.RightButton
-                        onClicked: bubble.showMenu()
-                    }
-                    Column {
-                        id: bubbleColumn
-                        anchors.fill: parent
-                        anchors.margins: 8
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        spacing: 2
-                        Text {
-                            id: bubbleText
-                            width: parent.width
-                            visible: !bubble.hasFile
-                            // Formatting is rendered from markup the core builds (everything the sender typed is escaped).
-                            text: bubble.richText.length === 0 ? bubble.text : Theme.themedHtml(bubble.spoilersShown ? bubble.richTextRevealed : bubble.richText)
-                            textFormat: bubble.richText.length === 0 ? Text.PlainText : Text.RichText
-                            onLinkActivated: (link) => {
-                                if (link === "spoiler:") bubble.spoilersShown = true
-                                else linkDialog.ask(link)
-                            }
-                            HoverHandler { cursorShape: bubbleText.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                            wrapMode: Text.Wrap
-                            color: bubble.deleted ? Theme.text3 : Theme.text
-                            font.italic: bubble.deleted
-                            font.pixelSize: Theme.fontSize + 1
-                        }
-                        // A file: click for Open and Save as.
-                        Item {
-                            id: bubbleFile
-                            visible: bubble.hasFile
-                            width: parent.width
-                            implicitWidth: bubbleFileRow.implicitWidth
-                            implicitHeight: bubbleFileRow.implicitHeight
-                            Row {
-                                id: bubbleFileRow
-                                spacing: 8
-                                Icon {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    name: "file"
-                                    size: 20
-                                    color: Theme.text2
-                                }
-                                Column {
-                                    Text {
-                                        width: Math.min(implicitWidth, bubble.width * 0.5)
-                                        text: bubble.fileName
-                                        textFormat: Text.PlainText
-                                        elide: Text.ElideMiddle
-                                        color: Theme.text
-                                        font.pixelSize: Theme.fontSize + 1
-                                    }
-                                    Text {
-                                        text: bubble.fileSize
-                                        textFormat: Text.PlainText
-                                        color: Theme.text3
-                                        font.pixelSize: Theme.fontSmall
-                                    }
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                enabled: bubble.status !== "failed"
-                                Accessible.role: Accessible.Button
-                                Accessible.name: bubble.fileName
-                                onClicked: root.showV3FileMenu(bubble.messageId, bubble.fileName, bubble.canOpen)
-                            }
-                        }
-                        Row {
-                            id: bubbleMeta
-                            spacing: 8
-                            Text {
-                                text: bubble.time
-                                textFormat: Text.PlainText
-                                color: Theme.text3
-                                font.pixelSize: Theme.fontSmall
-                            }
-                            Text {
-                                visible: bubble.edited
-                                text: "edited"
-                                color: Theme.text3
-                                font.pixelSize: Theme.fontSmall
-                            }
-                            Text {
-                                visible: bubble.status === "failed"
-                                text: qsTr("Not sent")
-                                color: Theme.danger
-                                font.pixelSize: Theme.fontSmall
-                            }
-                            // Waiting for Tor (docs/tor-by-default.md): kept encrypted here, sent once Tor connects.
-                            Text {
-                                visible: bubble.status === "queued"
-                                text: qsTr("Waiting for Tor")
-                                color: Theme.warn
-                                font.pixelSize: Theme.fontSmall
-                            }
-                            Text {
-                                visible: bubble.status === "failed"
-                                text: qsTr("Retry")
-                                color: Theme.accent
-                                font.pixelSize: Theme.fontSmall
-                                font.underline: true
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: App.deviceKeys.retryChat(bubble.messageId)
-                                }
-                            }
-                            IconButton {
-                                visible: bubble.status !== "failed" && bubble.status !== "queued"
-                                implicitWidth: 22
-                                implicitHeight: 18
-                                iconName: "dots"
-                                iconSize: 14
-                                tip: qsTr("More")
-                                onClicked: bubble.showMenu()
-                            }
-                        }
-                    }
-                }
-                // Reactions under the bubble; click one to add or remove yours.
-                Flow {
-                    id: bubbleReactions
-                    visible: bubble.reactions.length > 0
-                    anchors.top: bubbleBody.bottom
-                    anchors.topMargin: 2
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.leftMargin: 24
-                    anchors.rightMargin: 24
-                    layoutDirection: bubble.fromMe ? Qt.RightToLeft : Qt.LeftToRight
-                    spacing: 4
-                    Repeater {
-                        model: bubble.reactions
-                        delegate: Rectangle {
-                            id: v3Chip
-                            required property var modelData
-                            implicitWidth: v3ChipText.implicitWidth + 14
-                            implicitHeight: 24
-                            radius: 12
-                            color: modelData.mine ? Theme.accentSoft : Theme.surface
-                            border.color: modelData.mine ? Theme.accent : Theme.border
-                            Text {
-                                id: v3ChipText
-                                anchors.centerIn: parent
-                                text: v3Chip.modelData.emoji + (v3Chip.modelData.count > 1 ? " " + v3Chip.modelData.count : "")
-                                textFormat: Text.PlainText
-                                color: Theme.text
-                                font.pixelSize: 13
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: App.deviceKeys.reactChat(bubble.messageId, v3Chip.modelData.emoji)
-                            }
-                        }
-                    }
-                }
+                highlighted: messageId === flashTimer.messageId
+                selectMode: root.selecting
+                selected: root.selectedIds[messageId] === true
+                onSelectToggled: (messageId) => root.toggleSelected(messageId)
+                imageInfo: isImage && App.deviceKeys.imagesRevision >= 0 ? App.deviceKeys.imageInfo(messageId) : ({})
+                onImageLoadRequested: (messageId, force) => App.deviceKeys.loadImage(messageId, force)
+                onImageOpened: (messageId) => imageViewer.show(messageId, text, sender + " · " + timeText)
+                voice: isVoice
+                voiceActive: App.deviceKeys.voiceId === messageId
+                voicePlaying: voiceActive && App.deviceKeys.voicePlaying
+                voicePosition: voiceActive ? App.deviceKeys.voicePosition : 0
+                voiceDuration: voiceActive ? App.deviceKeys.voiceDuration : 0
+                discardable: canDiscard
+                onVoiceToggled: (messageId) => App.deviceKeys.toggleVoice(messageId)
+                onVoteRequested: (messageId, options) => App.deviceKeys.vote(messageId, options)
+                onEndPollRequested: (messageId) => App.deviceKeys.endPoll(messageId)
+                onReplyRequested: (messageId) => { if (canReact) root.startReply(messageId) }
+                onReactRequested: (messageId, emoji) => App.deviceKeys.reactChat(messageId, emoji)
+                onReactPickerRequested: (messageId) => reactionPicker.show(messageId, true)
+                onFileRequested: (messageId, name) => root.showV3FileMenu(messageId, name, canOpen)
+                onMenuRequested: v3Menu.show(v3Row)
+                onRetryQueuedRequested: (messageId) => App.deviceKeys.retryChat(messageId)
+                onDiscardQueuedRequested: (messageId) => App.deviceKeys.discardChat(messageId)
+                onLinkRequested: (url) => linkDialog.ask(url)
+                // On screen in the open chat: a read receipt, if read receipts are on (part A).
+                Component.onCompleted: if (!fromMe && Qt.application.state === Qt.ApplicationActive) App.deviceKeys.markShown(messageId)
             }
             Text {
                 anchors.centerIn: parent
@@ -1642,7 +1619,7 @@ Item {
         ListView {
             id: messageList
             objectName: "messageList"
-            visible: !root.v3Mode
+            visible: !root.v3Mode || root.communityOlder
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -2120,8 +2097,7 @@ Item {
                         Layout.alignment: Qt.AlignBottom
                         implicitHeight: 42
                         iconName: "chart-bar"
-                        visible: !root.v3Mode
-                        tip: qsTr("Create a poll")
+                        tip: "Create a poll"
                         onClicked: pollDialog.open()
                     }
                     IconButton {

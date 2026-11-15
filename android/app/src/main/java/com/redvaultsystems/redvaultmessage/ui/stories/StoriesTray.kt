@@ -79,6 +79,19 @@ fun StoriesTray(
                 onClick = { onOpenAuthor(author.author.userId) },
             )
         }
+        // Part D: a story on device keys whose key hasn't reached this phone yet. Nothing to open until it does.
+        items(state.waiting, key = { "waiting-" + it.userId }) { friend ->
+            TrayItem(
+                label = friend.handle,
+                avatarUrl = friend.avatarUrl,
+                seed = friend.handle,
+                ring = SolidColor(StoryStyle.ringSeen),
+                plus = false,
+                onPlus = {},
+                description = "${friend.handle}'s story is loading",
+                onClick = {},
+            )
+        }
     }
 }
 

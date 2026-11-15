@@ -1,23 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
 
-import { acknowledgeRecoveryKey } from "./recoveryKeyUi.js";
-import { render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import App from "../App.js";
+import { describe, expect, it } from "vitest";
 import type { PlanStatus } from "../lib/api.js";
 import { formatDay, type PlanInputs, planChoices } from "../lib/planChoices.js";
-import { FAKE_PREMIUM_PAYMENT_LINK, resetFakeBackend, setNewUserTier } from "./fakeApiBackend.js";
-import { resetFakeFileBackend } from "./fakeFileBackend.js";
-import { tickSignUpBoxes } from "./signUpUi.js";
-
-vi.mock("../lib/api.js", async () => {
-  const backend = await import("./fakeApiBackend.js");
-  const files = await import("./fakeFileBackend.js");
-  return files.withFakeFileApi(backend.fakeApiModule);
-});
-vi.mock("../lib/fileTransfer.js", async () => (await import("./fakeFileBackend.js")).fakeFileTransferModule());
 
 const GiB = 1024 * 1024 * 1024;
 const card = (overrides: Partial<PlanStatus> = {}): PlanStatus => ({
@@ -112,61 +98,5 @@ describe("planChoices", () => {
       ["Your plan", "none", "", ""],
       ["", "none", "", ""],
     ]);
-  });
-});
-
-describe("Settings plan picker", () => {
-  beforeEach(() => {
-    resetFakeBackend();
-    resetFakeFileBackend();
-    localStorage.clear();
-  });
-
-  async function openSettings() {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(screen.getByPlaceholderText(/choose a password/i), "correct horse battery staple");
-    await user.type(screen.getByPlaceholderText(/confirm password/i), "correct horse battery staple");
-    await tickSignUpBoxes();
-    await user.click(screen.getByRole("button", { name: /^create account$/i }));
-    await acknowledgeRecoveryKey();
-    await waitFor(() => expect(screen.getAllByText("Chats").length).toBeGreaterThan(0));
-    await user.click(screen.getByRole("button", { name: /^settings$/i }));
-    return user;
-  }
-
-  it("shows a Free account its plan and both paid plans to choose from", async () => {
-    setNewUserTier("free");
-    await openSettings();
-    const free = await screen.findByRole("region", { name: "Free (your plan)" });
-    expect(within(free).getByText("Current")).toBeInTheDocument();
-    const premium = within(screen.getByRole("region", { name: "Premium" })).getByRole("link", { name: "Choose Premium" });
-    const url = new URL(premium.getAttribute("href")!);
-    expect(url.origin + url.pathname).toBe(FAKE_PREMIUM_PAYMENT_LINK);
-    expect(url.searchParams.get("client_reference_id")).toMatch(/^user-\d+$/);
-    expect(within(screen.getByRole("region", { name: "Pro" })).getByText("50 GB of Files storage")).toBeInTheDocument();
-  });
-
-  it("moves a Pro subscriber to Premium after they confirm", async () => {
-    setNewUserTier("pro");
-    const user = await openSettings();
-    await screen.findByRole("region", { name: "Pro (your plan)" });
-
-    await user.click(await screen.findByRole("button", { name: "Switch to Premium…" }));
-    expect(screen.getByText(/charged the difference for the rest of this billing period/i)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Switch to Premium" }));
-
-    const premium = await screen.findByRole("region", { name: "Premium (your plan)" });
-    expect(within(premium).getByText("Your plan · renews monthly")).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Pro" })).getByRole("button", { name: "Switch to Pro…" })).toBeInTheDocument();
-  });
-
-  it("changes nothing when the confirmation is cancelled", async () => {
-    setNewUserTier("pro");
-    const user = await openSettings();
-    await user.click(await screen.findByRole("button", { name: "Switch to Premium…" }));
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("region", { name: "Pro (your plan)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch to Premium…" })).toBeInTheDocument();
   });
 });

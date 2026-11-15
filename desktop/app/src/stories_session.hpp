@@ -26,6 +26,7 @@
 #include "redvault/data/auth_repository.hpp"
 #include "redvault/data/story_drafts.hpp"
 #include "redvault/model/stories.hpp"
+#include "story_device_keys.hpp"
 
 namespace redvault::app {
 
@@ -73,6 +74,9 @@ class StoriesSession : public QObject {
     /// Friends with stories, people with something new first: [{authorId, handle, avatarUrl, ring, unseen}]; ring is "new", "close" or "seen".
     Q_PROPERTY(QVariantList tray READ tray NOTIFY feedChanged)
     Q_PROPERTY(int ownCount READ ownCount NOTIFY feedChanged)
+    /// The server has Stories switched on (STORIES_ENABLED). False until its settings are read, and while it's off:
+    /// then nothing of Stories is shown and nothing else is asked (the settings are read again every few minutes).
+    Q_PROPERTY(bool enabled READ enabled NOTIFY feedChanged)
     Q_PROPERTY(bool mediaEnabled READ mediaEnabled NOTIFY feedChanged)
     /// Polls, quizzes, questions and sliders are on (the server says so).
     Q_PROPERTY(bool interactiveEnabled READ interactiveEnabled NOTIFY feedChanged)
@@ -90,7 +94,7 @@ class StoriesSession : public QObject {
     // --- The viewer ---
     Q_PROPERTY(bool viewerOpen READ viewerOpen NOTIFY viewerChanged)
     /// The line-up, fixed when it opens: [{owner: {userId, handle, avatarUrl, isSelf}, stories: [story]}].
-    Q_PROPERTY(QVariantList viewerGroups READ viewerGroups NOTIFY viewerChanged)
+    Q_PROPERTY(QVariantList viewerGroups READ viewerGroups NOTIFY viewerGroupsChanged)
     Q_PROPERTY(int viewerStartGroup READ viewerStartGroup NOTIFY viewerChanged)
     Q_PROPERTY(int viewerStartStory READ viewerStartStory NOTIFY viewerChanged)
     /// A highlight's or the archive's name, when that's what's open.
@@ -119,8 +123,18 @@ public:
                    QObject* parent = nullptr);
     ~StoriesSession() override;
 
+    /**
+     * Part D (docs/signal-integration/12-part-d-stories.md): this computer's device keys. With a trusted device, new
+     * stories go over device keys (K to each viewer device, answers and replies as device-key messages); stories
+     * already up on the account keys still open as before. Null: account keys only. Not owned; outlives this.
+     */
+    void setDeviceKeys(StoryDeviceKeys* keys) { deviceKeys_ = keys; }
+    /// Keys of these stories arrived on this device: the feed is read again so they open.
+    void storyKeysArrived(const QStringList& storyIds);
+
     QVariantList tray() const;
     int ownCount() const { return static_cast<int>(own_.size()); }
+    bool enabled() const { return enabled_; }
     bool mediaEnabled() const { return mediaEnabled_; }
     bool interactiveEnabled() const { return interactiveEnabled_; }
     QVariantList lifetimes() const;
@@ -189,7 +203,7 @@ public:
     Q_INVOKABLE void reportStory(const QString& storyId, const QString& reason, const QString& details, bool includeWords);
     /// The author reports an abusive answer, by its sealed envelope (admins see who sent it).
     Q_INVOKABLE void reportAnswer(const QString& storyId, const QString& stickerId, const QString& envelope, const QString& reason,
-                                  const QString& answerText, bool includeText);
+                                  const QString& answerText, bool includeText, const QString& responderId = QString());
 
     // --- Posting ---
     Q_INVOKABLE void openComposer();
@@ -239,6 +253,9 @@ public:
 
 signals:
     void feedChanged();
+    void viewerGroupsChanged();
+    /// A story on screen that waited for its key can be shown now (its map in viewerGroups was replaced).
+    void storyArrived(const QString& storyId);
     void prefsChanged();
     void viewerChanged();
     void composerChanged();
@@ -301,8 +318,15 @@ private:
     std::shared_ptr<api::ApiClient> api_;
     std::shared_ptr<const data::SelfIdentity> identity_;
     ChatSession* chats_;
+    StoryDeviceKeys* deviceKeys_ = nullptr;
     QThreadPool pool_;
 
+    bool enabled_ = false;
+    bool configKnown_ = false;
+    bool prefsLoaded_ = false;
+    std::int64_t lastConfigMs_ = 0;
+    /// The server switched Stories off (config `enabled: false`, or a route answered `stories_disabled`): drop what's shown.
+    void switchOff();
     bool mediaEnabled_ = false;
     bool interactiveEnabled_ = false;
     /// The server's allowed lifetimes, in seconds.

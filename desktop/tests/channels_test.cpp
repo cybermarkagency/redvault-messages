@@ -322,10 +322,14 @@ TEST_CASE("the owner's photo, and public or private", "[channels][api]") {
     CHECK(mine[0].secretSealed == "c2VhbGVk");
 
     h.transport->enqueue(200, own);
-    CHECK(api::channels::setPrivate(h.api, kId, kAccess, "c2VhbGVk").isPrivate);
+    // Part C1: every epoch's key goes with it, wrapped under the new link.
+    CHECK(api::channels::setPrivate(h.api, kId, kAccess, "c2VhbGVk", {{1, "d3JhcHBlZA=="}}).isPrivate);
     CHECK(h.transport->last().method == "PUT");
     CHECK(h.transport->last().url == "https://example.com/api/channels/" + kId + "/visibility");
-    CHECK(Json::parse(h.transport->last().body) == Json{{"isPrivate", true}, {"access", kAccess}, {"secretSealed", "c2VhbGVk"}});
+    CHECK(Json::parse(h.transport->last().body) == Json{{"isPrivate", true},
+                                                        {"access", kAccess},
+                                                        {"secretSealed", "c2VhbGVk"},
+                                                        {"keys", Json::array({Json{{"epoch", 1}, {"wrapped", "d3JhcHBlZA=="}}})}});
     CHECK(test::FakeTransport::headerOf(h.transport->last(), "cookie") == "sid=abc");
 
     h.transport->enqueue(200, channelJson(kId));

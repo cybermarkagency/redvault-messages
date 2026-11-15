@@ -35,6 +35,14 @@ private fun JsonObject.str(name: String): String? = this[name]?.jsonPrimitive?.c
 suspend fun verifyRosters(device: V3Device, groupId: String): EngineResponse? {
     val chain = device.api.rosters(groupId, 0)
     if (chain.isEmpty()) return null
+    val first = device.op("rosterVerify", "groupId" to groupId, "chain" to JsonArray(chain))
+    if (first.ok) return first
+    if (first.error != "unknown_issuer") throw EngineException(first.error ?: "engine_error", first.message ?: "rosterVerify")
+    // Part C2: a community's rosters come from its owner and staff, whose lists this phone may not have checked yet
+    // (a channel's members never fetch the member lists). Check each issuer's signed list, then the chain again.
+    for (issuer in chain.mapNotNull { it.str("issuer") }.distinct()) {
+        if (issuer != device.userId) verifiedDevices(device, issuer, groupId)
+    }
     return device.must("rosterVerify", "groupId" to groupId, "chain" to JsonArray(chain))
 }
 

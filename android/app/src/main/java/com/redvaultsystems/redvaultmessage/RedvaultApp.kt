@@ -24,6 +24,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
+import android.content.Context
+import com.redvaultsystems.e2ee.NativeE2ee
+import com.redvaultsystems.redvaultmessage.tor.SealedRoute
+import okhttp3.OkHttpClient
 import com.goterl.lazysodium.LazySodiumAndroid
 import com.goterl.lazysodium.SodiumAndroid
 import com.redvaultsystems.redvaultmessage.crypto.CallCrypto
@@ -73,6 +77,7 @@ import com.redvaultsystems.redvaultmessage.data.StorySeenStore
 import com.redvaultsystems.redvaultmessage.data.VerifiedContactsStore
 import com.redvaultsystems.redvaultmessage.data.Outbox
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
+import com.redvaultsystems.redvaultmessage.data.api.RetrofitCommunityDeviceApi
 import com.redvaultsystems.redvaultmessage.tor.ReleaseRouting
 import com.redvaultsystems.redvaultmessage.tor.TorController
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -100,6 +105,7 @@ import com.redvaultsystems.redvaultmessage.calls.CallManager
 import com.redvaultsystems.redvaultmessage.calls.CallNotifications
 import com.redvaultsystems.redvaultmessage.calls.CallPhase
 import com.redvaultsystems.redvaultmessage.calls.GroupCallManager
+import com.redvaultsystems.redvaultmessage.calls.V3CallCarrier
 import com.redvaultsystems.redvaultmessage.ui.live.LiveSession
 import com.redvaultsystems.redvaultmessage.ui.stories.StoriesSession
 import com.redvaultsystems.redvaultmessage.ui.settings.SecuritySession
@@ -144,9 +150,50 @@ class AppContainer(app: Application) {
      */
     val tor: TorController? = BuildConfig.API_BASE.toHttpUrl().host.takeIf(TorController::isOnionHost)?.let { host ->
         // noBackupFilesDir: Tor's guard state and directory cache never go into a device backup.
-        TorController(host, File(app.noBackupFilesDir, "tor")).also { it.start() }
+        // A build with the sealed backup route also lets the gate reach that one website (port 443, through Tor).
+        val sealedWebsite = BuildConfig.SEALED_GATEWAY_URL.toHttpUrl().host
+            .takeIf { BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() }
+        TorController(host, File(app.noBackupFilesDir, "tor"), exitHost = sealedWebsite).also { it.start() }
     }
-    private val httpClient = ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)
+    private val onionClient: OkHttpClient = ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)
+
+    /**
+     * The sealed backup route (docs/tor-sealed-fallback.md): when the onion can't be reached but Tor works, the API's
+     * requests go sealed to the gateway's pinned key, through Tor, to the website. Only in builds that carry the key.
+     */
+    private val sealedRoute: SealedRoute? = tor
+        ?.takeIf { BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() && runCatching { NativeE2ee.load() }.isSuccess }
+        ?.let { torController ->
+            val base = BuildConfig.API_BASE.toHttpUrl()
+            val prefs = app.getSharedPreferences("network", Context.MODE_PRIVATE)
+            torController.loadOnionOnly(prefs.getBoolean("onionOnly", false))
+            torController.backupRouteAvailable = true
+            val gateway = BuildConfig.SEALED_GATEWAY_URL
+            val website = ApiClient.sealedRouteClient(gateway, torController)
+            SealedRoute(
+                onionOrigin = "${base.scheme}://${base.host}",
+                pathPrefix = base.encodedPath.removeSuffix("/api/"),
+                gatewayUrl = gateway,
+                keyConfig = SealedRoute.keyFromHex(BuildConfig.SEALED_KEY_CONFIG),
+                website = website,
+                probeClient = { onionClient },
+                probeUrl = BuildConfig.API_BASE + "public/routing",
+                cookieJar = cookieJar,
+                allowed = { !torController.onionOnly.value },
+                onRouteChanged = torController::reportBackupRoute,
+            ).also { route ->
+                torController.onOnionOnlyChanged = { onionOnly ->
+                    prefs.edit().putBoolean("onionOnly", onionOnly).apply()
+                    if (onionOnly) route.useOnion()
+                }
+            }
+        }
+
+    /** Every API call goes through this one: the onion, or the sealed backup route when that's in use. */
+    private val httpClient: OkHttpClient = sealedRoute?.let { route ->
+        // Right after OwnServerOnly, before the Tor gate: requests still name the onion host.
+        onionClient.newBuilder().apply { interceptors().add(1, route) }.build()
+    } ?: onionClient
     private val api = ApiClient.create(BuildConfig.API_BASE, httpClient)
 
     /**
@@ -221,7 +268,7 @@ class AppContainer(app: Application) {
     private val followedChannels = FollowedChannelsStore(app)
     private val channelDevice = ChannelDeviceStore(app)
     private val channelCrypto = ChannelCrypto(sodium, crypto)
-    private val channelMedia = ChannelMediaClient(publicClient, httpClient, BuildConfig.API_BASE, app.contentResolver, app.cacheDir)
+    private val channelMedia = ChannelMediaClient(publicClient, httpClient, BuildConfig.API_BASE, app.contentResolver, app.cacheDir, fileCrypto)
     private val signInKeys = SignInKeys(api, crypto, PreferenceSignInPins(app))
     private val accountRepository = AccountRepository(api, crypto, app.contentResolver, recoveryKeys, signInKeys)
     private val verifiedContacts = VerifiedContactsStore(app)
@@ -269,7 +316,6 @@ class AppContainer(app: Application) {
         val outbox = tor?.let {
             Outbox(File(appContext.noBackupFilesDir, "outbox/${identity.userId}"), Outbox.deriveKey(sodium, identity.privateKey), sodium, fileCrypto)
         }
-        val communities = CommunitySession(communityApi, communityKeys, onSessionExpired)
         // Per-device keys (protocol 3) and Signal sessions: in every build unless made with -PredvaultE2eV3=false.
         // Device-key requests go through the same Tor-routed client; their chat posts that can't go out while Tor is down
         // wait, already encrypted, in a sealed queue (devicekeys/V3SendQueue.kt) and go out in order once it's up.
@@ -293,7 +339,9 @@ class AppContainer(app: Application) {
         } else null
         // Set up and kept in order without asking: now (sign-in, sign-up, start) and every 6 hours.
         deviceKeys?.startEnsuring()
-        val v3Chat = deviceKeys?.let { V3Chat(it, identity.userId, v3Dir, v3Outgoing) }
+        // Part C2: community chats and the owner and staff membership tasks go on device keys, through the same client.
+        val v3Chat = deviceKeys?.let { V3Chat(it, identity.userId, v3Dir, v3Outgoing, RetrofitCommunityDeviceApi(communityApi)) }
+        val communities = CommunitySession(communityApi, communityKeys, onSessionExpired, membershipTasks = v3Chat?.let { chat -> { chat.runCommunityTasks()?.changed } })
         val chats = ChatSession(
             identity, conversationRepository, fileRepository, groupRepository, groupInviteRepository, chatSettings, verifiedContacts, contactKeyPins,
             hiddenMessages, onSessionExpired, outbox = outbox, tor = tor, v3 = v3Chat,
@@ -303,6 +351,7 @@ class AppContainer(app: Application) {
             // With app lock on, a notification never says which channel or what it posted.
             notify = { notice -> ChannelNotifications.show(appContext, notice, hideContent = appLockStore.enabled) },
             onSessionExpired = onSessionExpired,
+            fileCrypto = fileCrypto,
         )
         val account = AccountSession(
             identity, friendRepository, accountRepository, lastHandleStore, fileRepository, onSessionExpired,
@@ -335,9 +384,14 @@ class AppContainer(app: Application) {
             sendReply = { authorId, text, ref, onResult -> chats.sendStoryReply(authorId, text, ref, onResult) },
             chatKeys = { chats.state.value.conversations.filter { !it.isGroup }.associate { it.meta.otherUserId to it.meta.otherPublicKeyB64 } },
             onSessionExpired = onSessionExpired,
+            // Part D: stories over device keys (K through the device-key mailbox, answers, late friends).
+            deviceKeys = v3Chat?.stories,
         )
         // The two call managers know about each other: nobody is in two calls at once.
         var groupCallsRef: GroupCallManager? = null
+        // Part B: calls in chats on device keys carry their setup and room keys as device-key messages; a call event
+        // reads the mailbox at once, the same pass the chat list makes (docs/signal-integration/09-part-b-calls.md).
+        val callCarrier = v3Chat?.let { V3CallCarrier(it) { chats.refreshNow() } }
         val calls = CallManager(
             context = appContext,
             api = callApi,
@@ -352,6 +406,7 @@ class AppContainer(app: Application) {
             ringtone = { chatSettings.ringtone },
             echoCancellation = { chatSettings.echoCancellation },
             groupCallBusy = { groupCallsRef?.isBusy() == true },
+            deviceKeys = callCarrier,
             onSessionExpired = onSessionExpired,
         )
         val groupCalls = GroupCallManager(
@@ -370,6 +425,7 @@ class AppContainer(app: Application) {
             ringtone = { chatSettings.ringtone },
             echoCancellation = { chatSettings.echoCancellation },
             onSessionExpired = onSessionExpired,
+            deviceKeys = callCarrier,
         )
         groupCallsRef = groupCalls
         val security = SecuritySession(

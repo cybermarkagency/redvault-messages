@@ -415,7 +415,7 @@
     <string name="ui_send_request">Send request</string>
     <string name="ui_sender_not_verified">⚠ Sender not verified</string>
     <string name="ui_sent">Sent</string>
-    <string name="ui_sent_with_per_device_keys_the">Sent with per-device keys. The server kept only ciphertext until each device fetched it. No public record, delivered or read marks yet.</string>
+    <string name="ui_sent_with_per_device_keys_the">Sent with per-device keys. The server kept only ciphertext until each device fetched it. No public record; delivered and read come from encrypted receipts, and read only from people who allow read receipts.</string>
     <string name="ui_sent_without_your_name_redvault_s">Sent without your name. RedVault\'s server can still tell it was you.</string>
     <string name="ui_set_a_password">Set a password</string>
     <string name="ui_settings">Settings</string>

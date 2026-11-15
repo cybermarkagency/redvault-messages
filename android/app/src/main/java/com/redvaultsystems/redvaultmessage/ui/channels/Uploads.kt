@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.redvaultsystems.redvaultmessage.data.ChannelMediaClient
 import com.redvaultsystems.redvaultmessage.data.api.ChannelMediaStartRequest
-import com.redvaultsystems.redvaultmessage.data.api.ChannelUploadDto
+import com.redvaultsystems.redvaultmessage.data.OutgoingMedia
 import com.redvaultsystems.redvaultmessage.data.model.ChannelPosts
 import com.redvaultsystems.redvaultmessage.data.model.FileMessage
 import com.redvaultsystems.redvaultmessage.ui.components.describeError
@@ -57,8 +57,9 @@ data class Upload(
 
 /**
  * Uploads picked or recorded files one by one as they're added, with
- * progress, like the web's useUploads; [start] asks the server for each
- * upload. A recording's file is deleted once it's sent or removed.
+ * progress, like the web's useUploads; [send] uploads each one (in a
+ * private channel, encrypted on the phone first) and returns its id. A
+ * recording's file is deleted once it's sent or removed.
  */
 @Stable
 class UploadQueue(
@@ -66,7 +67,7 @@ class UploadQueue(
     private val scope: CoroutineScope,
     private val media: ChannelMediaClient,
     val max: Int,
-    private val start: suspend (ChannelMediaStartRequest) -> ChannelUploadDto,
+    private val send: suspend (OutgoingMedia) -> String,
 ) {
     var uploads by mutableStateOf<List<Upload>>(emptyList())
         private set
@@ -92,19 +93,17 @@ class UploadQueue(
                 val size = copy?.length() ?: picked.size ?: 0
                 patch(key) { it.copy(size = size) }
                 val probed = withContext(Dispatchers.IO) { probe(uri, asKind) }
-                val started = start(
-                    ChannelMediaStartRequest(
-                        kind = asKind,
-                        mime = picked.mime,
-                        size = size,
-                        filename = picked.name,
-                        durationMs = probed.durationMs,
-                        width = probed.width,
-                        height = probed.height,
-                    ),
+                val meta = ChannelMediaStartRequest(
+                    kind = asKind,
+                    mime = picked.mime,
+                    size = size,
+                    filename = picked.name,
+                    durationMs = probed.durationMs,
+                    width = probed.width,
+                    height = probed.height,
                 )
-                media.upload(started.uploadUrl, copy, uri, size, progressTo(key))
-                patch(key) { it.copy(mediaId = started.id, progress = 1f) }
+                val id = send(OutgoingMedia(meta, copy, uri, size, progressTo(key)))
+                patch(key) { it.copy(mediaId = id, progress = 1f) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -127,19 +126,17 @@ class UploadQueue(
         jobs[key] = scope.launch {
             try {
                 val probed = if (kind == "round") withContext(Dispatchers.IO) { probe(Uri.fromFile(file), kind) } else Probed()
-                val started = start(
-                    ChannelMediaStartRequest(
-                        kind = kind,
-                        mime = mime,
-                        size = file.length(),
-                        filename = name,
-                        durationMs = durationMs,
-                        width = probed.width,
-                        height = probed.height,
-                    ),
+                val meta = ChannelMediaStartRequest(
+                    kind = kind,
+                    mime = mime,
+                    size = file.length(),
+                    filename = name,
+                    durationMs = durationMs,
+                    width = probed.width,
+                    height = probed.height,
                 )
-                media.upload(started.uploadUrl, file, null, file.length(), progressTo(key))
-                patch(key) { it.copy(mediaId = started.id, progress = 1f) }
+                val id = send(OutgoingMedia(meta, file, null, file.length(), progressTo(key)))
+                patch(key) { it.copy(mediaId = id, progress = 1f) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -75,6 +75,18 @@ TEST_CASE("the interactive stories API sends what the server expects", "[stories
     transport->enqueue(200, R"({"media":true})");
     CHECK(api::stories::mediaEnabled(api));
 
+    // The master switch (STORIES_ENABLED): missing on an older server means on; false or anything not a boolean, off.
+    transport->enqueue(200, R"({"media":true})");
+    CHECK(api::stories::config(api).enabled);
+    transport->enqueue(200, R"({"enabled":true,"media":true})");
+    CHECK(api::stories::config(api).enabled);
+    transport->enqueue(200, R"({"enabled":false,"media":true})");
+    CHECK_FALSE(api::stories::config(api).enabled);
+    transport->enqueue(200, R"({"enabled":"true","media":true})");
+    CHECK_FALSE(api::stories::config(api).enabled);
+    transport->enqueue(200, R"({"enabled":null})");
+    CHECK_FALSE(api::stories::config(api).enabled);
+
     // Posting with a lifetime; left out when not chosen.
     transport->enqueue(201, R"({"id":"x","published":true,"expiresAt":"2026-10-20T00:00:00.000Z"})");
     api::stories::NewStory s{story, "text", "Y3Q=", "bm9uY2U=", std::nullopt, "custom", true, {{kFriend, "a2V5"}}};
@@ -159,4 +171,15 @@ TEST_CASE("the interactive stories API sends what the server expects", "[stories
     CHECK(transport->last().url == base + "/responses/report");
     CHECK(Json::parse(transport->last().body) ==
           Json{{"stickerId", "questabc12"}, {"envelope", "Zg=="}, {"reason", "Abusive answer"}, {"evidence", "rude words"}});
+
+    // Part D: a named answer to a device-keys story has no envelope on the server; it's named by who sent it.
+    transport->enqueue(201, R"({"reported":true})");
+    api::stories::reportAnswer(api, story, "questabc12", "", "Abusive answer", std::nullopt, "0b5c6c1e-7c3e-4b7a-9a52-1f0e2d3c4b5a");
+    CHECK(Json::parse(transport->last().body) ==
+          Json{{"stickerId", "questabc12"}, {"responderId", "0b5c6c1e-7c3e-4b7a-9a52-1f0e2d3c4b5a"}, {"reason", "Abusive answer"}});
+    // An envelope wins over a name; neither is refused before anything is sent.
+    transport->enqueue(201, R"({"reported":true})");
+    api::stories::reportAnswer(api, story, "questabc12", "Zg==", "Abusive answer", std::nullopt, "0b5c6c1e-7c3e-4b7a-9a52-1f0e2d3c4b5a");
+    CHECK_FALSE(Json::parse(transport->last().body).contains("responderId"));
+    CHECK_THROWS_AS(api::stories::reportAnswer(api, story, "questabc12", "", "Abusive answer", std::nullopt), std::invalid_argument);
 }

@@ -125,6 +125,13 @@ data class Message(
     val queueHeld: Boolean = false,
     /** Device keys: its sender deleted it for everyone. [text] then only says so; nothing of it is left on this phone. */
     val deleted: Boolean = false,
+    /** Device keys (part A): pinned for everyone in the chat, by [pinnedBy]. Protocol 1 pins are notices instead. */
+    val pinned: Boolean = false,
+    val pinnedBy: String? = null,
+    val pinnedByMe: Boolean = false,
+    /** Device keys, own messages: how many of the others have a receipt for it, and how many of those read it. */
+    val receiptsFrom: Int = 0,
+    val readBy: Int = 0,
 )
 
 /**

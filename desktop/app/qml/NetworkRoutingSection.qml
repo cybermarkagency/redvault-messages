@@ -107,6 +107,7 @@ ColumnLayout {
                 spacing: 2
                 Text {
                     text: !root.torOn ? qsTr("Not in use")
+                          : root.tor.state === "connected" && root.tor.backupRoute ? qsTr("Connected through Tor (backup route)")
                           : root.tor.state === "connected" ? qsTr("Connected through Tor")
                           : root.tor.state === "connecting" ? qsTr("Connecting through Tor… ") + root.tor.progress + "%"
                           : qsTr("Can't reach Tor")
@@ -136,6 +137,33 @@ ColumnLayout {
             }
         }
     }
+    // The sealed backup route (docs/tor-sealed-fallback.md): only in builds that carry the gateway's key.
+    Caption { visible: root.torOn && root.tor.backupRouteAvailable; text: qsTr("BACKUP ROUTE") }
+    Card {
+        Layout.fillWidth: true
+        visible: root.torOn && root.tor.backupRouteAvailable
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            RvSwitch {
+                Layout.fillWidth: true
+                label: qsTr("Only use the onion address")
+                description: qsTr("When the onion address can't be reached, the app normally switches to a backup route: still through Tor, to the website, with every request sealed so only RedVault's server can read it. Cloudflare, which runs in front of the website, can then see that someone uses the backup route, when and how much, but not who or what. Turn this on to wait for the onion address instead.")
+                checked: root.torOn && root.tor.onionOnly
+                onToggled: (on) => root.tor.onionOnly = on
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: root.torOn && root.tor.backupRoute
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("In use now: the onion address isn't answering. The app checks it every minute and moves back as soon as it does.")
+                color: Theme.text2
+                font.pixelSize: 12
+            }
+        }
+    }
+
     Banner {
         Layout.fillWidth: true
         error: true

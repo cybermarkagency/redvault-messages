@@ -3,6 +3,7 @@
 
 #include "redvault/api/story_api.hpp"
 
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 
 namespace redvault::api::stories {
@@ -32,7 +33,10 @@ Story storyFrom(const Json& j) {
     s.allowReplies = j.value("allowReplies", true);
     s.createdAt = j.value("createdAt", std::string());
     s.expiresAt = j.value("expiresAt", std::string());
-    s.wrappedKey = j.at("wrappedKey").get<std::string>();
+    // Part D: null on a device-keys story, whose key comes over device keys instead.
+    if (const auto it = j.find("delivery"); it != j.end() && it->is_string()) s.delivery = it->get<std::string>();
+    // A story without a usable key (an unknown delivery, or account keys without one) simply doesn't open.
+    if (const auto it = j.find("wrappedKey"); it != j.end() && it->is_string()) s.wrappedKey = it->get<std::string>();
     s.seen = j.value("seen", false);
     s.viewCount = j.value("viewCount", 0);
     if (const auto it = j.find("archivedAt"); it != j.end() && it->is_string()) s.archivedAt = it->get<std::string>();
@@ -60,6 +64,7 @@ std::string storyPath(const std::string& id, const char* rest = "") {
 Config config(ApiClient& api) {
     return parse(api.call("GET", "stories/config"), [](const Json& j) {
         Config c;
+        if (const auto it = j.find("enabled"); it != j.end()) c.enabled = it->is_boolean() && it->get<bool>();
         c.media = j.value("media", false);
         // Missing on servers that predate interactive stories: treated as off.
         if (const auto it = j.find("interactive"); it != j.end() && it->is_boolean()) c.interactive = it->get<bool>();
@@ -86,16 +91,30 @@ Feed feed(ApiClient& api) {
 }
 
 bool create(ApiClient& api, const NewStory& story) {
+    return createStory(api, story).published;
+}
+
+Created createStory(ApiClient& api, const NewStory& story) {
     Json body{{"id", story.id},
               {"kind", story.kind},
               {"metaCiphertext", story.metaCiphertext},
               {"metaNonce", story.metaNonce},
               {"mediaSize", story.mediaSize ? Json(*story.mediaSize) : Json(nullptr)},
               {"audience", story.audience},
-              {"allowReplies", story.allowReplies},
-              {"keys", keysJson(story.keys)}};
+              {"allowReplies", story.allowReplies}};
+    if (story.deviceKeys) {
+        body["delivery"] = "device-keys";
+        body["viewers"] = story.viewers;
+    } else {
+        body["keys"] = keysJson(story.keys);
+    }
     if (story.ttlSeconds) body["ttlSeconds"] = *story.ttlSeconds;
-    return parse(api.call("POST", "stories", body), [](const Json& j) { return j.value("published", false); });
+    return parse(api.call("POST", "stories", body), [](const Json& j) {
+        Created c;
+        c.published = j.value("published", false);
+        if (const auto it = j.find("expiresAt"); it != j.end() && it->is_string()) c.expiresAt = it->get<std::string>();
+        return c;
+    });
 }
 
 void uploadMedia(ApiClient& api, const std::string& storyId, std::string ciphertext) {
@@ -126,8 +145,13 @@ std::vector<KeyGap> keyGaps(ApiClient& api) {
     return parse(api.call("GET", "stories/key-gaps"), [](const Json& list) {
         std::vector<KeyGap> out;
         for (const auto& g : list) {
-            KeyGap gap{g.at("storyId").get<std::string>(), {}};
-            for (const auto& u : g.at("users")) gap.users.emplace_back(u.at("userId").get<std::string>(), u.at("publicKey").get<std::string>());
+            KeyGap gap;
+            gap.storyId = g.at("storyId").get<std::string>();
+            gap.delivery = g.value("delivery", std::string("account-keys"));
+            for (const auto& u : g.at("users")) {
+                const auto key = u.find("publicKey");
+                gap.users.emplace_back(u.at("userId").get<std::string>(), key != u.end() && key->is_string() ? key->get<std::string>() : std::string());
+            }
             out.push_back(std::move(gap));
         }
         return out;
@@ -136,6 +160,10 @@ std::vector<KeyGap> keyGaps(ApiClient& api) {
 
 int addKeys(ApiClient& api, const std::string& storyId, const std::vector<WrappedKey>& keys) {
     return parse(api.call("POST", storyPath(storyId, "/keys"), Json{{"keys", keysJson(keys)}}), [](const Json& j) { return j.value("added", 0); });
+}
+
+int addAccess(ApiClient& api, const std::string& storyId, const std::vector<std::string>& viewers) {
+    return parse(api.call("POST", storyPath(storyId, "/access"), Json{{"viewers", viewers}}), [](const Json& j) { return j.value("added", 0); });
 }
 
 int revoke(ApiClient& api, const std::string& userId, const std::optional<std::vector<std::string>>& storyIds) {
@@ -198,8 +226,15 @@ void reportStory(ApiClient& api, const std::string& storyId, const std::string& 
 }
 
 void reportAnswer(ApiClient& api, const std::string& storyId, const std::string& stickerId, const std::string& envelopeBase64, const std::string& reason,
-                  const std::optional<std::string>& evidence) {
-    Json body{{"stickerId", stickerId}, {"envelope", envelopeBase64}, {"reason", reason}};
+                  const std::optional<std::string>& evidence, const std::string& responderId) {
+    Json body{{"stickerId", stickerId}, {"reason", reason}};
+    if (!envelopeBase64.empty()) {
+        body["envelope"] = envelopeBase64;
+    } else if (!responderId.empty()) {
+        body["responderId"] = responderId;  // Part D: a named answer that came over device keys, never stored on the server
+    } else {
+        throw std::invalid_argument("An answer with no envelope and no sender can't be reported");
+    }
     if (evidence && !evidence->empty()) body["evidence"] = *evidence;
     api.call("POST", storyPath(storyId, "/responses/report"), body);
 }

@@ -250,6 +250,19 @@ struct App {
         return std::make_shared<const data::ConversationMeta>(std::move(*hydrated));
     }
 
+    /**
+     * An old protocol-1 post, as an app before Part C2 made it (docs/signal-integration/11-part-c2-communities.md):
+     * the repository no longer sends these, but rows like it stay readable. Sealed under the newest key held.
+     */
+    void postOld(const std::string& text) {
+        const auto ring = keys->load(kCommunityId, kConversationId);
+        const auto sealed = crypto::community::encryptForCommunity(*ring, text);
+        api::SendMessageRequest request{.ciphertext = crypto::base64Encode(sealed.body.ciphertext),
+                                        .nonce = crypto::base64Encode(sealed.body.nonce)};
+        request.keyEpoch = static_cast<int>(sealed.keyEpoch);
+        api->sendMessage(kConversationId, request);
+    }
+
     std::vector<std::string> texts() {
         const auto m = meta();
         std::vector<std::string> out;
@@ -303,7 +316,12 @@ TEST_CASE("a community chat is named and keyed from the community, and read by e
     REQUIRE(meta->members.size() == 1);
     CHECK(meta->members[0].isSelf);
 
-    creator.chats->send(*meta, "first post, epoch 0");
+    // Part C2: no new protocol-1 community message leaves this app (device keys only); nothing reaches the server.
+    const auto before = f.server.received.size();
+    CHECK_THROWS_AS(creator.chats->send(*meta, "first post, epoch 0"), api::UserFacingError);
+    CHECK(f.server.received.size() == before);
+    // An old row, as an earlier app made it, is still read by its epoch.
+    creator.postOld("first post, epoch 0");
     CHECK(f.server.received.back().second.at("keyEpoch") == 0);
     CHECK(creator.texts() == std::vector<std::string>{"first post, epoch 0"});
 }
@@ -311,12 +329,12 @@ TEST_CASE("a community chat is named and keyed from the community, and read by e
 TEST_CASE("subscribe, receive the key, read; removed, a new key keeps them out", "[community]") {
     Fixture f;
     App creator(f.server, f.creator);
-    creator.chats->send(*creator.meta(), "before the fan joined");
+    creator.postOld("before the fan joined");
 
     App fan(f.server, f.fan);
     CHECK(fan.chats->listConversations().empty());  // waiting for the key: not in the chat yet
     f.subscribeFan(creator);
-    creator.chats->send(*creator.meta(), "welcome, epoch 0");
+    creator.postOld("welcome, epoch 0");
 
     // The fan reads with their own copy; the creator's name shows on the posts.
     const auto fanMeta = fan.meta();
@@ -330,19 +348,15 @@ TEST_CASE("subscribe, receive the key, read; removed, a new key keeps them out",
     fan.chats->addCommunitySenders(named, fetched.messages);
     CHECK(named.handleOf(f.creator.id) == "nightmarket");
 
-    // A subscriber can't post in a channel; the server says so and nothing is retried.
-    try {
-        fan.chats->send(*fanMeta, "hello?");
-        FAIL("a subscriber posted");
-    } catch (const api::ApiError& e) {
-        CHECK(e.code() == "cannot_post");
-    }
+    // Part C2: nobody sends a protocol-1 community message any more; the app refuses before the server is asked.
+    CHECK_THROWS_AS(fan.chats->send(*fanMeta, "hello?"), api::UserFacingError);
 
     // Removed: the fan's copies are gone, and the creator's next post rotates first.
     const auto fanRing = fan.keys->ring(kConversationId);
     REQUIRE(fanRing);
     f.server.remove(f.fan.id);
-    creator.chats->send(*creator.meta(), "after removal");
+    creator.keys->rotate(kCommunityId, kConversationId);  // what an earlier app did before its next post
+    creator.postOld("after removal");
     CHECK(f.server.rotations == 1);
     CHECK(f.server.keyEpoch == 1);
     CHECK(f.server.messages.back().at("keyEpoch") == 1);
@@ -378,7 +392,8 @@ TEST_CASE("a member whose keys are a step behind reloads and sends under the new
 
     App editor(f.server, f.editor);
     const auto editorMeta = editor.meta();  // holds epoch 0
-    editor.chats->send(*editorMeta, "epoch 0 from the editor");
+    (void)editorMeta;
+    editor.postOld("epoch 0 from the editor");
 
     // Someone else leaves and the creator's upkeep rotates; the editor's ring still says epoch 0.
     f.server.addPending(f.fan);
@@ -388,7 +403,7 @@ TEST_CASE("a member whose keys are a step behind reloads and sends under the new
     CHECK(upkeep.rotated == 1);
     CHECK(f.server.keyEpoch == 1);
 
-    editor.chats->send(*editorMeta, "epoch 1 from the editor");  // stale_key_epoch, reload, send
+    editor.postOld("epoch 1 from the editor");  // reloads the keys, sends under epoch 1
     CHECK(f.server.messages.back().at("keyEpoch") == 1);
     CHECK(f.server.rotations == 1);  // no second rotation: the editor only reloaded
     CHECK(creator.texts() == std::vector<std::string>{"epoch 0 from the editor", "epoch 1 from the editor"});
@@ -412,7 +427,7 @@ TEST_CASE("upkeep: only members who can post rotate, and keys go only to who is 
     CHECK(creatorUpkeep.rotated == 1);
     CHECK(f.server.keyEpoch == 1);
     // The fan got the new epoch in that rotation and reads what follows.
-    creator.chats->send(*creator.meta(), "epoch 1 post");
+    creator.postOld("epoch 1 post");
     CHECK(fan.texts() == std::vector<std::string>{"epoch 1 post"});
     // Nothing left to do: another round is quiet.
     const auto again = creator.keys->runMaintenance();

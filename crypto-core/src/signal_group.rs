@@ -131,6 +131,17 @@ pub(crate) fn share(state: &mut State, account: &Account, request: &Value) -> Re
         return Err(Error::new("not_a_member", "this account isn't in the group's roster"));
     }
     let recipients = request.get("recipients").and_then(Value::as_array).ok_or_else(|| bad_request("recipients is required"))?.clone();
+    // Part C2 (docs/signal-integration/11-part-c2-communities.md): a paid channel's roster lists only its senders
+    // (owner and staff); its readers are the server's list of entitled members, who never see each other. With
+    // "audience": "recipients" the sender (still a roster member, checked above) shares its key with exactly the
+    // devices it names, members or not. Receivers still take a key only from a member of the roster, and a group
+    // message only from one, so this lets nobody send; it only lets a sender choose its readers.
+    let any_audience = match request.get("audience") {
+        None | Some(Value::Null) => false,
+        Some(Value::String(a)) if a == "members" => false,
+        Some(Value::String(a)) if a == "recipients" => true,
+        Some(_) => return Err(bad_request("audience is \"members\" or \"recipients\"")),
+    };
     let (distribution, skdm) = current_sender_key(state, account, &group_id, roster.epoch)?;
     let mut results = Vec::new();
     for entry in &recipients {
@@ -142,7 +153,7 @@ pub(crate) fn share(state: &mut State, account: &Account, request: &Value) -> Re
             }
         };
         let result = (|| -> Result<Value> {
-            if !roster.members.contains(&recipient.user_id) {
+            if !any_audience && !roster.members.contains(&recipient.user_id) {
                 return Err(Error::new("not_a_member", "this device's account isn't in the group's roster"));
             }
             if !crate::identity::check_listed(state, &recipient)? {

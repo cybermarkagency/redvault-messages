@@ -3,6 +3,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <fstream>
@@ -1286,4 +1287,601 @@ TEST_CASE("tor: outside a chat send nothing is queued, and other failures still 
     CHECK(ac.server->queue()->empty());
     state->torDown.clear();
     (void)b;
+}
+
+// --- Part A on device keys (docs/signal-integration/08-part-a-chat-features.md), against the real engine ---
+
+namespace {
+
+e2::OutgoingMessage textMessage(const std::string& text, e2::MessageExtras extras = {}) {
+    e2::OutgoingMessage m;
+    m.text = text;
+    m.extras = std::move(extras);
+    return m;
+}
+
+const e2::ChatRecord& shownById(const std::vector<e2::ChatRecord>& shown, const std::string& id) {
+    const auto it = std::find_if(shown.begin(), shown.end(), [&](const e2::ChatRecord& r) { return r.id == id; });
+    REQUIRE(it != shown.end());
+    return *it;
+}
+
+/// How many items wait in a device's mailbox right now.
+std::size_t mailboxSize(const std::shared_ptr<FakeState>& state, const std::string& deviceId) {
+    std::lock_guard lock(state->mutex);
+    return state->mailboxes[deviceId].size();
+}
+
+}  // namespace
+
+TEST_CASE("part A: a reply and a forwarded message reach the contact with what they answer", "[e2ev3][chat][parta]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-reply";
+
+    const std::string question = e2::sendChat(*a, ha, chat, "bob", "lunch?").id;
+    REQUIRE(e2::receiveChat(*b, hb).size() == 1);
+    const auto reply = e2::sendChatMessage(*b, hb, chat, "alice", textMessage("yes", {question, e2::previewText("lunch?"), false, 0}));
+    const auto forward = e2::sendChatMessage(*b, hb, chat, "alice", textMessage("look at this", {{}, {}, true, 0}));
+    REQUIRE(e2::receiveChat(*a, ha).size() == 2);
+
+    for (auto* history : {&ha, &hb}) {
+        const auto shown = history->list(chat);
+        REQUIRE(shown.size() == 3);
+        CHECK(shownById(shown, reply.id).replyTo == question);
+        CHECK(shownById(shown, reply.id).replyPreview == "lunch?");
+        CHECK_FALSE(shownById(shown, reply.id).forwarded);
+        CHECK(shownById(shown, forward.id).forwarded);
+        CHECK(shownById(shown, forward.id).replyTo.empty());
+    }
+    // A reply to something that isn't a message id is refused before anything is made.
+    CHECK_THROWS_AS(e2::sendChatMessage(*b, hb, chat, "alice", textMessage("x", {"nope", "", false, 0})), e2::EngineError);
+}
+
+TEST_CASE("part A: a group poll with two voters, a changed vote, and the author ending it", "[e2ev3][chat][group][parta]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    const std::string group = "group-poll";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+
+    e2::OutgoingMessage poll;
+    poll.text = "Lunch?";
+    poll.poll = e2::ChatPoll{{"Pizza", "Sushi", "Tacos"}, false, {}, false, {}};
+    const std::int64_t t0 = redvault::util::nowMillis();
+    const std::string pollId = e2::sendChatMessage(*a, ha, group, {}, poll, t0).id;
+    REQUIRE(e2::receiveChat(*b, hb).size() == 1);
+    REQUIRE(e2::receiveChat(*c, hc).size() == 1);
+    REQUIRE(hb.list(group).at(0).poll.has_value());
+
+    e2::sendChatOp(*b, hb, group, {}, e2::ChatOp{"vote", pollId, {}, {}, {1}}, t0 + 10);
+    e2::sendChatOp(*c, hc, group, {}, e2::ChatOp{"vote", pollId, {}, {}, {0}}, t0 + 20);
+    e2::sendChatOp(*b, hb, group, {}, e2::ChatOp{"vote", pollId, {}, {}, {0}}, t0 + 30);  // bob changes his mind
+    e2::sendChatOp(*b, hb, group, {}, e2::ChatOp{"vote", pollId, {}, {}, {0, 2}}, t0 + 35);  // two on a single-choice poll: skipped
+    e2::sendChatOp(*a, ha, group, {}, e2::ChatOp{"end", pollId}, t0 + 40);
+    e2::sendChatOp(*c, hc, group, {}, e2::ChatOp{"vote", pollId, {}, {}, {2}}, t0 + 50);  // after the end: doesn't count
+    e2::sendChatOp(*c, hc, group, {}, e2::ChatOp{"end", pollId}, t0 + 60);  // not hers to end
+    for (auto [device, history] : {std::pair{a.get(), &ha}, std::pair{b.get(), &hb}, std::pair{c.get(), &hc}}) {
+        e2::receiveChat(*device, *history);
+        const auto shown = history->list(group);
+        REQUIRE(shown.size() == 1);
+        REQUIRE(shown[0].poll.has_value());
+        CHECK(shown[0].text == "Lunch?");
+        CHECK(shown[0].poll->votes == std::vector<int>{2, 0, 0});
+        CHECK(shown[0].poll->ended);
+    }
+    // A poll can't be edited, even by its author.
+    e2::sendChatOp(*a, ha, group, {}, {"edit", pollId, "Dinner?", {}});
+    e2::receiveChat(*b, hb);
+    CHECK(hb.list(group).at(0).text == "Lunch?");
+}
+
+TEST_CASE("part A: anyone in the chat pins and unpins, and the latest one stands", "[e2ev3][chat][parta]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-pin";
+    const std::int64_t t0 = redvault::util::nowMillis();
+    const std::string plan = e2::sendChat(*a, ha, chat, "bob", "the plan", t0).id;
+    e2::receiveChat(*b, hb);
+    e2::ChatOp pin{"pin", plan};
+    pin.pinned = true;
+    e2::sendChatOp(*b, hb, chat, "alice", pin, t0 + 10);
+    e2::receiveChat(*a, ha);
+    CHECK(ha.list(chat).at(0).pinned);
+    CHECK(hb.list(chat).at(0).pinned);
+    pin.pinned = false;
+    e2::sendChatOp(*a, ha, chat, "bob", pin, t0 + 20);
+    e2::receiveChat(*b, hb);
+    CHECK_FALSE(ha.list(chat).at(0).pinned);
+    CHECK_FALSE(hb.list(chat).at(0).pinned);
+    // A pin of something that isn't a message never leaves.
+    CHECK_THROWS_AS(e2::sendChatOp(*a, ha, chat, "bob", e2::ChatOp{"pin", "nope"}), e2::EngineError);
+}
+
+TEST_CASE("part A: receipts go to the author's devices and the sender's own other devices only", "[e2ev3][chat][parta][receipts]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), b2c(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b1 = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto b2 = e2::startNewDevice("bob", b2c.backend);
+    auto joining = e2::NewDevicePairing::begin(*b2);
+    std::unique_ptr<e2::TrustedPairing> answering;
+    std::thread t([&] { answering = std::move(e2::TrustedPairing::begin(*b1, joining->enrollmentId(), quick()).pairing); });
+    joining->codes(quick());
+    t.join();
+    std::thread t2([&] { answering->confirm(quick()); });
+    joining->confirm(quick());
+    t2.join();
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb1 = historyFor(*b1, bc.dir.path);
+    auto hb2 = historyFor(*b2, b2c.dir.path);
+    const std::string chat = "chat-receipts";
+
+    const std::string hi = e2::sendChat(*a, ha, chat, "bob", "hi").id;
+    REQUIRE(e2::receiveChat(*b1, hb1).size() == 1);
+    REQUIRE(e2::receiveChat(*b2, hb2).size() == 1);
+    e2::sendReceipt(*b1, hb1, chat, "alice", {hi}, "delivered");
+    CHECK(hb1.receiptSent(chat, hi, "bob", "delivered"));
+    CHECK_FALSE(hb1.receiptSent(chat, hi, "bob", "read"));
+    e2::receiveChat(*a, ha);
+    REQUIRE(ha.list(chat).at(0).receipts.size() == 1);
+    CHECK(ha.list(chat).at(0).receipts[0].status == "delivered");
+
+    e2::sendReceipt(*b1, hb1, chat, "alice", {hi}, "read");
+    e2::receiveChat(*a, ha);
+    REQUIRE(ha.list(chat).at(0).receipts.size() == 1);
+    CHECK(ha.list(chat).at(0).receipts[0].userId == "bob");
+    CHECK(ha.list(chat).at(0).receipts[0].status == "read");
+    // Bob's other computer learns he read it (its unread count follows).
+    e2::receiveChat(*b2, hb2);
+    CHECK(hb2.receiptSent(chat, hi, "bob", "read"));
+    // A receipt never goes to its own sender as the author.
+    CHECK_THROWS_AS(e2::sendReceipt(*b1, hb1, chat, "bob", {hi}, "read"), e2::EngineError);
+}
+
+TEST_CASE("part A: in a group each member's receipt reaches the author alone", "[e2ev3][chat][group][parta][receipts]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    const std::string group = "group-receipts";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+
+    const std::string hello = e2::sendGroupChat(*a, ha, group, "hello group").id;
+    REQUIRE(e2::receiveChat(*b, hb).size() == 1);
+    REQUIRE(e2::receiveChat(*c, hc).size() == 1);
+    e2::sendReceipt(*b, hb, group, "alice", {hello}, "read");
+    CHECK(mailboxSize(state, c->deviceId()) == 0);  // carol never learns who read what
+    e2::sendReceipt(*c, hc, group, "alice", {hello}, "delivered");
+    CHECK(mailboxSize(state, b->deviceId()) == 0);
+    e2::receiveChat(*a, ha);
+    const auto receipts = ha.list(group).at(0).receipts;
+    REQUIRE(receipts.size() == 2);
+    CHECK(receipts[0].userId == "bob");
+    CHECK(receipts[0].status == "read");
+    CHECK(receipts[1].userId == "carol");
+    CHECK(receipts[1].status == "delivered");
+}
+
+TEST_CASE("part A: a disappearing message is erased on every device once its time comes", "[e2ev3][chat][parta]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::string chat = "chat-timer";
+    std::int64_t now = redvault::util::nowMillis();
+    ha.setClock([&now] { return now; });
+    hb.setClock([&now] { return now; });
+
+    e2::OutgoingMessage file;
+    file.file = fileForTest();
+    file.extras.exp = 60;
+    e2::sendChatMessage(*a, ha, chat, "bob", file, now);
+    const auto sentText = e2::sendChatMessage(*a, ha, chat, "bob", textMessage("burn after reading", {{}, {}, false, 60}), now);
+    const std::string stays = e2::sendChat(*a, ha, chat, "bob", "this stays", now).id;
+    REQUIRE(e2::receiveChat(*b, hb, now).size() == 3);
+    CHECK(shownById(hb.list(chat), sentText.id).expiresAt == now + 60000);
+    e2::sendChatOp(*b, hb, chat, "alice", {"reaction", sentText.id, {}, "x"}, now + 1);
+    e2::receiveChat(*a, ha, now + 1);
+
+    now += 60000;
+    for (auto* history : {&ha, &hb}) {
+        CHECK(history->list(chat).size() == 1);
+        REQUIRE(history->eraseExpired());
+        CHECK(history->list(chat).at(0).id == stays);
+        for (const e2::ChatRecord& r : history->records(chat)) {
+            CHECK_FALSE(r.file.has_value());
+            CHECK(r.text.find("burn after reading") == std::string::npos);
+            CHECK_FALSE(r.op.has_value());  // the reaction on it went too
+        }
+    }
+    CHECK(readFile(bc.dir.path / ("history-" + b->deviceId())).find(fileForTest().fileKey) == std::string::npos);
+}
+
+TEST_CASE("part A: a forwarded file is uploaded again with a new key, never reused", "[e2ev3][chat][parta]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+
+    e2::sendChatFile(*a, ha, "chat-ab", "bob", fileForTest());
+    const auto atBob = e2::receiveChat(*b, hb);
+    REQUIRE(atBob.at(0).file == fileForTest());
+
+    // Bob forwards it to carol: decrypted on his computer, encrypted and uploaded again for that chat.
+    int uploads = 0;
+    const auto reupload = [&](const redvault::model::FileDescriptor& original) {
+        ++uploads;
+        auto fresh = original;
+        fresh.objectId = "44444444-4444-4444-8444-444444444444";
+        fresh.fileKey = "bmV3LWtleS1uZXcta2V5LW5ldy1rZXktbmV3LWtleSE=";
+        fresh.encryption.header = "bmV3aGVhZGVybmV3aGVhZGVybmV3aGVhZGVy";
+        return fresh;
+    };
+    const auto forwarded = e2::forwardChatFile(*b, hb, "chat-bc", "carol", *atBob[0].file, reupload);
+    CHECK(uploads == 1);
+    const auto atCarol = e2::receiveChat(*c, hc);
+    REQUIRE(atCarol.size() == 1);
+    CHECK(atCarol[0].id == forwarded.id);
+    CHECK(atCarol[0].forwarded);
+    REQUIRE(atCarol[0].file.has_value());
+    CHECK(atCarol[0].file->objectId != fileForTest().objectId);
+    CHECK(atCarol[0].file->fileKey != fileForTest().fileKey);
+    CHECK(atCarol[0].file->filename == fileForTest().filename);
+    CHECK(readFile(cc.dir.path / ("history-" + c->deviceId())).find(fileForTest().fileKey) == std::string::npos);
+
+    // Handing on the same descriptor is refused, and nothing is sent.
+    const auto same = [](const redvault::model::FileDescriptor& original) { return original; };
+    CHECK_THROWS_AS(e2::forwardChatFile(*b, hb, "chat-bc", "carol", *atBob[0].file, same), e2::EngineError);
+    CHECK(e2::receiveChat(*c, hc).empty());
+}
+
+TEST_CASE("part A: replies, polls, votes, pins and receipts wait for Tor and go once it's back", "[e2ev3][chat][tor][parta]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    QueuedComputer bc(state, "bob");
+    Computer cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    ac.attach(*a);
+    bc.attach(*b);
+    const std::string group = "group-tor-parta";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+    const std::string hello = e2::sendGroupChat(*a, ha, group, "hello").id;
+    REQUIRE(e2::receiveChat(*b, hb).size() == 1);
+    REQUIRE(e2::receiveChat(*c, hc).size() == 1);
+
+    // Tor is down: everything bob does waits, sealed in his history.
+    state->torDown = {"*"};
+    const auto reply = e2::queueChatMessage(*b, hb, group, {}, textMessage("hi alice", {hello, "hello", false, 3600}));
+    e2::OutgoingMessage poll;
+    poll.text = "Tea or coffee?";
+    poll.poll = e2::ChatPoll{{"Tea", "Coffee"}, true, {}, false, {}};
+    const auto pollRecord = e2::queueChatMessage(*b, hb, group, {}, poll);
+    e2::ChatOp pin{"pin", hello};
+    pin.pinned = true;
+    e2::queueChatOp(*b, hb, group, {}, pin);
+    e2::queueChatOp(*b, hb, group, {}, e2::ChatOp{"vote", pollRecord.id, {}, {}, {0, 1}});
+    const auto receipt = e2::queueReceipt(*b, hb, group, "alice", {hello}, "read");
+    CHECK(receipt.to == "alice");  // a receipt names its author, in a group too
+    CHECK(hb.queued().size() == 5);
+    CHECK(e2::sendQueuedChat(*b, hb, *bc.server).waiting);
+
+    // Back: in order, encrypted now.
+    state->torDown.clear();
+    const auto drained = e2::sendQueuedChat(*b, hb, *bc.server);
+    CHECK_FALSE(drained.waiting);
+    CHECK(drained.sent == 5);
+    CHECK(hb.queued().empty());
+    e2::receiveChat(*a, ha);
+    e2::receiveChat(*c, hc);
+    const auto atAlice = ha.list(group);
+    REQUIRE(atAlice.size() == 3);
+    CHECK(shownById(atAlice, hello).pinned);
+    REQUIRE(shownById(atAlice, hello).receipts.size() == 1);
+    CHECK(shownById(atAlice, hello).receipts[0].status == "read");
+    CHECK(shownById(atAlice, reply.id).replyTo == hello);
+    CHECK(shownById(atAlice, reply.id).expiresAt.has_value());
+    REQUIRE(shownById(atAlice, pollRecord.id).poll.has_value());
+    CHECK(shownById(atAlice, pollRecord.id).poll->votes == std::vector<int>{1, 1});
+    // Carol has everything but the receipt, which went to alice alone.
+    const auto atCarol = hc.list(group);
+    REQUIRE(atCarol.size() == 3);
+    CHECK(shownById(atCarol, hello).pinned);
+    CHECK(shownById(atCarol, hello).receipts.empty());
+}
+
+// --- Part B: calls over device keys (docs/signal-integration/09-part-b-calls.md), against the real engine ---
+
+namespace {
+
+const std::string kCallChat = "11111111-1111-4111-8111-111111111111";
+const std::string kCallId = "cccccccc-0000-4000-8000-0000000000b1";
+
+/// A second, linked device for `userId` next to `first`.
+std::unique_ptr<e2::V3Device> linkSecondDevice(e2::V3Device& first, const std::string& userId, const e2::Backend& backend) {
+    auto second = e2::startNewDevice(userId, backend);
+    auto joining = e2::NewDevicePairing::begin(*second);
+    std::unique_ptr<e2::TrustedPairing> answering;
+    std::thread t([&] { answering = std::move(e2::TrustedPairing::begin(first, joining->enrollmentId(), quick()).pairing); });
+    joining->codes(quick());
+    t.join();
+    std::thread t2([&] { answering->confirm(quick()); });
+    joining->confirm(quick());
+    t2.join();
+    return second;
+}
+
+std::vector<e2::CallMessage> receiveCalls(e2::V3Device& device, e2::ChatHistory& history, std::int64_t now = 0) {
+    std::vector<e2::CallMessage> calls;
+    REQUIRE(e2::receiveChat(device, history, now, nullptr, &calls).empty());  // never a chat record
+    return calls;
+}
+
+e2::CallSignal callSignal(const std::string& step, const std::string& sdp, const std::string& to) {
+    return e2::CallSignal{kCallId, step, "video", sdp, to};
+}
+
+std::shared_ptr<const redvault::crypto::SecretBytes> roomKey(std::uint8_t fill) {
+    const redvault::crypto::Bytes raw(32, fill);
+    return std::make_shared<const redvault::crypto::SecretBytes>(redvault::crypto::SecretBytes::copyOf(raw));
+}
+
+}  // namespace
+
+TEST_CASE("part B: a one-to-one call set up over device keys, offer to both callee devices, answer from one", "[e2ev3][calls][partb]") {
+    auto state = std::make_shared<FakeState>();
+    // Over Signal, with a linked device on each side (the linked-device Signal race is fixed in the engine).
+    Computer a1c(state, "alice"), a2c(state, "alice"), b1c(state, "bob"), b2c(state, "bob");
+    auto a1 = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), a1c.backend);
+    auto b1 = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), b1c.backend);
+    auto a2 = linkSecondDevice(*a1, "alice", a2c.backend);
+    auto b2 = linkSecondDevice(*b1, "bob", b2c.backend);
+    const Json signalConfig = a1c.backend.server->config();
+    for (int round = 0; round < 2; ++round)
+        for (auto* d : {a1.get(), a2.get(), b1.get(), b2.get()}) REQUIRE(e2::maintainSignal(*d, signalConfig) != "off");
+    auto ha1 = historyFor(*a1, a1c.dir.path);
+    auto ha2 = historyFor(*a2, a2c.dir.path);
+    auto hb1 = historyFor(*b1, b1c.dir.path);
+    auto hb2 = historyFor(*b2, b2c.dir.path);
+
+    // 1. The offer goes to every device of the callee, none of the caller's other devices.
+    const std::string offerSdp = "v=0\r\no=- offer\r\n";
+    REQUIRE(e2::sendCallSignal(*a1, kCallChat, "bob", callSignal("offer", offerSdp, "*")) == 2);
+    REQUIRE(mailboxSize(state, a2->deviceId()) == 0);
+    for (const std::string& id : {b1->deviceId(), b2->deviceId()}) {
+        const auto bodies = mailboxBodies(state, id);
+        REQUIRE(bodies.size() == 1);
+        REQUIRE(bodies[0].dump().find("o=- offer") == std::string::npos);  // nothing readable on the server
+    }
+
+    // 2. Each callee device takes it once the live event named the call.
+    std::vector<e2::CallGate> bobGates(2);
+    std::vector<std::string> answerTo;
+    for (int i = 0; i < 2; ++i) {
+        auto& device = i == 0 ? *b1 : *b2;
+        auto& history = i == 0 ? hb1 : hb2;
+        bobGates[i].expectCall(kCallId, kCallChat, "alice", e2::CallGate::Role::Callee);
+        const auto got = bobGates[i].admit(receiveCalls(device, history), 0);
+        REQUIRE(got.size() == 1);
+        REQUIRE(got[0].signal->step == "offer");
+        REQUIRE(got[0].signal->sdp == offerSdp);
+        REQUIRE(got[0].fromDeviceId == a1->deviceId());
+        REQUIRE(bobGates[i].peerDevice(kCallId) == a1->deviceId());
+        REQUIRE(history.records(kCallChat).empty());  // ephemeral: nothing in the history
+        REQUIRE_FALSE(history.pinned(kCallChat));
+        answerTo.push_back(bobGates[i].peerDevice(kCallId));
+    }
+
+    // 3. The answer from b2 goes to the offering device only.
+    const std::string answerSdp = "v=0\r\no=- answer\r\n";
+    REQUIRE(e2::sendCallSignal(*b2, kCallChat, "alice", callSignal("answer", answerSdp, answerTo[1])) == 1);
+    REQUIRE(mailboxSize(state, a2->deviceId()) == 0);
+    REQUIRE(mailboxSize(state, b1->deviceId()) == 0);  // the other callee device gets nothing more: it stops at "ended"
+    e2::CallGate aliceGate;
+    aliceGate.expectCall(kCallId, kCallChat, "bob", e2::CallGate::Role::Caller);
+    const auto answered = aliceGate.admit(receiveCalls(*a1, ha1), 0);
+    REQUIRE(answered.size() == 1);
+    REQUIRE(answered[0].signal->step == "answer");
+    REQUIRE(answered[0].signal->sdp == answerSdp);
+    REQUIRE(aliceGate.peerDevice(kCallId) == b2->deviceId());
+    REQUIRE(receiveCalls(*a2, ha2).empty());
+
+    // A second answer, from b1, is refused: the caller keeps the first checked answer.
+    e2::sendCallSignal(*b1, kCallChat, "alice", callSignal("answer", answerSdp, a1->deviceId()));
+    std::vector<std::string> refused;
+    REQUIRE(aliceGate.admit(receiveCalls(*a1, ha1), 0, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"already_set_up"});
+    // So is a restart from b1; one from b2 goes through.
+    e2::sendCallSignal(*b1, kCallChat, "alice", callSignal("restart-offer", answerSdp, a1->deviceId()));
+    refused.clear();
+    REQUIRE(aliceGate.admit(receiveCalls(*a1, ha1), 0, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"wrong_device"});
+    e2::sendCallSignal(*b2, kCallChat, "alice", callSignal("restart-offer", answerSdp, a1->deviceId()));
+    REQUIRE(aliceGate.admit(receiveCalls(*a1, ha1), 0).size() == 1);
+
+    // The other callee device stops: once the call is forgotten, a late envelope for it is never used.
+    bobGates[0].forget(kCallId);
+    e2::sendCallSignal(*a1, kCallChat, "bob", callSignal("restart-offer", offerSdp, b1->deviceId()));
+    const auto late = receiveCalls(*b1, hb1);
+    REQUIRE(late.size() == 1);
+    REQUIRE(bobGates[0].admit(late, 0).empty());
+
+    // A copy meant for another device is dropped by the receive loop itself.
+    e2::sendCallSignal(*a1, kCallChat, "bob", callSignal("restart-offer", offerSdp, b2->deviceId()));
+    REQUIRE(receiveCalls(*b1, hb1).empty());
+}
+
+TEST_CASE("part B: a stale offer and an offer from someone who isn't the caller are refused", "[e2ev3][calls][partb]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    auto hb = historyFor(*b, bc.dir.path);
+    const std::int64_t now = redvault::util::nowMillis();
+
+    e2::CallGate gate;
+    gate.expectCall(kCallId, kCallChat, "alice", e2::CallGate::Role::Callee);
+
+    // 121 s old: the receive loop drops it (acknowledged, never handed out).
+    e2::sendCallSignal(*a, kCallChat, "bob", callSignal("offer", "v=0\r\n", "*"), now - 121000);
+    REQUIRE(receiveCalls(*b, hb, now).empty());
+    REQUIRE(mailboxSize(state, b->deviceId()) == 0);
+    // Fresh when it arrived, but too old by the time it's checked: the gate refuses it.
+    e2::sendCallSignal(*a, kCallChat, "bob", callSignal("offer", "v=0\r\n", "*"), now - 100000);
+    const auto fresh = receiveCalls(*b, hb, now);
+    REQUIRE(fresh.size() == 1);
+    std::vector<std::string> refused;
+    REQUIRE(gate.admit(fresh, now + 30000, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"stale_call"});
+
+    // Carol, with a valid device of her own, offers on the call Alice started: refused, and it binds nothing.
+    e2::sendCallSignal(*c, kCallChat, "bob", callSignal("offer", "v=0\r\n", "*"), now);
+    refused.clear();
+    REQUIRE(gate.admit(receiveCalls(*b, hb, now), now, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"wrong_sender"});
+    REQUIRE(gate.peerDevice(kCallId).empty());
+
+    // An offer for a call the live events never named is held, then dropped; never used.
+    e2::CallGate other;
+    REQUIRE(other.admit(fresh, now).empty());
+    refused.clear();
+    REQUIRE(other.admit({}, now + e2::CallGate::kHoldMs + 1, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"unknown_call"});
+
+    // An offer that beat the live event is used once the call is named.
+    e2::CallGate early;
+    e2::sendCallSignal(*a, kCallChat, "bob", callSignal("offer", "v=0\r\n", "*"), now);
+    REQUIRE(early.admit(receiveCalls(*b, hb, now), now).empty());
+    early.expectCall(kCallId, kCallChat, "alice", e2::CallGate::Role::Callee);
+    REQUIRE(early.admit({}, now + 1000).size() == 1);
+}
+
+TEST_CASE("part B: group call keys go pairwise; a non-member's key and a lower epoch are refused", "[e2ev3][calls][partb][group]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol"), mc(state, "mallory");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    auto m = e2::setUpFirstDevice("mallory", redvault::crypto::toBytes(bytesFor('M')), mc.backend);
+    const std::string group = "22222222-2222-4222-8222-222222222222";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto hb = historyFor(*b, bc.dir.path);
+    auto hc = historyFor(*c, cc.dir.path);
+
+    // The keyholder sends one pairwise copy per participant device: no group fan-out.
+    REQUIRE(e2::sendCallKey(*a, group, e2::CallKey{kCallId, 2, roomKey(7)}, {"bob", "carol", "alice"}) == 2);
+    for (const auto& posted : state->posted) REQUIRE(posted.first == "messages");
+    e2::CallGate gate;
+    gate.expectGroupCall(kCallId, group, {"alice", "bob", "carol"});
+    const auto got = gate.admit(receiveCalls(*b, hb), 0);
+    REQUIRE(got.size() == 1);
+    REQUIRE(got[0].key->epoch == 2);
+    REQUIRE(got[0].key->key->size() == 32);
+    REQUIRE(got[0].key->key->view()[0] == 7);
+    REQUIRE(gate.newestEpoch(kCallId) == 2);
+    REQUIRE(receiveCalls(*c, hc).size() == 1);
+    REQUIRE(hb.records(group).empty());
+
+    // Mallory isn't in the group: her key is refused.
+    e2::sendCallKey(*m, group, e2::CallKey{kCallId, 3, roomKey(9)}, {"bob"});
+    std::vector<std::string> refused;
+    REQUIRE(gate.admit(receiveCalls(*b, hb), 0, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"not_a_member"});
+    REQUIRE(gate.newestEpoch(kCallId) == 2);
+
+    // A key for an older epoch than the newest held is refused; a newer one is taken.
+    e2::sendCallKey(*a, group, e2::CallKey{kCallId, 1, roomKey(1)}, {"bob"});
+    refused.clear();
+    REQUIRE(gate.admit(receiveCalls(*b, hb), 0, &refused).empty());
+    REQUIRE(refused == std::vector<std::string>{"old_epoch"});
+    e2::sendCallKey(*a, group, e2::CallKey{kCallId, 4, roomKey(4)}, {"bob"});
+    REQUIRE(gate.admit(receiveCalls(*b, hb), 0).size() == 1);
+    REQUIRE(gate.newestEpoch(kCallId) == 4);
+}
+
+TEST_CASE("part B: a call envelope is never queued for Tor, even inside a chat send", "[e2ev3][calls][partb][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    state->torDown = {"sendMessages"};
+    {
+        e2::SendScope chatSend("some-record", "messages");  // as if a chat send were running on this thread
+        bool refusedAtGate = false;
+        try {
+            e2::sendCallSignal(*a, kCallChat, "bob", callSignal("offer", "v=0\r\n", "*"));
+        } catch (const redvault::api::ApiError& error) {
+            refusedAtGate = error.code() == "tor_unavailable";
+        }
+        REQUIRE(refusedAtGate);
+    }
+    REQUIRE(ac.server->queue()->empty());
+    state->torDown.clear();
+    REQUIRE(mailboxSize(state, b->deviceId()) == 0);
+}
+
+TEST_CASE("signal: a linked second device sends over Signal too, to a contact and to its own first device", "[e2ev3][signal][chat][linked]") {
+    auto state = std::make_shared<FakeState>();
+    Computer a1c(state, "alice"), a2c(state, "alice"), b1c(state, "bob");
+    auto a1 = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), a1c.backend);
+    auto b1 = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), b1c.backend);
+    auto a2 = linkSecondDevice(*a1, "alice", a2c.backend);
+    const Json config = a1c.backend.server->config();
+    // Each device keeps itself up as the apps do; then once more, as the next refresh would.
+    for (int round = 0; round < 2; ++round)
+        for (auto* d : {a1.get(), a2.get(), b1.get()}) REQUIRE(e2::maintainSignal(*d, config) != "off");
+
+    auto ha1 = historyFor(*a1, a1c.dir.path);
+    auto ha2 = historyFor(*a2, a2c.dir.path);
+    auto hb1 = historyFor(*b1, b1c.dir.path);
+    const std::string chat = "chat-linked";
+    const auto sent = e2::sendChat(*a2, ha2, chat, "bob", "from the second device");
+    REQUIRE(sent.delivered == 2);
+    for (const std::string& id : {b1->deviceId(), a1->deviceId()}) {
+        const auto bodies = mailboxBodies(state, id);
+        REQUIRE(bodies.size() == 1);
+        REQUIRE(bodies[0].value("protocol", std::string()) == "rv-signal-v1");
+    }
+    const auto atBob = e2::receiveChat(*b1, hb1);
+    REQUIRE(atBob.size() == 1);
+    REQUIRE(atBob[0].text == "from the second device");
+    const auto atA1 = e2::receiveChat(*a1, ha1);
+    REQUIRE(atA1.size() == 1);
+    REQUIRE(atA1[0].direction == "out");
+
+    // And back: bob to both of alice's devices, over Signal.
+    REQUIRE(e2::sendChat(*b1, hb1, chat, "alice", "to both").delivered == 2);
+    REQUIRE(e2::receiveChat(*a2, ha2).at(0).text == "to both");
+    REQUIRE(e2::receiveChat(*a1, ha1).at(0).text == "to both");
 }

@@ -4,10 +4,13 @@
 #include "tor_controller.hpp"
 
 #include <QDir>
+#include <QMetaObject>
+#include <QSettings>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 
 #ifdef REDVAULT_HAS_TOR
 #include "redvault_tor.h"
@@ -29,6 +32,7 @@ QJsonObject takeJson(char* text) {
 
 TorController::TorController(QString onionHost, QString stateDir, QObject* parent)
     : QObject(parent), onionHost_(std::move(onionHost)) {
+    onionOnly_->store(QSettings().value(QStringLiteral("network/onionOnly"), false).toBool());
     if (!enabled()) return;
     state_ = QStringLiteral("connecting");
     detail_ = QStringLiteral("Starting Tor");
@@ -42,6 +46,13 @@ TorController::TorController(QString onionHost, QString stateDir, QObject* paren
     QJsonObject config{{QStringLiteral("stateDir"), QDir::toNativeSeparators(stateDir + QStringLiteral("/state"))},
                        {QStringLiteral("cacheDir"), QDir::toNativeSeparators(stateDir + QStringLiteral("/cache"))},
                        {QStringLiteral("allowedTargets"), QJsonArray{onionHost_ + QStringLiteral(":80")}}};
+#ifdef REDVAULT_HAS_SEALED_ROUTE
+    // The sealed backup route (docs/tor-sealed-fallback.md) reaches the website's gateway through a Tor exit:
+    // that one https host is the only place outside onion services the gate will go to.
+    const QUrl sealedGateway(QStringLiteral(REDVAULT_SEALED_GATEWAY_URL));
+    if (sealedGateway.scheme() == QStringLiteral("https") && !sealedGateway.host().isEmpty())
+        config.insert(QStringLiteral("allowedExitTargets"), QJsonArray{sealedGateway.host() + QStringLiteral(":443")});
+#endif
     char* error = nullptr;
     gateway_ = rv_tor_start(QJsonDocument(config).toJson(QJsonDocument::Compact).constData(), &error);
     if (gateway_ == nullptr) {
@@ -131,6 +142,38 @@ void TorController::poll() {
     emit changed();
     if (!wasConnected && connected()) emit becameConnected();
 #endif
+}
+
+}  // namespace redvault::app
+
+namespace redvault::app {
+
+// --- The sealed backup route (docs/tor-sealed-fallback.md) ---
+
+bool TorController::backupRouteAvailable() const {
+#ifdef REDVAULT_SEALED_KEY_CONFIG
+    return enabled() && sizeof(REDVAULT_SEALED_KEY_CONFIG) > 1;
+#else
+    return false;
+#endif
+}
+
+void TorController::setOnionOnly(bool onionOnly) {
+    if (onionOnly_->exchange(onionOnly) == onionOnly) return;
+    QSettings().setValue(QStringLiteral("network/onionOnly"), onionOnly);
+    if (onionOnly) emit onionOnlyChosen();
+    emit routeChanged();
+}
+
+void TorController::reportBackupRoute(bool backup) {
+    QMetaObject::invokeMethod(
+        this,
+        [this, backup] {
+            if (backupRoute_ == backup) return;
+            backupRoute_ = backup;
+            emit routeChanged();
+        },
+        Qt::QueuedConnection);
 }
 
 }  // namespace redvault::app

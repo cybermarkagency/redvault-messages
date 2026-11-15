@@ -33,6 +33,7 @@ import com.redvaultsystems.redvaultmessage.data.model.StickerTotals
 import com.redvaultsystems.redvaultmessage.data.model.StoryAnswer
 import com.redvaultsystems.redvaultmessage.data.model.StoryPrefs
 import com.redvaultsystems.redvaultmessage.data.model.StoryReplyRef
+import com.redvaultsystems.redvaultmessage.devicekeys.StoryDeviceKeys
 import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +90,10 @@ data class StoriesState(
     val archiveEnabled: Boolean = false,
     /** False when the settings can't be opened on this phone: then nothing is posted and views aren't announced. */
     val prefsReadable: Boolean = true,
+    /** Part D: friends with a story on device keys whose key hasn't reached this phone yet (shown as loading). */
+    val waiting: List<StoryFriend> = emptyList(),
+    /** Part D: how many of your own stories (posted from another device) wait for their key here. */
+    val ownWaiting: Int = 0,
 ) {
     val on: Boolean get() = gate == StoriesGate.On
 }
@@ -110,6 +115,11 @@ class StoriesSession(
     /** user id to the base64 public key their chat is sealed with, for the "same key as the chat" check. */
     private val chatKeys: () -> Map<String, String>,
     private val onSessionExpired: () -> Unit,
+    /**
+     * Part D (docs/signal-integration/12-part-d-stories.md): stories over device keys, when this phone has them. Keys
+     * come through the device-key mailbox into a local encrypted store; answers, replies and late friends go that way too.
+     */
+    private val deviceKeys: StoryDeviceKeys? = null,
 ) {
     private val _state = MutableStateFlow(StoriesState())
     val state: StateFlow<StoriesState> = _state.asStateFlow()
@@ -126,7 +136,21 @@ class StoriesSession(
     suspend fun poll() {
         while (true) {
             quietly { refresh() }
-            delay(REFRESH_MS)
+            // A story whose key hasn't arrived yet is looked at again soon (the device-key mailbox brings it).
+            val s = _state.value
+            delay(if (s.waiting.isNotEmpty() || s.ownWaiting > 0) WAITING_REFRESH_MS else REFRESH_MS)
+        }
+    }
+
+    /** Part D: the device keys, when this phone has them right now (opens the local story-key store). */
+    private suspend fun keys(): StoryDeviceKeys? {
+        val dk = deviceKeys ?: return null
+        return try {
+            if (dk.ready()) dk else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -175,17 +199,23 @@ class StoriesSession(
                 _state.update { it.copy(prefs = loaded.prefs, prefsReadable = loaded.readable, archiveEnabled = loaded.archiveEnabled) }
             }
             val friends = repository.loadFriends(chatKeys())
-            val feed = repository.loadFeed(identity, friends)
+            val dk = keys()
+            val feed = repository.loadFeed(identity, friends, dk)
             allAuthors = feed.authors
+            val shownAuthors = feed.authors.mapTo(HashSet()) { it.author.userId }
+            val waiting = feed.waiting.keys.filter { it != identity.userId && it !in shownAuthors }.mapNotNull { friends[it] }
             _state.update {
                 // Another refresh may have switched Stories off while this one waited on the network.
-                if (!it.on) it else it.copy(loaded = true, own = feed.own, authors = tray(feed.authors, it.prefs), friends = friends.values.toList())
+                if (!it.on) it else it.copy(
+                    loaded = true, own = feed.own, authors = tray(feed.authors, it.prefs), friends = friends.values.toList(),
+                    waiting = waiting.filter { w -> w.userId !in it.prefs.muted }, ownWaiting = feed.waiting[identity.userId] ?: 0,
+                )
             }
             syncOwnTotals(feed.own, friends, now)
             if (_state.value.prefsReadable && now - lastGapFillAt >= GAP_FILL_MS) {
                 lastGapFillAt = now
                 try {
-                    repository.fillKeyGaps(identity, feed.own.associate { it.id to it.key }, friends, _state.value.prefs)
+                    repository.fillKeyGaps(identity, feed.own.associate { it.id to it.key }, friends, _state.value.prefs, dk, feed.own)
                 } catch (e: ApiException) {
                     lastGapFillAt = 0
                     throw e
@@ -234,7 +264,7 @@ class StoriesSession(
         if (!state.prefsReadable) throw StoryInputException("Your story settings can't be opened on this phone, so nothing is posted. Open Stories on the web or desktop app, or try again later.")
         call {
             val friends = repository.loadFriends(chatKeys())
-            repository.publish(identity, draft, friends.values, state.prefs, onStage)
+            repository.publish(identity, draft, friends.values, state.prefs, onStage, keys())
         }
         if (refreshAfter) quietly { refresh() }
     }
@@ -259,7 +289,7 @@ class StoriesSession(
     }
 
     suspend fun remove(storyId: String) {
-        call { repository.delete(storyId) }
+        call { repository.delete(storyId, keys()) }
         _state.update { s -> s.copy(own = s.own.filter { it.id != storyId }) }
         quietly { refresh() }
     }
@@ -289,12 +319,12 @@ class StoriesSession(
         try {
             if (story.authorId == identity.userId) {
                 val friends = _state.value.friends.associateBy { it.userId }
-                val inbox = call { interactions.inbox(identity, story, friends) }
+                val inbox = call { interactions.inbox(identity, story, friends, keys()) }
                 runCatching { interactions.publishTotals(story, inbox) }
                 updateInteraction(story.id) { it.copy(inbox = inbox, totals = totalsOf(story, inbox)) }
             } else {
                 val author = _state.value.friends.firstOrNull { it.userId == story.authorId } ?: return
-                val mine = call { interactions.mine(identity, story, author.publicKey) }
+                val mine = call { interactions.mine(identity, story, author.publicKey, keys()) }
                 val totals = call { interactions.totals(story) }
                 updateInteraction(story.id) { it.copy(mine = mine, totals = totals) }
             }
@@ -312,7 +342,7 @@ class StoriesSession(
         updateInteraction(story.id) { it.copy(busy = it.busy + sticker.id) }
         try {
             try {
-                call { interactions.submit(identity, story, author.publicKey, sticker, answer) }
+                call { interactions.submit(identity, story, author.publicKey, sticker, answer, if (story.deviceKeys) keys() else null) }
             } catch (e: ApiException) {
                 if (e.code == "response_final") throw StoryInputException("You already answered that.")
                 if (e.status == 404) throw StoryInputException("This story isn't taking answers any more.")
@@ -337,7 +367,7 @@ class StoriesSession(
             if (!shows || now - (lastTotalsAt[story.id] ?: 0L) < TOTALS_MS) continue
             lastTotalsAt[story.id] = now
             try {
-                val inbox = interactions.inbox(identity, story, friends)
+                val inbox = interactions.inbox(identity, story, friends, if (story.deviceKeys) keys() else null)
                 interactions.publishTotals(story, inbox)
                 updateInteraction(story.id) { it.copy(inbox = inbox, totals = totalsOf(story, inbox)) }
             } catch (e: ApiException) {
@@ -400,9 +430,15 @@ class StoriesSession(
         val closeStories = _state.value.own.filter { it.meta.closeFriends }
         if (closeStories.isNotEmpty()) {
             for (userId in before.closeFriends - after.closeFriends) runCatching { repository.revokeAccess(userId, closeStories.map { it.id }) }
-            for (userId in after.closeFriends - before.closeFriends - after.hideFrom) {
-                val friend = _state.value.friends.firstOrNull { it.userId == userId } ?: continue
-                for (story in closeStories) runCatching { repository.addKey(identity, story, friend) }
+            val joined = (after.closeFriends - before.closeFriends - after.hideFrom).filter { id -> _state.value.friends.any { it.userId == id } }
+            for (userId in joined) {
+                val friend = _state.value.friends.first { it.userId == userId }
+                for (story in closeStories.filter { !it.deviceKeys }) runCatching { repository.addKey(identity, story, friend) }
+            }
+            // Part D: a device-keys close-friends story takes the new close friends too (access, then K to their devices).
+            val dk = keys()
+            if (joined.isNotEmpty() && dk != null) {
+                for (story in closeStories.filter { it.deviceKeys }) runCatching { repository.addDeviceKeyViewers(story, joined, dk) }
             }
         }
         // Friends you stopped hiding stories from get keys for your "friends" stories on the next top-up.
@@ -411,12 +447,12 @@ class StoriesSession(
     }
 
     /** Your stories that left your story (kept for you or in a highlight), newest first. */
-    suspend fun loadArchive(): List<Story> = call { repository.archive(identity) }
+    suspend fun loadArchive(): List<Story> = call { repository.archive(identity, keys()) }
 
     /** [userId]'s highlights as you can see them (yours, or a friend's). */
     suspend fun highlightsOf(userId: String): List<HighlightView> {
         val key = if (userId == identity.userId) identity.publicKey else _state.value.friends.firstOrNull { it.userId == userId }?.publicKey ?: return emptyList()
-        return call { repository.highlights(identity, userId, key) }
+        return call { repository.highlights(identity, userId, key, keys()) }
     }
 
     /** Creates a highlight, or with [highlightId] replaces one. */
@@ -443,7 +479,8 @@ class StoriesSession(
     suspend fun reportAnswer(story: Story, entry: com.redvaultsystems.redvaultmessage.data.model.InboxEntry, reason: String, evidence: String?) {
         if (reason.isBlank()) throw StoryInputException("Say what is wrong.")
         try {
-            call { interactions.reportAnswer(story.id, entry.sticker.id, entry.envelope, reason.trim().take(300), evidence?.take(600)) }
+            // Part D: a named answer that came over device keys has no stored envelope; it's named by who sent it.
+            call { interactions.reportAnswer(story.id, entry.sticker.id, entry.envelope, reason.trim().take(300), evidence?.take(600), responderId = entry.responderId) }
         } catch (e: ApiException) {
             if (e.code == "already_reported" || e.status == 409) throw StoryInputException("You already reported this answer.")
             throw e
@@ -500,10 +537,11 @@ class StoriesSession(
         }
     }
 
-    private fun Story.withSeen() = Story(id, authorId, kind, meta, key, createdAtMs, expiresAtMs, allowReplies, hasMedia, seen = true, viewCount = viewCount)
+    private fun Story.withSeen() = Story(id, authorId, kind, meta, key, createdAtMs, expiresAtMs, allowReplies, hasMedia, seen = true, viewCount = viewCount, deviceKeys = deviceKeys)
 
     private companion object {
         const val REFRESH_MS = 60_000L
+        const val WAITING_REFRESH_MS = 10_000L
         const val CONFIG_RETRY_MS = 30_000L
         const val CONFIG_OFF_MS = 5 * 60_000L
         const val CONFIG_ON_MS = 10 * 60_000L

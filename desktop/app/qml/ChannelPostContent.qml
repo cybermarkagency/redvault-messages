@@ -148,6 +148,19 @@ ColumnLayout {
         }
     }
 
+    // A private channel's post that no key on this computer opens (an old link, say).
+    Text {
+        objectName: "channelPostLocked"
+        Layout.fillWidth: true
+        visible: content.post !== null && content.post !== undefined && content.post.locked === true
+        text: "This channel's posts can't be opened with this link"
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        color: Theme.text3
+        font.italic: true
+        font.pixelSize: Theme.fontSize
+    }
+
     // --- The text, formatted (*bold*, _italic_, ~strike~, `code`, ||spoiler||, links) ---
     TextEdit {
         id: bodyText

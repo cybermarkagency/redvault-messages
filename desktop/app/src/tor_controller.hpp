@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -44,6 +45,12 @@ class TorController : public QObject {
     Q_PROPERTY(QString onionHost READ onionHost CONSTANT)
     Q_PROPERTY(int queued READ queued NOTIFY queuedChanged)
     Q_PROPERTY(int pausedUploads READ pausedUploads NOTIFY queuedChanged)
+    /// True while requests use the sealed backup route (docs/tor-sealed-fallback.md).
+    Q_PROPERTY(bool backupRoute READ backupRoute NOTIFY routeChanged)
+    /// Whether this build carries the gateway's key, so a backup route exists at all.
+    Q_PROPERTY(bool backupRouteAvailable READ backupRouteAvailable CONSTANT)
+    /// The user's choice "Only use the onion address" (kept on this computer; off by default).
+    Q_PROPERTY(bool onionOnly READ onionOnly WRITE setOnionOnly NOTIFY routeChanged)
 
 public:
     /// `onionHost` empty: Tor routing is off for this run (clearnet build talking to a clearnet server).
@@ -59,6 +66,16 @@ public:
     int queued() const { return queued_; }
     int pausedUploads() const { return pausedUploads_; }
 
+    bool backupRoute() const { return backupRoute_; }
+    bool backupRouteAvailable() const;
+    /// Thread-safe (the transport reads it on worker threads).
+    bool onionOnly() const { return onionOnly_->load(); }
+    void setOnionOnly(bool onionOnly);
+    /// For the transport: the shared flag behind onionOnly().
+    std::shared_ptr<std::atomic<bool>> onionOnlyFlag() const { return onionOnly_; }
+    /// The transport switched routes (any thread).
+    void reportBackupRoute(bool backup);
+
     /// What the outbox holds (for the status chip): messages and, of those, files.
     void setQueued(int messages, int files);
 
@@ -71,6 +88,9 @@ public:
 signals:
     void changed();
     void queuedChanged();
+    void routeChanged();
+    /// The user turned "Only use the onion address" on: the transport must leave the backup route now.
+    void onionOnlyChosen();
     /// Tor just became usable: time to send what's queued.
     void becameConnected();
 
@@ -89,6 +109,8 @@ private:
     QString detail_;
     int queued_ = 0;
     int pausedUploads_ = 0;
+    bool backupRoute_ = false;
+    std::shared_ptr<std::atomic<bool>> onionOnly_ = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<Shared> shared_ = std::make_shared<Shared>();
     RvTorGateway* gateway_ = nullptr;
     QTimer timer_;

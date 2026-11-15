@@ -13,7 +13,9 @@
 #include "redvault/api/api_client.hpp"
 
 // Channels (server/src/routes/channelRoutes.ts), mirroring ui/src/lib/api.ts.
-// Plain text by design. Reading goes out WITHOUT the session cookie
+// Public channels are plain text by design; a private channel's posts are
+// encrypted with its link (Part C1, data/private_channels.hpp does the crypto;
+// these are only the wire shapes). Reading goes out WITHOUT the session cookie
 // (ApiClient::publicCall), so the server can't tell which account reads
 // which channel; following is kept on this computer (model/channels.hpp). A
 // private channel also needs its link's access token
@@ -40,6 +42,26 @@ struct Channel {
     std::optional<std::string> secretSealed;
     /// The owner takes suggested posts from followers.
     bool acceptSuggestions = false;
+    /**
+     * A private channel's newest key epoch (Part C1); null for a public one,
+     * and for a private one made before C1 (no keys yet). The owner's own copy
+     * keeps it while public too.
+     */
+    std::optional<int> keyEpoch;
+    /// Only the owner's copy, while public: the last private link's secret, sealed to them (to convert old encrypted posts).
+    std::optional<std::string> formerSecretSealed;
+};
+
+/// A media file's key, from inside an encrypted post (never from the server's own fields).
+struct MediaKey {
+    /// base64 secretstream key and header, and the lowercase hex SHA-256 of the encrypted blob.
+    std::string key;
+    std::string header;
+    std::string sha256;
+    /// The plain file's size; the blob is crypto::files::encryptedSizeFor(plainSize).
+    std::int64_t plainSize = 0;
+
+    bool operator==(const MediaKey&) const = default;
 };
 
 /// "photo", "video", "file", "audio" (podcasts), "voice" or "round" (a round video message).
@@ -54,6 +76,8 @@ struct Media {
     std::optional<int> height;
     /// A signed, expiring, cookie-less link to the bytes ("/api/channel-media/<id>?exp=...&sig=..."); it takes byte ranges.
     std::string url;
+    /// Set for a private channel's media once its post was opened: the fields above then come from the ciphertext.
+    std::optional<MediaKey> secret;
 
     bool operator==(const Media&) const = default;
 };
@@ -69,6 +93,12 @@ struct Poll {
     int voters = 0;
     std::optional<int> correct;
     std::optional<std::string> explanation;
+    /**
+     * An encrypted quiz's answer, known to this device from the ciphertext
+     * but not shown (correct stays empty) until you've answered or it's closed.
+     */
+    std::optional<int> sealedCorrect;
+    std::optional<std::string> sealedExplanation;
 
     bool operator==(const Poll&) const = default;
 };
@@ -89,6 +119,46 @@ struct Checklist {
     bool operator==(const Checklist&) const = default;
 };
 
+/// A ciphertext under one epoch's content key (base64), as posts and suggestions carry it.
+struct SealedBody {
+    int keyEpoch = 0;
+    std::string nonce;
+    std::string ciphertext;
+
+    bool operator==(const SealedBody&) const = default;
+};
+
+/// What the server knows of an encrypted poll: counts per option index, never the texts.
+struct SealedPoll {
+    int optionCount = 0;
+    bool multiple = false;
+    bool quiz = false;
+    bool closed = false;
+    std::vector<int> counts;
+    int voters = 0;
+
+    bool operator==(const SealedPoll&) const = default;
+};
+
+struct SealedChecklist {
+    int itemCount = 0;
+    bool collaborative = false;
+    std::vector<bool> done;
+
+    bool operator==(const SealedChecklist&) const = default;
+};
+
+/// An encrypted post as the server has it.
+struct EncryptedPost {
+    SealedBody sealed;
+    /// "text", "poll", "checklist" or "media".
+    std::string kind;
+    std::optional<SealedPoll> poll;
+    std::optional<SealedChecklist> checklist;
+
+    bool operator==(const EncryptedPost&) const = default;
+};
+
 struct Post {
     std::string id;
     /// Formatted text (model/text_format.hpp); may be empty when the post is a photo, a poll and so on.
@@ -102,6 +172,10 @@ struct Post {
     std::optional<Poll> poll;
     std::optional<Checklist> checklist;
     std::vector<Media> media;
+    /// Set for an encrypted post (body is then "" and poll/checklist null until it's opened).
+    std::optional<EncryptedPost> encrypted;
+    /// An encrypted post this device couldn't open (no key for its epoch, or it doesn't decrypt).
+    bool locked = false;
 };
 
 /// What the owner posts: text, plus at most one of a poll (or quiz), a checklist or uploads.
@@ -151,6 +225,10 @@ struct StartedUpload {
 struct Suggestion {
     std::string id;
     std::string body;
+    /// A private channel's suggestion: its text and photos' keys are inside.
+    std::optional<SealedBody> encrypted;
+    /// Encrypted, and this device couldn't open it.
+    bool locked = false;
     /// "pending", "approved" or "rejected".
     std::string status;
     std::string createdAt;
@@ -158,8 +236,49 @@ struct Suggestion {
 };
 
 struct VoteResult {
+    /// For an encrypted poll only counts, closed, voters, multiple and quiz are filled; the texts come from the opened post.
     Poll poll;
     std::vector<int> mine;
+};
+
+/// One epoch's content key, wrapped under a link's wrapKey (base64, 72 bytes).
+struct WrappedKey {
+    int epoch = 0;
+    std::string wrapped;
+
+    bool operator==(const WrappedKey&) const = default;
+};
+
+struct KeySet {
+    std::optional<int> keyEpoch;
+    /// Sorted by epoch.
+    std::vector<WrappedKey> keys;
+};
+
+/// A private channel's post as sent: the ciphertext plus what the server must count (votes, ticks) and serve (media).
+struct NewEncryptedPost {
+    SealedBody sealed;
+    struct Poll {
+        int optionCount = 0;
+        bool multiple = false;
+        bool quiz = false;
+    };
+    std::optional<Poll> poll;
+    struct Checklist {
+        int itemCount = 0;
+        bool collaborative = false;
+    };
+    std::optional<Checklist> checklist;
+    /// Encrypted uploads (startEncryptedMedia), in order.
+    std::vector<std::string> media;
+    std::optional<std::string> publishAt;
+};
+
+/// After a visibility switch: posts still in the other format, oldest first.
+struct Conversion {
+    bool isPrivate = false;
+    std::optional<int> keyEpoch;
+    std::vector<Post> posts;
 };
 
 /// A page of the public directory and of a channel's posts.
@@ -220,8 +339,20 @@ Channel create(ApiClient& api, const std::string& name, const std::string& descr
 Channel update(ApiClient& api, const std::string& id, const std::string& name, const std::string& description);
 /// Public again: back in the directory, and the private link stops mattering.
 Channel setPublic(ApiClient& api, const std::string& id);
-/// Private, or a reset link: the new link's access token and its secret sealed to you. Anyone with an older link loses access.
-Channel setPrivate(ApiClient& api, const std::string& id, const std::string& access, const std::string& secretSealed);
+/**
+ * Private, a reset link, or an old private channel's upgrade: the new (or,
+ * for the upgrade, same) link's access token, its secret sealed to you, and
+ * every epoch's content key wrapped under the link's wrapKey (exactly epochs
+ * 1..n+1). Anyone with an older link loses access.
+ */
+Channel setPrivate(ApiClient& api, const std::string& id, const std::string& access, const std::string& secretSealed,
+                   const std::vector<WrappedKey>& keys);
+/// A private channel's wrapped keys: with its link's access token, no cookie.
+KeySet keys(ApiClient& api, const std::string& id, const std::string& access);
+/// Signed in: the owner (also while public), or anyone with a valid access token.
+KeySet ownKeys(ApiClient& api, const std::string& id, const std::optional<std::string>& access = std::nullopt);
+/// Owner: posts in the other format after a visibility switch, oldest first (published and scheduled).
+Conversion conversion(ApiClient& api, const std::string& id, int limit = 50);
 /// Owner: whether followers may suggest posts.
 Channel setAcceptSuggestions(ApiClient& api, const std::string& id, bool accept);
 /// `imageBase64` is a small square JPEG, as for profile photos.
@@ -234,6 +365,20 @@ void remove(ApiClient& api, const std::string& id);
 Post post(ApiClient& api, const std::string& id, const NewPost& post);
 /// Owner: a text-only post, now.
 Post post(ApiClient& api, const std::string& id, const std::string& body);
+/// Owner, private channel: an encrypted post, now or scheduled.
+Post post(ApiClient& api, const std::string& id, const NewEncryptedPost& post);
+/// Owner: an encrypted post edited (private channel), or a plain one converted after going private. publishAt must be empty.
+Post replacePost(ApiClient& api, const std::string& id, const std::string& postId, const NewEncryptedPost& post);
+/// Owner: an encrypted post left from before going public, as plain text. publishAt must be empty.
+Post replacePost(ApiClient& api, const std::string& id, const std::string& postId, const NewPost& post);
+/// Owner, private channel: starts an upload of an encrypted blob of `size` bytes.
+StartedUpload startEncryptedMedia(ApiClient& api, const std::string& id, std::int64_t size);
+/// A follower, private channel: an encrypted photo for a suggestion.
+StartedUpload startEncryptedSuggestionMedia(ApiClient& api, const std::string& id, std::int64_t size,
+                                            const std::optional<std::string>& access = std::nullopt);
+/// A started upload's bytes from memory (an encrypted blob).
+void uploadMediaBytes(ApiClient& api, const std::string& uploadUrl, const std::string& bytes,
+                      const std::function<void(std::int64_t)>& onProgress = {});
 /// Owner: starts an upload for a post; then send its bytes with uploadMedia().
 StartedUpload startMedia(ApiClient& api, const std::string& id, const UploadMeta& meta);
 /// A follower: starts uploading a photo for a suggested post.
@@ -260,12 +405,15 @@ VoteResult vote(ApiClient& api, const std::string& id, const std::string& postId
                 const std::optional<std::string>& access = std::nullopt);
 /// Owner: no more votes; a quiz's answer shows to everyone.
 Post closePoll(ApiClient& api, const std::string& id, const std::string& postId);
-/// The owner ticks items, and anyone who can read the channel when it's collaborative.
+/// The owner ticks items, and anyone who can read the channel when it's collaborative. An encrypted checklist answers with empty texts.
 Checklist setChecklistItem(ApiClient& api, const std::string& id, const std::string& postId, int index, bool done,
                            const std::optional<std::string>& access = std::nullopt);
 
 /// A follower: a suggested post (text and up to kMaxMediaPerSuggestion photos).
 Suggestion suggest(ApiClient& api, const std::string& id, const std::string& body, const std::vector<std::string>& media,
+                   const std::optional<std::string>& access = std::nullopt);
+/// A follower, private channel: an encrypted suggestion (newest epoch) with up to kMaxMediaPerSuggestion encrypted photos.
+Suggestion suggest(ApiClient& api, const std::string& id, const SealedBody& sealed, const std::vector<std::string>& media,
                    const std::optional<std::string>& access = std::nullopt);
 /// The suggestions you sent this channel, and what became of them.
 std::vector<Suggestion> mySuggestions(ApiClient& api, const std::string& id);
@@ -273,6 +421,9 @@ std::vector<Suggestion> mySuggestions(ApiClient& api, const std::string& id);
 std::vector<Suggestion> suggestions(ApiClient& api, const std::string& id);
 /// Owner: publishes a suggestion (its text possibly edited), now or at `publishAt`; it shows as the channel's, marked as suggested.
 Post approveSuggestion(ApiClient& api, const std::string& id, const std::string& suggestionId, const std::optional<std::string>& body,
+                       const std::optional<std::string>& publishAt);
+/// Owner, private channel: publishes a suggestion re-encrypted (`sealed`), or the follower's own ciphertext as it is (nullopt).
+Post approveSuggestionSealed(ApiClient& api, const std::string& id, const std::string& suggestionId, const std::optional<SealedBody>& sealed,
                        const std::optional<std::string>& publishAt);
 void rejectSuggestion(ApiClient& api, const std::string& id, const std::string& suggestionId);
 

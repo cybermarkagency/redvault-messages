@@ -1,0 +1,65 @@
+{
+ "comment": "Private channel E2EE (docs/signal-integration/10-part-c1-private-channels.md). All base64 is standard with padding except secretText (base64url, no padding, as in the link). Every client must reproduce wrapKey, accessToken, unwrap the key, decrypt the post, and refuse every case under failures.",
+ "channelId": "cccccccc-1111-4111-8111-111111111111",
+ "secretText": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+ "wrapKey": "kc9X9I0ml2ThSetySxjTGkUKzu9gffjeUJWPD06Md+s=",
+ "accessToken": "KQ5oUWp7EuQY/qlUwD5APFsYvK80h+szX5tNzQAxJlk=",
+ "epoch": 2,
+ "contentKey": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
+ "keyAd": "RVCHK|v1|cccccccc-1111-4111-8111-111111111111|2",
+ "wrapped": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnfcEi355cF9avrVbAl6gWJcfjhxrljj3ChiXZ3x2ovGJ4Oj+teKEUE6xChcI4d/ww",
+ "postAd": "RVCHP|v1|cccccccc-1111-4111-8111-111111111111|2",
+ "post": {
+  "keyEpoch": 2,
+  "nonce": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX",
+  "ciphertext": "gpgJc78yms1i0Y/xGpadF6JCF+1Na/+9b/m7e3YtiRFciZaUYz9JwjmF0pOn+QBPeyMXKyd84MlbXBvAJfcwFw++aAWmfW1S3HITbtO4WsCMW0iaythvBBZEoCXztxGyPCGjAR8lea+eU9c4cs8ttxKU6ZfIZftVD/taAA=="
+ },
+ "plaintext": "{\"v\":1,\"body\":\"Hello, **followers** 👋\",\"content\":{\"poll\":{\"question\":\"Next topic?\",\"options\":[\"A\",\"B\"]}}}",
+ "failures": [
+  {
+   "name": "the key for another channel",
+   "kind": "unwrap",
+   "channelId": "cccccccc-2222-4222-8222-222222222222",
+   "epoch": 2,
+   "wrapped": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnfcEi355cF9avrVbAl6gWJcfjhxrljj3ChiXZ3x2ovGJ4Oj+teKEUE6xChcI4d/ww"
+  },
+  {
+   "name": "the key under another epoch",
+   "kind": "unwrap",
+   "channelId": "cccccccc-1111-4111-8111-111111111111",
+   "epoch": 3,
+   "wrapped": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnfcEi355cF9avrVbAl6gWJcfjhxrljj3ChiXZ3x2ovGJ4Oj+teKEUE6xChcI4d/ww"
+  },
+  {
+   "name": "a wrapped key with a changed byte",
+   "kind": "unwrap",
+   "channelId": "cccccccc-1111-4111-8111-111111111111",
+   "epoch": 2,
+   "wrapped": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnfcEi355cFtavrVbAl6gWJcfjhxrljj3ChiXZ3x2ovGJ4Oj+teKEUE6xChcI4d/ww"
+  },
+  {
+   "name": "a post read as another channel's",
+   "kind": "post",
+   "channelId": "cccccccc-2222-4222-8222-222222222222",
+   "keyEpoch": 2,
+   "nonce": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX",
+   "ciphertext": "gpgJc78yms1i0Y/xGpadF6JCF+1Na/+9b/m7e3YtiRFciZaUYz9JwjmF0pOn+QBPeyMXKyd84MlbXBvAJfcwFw++aAWmfW1S3HITbtO4WsCMW0iaythvBBZEoCXztxGyPCGjAR8lea+eU9c4cs8ttxKU6ZfIZftVD/taAA=="
+  },
+  {
+   "name": "a post read under another epoch",
+   "kind": "post",
+   "channelId": "cccccccc-1111-4111-8111-111111111111",
+   "keyEpoch": 1,
+   "nonce": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX",
+   "ciphertext": "gpgJc78yms1i0Y/xGpadF6JCF+1Na/+9b/m7e3YtiRFciZaUYz9JwjmF0pOn+QBPeyMXKyd84MlbXBvAJfcwFw++aAWmfW1S3HITbtO4WsCMW0iaythvBBZEoCXztxGyPCGjAR8lea+eU9c4cs8ttxKU6ZfIZftVD/taAA=="
+  },
+  {
+   "name": "a post with a changed byte",
+   "kind": "post",
+   "channelId": "cccccccc-1111-4111-8111-111111111111",
+   "keyEpoch": 2,
+   "nonce": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX",
+   "ciphertext": "gpgJc78zms1i0Y/xGpadF6JCF+1Na/+9b/m7e3YtiRFciZaUYz9JwjmF0pOn+QBPeyMXKyd84MlbXBvAJfcwFw++aAWmfW1S3HITbtO4WsCMW0iaythvBBZEoCXztxGyPCGjAR8lea+eU9c4cs8ttxKU6ZfIZftVD/taAA=="
+  }
+ ]
+}

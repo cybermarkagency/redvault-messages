@@ -169,10 +169,12 @@ fun ThreadScreen(
     conversation: Conversation,
     error: String?,
     /**
-     * This chat is on device keys: what they can't carry yet (reply, forward, polls, pins, the disappearing timer,
-     * selecting several) is hidden, never offered over another protocol (07-step1 section 3).
+     * This chat is on device keys. Since part A (docs/signal-integration/08-part-a-chat-features.md) they carry replies,
+     * forwards, polls, pins, the disappearing timer and selecting several, so nothing is hidden for it any more.
      */
     deviceKeyChat: Boolean = false,
+    /** Device keys (part A): the ids of the messages now on screen, so "read" receipts can go out (if allowed). */
+    onMessagesOnScreen: (List<String>) -> Unit = {},
     /** A device-key note that isn't an error (M5): which protocol the chat uses, or messages waiting on the server. */
     deviceKeysNote: String? = null,
     onBack: () -> Unit,
@@ -322,6 +324,17 @@ fun ThreadScreen(
         if (mine || (beforeIndex >= 0 && listState.firstVisibleItemIndex <= beforeIndex)) listState.requestScrollToItem(0)
     }
     val pinned = remember(conversation.messages) { MessageFolding.pinnedFrom(conversation.messages) }
+    // Device keys (part A): which received messages are on screen, for "read" receipts. Rows are newest first.
+    val latestOnScreen by rememberUpdatedState(onMessagesOnScreen)
+    val latestMessages by rememberUpdatedState(conversation.messages)
+    LaunchedEffect(listState, conversation.id) {
+        androidx.compose.runtime.snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.key } }
+            .collect { keys ->
+                val onScreen = keys.mapNotNull { key -> latestMessages.firstOrNull { it.id == key } }
+                val ids = onScreen.filter { it.v3 && !it.fromMe && !it.deleted }.map { it.id }
+                if (ids.isNotEmpty()) latestOnScreen(ids)
+            }
+    }
     // Only a group's members can be mentioned.
     val memberHandles = if (conversation.isGroup) conversation.meta.members.map { it.handle } else emptyList()
     val mentionCandidates = if (conversation.isGroup) conversation.meta.members.filter { !it.isSelf }.map { it.handle } else emptyList()
@@ -515,7 +528,7 @@ fun ThreadScreen(
                         if (conversation.meta.community == null || onOpenCommunity != null) {
                             TextButton(onClick = onOpenCommunity ?: onOpenGroupInfo) { Text(stringResource(R.string.ui_info)) }
                         }
-                        GroupThreadMenu(onSearch = { searchOpen = true }, onSelect = if (deviceKeyChat) null else ({ selecting = true }))
+                        GroupThreadMenu(onSearch = { searchOpen = true }, onSelect = { selecting = true })
                         return@TopAppBar
                     }
                     if (onCall != null && !blocked) {
@@ -531,7 +544,7 @@ fun ThreadScreen(
                         onChatDetails = onOpenChatDetails,
                         onSharedMedia = onOpenSharedMedia,
                         onSearch = { searchOpen = true },
-                        onSelect = if (deviceKeyChat) null else ({ selecting = true }),
+                        onSelect = { selecting = true },
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg),
@@ -567,7 +580,7 @@ fun ThreadScreen(
                 editing = editing,
                 onCancelEdit = { editing = null },
                 mentionCandidates = mentionCandidates,
-                onStartPoll = if (deviceKeyChat) null else ({ creatingPoll = true }),
+                onStartPoll = { creatingPoll = true },
                 onTyping = onTyping,
                 initialDraft = initialDraft,
                 onDraftChange = onDraftChange,
@@ -593,6 +606,8 @@ fun ThreadScreen(
             }
             error?.let { ErrorBanner(it) }
             deviceKeysNote?.let { Banner(text = it) }
+            // Part C2: the server keeps no community history; what came before this member or device joined isn't here.
+            com.redvaultsystems.redvaultmessage.devicekeys.beforeYouJoinedNotice(community != null)?.let { Banner(text = it) }
             torNotice?.let { Banner(text = it) }
             if (blocked) {
                 Banner(
@@ -631,9 +646,9 @@ fun ThreadScreen(
                     text = "A message here will be permanently deleted on ${TimeFormat.longDate(earliestDeleteAt)}.",
                 )
             }
-            // The timer is this user's own, for what they send: a channel's readers send nothing.
-            // On device keys the timer shows only while it's on, so it can be turned off (device keys won't send with it).
-            if (!readOnly && (!deviceKeyChat || conversation.disappearing != Disappearing.Off)) DisappearingRow(conversation.disappearing, onSetDisappearing)
+            // The timer is this user's own, for what they send: a channel's readers send nothing. On device keys each
+            // message carries it (part A).
+            if (!readOnly) DisappearingRow(conversation.disappearing, onSetDisappearing)
             if (pinned.isNotEmpty()) PinnedBar(pinned, onJump = ::jumpTo, onUnpin = onUnpin)
 
             LazyColumn(
@@ -769,7 +784,7 @@ fun ThreadScreen(
             } else {
                 null
             },
-            onForward = if (!deviceKeyChat && MessageSelection.canForward(message)) {
+            onForward = if (MessageSelection.canForward(message)) {
                 {
                     forwarding = listOf(message)
                     actionsFor = null
@@ -789,7 +804,7 @@ fun ThreadScreen(
                     actionsFor = null
                 }
             },
-            onSelect = if (!deviceKeyChat && MessageSelection.selectable(message)) {
+            onSelect = if (MessageSelection.selectable(message)) {
                 {
                     selecting = true
                     selected = setOf(message.id)
@@ -813,7 +828,6 @@ fun ThreadScreen(
             },
             onDismiss = { actionsFor = null },
             canPost = !readOnly,
-            deviceKeyChat = deviceKeyChat,
             onReport = if (onReportCommunityMessage != null && !message.fromMe && !message.v3) {
                 {
                     reportingMessage = message
@@ -1460,8 +1474,6 @@ private fun MessageActionsDialog(
     onDismiss: () -> Unit,
     /** False in a channel this user only reads: reacting, replying and pinning would all be posts. */
     canPost: Boolean = true,
-    /** The chat is on device keys: no replies or pins in it yet (step 2). */
-    deviceKeyChat: Boolean = false,
     /** Communities: report this message (null elsewhere, and for your own). */
     onReport: (() -> Unit)? = null,
     /** Text messages only: copy all of it, or open it to select part of it. */
@@ -1471,16 +1483,15 @@ private fun MessageActionsDialog(
     onSelect: (() -> Unit)? = null,
 ) {
     val colors = RedvaultTheme.colors
-    // Device-key messages have no replies, pins or "delete for me" yet, as on the web.
     val actions = buildList {
-        if (canPost && !message.v3 && !deviceKeyChat) add(SheetAction("Reply", R.drawable.ui_arrow_down_left, onClick = onReply))
+        if (canPost) add(SheetAction("Reply", R.drawable.ui_arrow_down_left, onClick = onReply))
         onEdit?.let { add(SheetAction("Edit", R.drawable.ui_pen, onClick = it)) }
         onCopyText?.let { add(SheetAction("Copy text", R.drawable.ui_copy, onClick = it)) }
         onSelectText?.let { add(SheetAction("Select text", R.drawable.ui_note, onClick = it)) }
         onForward?.let { add(SheetAction("Forward", R.drawable.ui_share, onClick = it)) }
-        if (canPost && !message.v3 && !deviceKeyChat) add(SheetAction(if (pinned) "Unpin" else "Pin", R.drawable.ui_star, onClick = onTogglePin))
+        if (canPost) add(SheetAction(if (pinned) "Unpin" else "Pin", R.drawable.ui_star, onClick = onTogglePin))
         onSelect?.let { add(SheetAction("Select", R.drawable.ui_check, onClick = it)) }
-        if (!message.v3) add(SheetAction("Delete for me", R.drawable.ui_trash, onClick = onDeleteForMe))
+        add(SheetAction("Delete for me", R.drawable.ui_trash, onClick = onDeleteForMe))
         if (message.fromMe) add(SheetAction("Delete for everyone", R.drawable.ui_trash, danger = true, onClick = onDeleteForEveryone))
         onReport?.let { add(SheetAction("Report", R.drawable.ui_flag, danger = true, onClick = it)) }
     }
@@ -1926,12 +1937,16 @@ private fun PollCard(poll: PollView, foreground: Color, meta: Color, onVote: (Li
 private fun SecurityPanel(message: Message, muted: Color, foreground: Color, onOpenDetails: () -> Unit) {
     val verification = message.security?.verification
     if (message.v3) {
-        // Per-device keys: there is no public transaction record, delivery or read receipt for these yet, so nothing
-        // here pretends otherwise.
+        // Per-device keys: no public transaction record. Delivered and read come from the receipts the others'
+        // devices sent back, end-to-end encrypted like the messages (part A).
         Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(stringResource(R.string.ui_message_security), color = muted, style = MaterialTheme.typography.labelSmall)
             SecurityRow(if (message.fromMe) "Encrypted on this phone, for each device" else "Decrypted on this phone", SecurityMark.Done, foreground)
-            if (message.fromMe) SecurityRow("Relayed as ciphertext", if (message.queued) SecurityMark.Failed else SecurityMark.Done, foreground)
+            if (message.fromMe) {
+                SecurityRow("Relayed as ciphertext", if (message.queued) SecurityMark.Failed else SecurityMark.Done, foreground)
+                SecurityRow(if (message.receiptsFrom > 1) "Delivered to ${message.receiptsFrom}" else "Delivered", if (message.delivered) SecurityMark.Done else SecurityMark.Pending, foreground)
+                SecurityRow(if (message.readBy > 1) "Read by ${message.readBy}" else "Read", if (message.seen) SecurityMark.Done else SecurityMark.Pending, foreground)
+            }
             Text(
                 stringResource(R.string.ui_sent_with_per_device_keys_the),
                 color = muted,

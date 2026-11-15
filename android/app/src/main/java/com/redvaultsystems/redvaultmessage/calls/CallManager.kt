@@ -25,6 +25,11 @@ import com.redvaultsystems.redvaultmessage.data.api.StartedCallDto
 import com.redvaultsystems.redvaultmessage.data.api.UserResult
 import com.redvaultsystems.redvaultmessage.data.api.apiCall
 import com.redvaultsystems.redvaultmessage.data.model.Conversation
+import com.redvaultsystems.redvaultmessage.devicekeys.CallMessage
+import com.redvaultsystems.redvaultmessage.devicekeys.EngineException
+import com.redvaultsystems.redvaultmessage.devicekeys.ExpectedCallMessage
+import com.redvaultsystems.redvaultmessage.devicekeys.IncomingCallEnvelope
+import com.redvaultsystems.redvaultmessage.devicekeys.refuseCall
 import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
 import com.redvaultsystems.redvaultmessage.ui.live.LiveSession
 import kotlinx.coroutines.CancellationException
@@ -138,6 +143,11 @@ class CallManager(
     private val echoCancellation: () -> Boolean = { true },
     /** A group call is on (nobody is in two calls at once). */
     private val groupCallBusy: () -> Boolean = { false },
+    /**
+     * Part B: in a chat on device keys the offer and answer travel as device-key messages
+     * (docs/signal-integration/09-part-b-calls.md). Null in a build or session without device keys.
+     */
+    private val deviceKeys: DeviceKeyCallCarrier? = null,
     private val onSessionExpired: () -> Unit,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -185,7 +195,17 @@ class CallManager(
         var renewJob: Job? = null
         /** The newest ICE restart accepted (its sentAt), so a replayed one is ignored. */
         var lastRestartAt = 0L
+        /** Part B: this call's offer and answer go over device keys (decided once; never mixed with protocol 1). */
+        var deviceKeys = false
+        /** Part B: the other person's one device this call is with (the offering one, or the one that answered). */
+        var peerDeviceId: String? = null
+        /** Waiting for a call message from the mailbox (the answer). */
+        var setupJob: Job? = null
     }
+
+    /** Part B: an incoming call on device keys whose offer is still being read from the mailbox (its call id). */
+    private var awaitingOffer: String? = null
+    private var awaitingOfferJob: Job? = null
 
     init {
         scope.launch { live.events.collect { handleEvent(it) } }
@@ -292,6 +312,9 @@ class CallManager(
         CallForegroundService.update(context, video = cameraOn, screen = false)
         warmNetwork()
         try {
+            // The chat's own rule decides (step 1): a chat on device keys has its calls on them too. Never links.
+            s.deviceKeys = s.linkId == null && deviceKeys?.usesDeviceKeys(s.conversationId!!, s.peerUserId) == true
+            if (s.closed) return
             val reserved = reserve()
             if (s.closed) {
                 runCatching { apiCall(ApiClient.json) { api.hangUp(reserved.callId) } }
@@ -314,17 +337,25 @@ class CallManager(
             pc.setLocalAsync(offer)
             val sdp = localSdp(s, pc)
             if (s.closed) return
-            val signal = CallSignal(
-                type = "offer",
-                callId = reserved.callId,
-                conversationId = s.linkId?.let { "link:$it" } ?: s.conversationId!!,
-                from = identity.userId,
-                to = s.peerUserId,
-                kind = s.kind,
-                sdp = sdp,
-                sentAt = System.currentTimeMillis(),
-            )
-            apiCall(ApiClient.json) { api.offer(reserved.callId, seal(s, signal)) }
+            if (s.deviceKeys) {
+                // To every device of the callee (not this account's other devices), then the marker that rings them.
+                val offer = CallMessage(reserved.callId.lowercase(), CallMessage.OFFER, s.kind, sdp, CallMessage.EVERY_DEVICE)
+                deviceKeys!!.sendCall(s.conversationId!!, s.peerUserId, offer, null)
+                if (s.closed) return
+                apiCall(ApiClient.json) { api.offerCarrier(reserved.callId, DEVICE_KEYS_MARKER) }
+            } else {
+                val signal = CallSignal(
+                    type = "offer",
+                    callId = reserved.callId,
+                    conversationId = s.linkId?.let { "link:$it" } ?: s.conversationId!!,
+                    from = identity.userId,
+                    to = s.peerUserId,
+                    kind = s.kind,
+                    sdp = sdp,
+                    sentAt = System.currentTimeMillis(),
+                )
+                apiCall(ApiClient.json) { api.offer(reserved.callId, seal(s, signal)) }
+            }
             if (!s.closed) audio.ringback()
         } catch (e: CancellationException) {
             throw e
@@ -370,17 +401,25 @@ class CallManager(
                 pc.setLocalAsync(answer)
                 val sdp = localSdp(s, pc)
                 if (s.closed) return@launch
-                val signal = CallSignal(
-                    type = "answer",
-                    callId = callId,
-                    conversationId = s.linkId?.let { "link:$it" } ?: s.conversationId!!,
-                    from = identity.userId,
-                    to = s.peerUserId,
-                    kind = s.kind,
-                    sdp = sdp,
-                    sentAt = System.currentTimeMillis(),
-                )
-                apiCall(ApiClient.json) { api.answer(callId, seal(s, signal)) }
+                if (s.deviceKeys) {
+                    // Only to the caller's device that sent the offer, then the marker that connects the call.
+                    val device = s.peerDeviceId!!
+                    deviceKeys!!.sendCall(s.conversationId!!, s.peerUserId, CallMessage(callId.lowercase(), CallMessage.ANSWER, s.kind, sdp, device), device)
+                    if (s.closed) return@launch
+                    apiCall(ApiClient.json) { api.answerCarrier(callId, DEVICE_KEYS_MARKER) }
+                } else {
+                    val signal = CallSignal(
+                        type = "answer",
+                        callId = callId,
+                        conversationId = s.linkId?.let { "link:$it" } ?: s.conversationId!!,
+                        from = identity.userId,
+                        to = s.peerUserId,
+                        kind = s.kind,
+                        sdp = sdp,
+                        sentAt = System.currentTimeMillis(),
+                    )
+                    apiCall(ApiClient.json) { api.answer(callId, seal(s, signal)) }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: RelayUnreachable) {
@@ -420,6 +459,7 @@ class CallManager(
             s.closed = true
             s.disconnectJob?.cancel()
             s.renewJob?.cancel()
+            s.setupJob?.cancel()
             s.remoteTrack?.let { track -> remoteSinks.forEach { runCatching { track.removeSink(it) } } }
             s.remoteTrack = null
             runCatching { s.pc?.dispose() }
@@ -691,7 +731,7 @@ class CallManager(
             pc.setLocalAsync(pc.createOfferAsync(iceRestart = true))
             val sdp = localSdp(s, pc)
             if (s.closed) return
-            apiCall(ApiClient.json) { api.signal(callId, seal(s, restartSignal(s, callId, "restart-offer", sdp))) }
+            sendRestart(s, callId, CallMessage.RESTART_OFFER, sdp)
             scheduleRenewal(s)
         } catch (e: CancellationException) {
             throw e
@@ -715,9 +755,20 @@ class CallManager(
         sentAt = System.currentTimeMillis(),
     )
 
+    /** Sends our half of an ICE restart: sealed (protocol 1), or as a device-key message to the one device this call is with. */
+    private suspend fun sendRestart(s: Session, callId: String, type: String, sdp: String) {
+        if (s.deviceKeys) {
+            val device = s.peerDeviceId ?: throw IllegalStateException("No device to restart with")
+            deviceKeys!!.sendCall(s.conversationId!!, s.peerUserId, CallMessage(callId.lowercase(), type, s.kind, sdp, device), device)
+            apiCall(ApiClient.json) { api.signalCarrier(callId, DEVICE_KEYS_MARKER) }
+        } else {
+            apiCall(ApiClient.json) { api.signal(callId, seal(s, restartSignal(s, callId, type, sdp))) }
+        }
+    }
+
     /** An ICE restart from the other side (callee: their restart offer; caller: the answer to ours). */
     private suspend fun handleRestart(s: Session, sealed: SealedSignal) {
-        val pc = s.pc ?: return
+        if (s.deviceKeys) return // never mixed: this call's restarts come through the mailbox
         val callId = s.callId ?: return
         val type = if (s.direction == "incoming") "restart-offer" else "restart-answer"
         val signal = try {
@@ -727,13 +778,33 @@ class CallManager(
         } catch (e: Exception) {
             return // not from them, not for this call, or too old: ignored
         }
-        if (signal.sentAt <= s.lastRestartAt) return
+        applyRestart(s, callId, type, signal.sdp, signal.sentAt)
+    }
+
+    /** Part B: the live channel says a restart step is in the mailbox; it's taken only from the device this call is with. */
+    private fun handleDeviceKeyRestart(s: Session) {
+        val carrier = deviceKeys ?: return
+        val callId = s.callId ?: return
+        val peerDevice = s.peerDeviceId
+        if (!s.deviceKeys || peerDevice == null) return
+        val type = if (s.direction == "incoming") CallMessage.RESTART_OFFER else CallMessage.RESTART_ANSWER
+        scope.launch {
+            val expected = ExpectedCallMessage(callId.lowercase(), s.conversationId.orEmpty(), s.peerUserId, type, s.kind, peerDevice)
+            val envelope = awaitCallMessage(carrier, expected) ?: return@launch // the call carries on over the current relay
+            if (s.closed || session !== s) return@launch
+            applyRestart(s, callId, type, envelope.call!!.sdp, envelope.ts)
+        }
+    }
+
+    private suspend fun applyRestart(s: Session, callId: String, type: String, remoteSdp: String, sentAt: Long) {
+        val pc = s.pc ?: return
+        if (sentAt <= s.lastRestartAt) return
         // The DTLS identity (what the safety words are made of) must not change mid-call.
-        if (CallCrypto.sdpFingerprint(signal.sdp) != CallCrypto.sdpFingerprint(pc.remoteDescription?.description)) return
-        s.lastRestartAt = signal.sentAt
+        if (CallCrypto.sdpFingerprint(remoteSdp) != CallCrypto.sdpFingerprint(pc.remoteDescription?.description)) return
+        s.lastRestartAt = sentAt
         try {
             if (type == "restart-answer") {
-                pc.setRemoteAsync(SessionDescription(SessionDescription.Type.ANSWER, signal.sdp))
+                pc.setRemoteAsync(SessionDescription(SessionDescription.Type.ANSWER, remoteSdp))
                 return
             }
             // This side gets fresh credentials too, so both relays' allocations outlive the old ones.
@@ -741,11 +812,11 @@ class CallManager(
             s.iceServers = fresh.iceServers
             pc.setConfiguration(rtcConfig(fresh.iceServers))
             s.gathered = CompletableDeferred()
-            pc.setRemoteAsync(SessionDescription(SessionDescription.Type.OFFER, signal.sdp))
+            pc.setRemoteAsync(SessionDescription(SessionDescription.Type.OFFER, remoteSdp))
             pc.setLocalAsync(pc.createAnswerAsync())
             val sdp = localSdp(s, pc)
             if (s.closed) return
-            apiCall(ApiClient.json) { api.signal(callId, seal(s, restartSignal(s, callId, "restart-answer", sdp))) }
+            sendRestart(s, callId, CallMessage.RESTART_ANSWER, sdp)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -772,8 +843,14 @@ class CallManager(
         val type = event.str("type")
         val s = session
         if (type == "incoming") {
-            if (s != null || groupCallBusy()) return // the server doesn't ring someone who's on a call
+            if (s != null || groupCallBusy() || awaitingOffer != null) return // the server doesn't ring someone who's on a call
             incoming(event)
+            return
+        }
+        if (type == "ended" && awaitingOffer != null && awaitingOffer == event.str("callId").lowercase()) {
+            // Hung up (or missed) while its offer was still being read: nothing rings.
+            awaitingOfferJob?.cancel()
+            awaitingOffer = null
             return
         }
         if (s == null || s.callId != event.str("callId")) return
@@ -782,6 +859,10 @@ class CallManager(
                 if (s.direction != "outgoing" || s.pc == null) return
                 audio.stopTones()
                 patch { it.copy(phase = CallPhase.Connecting) }
+                val marked = isDeviceKeysMarker(event["answer"])
+                // Never mixed within one call: an answer on the other path than the offer is refused.
+                if (marked != s.deviceKeys) return fail(s, "Couldn't connect the call.")
+                if (marked) return answeredOverDeviceKeys(s)
                 try {
                     val sealed = sealedOf(event["answer"]) ?: throw CallSignalException("Malformed call setup.")
                     val expected = CallCrypto.Expected("answer", s.callId!!, s.conversationId.orEmpty(), s.peerUserId, identity.userId, s.kind)
@@ -794,7 +875,7 @@ class CallManager(
                     fail(s, "Couldn't connect the call.")
                 }
             }
-            "signal" -> handleRestart(s, sealedOf(event["signal"]) ?: return)
+            "signal" -> if (isDeviceKeysMarker(event["signal"])) handleDeviceKeyRestart(s) else handleRestart(s, sealedOf(event["signal"]) ?: return)
             "screen" -> patch { it.copy(remoteSharing = (event["on"] as? JsonPrimitive)?.content == "true") }
             "ended" -> {
                 val reason = event.str("reason")
@@ -820,7 +901,8 @@ class CallManager(
         val callId = event.str("callId")
         val callerId = event.str("callerId")
         val kind = if (event.str("kind") == "video") "video" else "voice"
-        val sealed = sealedOf(event["offer"]) ?: return
+        val marked = isDeviceKeysMarker(event["offer"])
+        val sealed = if (marked) null else sealedOf(event["offer"]) ?: return
         val iceServers = (event["iceServers"] as? JsonArray)?.mapNotNull {
             runCatching { ApiClient.json.decodeFromJsonElement<IceServerDto>(it) }.getOrNull()
         }.orEmpty()
@@ -828,6 +910,8 @@ class CallManager(
 
         val linkId = event.str("linkId")
         if (linkId.isNotEmpty()) {
+            // Call links never use device keys: their offer is sealed with the link's secret.
+            if (sealed == null) return
             // Someone opened one of your call links.
             if (!state.value.linksLoaded) refreshLinksNow()
             val link = state.value.links.firstOrNull { it.id == linkId }
@@ -848,6 +932,13 @@ class CallManager(
         val contact = findContact(conversationId, callerId) ?: return
         if (session != null) return
         val view = CallView(contact.id, null, null, callerId, contact.handle, contact.avatarUrl, kind, "incoming", CallPhase.Incoming)
+        if (sealed == null) return incomingOverDeviceKeys(callId, contact, callerId, kind, iceServers, view)
+        // No way back (step 1): a chat on device keys never takes a sealed protocol-1 offer, even one that opens
+        // with the contact's legacy key. It's declined before anything is opened.
+        if (refuseOlderOffer(markedForDeviceKeys = false, chatOnDeviceKeys = deviceKeys?.chatOnDeviceKeys(contact.id) == true)) {
+            runCatching { apiCall(ApiClient.json) { api.decline(callId) } }
+            return showBlocked(view, OLDER_WAY_REFUSED)
+        }
         val offer = try {
             crypto.open(sealed, contact.meta.otherPublicKey, identity.privateKey, CallCrypto.Expected("offer", callId, contact.id, callerId, identity.userId, kind))
         } catch (e: CallSignalException) {
@@ -856,6 +947,66 @@ class CallManager(
             return showBlocked(view, "Blocked a call that couldn't be verified as coming from ${contact.handle}'s key.")
         }
         ring(Session(callId, contact.id, null, null, null, callerId, contact.handle, contact.meta.otherPublicKey, kind, "incoming", iceServers, offer.sdp), view)
+    }
+
+    /**
+     * Part B step 3: the call's offer is in the mailbox. It's read straight away and rings only once it has been
+     * decrypted and checked (this call, this chat, from the caller, for this device, at most 120 s old); with no such
+     * offer within 20 s the call shows as failed. Runs beside the live channel, so an "ended" can stop it.
+     */
+    private fun incomingOverDeviceKeys(callId: String, contact: Conversation, callerId: String, kind: String, iceServers: List<IceServerDto>, view: CallView) {
+        val carrier = deviceKeys ?: return showBlocked(view, "A call from ${contact.handle} uses device keys, which aren't available on this phone right now.")
+        val id = callId.lowercase()
+        awaitingOffer = id
+        awaitingOfferJob = scope.launch {
+            val envelope = try {
+                awaitCallMessage(carrier, ExpectedCallMessage(id, contact.id, callerId, CallMessage.OFFER, kind))
+            } finally {
+                if (awaitingOffer == id) awaitingOffer = null
+            }
+            if (envelope == null) return@launch showBlocked(view, "A call from ${contact.handle} failed: its encrypted setup didn't arrive.")
+            if (session != null || groupCallBusy()) return@launch
+            val s = Session(callId, contact.id, null, null, null, callerId, contact.handle, contact.meta.otherPublicKey, kind, "incoming", iceServers, envelope.call!!.sdp)
+            s.deviceKeys = true
+            s.peerDeviceId = envelope.senderDeviceId
+            ring(s, view)
+        }
+    }
+
+    /** Part B step 4 (caller): the answer is in the mailbox, from whichever of the callee's devices answered. */
+    private fun answeredOverDeviceKeys(s: Session) {
+        val carrier = deviceKeys ?: return fail(s, "Couldn't connect the call.")
+        val callId = s.callId ?: return
+        s.setupJob?.cancel()
+        s.setupJob = scope.launch {
+            val envelope = awaitCallMessage(carrier, ExpectedCallMessage(callId.lowercase(), s.conversationId.orEmpty(), s.peerUserId, CallMessage.ANSWER, s.kind))
+            if (s.closed || session !== s) return@launch
+            if (envelope == null) return@launch fail(s, "Couldn't connect the call: the encrypted answer didn't arrive.")
+            // From now on only this device's restarts count; another device's late answer is refused.
+            s.peerDeviceId = envelope.senderDeviceId
+            try {
+                s.pc!!.setRemoteAsync(SessionDescription(SessionDescription.Type.ANSWER, envelope.call!!.sdp))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                fail(s, "Couldn't connect the call.")
+            }
+        }
+    }
+
+    /**
+     * Reads the mailbox now and waits up to [CALL_MESSAGE_WAIT_MS] for a call message that passes [refuseCall] against
+     * [expected]. Ones that don't (another sender, chat or device, too old) are dropped unused, and the wait goes on.
+     */
+    private suspend fun awaitCallMessage(carrier: DeviceKeyCallCarrier, expected: ExpectedCallMessage): IncomingCallEnvelope? {
+        val deadline = System.currentTimeMillis() + CALL_MESSAGE_WAIT_MS
+        scope.launch { carrier.readMailbox() }
+        while (true) {
+            val left = deadline - System.currentTimeMillis()
+            if (left <= 0) return null
+            val envelope = carrier.envelopes.await(left) { it.call?.callId == expected.callId && it.call.step == expected.step } ?: return null
+            if (refuseCall(envelope, expected, System.currentTimeMillis()) == null) return envelope
+        }
     }
 
     private fun ring(s: Session, view: CallView) {
@@ -1006,6 +1157,8 @@ class CallManager(
 
     private fun describe(e: Exception, fallback: String): String = when (e) {
         is ApiException -> e.message ?: fallback
+        // Device keys' refusals are written to be shown ("...has none listed. Nothing was sent."); never content.
+        is EngineException -> if (e.code == "call_send_timeout") "Couldn't reach the server in time. Try again." else e.message ?: fallback
         is CallSignalException -> e.message ?: fallback
         else -> fallback
     }

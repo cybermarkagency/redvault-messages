@@ -59,6 +59,15 @@ Item {
     signal audioLoadRequested(string messageId)
     // A spoiler in this message was clicked: show them all.
     property bool spoilersShown: false
+    // A voice message (device-key chats: decrypted in memory, played here). Off for everything else.
+    property bool voice: false
+    property bool voiceActive: false
+    property bool voicePlaying: false
+    property real voicePosition: 0
+    property real voiceDuration: 0
+    signal voiceToggled(string messageId)
+    // A queued message that can be dropped here (Discard); a device-key one already encrypted can't.
+    property bool discardable: true
 
     /// The current search match: outlined, with the matching words selected.
     property bool highlighted: false
@@ -537,6 +546,36 @@ Item {
                         }
                     }
 
+                    // A voice message: play / pause, and how far along it is.
+                    RowLayout {
+                        visible: root.voice
+                        spacing: 8
+                        RvButton {
+                            iconName: root.voicePlaying ? "pause" : "play"
+                            implicitWidth: 36
+                            implicitHeight: 32
+                            Accessible.name: root.voicePlaying ? "Pause" : "Play"
+                            onClicked: root.voiceToggled(root.messageId)
+                        }
+                        ProgressBar {
+                            Layout.preferredWidth: 140
+                            from: 0
+                            to: Math.max(1, root.voiceDuration)
+                            value: root.voicePosition
+                        }
+                        Text {
+                            function clock(ms) {
+                                const total = Math.floor(ms / 1000)
+                                return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0")
+                            }
+                            text: root.voiceActive && root.voiceDuration > 0 ? clock(root.voicePosition) + " / " + clock(root.voiceDuration) : "Voice message"
+                            textFormat: Text.PlainText
+                            color: bubble.inkSoft
+                            font.pixelSize: Theme.fontSmall
+                        }
+                    }
+
+
                     // A voice message (or other audio): played right here.
                     VoicePlayer {
                         visible: root.isAudio
@@ -685,8 +724,8 @@ Item {
                             TapHandler { onTapped: root.retryQueuedRequested(root.messageId) }
                         }
                         Text {
-                            visible: root.fromMe && root.status === "queued"
-                            text: qsTr("Discard")
+                            visible: root.fromMe && root.status === "queued" && root.discardable
+                            text: "Discard"
                             color: bubble.inkSoft
                             font.pixelSize: 11
                             font.underline: true

@@ -11,6 +11,8 @@
 #include "redvault/api/api_error.hpp"
 #include <sodium.h>
 
+#include "batches.hpp"
+#include "redvault/e2ev3/send_queue.hpp"
 #include "redvault/crypto/base64.hpp"
 
 namespace redvault::e2ev3 {
@@ -93,6 +95,13 @@ Json V3Device::op(const std::string& op, const Json& fields) {
 
 Json V3Device::must(const std::string& opName, const Json& fields) {
     return requireOk(op(opName, fields), opName);
+}
+
+Json V3Device::peek(const std::string& opName, const Json& fields) {
+    std::lock_guard lock(mutex_);
+    Json request = {{"op", opName}, {"state", state_}, {"pickleKey", storageKey_}};
+    for (auto it = fields.begin(); it != fields.end(); ++it) request[it.key()] = it.value();
+    return requireOk(runEngine(request), opName);
 }
 
 Json V3Device::identity() {
@@ -352,6 +361,17 @@ int sendText(V3Device& device, const std::string& conversationId, const std::str
     for (const Json& d : verifiedDevices(device, device.userId()).devices) {
         if (d.value("deviceId", std::string()) != device.deviceId()) recipients.push_back(d);
     }
+    return sendToDevices(device, conversationId, recipients, text, unreachable);
+}
+
+int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,
+                  int* unreachable) {
+    return sendToDevices(device, conversationId, recipients, text, unreachable, FanOut{});
+}
+
+int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,
+                  int* unreachable, const FanOut& fanOut) {
+    if (recipients.empty()) return 0;
     const Json first = device.must("encryptMany", Json{{"plaintext", text}, {"recipients", [&] {
                                                          Json list = Json::array();
                                                          for (const Json& d : recipients) list.push_back(Json{{"identity", d}});
@@ -373,10 +393,35 @@ int sendText(V3Device& device, const std::string& conversationId, const std::str
             for (std::size_t i : which) out.push_back({{"userId", recipients[i].at("userId")}, {"deviceId", recipients[i].at("deviceId")}});
             return out;
         };
+        // Claims name a conversation both share: the message's own, or (Part D) the one `claimVia` names for that account.
+        const auto claimedFor = [&](const std::vector<std::size_t>& which, const auto& claim) {
+            std::map<std::string, std::vector<std::size_t>> byConversation;
+            for (std::size_t k = 0; k < which.size(); ++k) {
+                std::string via = fanOut.claimVia ? fanOut.claimVia(stringOr(recipients[which[k]], "userId")) : std::string();
+                byConversation[via.empty() ? conversationId : via].push_back(k);
+            }
+            std::vector<Json> out(which.size());
+            for (const auto& [via, ks] : byConversation) {
+                std::vector<std::size_t> subset;
+                for (std::size_t k : ks) subset.push_back(which[k]);
+                Json answers;
+                try {
+                    answers = detail::claimInBatches(ask(subset), [&](const Json& b) { return claim(via, b); });
+                } catch (const api::ApiError& error) {
+                    // Part D: no conversation to claim through for these accounts. Those devices get nothing this time.
+                    if (!fanOut.claimVia || error.status() != 404) throw;
+                    for (std::size_t i = 0; i < ks.size(); ++i) out[ks[i]] = Json::object();
+                    continue;
+                }
+                for (std::size_t i = 0; i < ks.size(); ++i) out[ks[i]] = answers.at(i);
+            }
+            return out;
+        };
         Json retryList = Json::array();
         std::vector<std::size_t> order;
         if (!needOlm.empty()) {
-            const Json claimed = device.server().claimKeys(conversationId, ask(needOlm));
+            const std::vector<Json> claimed =
+                claimedFor(needOlm, [&](const std::string& via, const Json& b) { return device.server().claimKeys(via, b); });
             for (std::size_t k = 0; k < needOlm.size(); ++k) {
                 Json entry = {{"identity", recipients[needOlm[k]]}};
                 const Json& c = claimed.at(k);
@@ -387,7 +432,8 @@ int sendText(V3Device& device, const std::string& conversationId, const std::str
             }
         }
         if (!needSignal.empty()) {
-            const Json claimed = device.server().signalClaim(conversationId, ask(needSignal));
+            const std::vector<Json> claimed =
+                claimedFor(needSignal, [&](const std::string& via, const Json& b) { return device.server().signalClaim(via, b); });
             for (std::size_t k = 0; k < needSignal.size(); ++k) {
                 const Json& c = claimed.at(k);
                 retryList.push_back(Json{{"identity", recipients[needSignal[k]]},
@@ -408,7 +454,20 @@ int sendText(V3Device& device, const std::string& conversationId, const std::str
         if (!r.contains("message") || r.at("message").is_null()) continue;
         delivered.push_back({{"userId", r.at("userId")}, {"deviceId", r.at("deviceId")}, {"body", r.at("message").dump()}});
     }
-    if (!delivered.empty()) device.server().sendMessages(device.deviceId(), conversationId, delivered);
+    const auto note = [&] {
+        if (!fanOut.delivered) return;
+        for (const Json& m : delivered) fanOut.delivered->push_back(m.at("userId").get<std::string>() + "/" + m.at("deviceId").get<std::string>());
+    };
+    // At most 100 devices per request, in order (a large community's receipts or call keys).
+    if (!delivered.empty()) {
+        try {
+            detail::sendInBatches(delivered, [&](const Json& batch) { device.server().sendMessages(device.deviceId(), conversationId, batch); });
+        } catch (const SendQueued&) {
+            note();  // every copy waits, encrypted, in the Tor queue: none is made again
+            throw;
+        }
+    }
+    note();
     return static_cast<int>(delivered.size());
 }
 

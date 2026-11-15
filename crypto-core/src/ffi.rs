@@ -49,3 +49,117 @@ pub unsafe extern "C" fn rv_e2ee_free(ptr: *mut u8, len: usize) {
     zeroize::Zeroize::zeroize(&mut boxed[..]);
     drop(boxed);
 }
+
+// --- Sealed requests for the backup route (docs/tor-sealed-fallback.md) ---
+
+#[cfg(feature = "sealed-transport")]
+mod sealed_ffi {
+    use std::ffi::c_void;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    use crate::sealed::{seal, PendingReply, RequestHead};
+
+    /// Status codes of the rv_sealed_* calls.
+    const OK: i32 = 0;
+    const BAD_INPUT: i32 = -1;
+    const FAILED: i32 = -2;
+
+    unsafe fn bytes<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+        if ptr.is_null() || len == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(ptr, len)
+        }
+    }
+
+    unsafe fn hand_over(data: Vec<u8>, out: *mut *mut u8, out_len: *mut usize) {
+        let boxed = data.into_boxed_slice();
+        *out_len = boxed.len();
+        *out = Box::into_raw(boxed).cast::<u8>();
+    }
+
+    /// Seals one request. `head_json` is `{"method":..,"path":"/api/..","headers":[[name,value],..]}`.
+    /// On success (0): `*sealed`/`*sealed_len` hold the bytes to POST (free with rv_e2ee_free) and
+    /// `*pending` the handle that opens the reply (rv_sealed_open or rv_sealed_discard, exactly once).
+    ///
+    /// # Safety
+    /// Every pointer must be valid for its length; the out pointers must be writable.
+    #[no_mangle]
+    pub unsafe extern "C" fn rv_sealed_seal(
+        key_config: *const u8,
+        key_config_len: usize,
+        head_json: *const u8,
+        head_len: usize,
+        body: *const u8,
+        body_len: usize,
+        sealed: *mut *mut u8,
+        sealed_len: *mut usize,
+        pending: *mut *mut c_void,
+    ) -> i32 {
+        if sealed.is_null() || sealed_len.is_null() || pending.is_null() {
+            return BAD_INPUT;
+        }
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let head: RequestHead = match serde_json::from_slice(bytes(head_json, head_len)) {
+                Ok(head) => head,
+                Err(_) => return Err(BAD_INPUT),
+            };
+            seal(bytes(key_config, key_config_len), &head, bytes(body, body_len)).map_err(|_| FAILED)
+        }));
+        match result {
+            Ok(Ok((data, reply))) => {
+                hand_over(data, sealed, sealed_len);
+                *pending = Box::into_raw(Box::new(reply)).cast::<c_void>();
+                OK
+            }
+            Ok(Err(code)) => code,
+            Err(_) => FAILED,
+        }
+    }
+
+    /// Opens a sealed reply with the handle from rv_sealed_seal, which this always consumes.
+    /// On success (0): `*head_json` holds `{"status":..,"headers":[[name,value],..]}` and `*body`
+    /// the body; free both with rv_e2ee_free.
+    ///
+    /// # Safety
+    /// `pending` must come from rv_sealed_seal and not have been used; the rest as rv_sealed_seal.
+    #[no_mangle]
+    pub unsafe extern "C" fn rv_sealed_open(
+        pending: *mut c_void,
+        reply: *const u8,
+        reply_len: usize,
+        head_json: *mut *mut u8,
+        head_len: *mut usize,
+        body: *mut *mut u8,
+        body_len: *mut usize,
+    ) -> i32 {
+        if pending.is_null() {
+            return BAD_INPUT;
+        }
+        let handle = Box::from_raw(pending.cast::<PendingReply>());
+        if head_json.is_null() || head_len.is_null() || body.is_null() || body_len.is_null() {
+            return BAD_INPUT;
+        }
+        let result = catch_unwind(AssertUnwindSafe(|| handle.open(bytes(reply, reply_len))));
+        match result {
+            Ok(Ok((head, data))) => {
+                let json = serde_json::to_vec(&head).unwrap_or_default();
+                hand_over(json, head_json, head_len);
+                hand_over(data, body, body_len);
+                OK
+            }
+            _ => FAILED,
+        }
+    }
+
+    /// Drops a handle from rv_sealed_seal whose reply never came (a failed or cancelled request).
+    ///
+    /// # Safety
+    /// `pending` must come from rv_sealed_seal and not have been used.
+    #[no_mangle]
+    pub unsafe extern "C" fn rv_sealed_discard(pending: *mut c_void) {
+        if !pending.is_null() {
+            drop(Box::from_raw(pending.cast::<PendingReply>()));
+        }
+    }
+}

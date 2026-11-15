@@ -21,14 +21,30 @@
 #include <QtQml/qqmlregistration.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "redvault/api/api_client.hpp"
+#include "redvault/api/channel_api.hpp"
 
 namespace redvault::app {
 
 class AppController;
 class ChannelsSession;
+
+/**
+ * The keys of a private channel's media this app has opened (Part C1),
+ * looked up by media id by the photo provider, the player and saving. Kept
+ * in memory only, for the whole process (thread-safe), and forgotten when
+ * the channels session ends.
+ */
+namespace channel_media_keys {
+void remember(const std::vector<api::channels::Media>& media);
+/// The opened media for a media link (or bare id), with `url` set to that link; nullopt for a public channel's media.
+std::optional<api::channels::Media> find(const QString& urlOrId);
+void forget();
+}  // namespace channel_media_keys
 
 /**
  * A channel's video or recording read in byte ranges through the app's own
@@ -136,7 +152,10 @@ private:
     QPointer<QObject> videoOutput_;
     QMediaPlayer player_;
     QAudioOutput audio_;
-    HttpRangeDevice* device_ = nullptr;
+    /// Byte ranges from the server, or a private channel's media decrypted into memory.
+    QIODevice* device_ = nullptr;
+    bool decrypting_ = false;
+    QThreadPool pool_;
     bool loading_ = false;
     bool resumed_ = false;
     QString error_;

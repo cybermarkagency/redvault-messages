@@ -50,16 +50,19 @@ Rectangle {
         id: visibilityDialog
         title: panel.pendingPrivate ? qsTr("Make this channel private?") : qsTr("Make this channel public?")
         message: panel.pendingPrivate
-                 ? qsTr("It leaves Discover, and only people with its private link can read it. Followers who don't have that link lose access.")
-                 : qsTr("Anyone can find it in Discover and read every post.")
-        confirmText: panel.pendingPrivate ? qsTr("Make private") : qsTr("Make public")
+                 ? "It leaves Discover, and only people with its private link can read it. Followers who don't have that link lose access. "
+                   + "Its posts, polls, checklists and media are encrypted with the link from now on, and your app encrypts the older ones."
+                 : "Anyone can find it in Discover and read every post. Your app decrypts every post, poll, checklist and file, "
+                   + "and publishes them as plain text for anyone to read, including the server. This can't be undone for anyone who saw them."
+        confirmText: panel.pendingPrivate ? "Make private" : "Make public"
         onConfirmed: panel.channels.setPrivate(panel.pendingPrivate)
     }
     ConfirmDialog {
         id: resetLinkDialog
-        title: qsTr("Reset the private link?")
-        message: qsTr("Everyone who has the current link, followers included, loses access until you share the new one.")
-        confirmText: qsTr("Reset link")
+        title: "Reset the private link?"
+        message: "Everyone who has the current link, followers included, loses access until you share the new one. "
+                 + "The new link opens every post; the old one can't open anything posted after the reset."
+        confirmText: "Reset link"
         danger: true
         onConfirmed: panel.channels.setPrivate(true)
     }
@@ -179,8 +182,10 @@ Rectangle {
                 Layout.topMargin: -6
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: panel.isPrivate ? qsTr("Private channel · only people with its link can read it · not end-to-end encrypted")
-                                      : qsTr("Public channel · not end-to-end encrypted")
+                text: panel.isPrivate && panel.channels.channel.e2ee === true
+                      ? "Private channel · only people with its link can read it · end-to-end encrypted with its link"
+                      : panel.isPrivate ? "Private channel · only people with its link can read it · not end-to-end encrypted"
+                                        : "Public channel · not end-to-end encrypted"
                 textFormat: Text.PlainText
                 color: Theme.text3
                 font.pixelSize: 13

@@ -25,7 +25,7 @@ class ChannelThreadTest {
     @Test
     fun theSubtitleSaysWhatKindOfChannelAndThatItIsNotEncrypted() {
         assertEquals("Public channel · not end-to-end encrypted", ChannelThread.subtitle(isPrivate = false))
-        assertEquals("Private channel · not end-to-end encrypted", ChannelThread.subtitle(isPrivate = true))
+        assertEquals("Private channel · end-to-end encrypted", ChannelThread.subtitle(isPrivate = true))
     }
 
     @Test
@@ -106,6 +106,14 @@ class ChannelThreadTest {
         // Forwarding needs text; a reader has nothing to do to a photo-only post, so it shows no overflow.
         assertTrue(ChannelThread.postActions(photoOnly, isOwner = false, isAdmin = false).isEmpty())
         assertEquals(listOf(PostAction.Delete), ChannelThread.postActions(photoOnly, isOwner = true, isAdmin = false))
+        // A private channel's post can be edited by its owner (only), once it's opened.
+        val sealed = text.copy(encrypted = com.redvaultsystems.redvaultmessage.data.api.ChannelEncryptedDto(1, "n", "c"))
+        assertEquals(
+            listOf(PostAction.CopyText, PostAction.Forward, PostAction.Edit, PostAction.Delete),
+            ChannelThread.postActions(sealed, isOwner = true, isAdmin = false),
+        )
+        assertEquals(listOf(PostAction.CopyText, PostAction.Forward, PostAction.Delete), ChannelThread.postActions(sealed, isOwner = false, isAdmin = true))
+        assertEquals(listOf(PostAction.Delete), ChannelThread.postActions(sealed.copy(body = "", locked = true), isOwner = true, isAdmin = false))
     }
 
     @Test
@@ -155,9 +163,11 @@ class ChannelThreadTest {
                 assertFalse("${screen.name} uses $banned", banned in source)
             }
         }
-        // The only things allowed to say "encrypted": the negative disclosure, and the forward dialog about the copy in the chat.
+        // The only things allowed to say "encrypted": the negative disclosure, the forward dialog about the copy in the chat,
+        // and (Part C1) what's said of private channels, whose posts are end-to-end encrypted with the link.
         val stray = screens.flatMap { it.readLines() }.filter {
-            "encrypted" in it.lowercase() && "not end-to-end encrypted" !in it && "The copy goes into that chat end-to-end encrypted" !in it
+            "encrypted" in it.lowercase() && "not end-to-end encrypted" !in it && "The copy goes into that chat end-to-end encrypted" !in it &&
+                "private" !in it.lowercase()
         }
         assertEquals(emptyList<String>(), stray)
     }

@@ -56,6 +56,8 @@ class Updater : public QObject {
     Q_PROPERTY(bool enabled READ enabled CONSTANT)
     /// Installed from the Microsoft Store, which does the updating instead.
     Q_PROPERTY(bool fromStore READ fromStore CONSTANT)
+    /// Installed as a snap (Snap Store / Ubuntu App Center), which does the updating instead.
+    Q_PROPERTY(bool fromSnap READ fromSnap CONSTANT)
     /// No update route that stays inside Tor (a Tor-only build pointed at something that isn't an onion service): nothing is checked.
     Q_PROPERTY(bool blockedByTor READ blockedByTor CONSTANT)
     /// Non-empty when the signed update information is expired or has no expiry date.
@@ -80,6 +82,7 @@ public:
     QString error() const { return error_; }
     bool enabled() const;
     static bool fromStore();
+    static bool fromSnap();
     bool blockedByTor() const;
     QString freshnessWarning() const;
     static QString installKind();

@@ -197,6 +197,8 @@ object StoryPublishing {
         allowReplies: Boolean,
         ttlSeconds: Int?,
         keys: List<Pair<String, String>>,
+        /** Part D: a device-keys story names its viewer accounts instead of carrying sealed keys. */
+        viewers: List<String>? = null,
     ): JsonObject = buildJsonObject {
         put("id", id)
         put("kind", kind.wire)
@@ -206,6 +208,11 @@ object StoryPublishing {
         put("audience", audience.wire)
         put("allowReplies", allowReplies)
         if (ttlSeconds != null) put("ttlSeconds", ttlSeconds)
+        if (viewers != null) {
+            put("delivery", com.redvaultsystems.redvaultmessage.data.api.DELIVERY_DEVICE_KEYS)
+            put("viewers", JsonArray(viewers.distinct().map { kotlinx.serialization.json.JsonPrimitive(it) }))
+            return@buildJsonObject
+        }
         put(
             "keys",
             JsonArray(keys.map { (userId, wrapped) -> buildJsonObject { put("userId", userId); put("wrappedKey", wrapped) } }),
@@ -213,8 +220,21 @@ object StoryPublishing {
     }
 }
 
-/** A story ready to send: the `POST /stories` body, and for a photo or video the encrypted file to upload afterwards. */
-class BuiltStory(val id: String, val body: JsonObject, val encryptedMedia: File?)
+/**
+ * A story ready to send: the `POST /stories` body, and for a photo or video the encrypted file to upload afterwards.
+ * Part D: a device-keys story also has its [key] (a copy, to send over device keys and then [wipe]) and its [viewers].
+ */
+class BuiltStory(
+    val id: String,
+    val body: JsonObject,
+    val encryptedMedia: File?,
+    val key: ByteArray? = null,
+    val viewers: List<String> = emptyList(),
+) {
+    fun wipe() {
+        key?.fill(0)
+    }
+}
 
 /**
  * Everything about posting that needs no network: a fresh id and key, the details sealed with the key, the key sealed to you and
@@ -230,6 +250,8 @@ class StoryBuilder(private val crypto: StoryCrypto, private val fileCrypto: File
         friends: Collection<StoryFriend>,
         prefs: StoryPrefs,
         uploadFile: File,
+        /** Part D: K goes to viewer devices over device keys; nothing is sealed to account keys. */
+        onDeviceKeys: Boolean = false,
     ): BuiltStory {
         val id = crypto.newStoryId()
         val key = crypto.newStoryKey()
@@ -261,6 +283,14 @@ class StoryBuilder(private val crypto: StoryCrypto, private val fileCrypto: File
             val recipients = StoryPublishing.recipients(friends, prefs, draft.audience, draft.customIds)
             if (recipients.isEmpty() && draft.audience == StoryAudience.CloseFriends) throw StoryInputException("You have no close friends yet.")
             if (recipients.isEmpty() && draft.audience == StoryAudience.Custom) throw StoryInputException("Choose at least one friend.")
+            if (onDeviceKeys) {
+                val viewers = recipients.map { it.userId }
+                val body = StoryPublishing.createBody(
+                    id, media?.kind ?: StoryKind.Text, Base64Codec.encode(sealed.ciphertext), Base64Codec.encode(sealed.nonce),
+                    mediaSize, draft.audience, draft.allowReplies, draft.ttlSeconds, emptyList(), viewers = viewers,
+                )
+                return BuiltStory(id, body, if (media != null) uploadFile else null, key.copyOf(), viewers)
+            }
             val keys = (listOf(selfUserId to selfPublicKey) + recipients.map { it.userId to it.publicKey }).map { (userId, publicKey) ->
                 userId to Base64Codec.encode(crypto.wrapStoryKey(id, key, publicKey, selfPrivateKey))
             }

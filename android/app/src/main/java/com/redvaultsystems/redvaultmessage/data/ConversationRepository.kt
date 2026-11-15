@@ -221,9 +221,9 @@ class ConversationRepository(
      */
     suspend fun hydrateCommunity(dto: ConversationDto, identity: SelfIdentity, previous: ConversationMeta?): ConversationMeta {
         val info = requireNotNull(dto.community)
-        val keys = communities ?: throw IllegalStateException("Communities aren't available")
-        val ring = keys.ensure(info.id, dto.id, info.keyEpoch, info.rekeyRequired)
-        val currentKey = ring.keys[ring.currentEpoch] ?: ring.keys.entries.maxByOrNull { it.key }?.value
+        // Part C2: no epoch key is fetched to post; messages go on device keys. Older protocol-1 rows are read with
+        // the member's old keys, loaded once when such rows show up (fetchMessages).
+        val currentKey: ByteArray? = null
         val self = GroupMemberView(identity.userId, identity.handle, identity.avatarUrl, info.role, Base64Codec.encode(identity.publicKey), isSelf = true)
         return ConversationMeta(
             id = dto.id,
@@ -267,6 +267,13 @@ class ConversationRepository(
         val dtos = latest.messages
         val receipts = receiptsCall.await()
 
+        // Part C2: older protocol-1 community rows (read only) open with the member's old epoch keys, fetched once.
+        val community = meta.community
+        if (community != null && communities != null && communities.ringFor(meta.id) == null &&
+            dtos.any { it.deletedAt == null && it.ciphertext != null }
+        ) {
+            communities.loadOnce(community.id, meta.id)
+        }
         // A community's messages carry no sender signatures and open with the community's own epoch keys.
         if (meta.community == null) {
             keys?.forgetKeylessSenders(dtos.filter { it.deletedAt == null && it.signature != null }.map { it.senderId })
@@ -500,54 +507,12 @@ class ConversationRepository(
     }
 
     /**
-     * Port of sendToCommunity in ui/src/lib/e2eV2/messaging.ts: always the group key of the current epoch.
-     * If someone left since this phone loaded the keys, the server answers rekey_required: this app rotates
-     * the key (sealing a new one only to who remains) and sends under it; stale_key_epoch means another app
-     * already did, so it reloads the keys and tries again. Two retries at most.
+     * Part C2 (docs/signal-integration/11-part-c2-communities.md): a community takes messages on device keys only
+     * (the server answers `community_device_keys_only`), so nothing is ever sent to one the protocol-1 way.
      */
-    private suspend fun sendToCommunity(
-        meta: ConversationMeta,
-        community: CommunityLink,
-        plaintext: String,
-        attachments: List<String>?,
-        clientMessageId: String?,
-    ): Message {
-        val keys = communities ?: throw IllegalStateException("Communities aren't available")
-        var attempt = 0
-        while (true) {
-            val ring = keys.ringFor(meta.id) ?: keys.load(community.id, meta.id)
-            val encrypted = withContext(Dispatchers.Default) {
-                try {
-                    keys.encrypt(ring, plaintext)
-                } catch (_: EpochKeyException) {
-                    throw UserFacingException("You don't have this community's key yet. It arrives once a member's app is online.")
-                }
-            }
-            val ciphertextB64 = Base64Codec.encode(encrypted.ciphertext)
-            val nonceB64 = Base64Codec.encode(encrypted.nonce)
-            try {
-                val dto = apiCall(ApiClient.json) {
-                    api.sendMessage(
-                        meta.id,
-                        SendMessageRequest(ciphertextB64, nonceB64, attachments, keyEpoch = encrypted.keyEpoch.toInt(), clientMessageId = clientMessageId),
-                    )
-                }
-                return sentMessage(dto, encrypted.ciphertext, encrypted.nonce)
-            } catch (e: ApiException) {
-                if (attempt++ >= 2) throw e
-                when (e.code) {
-                    "rekey_required" -> try {
-                        keys.rotate(community.id, meta.id)
-                    } catch (rotateError: ApiException) {
-                        if (rotateError.status == 401) throw rotateError
-                        keys.load(community.id, meta.id)
-                    }
-                    "stale_key_epoch" -> keys.load(community.id, meta.id)
-                    else -> throw e
-                }
-            }
-        }
-    }
+    @Suppress("UNUSED_PARAMETER")
+    private fun sendToCommunity(meta: ConversationMeta, community: CommunityLink, plaintext: String, attachments: List<String>?, clientMessageId: String?): Message =
+        throw UserFacingException("Communities use device keys. Link this phone in Settings, Devices & encryption to post here.")
 
 
     /** Re-verifies an own message loaded from a poll: fetches the server's record fresh and recomputes locally. */

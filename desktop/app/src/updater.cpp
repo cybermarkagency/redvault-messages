@@ -73,6 +73,8 @@ Kind detectKind() {
 #ifdef _WIN32
     return Kind::Windows;
 #elif defined(__linux__)
+    // The Snap Store (Ubuntu App Center) updates the snap itself, and $SNAP is read-only.
+    if (Updater::fromSnap()) return Kind::None;
     // The AppImage runtime names the file it was started from.
     const QString appImage = qEnvironmentVariable("APPIMAGE");
     if (!appImage.isEmpty() && appImage.endsWith(QStringLiteral(".AppImage")) && QFileInfo(appImage).isFile()) return Kind::AppImage;
@@ -180,6 +182,15 @@ bool Updater::fromStore() {
     // Only a packaged (MSIX) app has a package identity; the Inno Setup install doesn't.
     UINT32 length = 0;
     return GetCurrentPackageFullName(&length, nullptr) != APPMODEL_ERROR_NO_PACKAGE;
+#else
+    return false;
+#endif
+}
+
+bool Updater::fromSnap() {
+#ifdef __linux__
+    // snapd sets both for every app it starts.
+    return !qEnvironmentVariable("SNAP").isEmpty() && !qEnvironmentVariable("SNAP_NAME").isEmpty();
 #else
     return false;
 #endif

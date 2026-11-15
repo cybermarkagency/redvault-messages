@@ -16,7 +16,7 @@ libfuzzer-sys = "0.4"
 serde_json = "1"
 base64 = "0.22"
 getrandom = "0.4"
-redvault-e2ee = { path = "..", features = ["signal"] }
+redvault-e2ee = { path = "..", features = ["signal", "sealed-gateway"] }
 
 # Its own workspace: kept out of crypto-core's build and lock file.
 [workspace]
@@ -42,5 +42,11 @@ doc = false
 [[bin]]
 name = "roster_verify"
 path = "fuzz_targets/roster_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "sealed_request"
+path = "fuzz_targets/sealed_request.rs"
 test = false
 doc = false

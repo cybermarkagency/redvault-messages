@@ -267,6 +267,25 @@ TEST_CASE("tor transport: only a v3 onion server address is accepted", "[tor]") 
     CHECK_FALSE(net::isOnionHost("2GZYXA5IHM7NSGGFXNU52RCK2VV4RVMDLKIU3ZZUI5DU4XYCLEN53WID.onion"));
 }
 
+TEST_CASE("tor transport: the backup route's website transport takes its https host, never an onion", "[tor]") {
+    // app/src/app_controller.cpp builds exactly this at start-up in a build with the sealed backup route.
+    net::CurlTransport::Options options;
+    options.torGate = [] { return std::nullopt; };
+    options.httpsOverTor = true;
+    options.allowedHost = "www.redvaultsystems.com";
+    CHECK_NOTHROW(net::CurlTransport(options));
+    for (const std::string host : std::vector<std::string>{kOnion, ""}) {
+        options.allowedHost = host;
+        CHECK_THROWS_AS(net::CurlTransport(options), std::invalid_argument);
+    }
+    // Without a gateway it still sends nothing.
+    options.allowedHost = "www.redvaultsystems.com";
+    net::CurlTransport transport(options);
+    CHECK_THROWS_AS(transport.send({"POST", "https://www.redvaultsystems.com/redvaultmessages/ohttp", {}, {}}), net::TorUnavailableError);
+    CHECK_THROWS_AS(transport.send({"GET", "http://www.redvaultsystems.com/", {}, {}}), net::NetworkError);
+    CHECK(transport.socketLog().allowed == 0);
+}
+
 TEST_CASE("tor transport: proxy environment variables can't redirect it", "[tor]") {
     FakeGate gate;
 #ifdef _WIN32

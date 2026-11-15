@@ -150,6 +150,7 @@ fun SuggestionReview(channels: ChannelSession, channelId: String, onPublished: (
                         PillButton(stringResource(R.string.ui_cancel), { editing = null }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
                     }
                 } else {
+                    if (s.locked) Text("This suggestion can't be opened with this channel's keys. Turn it down.", color = colors.text3, fontSize = 13.sp)
                     if (s.body.isNotBlank()) FormattedText(s.body, color = colors.text, onOpenLink = {}, linkColor = colors.accent)
                     Text("Sent ${runCatching { whenText(Instant.parse(s.createdAt)) }.getOrDefault(s.createdAt)}", color = colors.text3, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -157,7 +158,7 @@ fun SuggestionReview(channels: ChannelSession, channelId: String, onPublished: (
                             editing = s.id
                             draft = TextFieldValue(s.body)
                             publishAtMs = null
-                        }, enabled = !busy, height = 40.dp)
+                        }, enabled = !busy && !s.locked, height = 40.dp)
                         PillButton(stringResource(R.string.ui_turn_down), { run { channels.rejectSuggestion(channelId, s.id) } }, style = PillStyle.Secondary, enabled = !busy, height = 40.dp)
                     }
                 }
@@ -179,8 +180,8 @@ class SuggestState internal constructor(context: Context, val scope: CoroutineSc
     val body = mutableStateOf(TextFieldValue(""))
     /** The private link's token, for a private channel's uploads. */
     var access: String? = null
-    val uploads = UploadQueue(context, scope, channels.media, ChannelPosts.MAX_MEDIA_PER_SUGGESTION) { meta ->
-        channels.startSuggestionMedia(channelId, meta, access)
+    val uploads = UploadQueue(context, scope, channels.media, ChannelPosts.MAX_MEDIA_PER_SUGGESTION) { out ->
+        channels.uploadForSuggestion(channelId, out, access)
     }
 }
 
@@ -214,7 +215,7 @@ fun SuggestPost(channels: ChannelSession, channel: ChannelDto, access: String?, 
         uris.forEach { uploads.add(it, "photo") }
     }
     LaunchedEffect(channel.id) {
-        mine = runCatching { channels.mySuggestions(channel.id) }.getOrDefault(emptyList())
+        mine = runCatching { channels.mySuggestions(channel.id, access) }.getOrDefault(emptyList())
     }
 
     Column(
@@ -274,7 +275,7 @@ fun SuggestPost(channels: ChannelSession, channel: ChannelDto, access: String?, 
             if (showMine) {
                 mine.forEach { s ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(s.body.ifBlank { "Photos" }, color = colors.text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(if (s.locked) "Can't be opened with this link" else s.body.ifBlank { "Photos" }, color = colors.text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text(statusLabel(s.status), color = colors.text3, fontSize = 12.sp)
                     }
                 }

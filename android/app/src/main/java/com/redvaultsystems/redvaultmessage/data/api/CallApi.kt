@@ -30,6 +30,18 @@ interface CallApi {
     @POST("calls/{id}/signal")
     suspend fun signal(@Path("id") callId: String, @Body signal: SealedSignalDto)
 
+    // In a chat on device keys the SDP goes as a device-key message; these only mark the step
+    // (docs/signal-integration/09-part-b-calls.md). Same routes, {"carrier":"device-keys"} as the body.
+
+    @POST("calls/{id}/offer")
+    suspend fun offerCarrier(@Path("id") callId: String, @Body marker: CarrierDto)
+
+    @POST("calls/{id}/answer")
+    suspend fun answerCarrier(@Path("id") callId: String, @Body marker: CarrierDto)
+
+    @POST("calls/{id}/signal")
+    suspend fun signalCarrier(@Path("id") callId: String, @Body marker: CarrierDto)
+
     /** Fresh TURN credentials for a call this account is in, before the first ones expire. */
     @POST("calls/{id}/relay-credentials")
     suspend fun renewRelay(@Path("id") callId: String): RenewedRelayDto
@@ -107,6 +119,10 @@ data class StartedCallDto(
 
 @Serializable
 data class SealedSignalDto(val ciphertext: String, val nonce: String)
+
+/** {"carrier":"device-keys"}: the step's SDP went to the other person's devices (part B). Always set explicitly. */
+@Serializable
+data class CarrierDto(val carrier: String)
 
 @Serializable
 data class ScreenRequest(val on: Boolean)

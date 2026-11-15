@@ -10,6 +10,11 @@
 # The live server's onion service (GET /api/public/routing on the website answers it).
 set(REDVAULT_OFFICIAL_ONION_API_BASE "http://4cydjhdc3lmhg7l6ykjont7dms2alunglmnlznlmjjwkyc67m5h325yd.onion/redvaultmessages/api/")
 
+# The live sealed backup route gateway's current public key configuration (docs/tor-sealed-fallback.md), as
+# `redvault-ohttp-gateway public` prints it on the server (key 1). Public: it is pinned in every published app.
+# Packaging passes it to every release build; change it only with a key change, release first.
+set(REDVAULT_OFFICIAL_SEALED_KEY_CONFIG "0100201520cdea87024f0f31d1a98e4410736ddb8005f104ebe8c27f213b433ead9f2a000400010003")
+
 function(redvault_check_tor_settings tor tor_only onion_base release)
     if(tor_only AND NOT tor)
         message(FATAL_ERROR "REDVAULT_TOR_ONLY needs REDVAULT_TOR (the embedded Tor gateway)")

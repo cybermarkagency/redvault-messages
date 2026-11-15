@@ -416,8 +416,8 @@ private fun SignedInContent(
             // Being on the live channel is what "online" means, so only while the app is on screen.
             launch { session.live.holdWhileActive("screen") }
             launch { session.live.tick() }
-            // Communities: deliver keys to members who are waiting, rotate after someone left.
-            launch { session.communities.maintainKeys(onChanged = session.chats::refreshNow) }
+            // Communities (owner and staff, Part C2): admit waiting members, keep rosters current, rotate after someone left.
+            launch { session.communities.maintainMembership(onChanged = session.chats::refreshNow) }
             // Coming back on screen: look for new posts in followed channels at once.
             session.channels.checkNow()
         }
@@ -632,6 +632,7 @@ private fun SignedInContent(
                         TorStatusStrip(
                             status, queued = chats.queued, pausedUploads = filesState.pausedUploads,
                             callActive = activeCall != null || groupCall != null,
+                            backupRoute = session.tor?.backupRoute?.collectAsStateWithLifecycle()?.value == true,
                         )
                     }
                 }
@@ -745,6 +746,7 @@ private fun SignedInContent(
                     conversation = conversation,
                     error = chats.sendError ?: chats.error,
                     deviceKeyChat = session.chats.onDeviceKeys(conversation.id),
+                    onMessagesOnScreen = { ids -> session.chats.messagesOnScreen(conversation.id, ids) },
                     deviceKeysNote = deviceKeysNote(chats.v3Protocols[conversation.id], chats.v3Held),
                     onBack = ::pop,
                     onSend = { text, replyTo, onResult -> session.chats.send(conversation.id, text, replyTo, onResult) },
@@ -796,8 +798,8 @@ private fun SignedInContent(
                     onChannelPostShown = { postId -> session.channels.countViews(listOf(postId)) },
                     selfHandle = account.profile.handle,
                     // Not into a channel this user only reads.
-                    // A chat on device keys can't take forwarded messages yet (step 2): it isn't offered.
-                    forwardTargets = chats.conversations.filter { it.id != conversation.id && it.meta.community?.canPost != false && !session.chats.onDeviceKeys(it.id) },
+                    // A chat on device keys takes forwards too (part A): its own rule picks the protocol.
+                    forwardTargets = chats.conversations.filter { it.id != conversation.id && it.meta.community?.canPost != false },
                     onEdit = { messageId, text, onResult -> session.chats.edit(conversation.id, messageId, text, onResult) },
                     onForward = { messages, toIds, onResult -> session.chats.forwardMany(messages, toIds, onResult) },
                     onDeleteMany = { ids, forEveryone ->
@@ -983,6 +985,7 @@ private fun SignedInContent(
             onRingtoneChange = { on -> session.settings.ringtone = on; ringtone = on },
             echoCancellation = echoCancellation,
             onEchoCancellationChange = { on -> session.settings.echoCancellation = on; echoCancellation = on },
+            onOpenStorySettings = if (stories.on) { { push(Route.StorySettings) } } else null,
             hideContent = hideContent,
             onHideContentChange = {
                 session.settings.hideContent = it
@@ -1097,7 +1100,7 @@ private fun SignedInContent(
             linkSecret = route.secret.ifEmpty { null },
             channels = session.channels,
             webAppBase = session.webAppBase,
-            forwardTargets = chats.conversations.filter { !session.chats.onDeviceKeys(it.id) },
+            forwardTargets = chats.conversations,
             onForward = session.chats::forwardChannelPost,
             onOpenChannel = { link ->
                 if (link.id != route.id || (link.secret != null && link.secret != route.secret)) push(Route.Channel(link.id, link.secret.orEmpty()))

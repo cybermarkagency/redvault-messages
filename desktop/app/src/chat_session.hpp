@@ -46,13 +46,11 @@ class TorController;
  * deleted then too.
  */
 /// What a chat pinned to device keys can't carry, in words. Protocol 3's coverage: SECURITY_DESIGN_AND_MIGRATION.md, H-3.
+/// Replies, forwards, polls, votes and pins go through the device-key chat itself (part A,
+/// docs/signal-integration/08-part-a-chat-features.md): this class only refuses to send them on the older protocol.
 namespace device_key_refusal {
 inline constexpr const char* kMessage = "This chat uses device keys, so nothing was sent. Send it from the chat itself.";
-inline constexpr const char* kPoll = "This chat uses device keys, which can't carry polls yet. Nothing was sent.";
-inline constexpr const char* kVote = "This chat uses device keys, which can't carry poll votes yet. Nothing was sent.";
-inline constexpr const char* kForward = "This chat uses device keys, which can't carry forwarded messages yet. Nothing was sent.";
-inline constexpr const char* kStoryReply = "This chat uses device keys, which can't carry story replies yet. Nothing was sent.";
-inline constexpr const char* kPin = "This chat uses device keys, which can't carry pins yet. Nothing was sent.";
+inline constexpr const char* kChannelPost = "This chat uses device keys, which can't carry a channel's post yet. Nothing was sent.";
 inline constexpr const char* kChange = "This message was sent before the chat moved to device keys, so it can't be changed or reacted to now. Nothing was sent.";
 }  // namespace device_key_refusal
 
@@ -299,6 +297,24 @@ public:
     /// Optional: for a chat the check above holds back, a reason that replaces `onDeviceKeys` (the chat isn't decided
     /// yet, or this computer must be linked first). Empty: `onDeviceKeys` is the reason.
     void setDeviceKeyReason(std::function<QString(const std::string& chatId)> reason) { deviceKeyReason_ = std::move(reason); }
+    /// A message to forward that lives in a device-key chat: its text, or its file (uploaded again wherever it goes).
+    struct DeviceKeyForward {
+        std::string text;
+        std::optional<model::FileDescriptor> file;
+        std::int64_t at = 0;
+    };
+    /**
+     * Set once by the app: `lookup` finds a message of the open device-key chat (forwarding from it), `forward`
+     * sends into a chat pinned to device keys (forwarding into it, open or not). Without them, forwarding into a
+     * pinned chat is refused.
+     */
+    void setDeviceKeyForward(std::function<std::optional<DeviceKeyForward>(const std::string& messageId)> lookup,
+                             std::function<void(const std::string& chatId, std::vector<DeviceKeyForward> items)> forward) {
+        deviceKeyLookup_ = std::move(lookup);
+        deviceKeyForward_ = std::move(forward);
+    }
+    /// Your disappearing timer in any loaded chat, in seconds (0: off).
+    int disappearingFor(const std::string& chatId) const;
     std::shared_ptr<data::GroupRepository> groupRepository() const { return groups_; }
     QVariantList currentFiles() const { return messages_.files(); }
     int currentDisappearing() const;
@@ -318,6 +334,8 @@ public:
 
     /// Any loaded chat's details (null until the chat list has it).
     std::shared_ptr<const data::ConversationMeta> metaFor(const std::string& chatId) const;
+    /// Every community chat in the list now (Part C2: they send over device keys only).
+    std::vector<std::shared_ptr<const data::ConversationMeta>> communityMetas() const;
     /// For work that sends on its own thread (a group call's invite message).
     std::shared_ptr<data::ConversationRepository> repository() const { return repository_; }
     /// The community epoch keys this session holds (shared with the Communities screens' key upkeep).
@@ -397,6 +415,8 @@ private:
     bool contactKeyChanged(const data::ConversationMeta& meta) const;
     std::function<bool(const std::string&)> chatPinnedToDeviceKeys_;
     std::function<QString(const std::string&)> deviceKeyReason_;
+    std::function<std::optional<DeviceKeyForward>(const std::string&)> deviceKeyLookup_;
+    std::function<void(const std::string&, std::vector<DeviceKeyForward>)> deviceKeyForward_;
     QString shownKeyProblem_;
     void setFileActivity(const QString& activity);
     void setGroupBusy(bool busy);

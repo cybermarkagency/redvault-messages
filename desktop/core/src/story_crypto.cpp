@@ -324,6 +324,107 @@ model::stories::Answer openAnonymousAnswer(std::string_view storyId, const model
     return openPayload(payload, kAnonMagic, storyId, sticker);
 }
 
+// --- RVSD ---
+
+namespace {
+
+constexpr std::uint8_t kRvsdMagic[4] = {0x52, 0x56, 0x53, 0x44};  // "RVSD"
+constexpr std::uint8_t kRvsdVersion = 1;
+
+std::string uuidText(const std::uint8_t* b) {
+    static const char* digits = "0123456789abcdef";
+    std::string out;
+    for (std::size_t i = 0; i < kIdBytes; ++i) {
+        if (i == 4 || i == 6 || i == 8 || i == 10) out += '-';
+        out += digits[b[i] >> 4];
+        out += digits[b[i] & 15];
+    }
+    return out;
+}
+
+}  // namespace
+
+std::optional<std::vector<RvsdCopy>> parseRvsd(ByteView e) {
+    if (e.size() < 6 || e.size() > kRvsdMaxBytes) return std::nullopt;
+    if (std::memcmp(e.data(), kRvsdMagic, 4) != 0 || e[4] != kRvsdVersion) return std::nullopt;
+    const std::size_t count = e[5];
+    if (count < 1 || count > kRvsdMaxDevices) return std::nullopt;
+    std::vector<RvsdCopy> out;
+    std::size_t at = 6;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (e.size() - at < kIdBytes + 2) return std::nullopt;
+        RvsdCopy copy;
+        copy.deviceId = uuidText(e.data() + at);
+        at += kIdBytes;
+        const std::size_t length = (static_cast<std::size_t>(e[at]) << 8) | e[at + 1];
+        at += 2;
+        if (length < kRvsdMinCopy || e.size() - at < length) return std::nullopt;
+        for (const RvsdCopy& seen : out) {
+            if (seen.deviceId == copy.deviceId) return std::nullopt;
+        }
+        copy.sealed.assign(e.data() + at, e.data() + at + length);
+        at += length;
+        out.push_back(std::move(copy));
+    }
+    if (at != e.size()) return std::nullopt;
+    return out;
+}
+
+Bytes encodeRvsd(const std::vector<RvsdCopy>& copies) {
+    if (copies.empty() || copies.size() > kRvsdMaxDevices) throw CryptoError("An anonymous answer goes to 1 to 10 devices");
+    Bytes out(kRvsdMagic, kRvsdMagic + 4);
+    out.push_back(kRvsdVersion);
+    out.push_back(static_cast<std::uint8_t>(copies.size()));
+    for (const RvsdCopy& c : copies) {
+        const Bytes id = uuidBytes(c.deviceId);
+        if (c.sealed.size() < kRvsdMinCopy || c.sealed.size() > 0xFFFF) throw CryptoError("Malformed sealed copy");
+        out.insert(out.end(), id.begin(), id.end());
+        out.push_back(static_cast<std::uint8_t>(c.sealed.size() >> 8));
+        out.push_back(static_cast<std::uint8_t>(c.sealed.size() & 0xFF));
+        out.insert(out.end(), c.sealed.begin(), c.sealed.end());
+    }
+    if (out.size() > kRvsdMaxBytes) throw CryptoError("That answer is too long to send to all of their devices");
+    // The same rules a reader applies (distinct ids, and so on).
+    if (!parseRvsd(out)) throw CryptoError("Malformed anonymous answer");
+    return out;
+}
+
+Bytes sealAnonymousForDevices(std::string_view storyId, const model::stories::Sticker& sticker, const model::stories::Answer& answer,
+                              const std::vector<std::pair<std::string, Bytes>>& devices) {
+    ensureSodium();
+    if (devices.empty() || devices.size() > kRvsdMaxDevices) throw CryptoError("An anonymous answer goes to 1 to 10 devices");
+    const Bytes payload = answerPayload(kAnonMagic, storyId, sticker, answer);
+    std::vector<RvsdCopy> copies;
+    for (const auto& [deviceId, publicKey] : devices) {
+        if (publicKey.size() != crypto_box_PUBLICKEYBYTES) throw CryptoError("Wrong key size");
+        RvsdCopy copy{util::toLowerAscii(deviceId), Bytes(crypto_box_SEALBYTES + payload.size())};
+        if (crypto_box_seal(copy.sealed.data(), payload.data(), payload.size(), publicKey.data()) != 0) throw CryptoError("Couldn't seal the answer");
+        copies.push_back(std::move(copy));
+    }
+    return encodeRvsd(copies);
+}
+
+Bytes anonymousAnswerPayload(std::string_view storyId, const model::stories::Sticker& sticker, const model::stories::Answer& answer) {
+    return answerPayload(kAnonMagic, storyId, sticker, answer);
+}
+
+model::stories::Answer openAnonymousPayload(std::string_view storyId, const model::stories::Sticker& sticker, ByteView payload) {
+    return openPayload(Bytes(payload.begin(), payload.end()), kAnonMagic, storyId, sticker);
+}
+
+model::stories::Answer openRvsdCopy(std::string_view storyId, const model::stories::Sticker& sticker, ByteView envelope, std::string_view deviceId,
+                                    ByteView devicePublicKey, ByteView devicePrivateKey) {
+    ensureSodium();
+    const auto copies = parseRvsd(envelope);
+    if (!copies) throw CryptoError("Malformed answer");
+    const std::string wanted = util::toLowerAscii(std::string(deviceId));
+    for (const RvsdCopy& c : *copies) {
+        if (c.deviceId != wanted) continue;
+        return openAnonymousAnswer(storyId, sticker, c.sealed, devicePublicKey, devicePrivateKey);
+    }
+    throw CryptoError("No copy of this answer for this device");
+}
+
 Sealed sealTotals(std::string_view storyId, std::string_view stickerId, std::uint32_t revision, const model::stories::Totals& totals, ByteView storyKey) {
     if (revision < 1) throw CryptoError("Bad revision");
     if (!validStickerId(stickerId)) throw CryptoError("Not a sticker id");

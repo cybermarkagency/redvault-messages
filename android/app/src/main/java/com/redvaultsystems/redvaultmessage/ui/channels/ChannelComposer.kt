@@ -145,7 +145,7 @@ class ComposerState internal constructor(context: Context, val scope: CoroutineS
     val busy = mutableStateOf(false)
     val error = mutableStateOf<String?>(null)
     val recording = mutableStateOf(false)
-    val uploads = UploadQueue(context, scope, channels.media, ChannelPosts.MAX_MEDIA_PER_POST) { meta -> channels.startMedia(channelId, meta) }
+    val uploads = UploadQueue(context, scope, channels.media, ChannelPosts.MAX_MEDIA_PER_POST) { out -> channels.uploadForPost(channelId, out) }
     val recorder = VoiceRecorder(context, VOICE_MAX_MS)
 
     suspend fun post(channelId: String, request: ChannelPostRequest): ChannelPostDto = channels.post(channelId, request)

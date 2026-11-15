@@ -43,25 +43,31 @@ interface CommunityApi {
     @POST("communities/{id}/reports")
     suspend fun report(@Path("id") id: String, @Body body: CommunityReportRequest): CommunityReportResultDto
 
-    // Key epochs
+    // Part C2 (docs/signal-integration/11-part-c2-communities.md): communities as Signal groups. Owner and staff
+    // devices poll the membership tasks, admit waiting members and keep the roster and sender keys current.
 
-    @GET("communities/key-tasks")
-    suspend fun keyTasks(): List<KeyTaskDto>
+    @GET("communities/membership-tasks")
+    suspend fun membershipTaskSummaries(): List<MembershipTaskSummaryDto>
+
+    @GET("communities/{id}/membership-tasks")
+    suspend fun membershipTasks(@Path("id") id: String, @Query("after") after: Long, @Query("limit") limit: Int?): MembershipTasksDto
+
+    @POST("communities/{id}/members/{userId}/admit")
+    suspend fun admit(@Path("id") id: String, @Path("userId") userId: String): JoinResultDto
+
+    /** Owner and staff: the entitled members' accounts (a channel's recipient list). */
+    @GET("communities/{id}/recipients")
+    suspend fun recipients(@Path("id") id: String): CommunityRecipientsDto
+
+    /** Moderators and up: the members, a page at a time (at most 100), with their roles. */
+    @GET("communities/{id}/members")
+    suspend fun members(@Path("id") id: String, @Query("status") status: String?, @Query("limit") limit: Int?, @Query("offset") offset: Int?): List<CommunityMemberRowDto>
+
+    // Retired key epochs (before Part C2). Only read, and only to show older protocol-1 messages a member was
+    // given keys for: nothing calls key-tasks, enrollments, roster or rotate any more.
 
     @GET("communities/{id}/keys")
     suspend fun keys(@Path("id") id: String): CommunityKeysDto
-
-    @GET("communities/{id}/enrollments")
-    suspend fun enrollments(@Path("id") id: String): List<KeyRecipientDto>
-
-    @POST("communities/{id}/enrollments")
-    suspend fun enroll(@Path("id") id: String, @Body body: EnrollRequest)
-
-    @GET("communities/{id}/roster")
-    suspend fun roster(@Path("id") id: String): RosterDto
-
-    @POST("communities/{id}/rotate")
-    suspend fun rotate(@Path("id") id: String, @Body body: RotateRequest): RotateResultDto
 
     // The member's own subscriptions (bought on the web or desktop)
 
@@ -226,35 +232,78 @@ data class CommunityReportRequest(
 data class CommunityReportResultDto(val id: String, val platformReview: Boolean = false)
 
 @Serializable
-data class KeyTaskDto(
-    val communityId: String,
-    val conversationId: String,
-    val keyEpoch: Long,
-    val rekeyRequired: Boolean,
-    val pendingEnrollments: Int,
-    val canPost: Boolean,
-)
-
-@Serializable
 data class SealedKeyDto(val epoch: Long, val wrappedKey: String)
 
 @Serializable
 data class CommunityKeysDto(val conversationId: String? = null, val keyEpoch: Long, val rekeyRequired: Boolean, val keys: List<SealedKeyDto>)
 
+/** One community where this account is active staff (Part C2): compare [latestSeq] with the saved cursor. */
 @Serializable
-data class KeyRecipientDto(val userId: String, val publicKey: String)
+data class MembershipTaskSummaryDto(val communityId: String, val conversationId: String, val kind: String, val latestSeq: Long = 0, val waiting: Int = 0)
 
 @Serializable
-data class RosterDto(val keyEpoch: Long, val rekeyRequired: Boolean, val members: List<KeyRecipientDto>)
+data class MembershipEventDto(val seq: Long, val kind: String, val userId: String, val at: String? = null)
 
 @Serializable
-data class EnrollRequest(val userId: String, val epoch: Long, val wrappedKey: String)
+data class MembershipTasksDto(
+    val communityId: String,
+    val conversationId: String,
+    val kind: String,
+    val cursor: Long,
+    val hasMore: Boolean = false,
+    val events: List<MembershipEventDto> = emptyList(),
+    /** Entitled members waiting to be admitted. */
+    val waiting: List<String> = emptyList(),
+    /** Enrolled members whose entitlement lapsed, not removed yet. */
+    val lapsed: List<String> = emptyList(),
+)
 
 @Serializable
-data class MemberKeyDto(val userId: String, val wrappedKey: String)
+data class CommunityRecipientsDto(val communityId: String, val conversationId: String, val userIds: List<String>)
 
 @Serializable
-data class RotateRequest(val fromEpoch: Long, val keys: List<MemberKeyDto>)
+data class CommunityMemberRowDto(val userId: String, val status: String? = null, val role: String = "member", val canPost: Boolean = true)
 
-@Serializable
-data class RotateResultDto(val keyEpoch: Long)
+/**
+ * The Part C2 community routes for the device-key path (devicekeys/CommunityChat.kt), over the app's Tor-routed
+ * client. Errors come back as [ApiException] with the server's code and details.
+ */
+class RetrofitCommunityDeviceApi(private val api: CommunityApi) : com.redvaultsystems.redvaultmessage.devicekeys.CommunityDeviceApi {
+    private val json = ApiClient.json
+
+    override suspend fun recipients(communityId: String): List<String> = apiCall(json) { api.recipients(communityId) }.userIds
+
+    override suspend fun staff(communityId: String): List<String> {
+        val out = ArrayList<String>()
+        var offset = 0
+        while (offset <= MAX_OFFSET) {
+            val page = apiCall(json) { api.members(communityId, "active", PAGE, offset) }
+            out += page.filter { it.role != "member" }.map { it.userId }
+            if (page.size < PAGE) break
+            offset += PAGE
+        }
+        return out
+    }
+
+    override suspend fun membershipTaskSummaries() = apiCall(json) { api.membershipTaskSummaries() }.map {
+        com.redvaultsystems.redvaultmessage.devicekeys.MembershipTaskSummary(it.communityId, it.conversationId, it.kind, it.latestSeq, it.waiting)
+    }
+
+    override suspend fun membershipTasks(communityId: String, after: Long, limit: Int): com.redvaultsystems.redvaultmessage.devicekeys.MembershipTasks {
+        val t = apiCall(json) { api.membershipTasks(communityId, after, limit) }
+        return com.redvaultsystems.redvaultmessage.devicekeys.MembershipTasks(
+            t.communityId, t.conversationId, t.kind, t.cursor, t.hasMore,
+            t.events.map { com.redvaultsystems.redvaultmessage.devicekeys.MembershipEvent(it.seq, it.kind, it.userId) },
+            t.waiting, t.lapsed,
+        )
+    }
+
+    override suspend fun admit(communityId: String, userId: String) {
+        apiCall(json) { api.admit(communityId, userId) }
+    }
+
+    private companion object {
+        const val PAGE = 100
+        const val MAX_OFFSET = 10_000
+    }
+}

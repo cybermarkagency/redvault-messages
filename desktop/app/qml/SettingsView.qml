@@ -206,6 +206,8 @@ Item {
                 NavCaption { text: qsTr("ACCOUNT") }
                 NavItem { key: "account"; iconName: "user"; text: qsTr("Account and plan"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "privacy"; iconName: "lock"; text: qsTr("Privacy"); current: page.section; onPicked: (key) => page.section = key }
+                // Only while the server has Stories on (STORIES_ENABLED).
+                NavItem { key: "stories"; iconName: "stories"; text: qsTr("Stories"); visible: App.stories !== null && App.stories.enabled; current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "security"; iconName: "key"; text: qsTr("Security"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "network"; iconName: "shield"; text: qsTr("Network routing"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "notifications"; iconName: "bell"; text: qsTr("Notifications"); current: page.section; onPicked: (key) => page.section = key }
@@ -600,7 +602,7 @@ Item {
                     Loader {
                         Layout.fillWidth: true
                         visible: page.section === "stories"
-                        active: page.section === "stories" && App.stories !== null
+                        active: page.section === "stories" && App.stories !== null && App.stories.enabled
                         sourceComponent: StorySettingsSection { stories: App.stories }
                     }
                     // --- Appearance: System, Dark or Light, kept on this computer (Theme.mode) ---
@@ -1248,6 +1250,7 @@ Item {
                                     Layout.fillWidth: true
                                     wrapMode: Text.Wrap
                                     text: Updater.fromStore ? qsTr("Updates come from the Microsoft Store.")
+                                        : Updater.fromSnap ? qsTr("Updates come from the Snap Store (Ubuntu App Center) automatically.")
                                         : Updater.blockedByTor ? qsTr("This app checks for updates only through Tor, and its server address isn't RedVault's onion service.")
                                         : !Updater.enabled && Qt.platform.os !== "windows" ? qsTr("To update, download the newest version and replace this one.")
                                         : !Updater.enabled ? qsTr("Automatic updates aren't set up in this build.")

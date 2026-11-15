@@ -78,7 +78,8 @@ Rectangle {
         viewer.typingSticker = ""
         viewer.hoverCount = 0
         viewer.loadInteractions()
-        viewer.ready = viewer.story.kind === "text"
+        // Part D: a story whose key hasn't arrived yet waits (the feed is read again when it does).
+        viewer.ready = viewer.story.kind === "text" && !viewer.story.loading
         if (viewer.story.hasMedia) viewer.stories.loadMedia(viewer.story.id)
         // The next photo, ahead of time.
         const upcoming = viewer.group.stories.length > viewer.storyIndex + 1 ? viewer.group.stories[viewer.storyIndex + 1]
@@ -134,6 +135,13 @@ Rectangle {
             viewer.groupIndex = viewer.stories.viewerStartGroup
             viewer.storyIndex = viewer.stories.viewerStartStory
             viewer.load()
+        }
+        function onStoryArrived(storyId) {
+            // The key of the story on screen arrived: it opens where it is.
+            if (viewer.story && storyId === viewer.story.id && viewer.story.loading) {
+                viewer.loadedId = ""
+                viewer.load()
+            }
         }
         function onMediaReady(storyId, url) {
             if (viewer.story && storyId === viewer.story.id) viewer.mediaUrl = url
@@ -247,6 +255,16 @@ Rectangle {
                 viewer.failed = true
                 viewer.ready = true
             }
+        }
+        Text {
+            anchors.centerIn: parent
+            width: parent.width - 48
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            visible: viewer.story !== null && viewer.story.loading === true && !viewer.failed
+            text: "Loading this story. Its key is on the way to this device."
+            color: Theme.storyChrome
+            font.pixelSize: Theme.fontSize
         }
         Text {
             anchors.centerIn: parent

@@ -296,6 +296,38 @@ Checkout checkout(ApiClient& api, const std::string& communityId, bool termsAcce
 
 // --- Members and moderation ---
 
+Json membershipTasks(ApiClient& api) {
+    return api.call("GET", "communities/membership-tasks");
+}
+
+Json membershipTasksFor(ApiClient& api, const std::string& communityId, std::int64_t after, int limit) {
+    return api.call("GET", communityPath(communityId, "/membership-tasks?after=" + std::to_string(after) + "&limit=" + std::to_string(limit)));
+}
+
+Json admit(ApiClient& api, const std::string& communityId, const std::string& userId) {
+    return api.call("POST", communityPath(communityId, "/members/" + percentEncode(userId) + "/admit"));
+}
+
+Json recipients(ApiClient& api, const std::string& communityId) {
+    return api.call("GET", communityPath(communityId, "/recipients"));
+}
+
+std::vector<std::string> staffAccounts(ApiClient& api, const std::string& communityId) {
+    std::vector<std::string> out;
+    for (int offset = 0;; offset += 100) {
+        const Json page = members(api, communityId, "active", offset);
+        if (!page.is_array()) break;
+        for (const Json& m : page) {
+            const std::string role = m.value("role", std::string());
+            if (role == "owner" || role == "admin" || role == "moderator") out.push_back(m.value("userId", std::string()));
+        }
+        if (page.size() < 100) break;
+    }
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
 Json members(ApiClient& api, const std::string& communityId, const std::string& status, int offset) {
     std::string query = "?offset=" + std::to_string(offset) + "&limit=100";
     if (!status.empty()) query += "&status=" + percentEncode(status);
