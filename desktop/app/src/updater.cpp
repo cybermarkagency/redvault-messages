@@ -5,10 +5,16 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJSEngine>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QQmlEngine>
 #include <QStandardPaths>
+#include <QUrl>
 
 #include <fstream>
 #include <memory>
@@ -56,8 +62,62 @@ net::CurlTransport::Options updateTransportOptions(const AppController& app, con
     return options;
 }
 
+/// How this copy was installed, which decides what an update downloads and how it's put in place.
+enum class Kind { None, Windows, AppImage, Deb };
+
+/// The packaged .deb puts the app in /opt/redvaultmessages (packaging/linux/make-deb.sh).
+constexpr const char* kDebPrefix = "/opt/redvaultmessages/";
+constexpr const char* kDebLauncher = "/usr/bin/redvaultmessages";
+
+Kind detectKind() {
+#ifdef _WIN32
+    return Kind::Windows;
+#elif defined(__linux__)
+    // The AppImage runtime names the file it was started from.
+    const QString appImage = qEnvironmentVariable("APPIMAGE");
+    if (!appImage.isEmpty() && appImage.endsWith(QStringLiteral(".AppImage")) && QFileInfo(appImage).isFile()) return Kind::AppImage;
+    // Installed by apt from our package (not just unpacked there by hand).
+    if (QCoreApplication::applicationFilePath().startsWith(QLatin1String(kDebPrefix)) &&
+        QFileInfo::exists(QStringLiteral("/var/lib/dpkg/info/redvaultmessages.list"))) {
+        return Kind::Deb;
+    }
+    return Kind::None;
+#else
+    return Kind::None;
+#endif
+}
+
+Kind kind() {
+    static const Kind value = detectKind();
+    return value;
+}
+
+const char* manifestUrl() {
+    switch (kind()) {
+        case Kind::AppImage: return update_config::kLinuxAppImageManifestUrl;
+        case Kind::Deb: return update_config::kLinuxDebManifestUrl;
+        default: return update_config::kManifestUrl;
+    }
+}
+
+std::string_view product() {
+    switch (kind()) {
+        case Kind::AppImage: return update::kLinuxAppImageProduct;
+        case Kind::Deb: return update::kLinuxDebProduct;
+        default: return update::kProduct;
+    }
+}
+
+fs::path toPath(const QString& path) {
+#ifdef _WIN32
+    return fs::path(path.toStdWString());
+#else
+    return fs::path(QFile::encodeName(path).toStdString());
+#endif
+}
+
 std::optional<update::UpdateRoute> routeFor(const AppController& app) {
-    return update::updateRoute(app.apiBase(), kTorOnlyBuild, update_config::kManifestUrl, update_config::kDownloadPrefix);
+    return update::updateRoute(app.apiBase(), kTorOnlyBuild, manifestUrl(), update_config::kDownloadPrefix);
 }
 
 crypto::Bytes publicKey() {
@@ -146,9 +206,19 @@ bool Updater::enabled() const {
     // The Store forbids apps that update themselves, and would undo it anyway.
     return !blockedByTor() && !fromStore() && publicKey().size() == update::kPublicKeyBytes;
 #else
-    // Updates are Windows installers; other platforms update by hand.
-    return false;
+    // Linux: an AppImage or our .deb package. Anything else (built from source, unpacked by hand) updates by hand.
+    return kind() != Kind::None && !blockedByTor() && publicKey().size() == update::kPublicKeyBytes;
 #endif
+}
+
+QString Updater::installKind() {
+    switch (kind()) {
+        case Kind::Windows: return fromStore() ? QString() : QStringLiteral("windows");
+        case Kind::AppImage: return QStringLiteral("appimage");
+        case Kind::Deb: return QStringLiteral("deb");
+        case Kind::None: break;
+    }
+    return {};
 }
 
 void Updater::check() {
@@ -162,8 +232,9 @@ void Updater::check() {
     // Tor isn't connected yet: nothing goes out, and becameConnected checks again.
     if (route->viaTor && (app_->tor() == nullptr || !app_->tor()->connected())) return;
     setStatus(Status::Checking);
-    update::UpdateSource source{update_config::kManifestUrl, publicKey(), REDVAULT_VERSION, update_config::kDownloadPrefix,
+    update::UpdateSource source{manifestUrl(), publicKey(), REDVAULT_VERSION, update_config::kDownloadPrefix,
                                 app_->apiBase(), kTorOnlyBuild, QDateTime::currentMSecsSinceEpoch()};
+    source.product = std::string(product());
     runInBackground(
         pool_, this,
         [source, options = updateTransportOptions(*app_, *route)]() {
@@ -201,29 +272,63 @@ void Updater::install() {
     if (url.empty()) return;
     setStatus(Status::Downloading);
     const update::Release release = *release_;
-    const fs::path folder = fs::path(QStandardPaths::writableLocation(QStandardPaths::TempLocation).toStdWString()) /
-                            ("redvault-update-" + util::randomUuid());
+    // Where the download goes. An AppImage's goes next to the running file (a hidden .part), so moving it over the
+    // old one is a rename on the same filesystem; everything else gets a fresh folder of its own in the temp folder.
+    fs::path file;
+    bool ownFolder = true;
+    if (kind() == Kind::AppImage) {
+        file = toPath(qEnvironmentVariable("APPIMAGE")).parent_path() /
+               (".redvaultmessages-" + release.version + "-update.AppImage.part");
+        ownFolder = false;
+    } else {
+        const fs::path folder = toPath(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) /
+                                ("redvault-update-" + util::randomUuid());
+        file = folder / (kind() == Kind::Deb ? "redvaultmessages_" + release.version + "_amd64.deb"
+                                             : "redvaultmessages-Setup-" + release.version + ".exe");
+    }
     runInBackground(
         pool_, this,
-        [release, folder, url, options = updateTransportOptions(*app_, *route)]() {
-            fs::create_directories(folder);
-            const fs::path installer = folder / ("redvaultmessages-Setup-" + release.version + ".exe");
-            {
-                std::ofstream out(installer, std::ios::binary | std::ios::trunc);
-                if (!out) throw update::UpdateError("Couldn't save the update");
-                net::CurlTransport transport(options);
-                const auto response = transport.sendStreaming(net::HttpRequest{"GET", url, {}, {}}, {.download = &out});
-                if (response.status != 200) throw update::UpdateError("The download failed (" + std::to_string(response.status) + ")");
-            }
-            // Only the exact installer the signed manifest describes is ever run.
-            if (!update::installerMatches(installer, release)) {
+        [release, file, ownFolder, url, options = updateTransportOptions(*app_, *route)]() {
+            const auto discard = [&] {
                 std::error_code ignored;
-                fs::remove_all(folder, ignored);
-                throw update::UpdateError("The downloaded update didn't match its signature, so it wasn't installed");
+                if (ownFolder) fs::remove_all(file.parent_path(), ignored);
+                else fs::remove(file, ignored);
+            };
+            try {
+                if (ownFolder) {
+                    fs::create_directories(file.parent_path());
+#ifndef _WIN32
+                    // apt reads the package as its own user: let it, rather than warn.
+                    fs::permissions(file.parent_path(), fs::perms::owner_all | fs::perms::group_read | fs::perms::group_exec |
+                                                            fs::perms::others_read | fs::perms::others_exec);
+#endif
+                }
+                {
+                    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+                    if (!out) {
+                        throw update::UpdateError(ownFolder ? std::string("Couldn't save the update")
+                                                            : "Can't save the update next to the app, in " + file.parent_path().string() +
+                                                                  ". Download the new version from the website instead.");
+                    }
+                    net::CurlTransport transport(options);
+                    const auto response = transport.sendStreaming(net::HttpRequest{"GET", url, {}, {}}, {.download = &out});
+                    if (response.status != 200) throw update::UpdateError("The download failed (" + std::to_string(response.status) + ")");
+                }
+                // Only the exact file the signed manifest describes is ever run or installed.
+                if (!update::installerMatches(file, release)) {
+                    throw update::UpdateError("The downloaded update didn't match its signature, so it wasn't installed");
+                }
+            } catch (...) {
+                discard();
+                throw;
             }
-            return installer;
+            return file;
         },
         [this](fs::path installer) {
+            if (kind() != Kind::Windows) {
+                finishLinuxInstall(installer);
+                return;
+            }
             setStatus(Status::Installing);
             // Per-user installer, silent: it closes this app if needed, replaces
             // it, and starts the new version when it's done.
@@ -243,6 +348,115 @@ void Updater::install() {
             error_ = failure.message;
             emit changed();
         });
+}
+
+void Updater::finishLinuxInstall(const std::filesystem::path& file) {
+    const QString version = availableVersion();
+    if (kind() == Kind::AppImage) {
+        // Same folder, so this is a rename: the running copy keeps its (now unlinked) file until it quits.
+        const QString current = qEnvironmentVariable("APPIMAGE");
+        std::error_code error;
+        fs::permissions(file, fs::perms::owner_all | fs::perms::group_read | fs::perms::group_exec | fs::perms::others_read |
+                                  fs::perms::others_exec, error);
+        if (!error) fs::rename(file, toPath(current), error);
+        if (error) {
+            std::error_code ignored;
+            fs::remove(file, ignored);
+            setStatus(Status::Available);
+            error_ = QStringLiteral("Couldn't replace %1: %2").arg(current, QString::fromStdString(error.message()));
+            emit changed();
+            return;
+        }
+        setStatus(Status::Installing);
+        if (!relaunchAfterQuit(current)) {
+            setStatus(Status::Failed, QStringLiteral("Updated to %1. Close RedVaultMessages and open it again to use it.").arg(version));
+            return;
+        }
+        // Quitting signs out (keys and session live only in memory).
+        app_->quit();
+        return;
+    }
+
+    // The .deb: apt installs it as root, after the system asks for the password (polkit's own prompt).
+    setStatus(Status::Installing);
+    const QString package = QString::fromStdString(file.string());
+    auto* process = new QProcess(this);
+    process->setProgram(QStringLiteral("pkexec"));
+    process->setArguments({QStringLiteral("/usr/bin/apt-get"), QStringLiteral("install"), QStringLiteral("-y"), package});
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    const auto openInSoftwareInstaller = [this, package] {
+        // No way to ask for the password from here: hand the checked package to the desktop's own installer.
+        QDesktopServices::openUrl(QUrl::fromLocalFile(package));
+        setStatus(Status::Available);
+        error_ = QStringLiteral("The update is open in your software installer: install it there, then open RedVaultMessages again.");
+        emit changed();
+    };
+    connect(process, &QProcess::errorOccurred, this, [process, openInSoftwareInstaller](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) return;
+        process->deleteLater();
+        openInSoftwareInstaller();
+    });
+    connect(process, &QProcess::finished, this,
+            [this, process, file, version, openInSoftwareInstaller](int code, QProcess::ExitStatus exitStatus) {
+                process->deleteLater();
+                const auto removeDownload = [&file] {
+                    std::error_code ignored;
+                    fs::remove_all(file.parent_path(), ignored);
+                };
+                if (exitStatus == QProcess::NormalExit && code == 0) {
+                    removeDownload();
+                    if (relaunchAfterQuit(QString::fromLatin1(kDebLauncher))) {
+                        app_->quit();
+                    } else {
+                        setStatus(Status::Failed, QStringLiteral("Updated to %1. Close RedVaultMessages and open it again to use it.").arg(version));
+                    }
+                    return;
+                }
+                // pkexec: 126, the password prompt was closed; 127, not allowed or no prompt available on this desktop.
+                if (exitStatus == QProcess::NormalExit && code == 127) {
+                    openInSoftwareInstaller();
+                    return;
+                }
+                removeDownload();
+                setStatus(Status::Available);
+                error_ = code == 126 ? QStringLiteral("The update wasn't installed: the password prompt was closed.")
+                                     : QStringLiteral("The system couldn't install the update (apt-get stopped with %1).").arg(code);
+                emit changed();
+            });
+    process->start();
+}
+
+bool Updater::relaunchAfterQuit(const QString& program) {
+    // An AppImage's runtime points variables (PATH, plugin paths...) into its own mount, which goes away
+    // with this process: the new copy starts with none of that.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    const QString appDir = env.value(QStringLiteral("APPDIR"));
+    if (!appDir.isEmpty()) {
+        for (const QString& key : env.keys()) {
+            const QString value = env.value(key);
+            if (!value.contains(appDir)) continue;
+            QStringList kept;
+            for (const QString& part : value.split(QLatin1Char(':'))) {
+                if (!part.contains(appDir)) kept << part;
+            }
+            if (kept.isEmpty() || kept.join(QString()).isEmpty()) env.remove(key);
+            else env.insert(key, kept.join(QLatin1Char(':')));
+        }
+    }
+    for (const char* key : {"APPDIR", "APPIMAGE", "ARGV0", "OWD"}) env.remove(QString::fromLatin1(key));
+
+    // Waits (up to a minute) for this process to be gone, so the new one never meets the old one's locks.
+    QProcess launcher;
+    launcher.setProgram(QStringLiteral("/bin/sh"));
+    launcher.setArguments({QStringLiteral("-c"),
+                           QStringLiteral("i=0; while kill -0 \"$1\" 2>/dev/null && [ $i -lt 120 ]; do sleep 0.5; i=$((i+1)); done; "
+                                          "exec \"$0\""),
+                           program, QString::number(QCoreApplication::applicationPid())});
+    launcher.setProcessEnvironment(env);
+    launcher.setWorkingDirectory(QDir::homePath());
+    launcher.setStandardOutputFile(QProcess::nullDevice());
+    launcher.setStandardErrorFile(QProcess::nullDevice());
+    return launcher.startDetached();
 }
 
 void Updater::setStatus(Status status, const QString& error) {

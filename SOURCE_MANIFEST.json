@@ -1,10 +1,10 @@
 {
- "generated": "2026-11-15T06:06:02+00:00",
- "repository_commit": "23a71dfae5d4df458059b27d8822528c02da340c",
+ "generated": "2026-11-15T06:06:13+00:00",
+ "repository_commit": "56c61de8f66e0925b395a3f1ba55fc86dad2a051",
  "branch": "HEAD",
- "uncommitted_changes_included": false,
+ "uncommitted_changes_included": true,
  "app_versions": {
-  "desktop": "0.7.1",
+  "desktop": "0.7.2",
   "android": "0.6.2",
   "web": "0.1.0"
  },
@@ -2689,7 +2689,7 @@
   },
   {
    "path": "desktop/CMakeLists.txt",
-   "sha256": "f258922b7bd108fb5c3edb1c960ee6c6ad9983ac47a847ff9bc3ea044f4e6152",
+   "sha256": "afca3d3eb62a6cb9221db4eda7c69300be0cdb94df3f829397fb0fab2e7c72d7",
    "bytes": 6580
   },
   {
@@ -2709,8 +2709,8 @@
   },
   {
    "path": "desktop/README.md",
-   "sha256": "1502e4b92a440c69e3eedd3dbb5a2007fa973b95dd1cb96c76f7cdd018b9f7b5",
-   "bytes": 22788
+   "sha256": "c831747720733e039b5258437e4b243391ff3ddc7ac49ece627d2d2f043998e5",
+   "bytes": 24099
   },
   {
    "path": "desktop/app/CMakeLists.txt",
@@ -3484,8 +3484,8 @@
   },
   {
    "path": "desktop/app/qml/AppShell.qml",
-   "sha256": "b124a3fcfa4b402d039b1f9c9cb5ab273ade59f8db7ed99010f5d707725488b2",
-   "bytes": 11541
+   "sha256": "d9aaa7c6a95d44f10ebd45b2805728a7b95454efeb6c1335161018a7ceaa1000",
+   "bytes": 11759
   },
   {
    "path": "desktop/app/qml/Avatar.qml",
@@ -3844,8 +3844,8 @@
   },
   {
    "path": "desktop/app/qml/NavRail.qml",
-   "sha256": "cd752a648e60ec8a7345778f9f2b4203ffb8f7c54ef08df880ef4094300fdb89",
-   "bytes": 8400
+   "sha256": "79a0f62d080673db206739fba705f09c907de4d64b53ec75fd91eb035632ca91",
+   "bytes": 8211
   },
   {
    "path": "desktop/app/qml/NetworkRoutingSection.qml",
@@ -3969,8 +3969,8 @@
   },
   {
    "path": "desktop/app/qml/SettingsView.qml",
-   "sha256": "a8e5a8c2b385ff8af2b4513c579b0225944a8d947375e2ff605cf8d3aa6e11cf",
-   "bytes": 69615
+   "sha256": "8020157f73a23019f48113715fa238d7ec915217082fc5a11f1ba0db175f67e0",
+   "bytes": 69465
   },
   {
    "path": "desktop/app/qml/ShareLinkDialog.qml",
@@ -4084,8 +4084,8 @@
   },
   {
    "path": "desktop/app/qml/UpdateBanner.qml",
-   "sha256": "2ded571cbe6720b577cd904458978887f29005edeb8213a43eb74c737577e461",
-   "bytes": 3000
+   "sha256": "cca5662438b94d24bd9f38868bad5a47c87fe15e3b42d4799ab1772f9d4ecd33",
+   "bytes": 3346
   },
   {
    "path": "desktop/app/qml/UpgradeDialog.qml",
@@ -4454,18 +4454,18 @@
   },
   {
    "path": "desktop/app/src/update_key.hpp",
-   "sha256": "cdf11bd63384a4f29191f787d439957b430e8c0ecc5b4842da822ef8ba44544e",
-   "bytes": 927
+   "sha256": "723c1334f887278c9c1828886e811424eb78f3b1f869f3a4819900d23f796b01",
+   "bytes": 1306
   },
   {
    "path": "desktop/app/src/updater.cpp",
-   "sha256": "5c18364196b7b5f90cb7918bdcbe3324dd50678992f5d5bebb303ce8e3fcf05e",
-   "bytes": 9710
+   "sha256": "1b385d7a246e702565a1c6bd478ddb7307aa2dac50e4b0edebf8d8bd01d6237d",
+   "bytes": 19845
   },
   {
    "path": "desktop/app/src/updater.hpp",
-   "sha256": "53244526ebe727b3a9beb4500823cf9443215e5cbfdd60257aeacb0e2275b7cc",
-   "bytes": 3775
+   "sha256": "b2dfa3ef4caed80b7d5fb5d3ec811a32a744beb971b14695b19ca2d62e043cdb",
+   "bytes": 4872
   },
   {
    "path": "desktop/app/src/vault_session.cpp",
@@ -4844,8 +4844,8 @@
   },
   {
    "path": "desktop/core/include/redvault/update/update.hpp",
-   "sha256": "f4cd26a216583842622f4caa3a3ba77beb7aa5023e08d936b56705c08c43b9a0",
-   "bytes": 7571
+   "sha256": "fa48ebf85f57fc260c65afc80ed4b425559c7c15e1556c3b6d0613455d6a752a",
+   "bytes": 8314
   },
   {
    "path": "desktop/core/include/redvault/util/private_files.hpp",
@@ -5159,8 +5159,8 @@
   },
   {
    "path": "desktop/core/src/update/update.cpp",
-   "sha256": "69de9b117c3b5de1ef3ebce741dea30fade5c4fef333fcd4b8b3537e38801cb6",
-   "bytes": 14900
+   "sha256": "644f1e8e87342d5eff117518fa3a88e318bb0384ad8358ab83094fe8ffb8b708",
+   "bytes": 15369
   },
   {
    "path": "desktop/core/src/util/private_files.cpp",
@@ -5343,9 +5343,19 @@
    "bytes": 6080
   },
   {
+   "path": "desktop/packaging/linux/make-snap.sh",
+   "sha256": "935c404b14800f5296f925bef98d634fb2d41be466444881cb2b8777af9bf39e",
+   "bytes": 3556
+  },
+  {
    "path": "desktop/packaging/linux/redvaultmessages.desktop",
    "sha256": "041632255c512de6edb9759c619291802d786468e8c115f9525e933ec67c8c77",
    "bytes": 190
+  },
+  {
+   "path": "desktop/packaging/linux/redvaultmessages.metainfo.xml",
+   "sha256": "079e70ca9d47671e947229f0fa4f53ee08d7a955058f7d6347573fc92a9d6b8e",
+   "bytes": 2371
   },
   {
    "path": "desktop/packaging/msix/AppxManifest.xml.in",
@@ -5521,6 +5531,16 @@
    "path": "desktop/packaging/redvault.iss",
    "sha256": "ce34bdd0f906df6322f3a622779787aeb45568444a5bdc7da3622d18691156a7",
    "bytes": 3449
+  },
+  {
+   "path": "desktop/packaging/snap/.gitignore",
+   "sha256": "a5f374eb2188f84e18edead69920b1fb6a7ca917be9367014fdf41480fdcba38",
+   "bytes": 40
+  },
+  {
+   "path": "desktop/packaging/snap/snap/snapcraft.yaml",
+   "sha256": "0cf69475ebd520472381a493d4d4e98c0c47d31df7c70e99d73394aee1061700",
+   "bytes": 2670
   },
   {
    "path": "desktop/packaging/tor-release-args.ps1",
@@ -5959,8 +5979,8 @@
   },
   {
    "path": "desktop/tests/update_test.cpp",
-   "sha256": "806262cbdfe280e37d8fcdca7d041c2e26956f2d806cc37bce931df872ba589c",
-   "bytes": 20730
+   "sha256": "55f428ea5ef6cdca1aa086a6f2fe60d616a35e9e30cec76439f3b53ab257e20d",
+   "bytes": 24965
   },
   {
    "path": "desktop/tests/vault_binding_test.cpp",
@@ -6204,8 +6224,8 @@
   },
   {
    "path": "desktop/tools/release/main.cpp",
-   "sha256": "f06176fa5403bee04af9a625127bda2e5dd5fa798ff7567ad2dd0287fc4c6d04",
-   "bytes": 14407
+   "sha256": "5fc755521559565e4b7760c54e87e61ebba33fffeb52f05626b2f2c2674f4bf8",
+   "bytes": 18766
   },
   {
    "path": "desktop/tools/rtc_interop/CMakeLists.txt",

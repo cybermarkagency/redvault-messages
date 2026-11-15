@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Winchester Marcelo Tuazon, trading as RedVault Systems
+
+# The snap that the Snap Store, and so Ubuntu's App Center, offers.
+# Don't run snapcraft here directly: packaging/linux/make-snap.sh fills input/
+# from the released AppImage (the same files the .deb holds) and then packs.
+# The snap holds exactly what the AppImage holds, unpacked; the gnome
+# extension supplies the desktop side (OpenGL/Mesa, fonts, themes, portals).
+name: redvaultmessages
+title: RedVaultMessages
+base: core24
+adopt-info: redvaultmessages
+summary: End-to-end encrypted messenger, reached through Tor
+description: |
+  Private messages, calls, files and a password vault, encrypted on your own
+  devices and reached through Tor.
+license: AGPL-3.0-only
+website: https://www.redvaultsystems.com/
+source-code: https://github.com/cybermarkagency/redvault-messages
+icon: input/redvaultmessages.png
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+
+apps:
+  redvaultmessages:
+    command: usr/bin/redvaultmessages-snap   # sets Qt's platform to xcb (make-snap.sh)
+    common-id: com.redvaultsystems.redvaultmessages
+    desktop: usr/share/applications/redvaultmessages.desktop
+    extensions: [gnome]
+    plugs:
+      - network
+      - network-bind      # Tor runs inside the app and listens on 127.0.0.1
+      - audio-playback
+      - audio-record      # calls, voice notes
+      - camera            # video calls
+      - home              # saving and attaching files
+      - removable-media   # files on USB drives
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11               # the bundled Qt draws through X11 (XWayland on Wayland)
+      - unity7            # tray icon
+
+parts:
+  redvaultmessages:
+    plugin: dump
+    source: input/root
+    # The version is the newest <release> in the metainfo (make-snap.sh checks
+    # it matches the AppImage).
+    parse-info: [usr/share/metainfo/com.redvaultsystems.redvaultmessages.metainfo.xml]
+
+  # Libraries the AppImage leaves to the system (the .deb's Depends) that the
+  # core24 base and the gnome platform may not carry. Only the libraries are
+  # kept, and never one the AppImage already bundles.
+  system-libs:
+    after: [redvaultmessages]
+    plugin: nil
+    stage-packages:
+      - libgmp10
+      - libgpg-error0
+      - libcom-err2
+    stage:
+      - usr/lib/x86_64-linux-gnu/libgmp.so.*
+      - usr/lib/x86_64-linux-gnu/libgpg-error.so.*
+      - usr/lib/x86_64-linux-gnu/libcom_err.so.*
+
+lint:
+  ignore:
+    - library   # the bundled Qt plugins load libraries the linter can't trace

@@ -42,6 +42,10 @@ namespace redvault::update {
 inline constexpr std::string_view kProduct = "redvault-desktop";
 /// The Android app's manifest (android-latest.json): the same format and key, its own product and a versionCode.
 inline constexpr std::string_view kAndroidProduct = "redvault-android";
+/// The Linux desktop app has one manifest per way it's installed, each naming its own file:
+/// linux-appimage-latest.json (the .AppImage) and linux-deb-latest.json (the .deb package).
+inline constexpr std::string_view kLinuxAppImageProduct = "redvault-desktop-appimage";
+inline constexpr std::string_view kLinuxDebProduct = "redvault-desktop-deb";
 inline constexpr std::size_t kPublicKeyBytes = 32;
 inline constexpr std::size_t kSecretKeyBytes = 64;
 
@@ -66,7 +70,7 @@ struct Release {
     std::string published;
     /// ISO-8601 UTC. After this, the manifest may be old news. Empty in manifests from before this field.
     std::string expires;
-    /// Which app this is for: kProduct (desktop) or kAndroidProduct.
+    /// Which app this is for: kProduct (Windows desktop), kLinuxAppImageProduct, kLinuxDebProduct or kAndroidProduct.
     std::string product{kProduct};
     /// Android only: the APK's versionCode (Android compares these, never the version text). 0 for desktop.
     std::int64_t versionCode = 0;
@@ -83,15 +87,18 @@ struct ManifestCheck {
 /**
  * Verifies a manifest and returns the release it describes if it's newer
  * than `currentVersion`, or empty if this build is already up to date.
- * Throws UpdateError if anything doesn't check out: bad signature, wrong
- * product, malformed fields, or an installer URL outside `allowedUrlPrefix`.
+ * Throws UpdateError if anything doesn't check out: bad signature, a product
+ * other than `product`, malformed fields, or an installer URL outside
+ * `allowedUrlPrefix` (for the Linux products, also one that isn't an .AppImage
+ * or a .deb respectively).
  */
 std::optional<Release> verifyManifest(std::string_view manifestJson, crypto::ByteView publicKey,
-                                      std::string_view currentVersion, std::string_view allowedUrlPrefix);
+                                      std::string_view currentVersion, std::string_view allowedUrlPrefix,
+                                      std::string_view product = kProduct);
 
 /// verifyManifest, and how fresh the manifest is at `nowMillis`. An expiry that can't be read is an UpdateError.
 ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publicKey, std::string_view currentVersion,
-                            std::string_view allowedUrlPrefix, std::int64_t nowMillis);
+                            std::string_view allowedUrlPrefix, std::int64_t nowMillis, std::string_view product = kProduct);
 
 /**
  * Where this app checks for and downloads updates (docs/tor-by-default.md). The
@@ -125,6 +132,8 @@ struct UpdateSource {
     std::string apiBase;
     bool torOnlyBuild = false;
     std::int64_t nowMillis = 0;
+    /// The product the manifest must be for (kProduct, or one of the Linux ones).
+    std::string product{kProduct};
 };
 
 /// Fetches and checks the manifest along updateRoute. Sends nothing at all without a route. Throws net::NetworkError or UpdateError.

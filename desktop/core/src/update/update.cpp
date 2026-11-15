@@ -53,7 +53,7 @@ std::optional<Version> parseVersion(std::string_view text) {
 }
 
 ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publicKey, std::string_view currentVersion,
-                            std::string_view allowedUrlPrefix, std::int64_t nowMillis) {
+                            std::string_view allowedUrlPrefix, std::int64_t nowMillis, std::string_view product) {
     crypto::ensureSodium();
     if (publicKey.size() != kPublicKeyBytes) throw UpdateError("No valid update key in this build");
 
@@ -75,9 +75,10 @@ ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publ
 
     const Json body = Json::parse(payload.begin(), payload.end(), nullptr, false);
     if (body.is_discarded() || !body.is_object()) throw UpdateError("Signed update payload isn't valid JSON");
-    if (requireString(body, "product") != kProduct) throw UpdateError("Update manifest is for a different product");
+    if (requireString(body, "product") != product) throw UpdateError("Update manifest is for a different product");
 
     Release release;
+    release.product = std::string(product);
     release.version = requireString(body, "version");
     release.url = requireString(body, "url");
     release.sha256 = requireString(body, "sha256");
@@ -107,6 +108,11 @@ ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publ
         release.url.find_first_of("?#\\ ") != std::string::npos) {
         throw UpdateError("Update manifest points outside the download folder");
     }
+    // A Linux install only ever replaces itself with its own kind of file.
+    if ((product == kLinuxAppImageProduct && !release.url.ends_with(".AppImage")) ||
+        (product == kLinuxDebProduct && !release.url.ends_with(".deb"))) {
+        throw UpdateError("Update manifest names the wrong kind of file");
+    }
 
     // Only ever forward: an older (or the same) version is never offered, so a
     // replayed old manifest can't roll anyone back to a vulnerable release.
@@ -115,9 +121,9 @@ ManifestCheck checkManifest(std::string_view manifestJson, crypto::ByteView publ
 }
 
 std::optional<Release> verifyManifest(std::string_view manifestJson, crypto::ByteView publicKey,
-                                      std::string_view currentVersion, std::string_view allowedUrlPrefix) {
+                                      std::string_view currentVersion, std::string_view allowedUrlPrefix, std::string_view product) {
     const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    return checkManifest(manifestJson, publicKey, currentVersion, allowedUrlPrefix, now).release;
+    return checkManifest(manifestJson, publicKey, currentVersion, allowedUrlPrefix, now, product).release;
 }
 
 bool updatesPermitted(std::string_view apiBase, bool torOnlyBuild) {
@@ -157,7 +163,8 @@ ManifestCheck fetchManifest(net::HttpTransport& transport, const UpdateSource& s
     const auto type = response.header("content-type").value_or("");
     if (response.status == 404 || (response.status == 200 && type.starts_with("text/html"))) return {};
     if (response.status != 200) throw UpdateError("The update server answered " + std::to_string(response.status));
-    return checkManifest(response.body, source.publicKey, source.currentVersion, source.allowedUrlPrefix, source.nowMillis);
+    return checkManifest(response.body, source.publicKey, source.currentVersion, source.allowedUrlPrefix, source.nowMillis,
+                         source.product);
 }
 
 Release verifyAndroidManifest(std::string_view manifestJson, crypto::ByteView publicKey, std::string_view allowedUrlPrefix) {

@@ -400,3 +400,74 @@ TEST_CASE("the shared Android update vector is what the signer produces", "[upda
     CHECK(stored == vector);
 }
 #endif
+
+namespace {
+
+Release linuxRelease(std::string_view product, const std::string& version = "0.7.3") {
+    Release r = release(version);
+    r.product = std::string(product);
+    r.url = product == kLinuxAppImageProduct ? kPrefix + "redvaultmessages-" + version + "-x86_64.AppImage"
+                                             : kPrefix + "redvaultmessages_" + version + "_amd64.deb";
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("Linux manifests verify only as their own kind of install", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    const auto appImage = signManifest(linuxRelease(kLinuxAppImageProduct), keys.secretKey);
+    const auto deb = signManifest(linuxRelease(kLinuxDebProduct), keys.secretKey);
+
+    const auto found = verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct);
+    REQUIRE(found);
+    CHECK(found->product == kLinuxAppImageProduct);
+    CHECK(found->url == kPrefix + "redvaultmessages-0.7.3-x86_64.AppImage");
+    REQUIRE(verifyManifest(deb, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct));
+
+    // An AppImage install never takes the .deb's manifest (or the Windows one), and so on.
+    CHECK_THROWS_AS(verifyManifest(deb, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(appImage, keys.publicKey, "0.7.2", kPrefix), UpdateError);
+    const auto windows = signManifest(release("0.7.3"), keys.secretKey);
+    CHECK_THROWS_AS(verifyManifest(windows, keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct), UpdateError);
+    CHECK_THROWS_AS(verifyManifest(windows, keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct), UpdateError);
+}
+
+TEST_CASE("a Linux manifest naming the wrong kind of file is refused, even when signed", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    auto r = linuxRelease(kLinuxAppImageProduct);
+    r.url = kPrefix + "redvaultmessages-0.7.3.sh";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxAppImageProduct),
+                    UpdateError);
+    r = linuxRelease(kLinuxDebProduct);
+    r.url = kPrefix + "redvaultmessages-0.7.3-x86_64.AppImage";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct),
+                    UpdateError);
+    r = linuxRelease(kLinuxDebProduct);
+    r.url = "https://evil.example/redvaultmessages_0.7.3_amd64.deb";
+    CHECK_THROWS_AS(verifyManifest(signManifest(r, keys.secretKey), keys.publicKey, "0.7.2", kPrefix, kLinuxDebProduct),
+                    UpdateError);
+}
+
+TEST_CASE("Linux updates only move forward", "[update][linux]") {
+    const auto keys = generateSigningKey();
+    CHECK_FALSE(verifyManifest(signManifest(linuxRelease(kLinuxDebProduct, "0.7.2"), keys.secretKey), keys.publicKey, "0.7.2",
+                               kPrefix, kLinuxDebProduct));
+    CHECK_FALSE(verifyManifest(signManifest(linuxRelease(kLinuxAppImageProduct, "0.7.1"), keys.secretKey), keys.publicKey,
+                               "0.7.2", kPrefix, kLinuxAppImageProduct));
+}
+
+TEST_CASE("the Linux manifest is fetched over the same route as the Windows one", "[update][linux][tor]") {
+    const auto keys = generateSigningKey();
+    const std::string onionApi = "http://" + std::string(56, 'a') + ".onion/redvaultmessages/api/";
+    const std::string manifestUrl = kPrefix + "linux-deb-latest.json";
+    test::FakeTransport transport;
+    transport.enqueue(200, signManifest(linuxRelease(kLinuxDebProduct), keys.secretKey), {{"content-type", "application/json"}});
+    UpdateSource source{manifestUrl, keys.publicKey, "0.7.2", kPrefix, onionApi, true, 0};
+    source.product = std::string(kLinuxDebProduct);
+    const auto check = fetchManifest(transport, source);
+    REQUIRE(check.release);
+    CHECK(check.release->version == "0.7.3");
+    REQUIRE(transport.requests.size() == 1);
+    CHECK(transport.requests[0].url == "http://" + std::string(56, 'a') + ".onion/redvaultmessages/desktop/linux-deb-latest.json");
+}

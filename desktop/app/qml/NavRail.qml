@@ -154,7 +154,6 @@ Rectangle {
 
         RailButton { visible: rail.showAdmin; compact: rail.compact; tight: rail.tight; page: "admin"; iconName: "shield-check"; text: qsTr("Admin"); current: rail.current; onPicked: (page) => rail.navigate(page) }
 
-        RailButton { compact: rail.compact; tight: rail.tight; page: "privacy"; iconName: "shield"; text: qsTr("Privacy"); current: rail.current; onPicked: (page) => rail.navigate(page) }
         RailButton { compact: rail.compact; tight: rail.tight; page: "settings"; iconName: "sliders"; text: qsTr("Settings"); current: rail.current; onPicked: (page) => rail.navigate(page) }
 
         AbstractButton {

@@ -13,6 +13,9 @@ namespace redvault::app::update_config {
 inline constexpr const char* kManifestUrl = "https://www.redvaultsystems.com/redvaultmessages/desktop/latest.json";
 /// Installers are only ever downloaded from here.
 inline constexpr const char* kDownloadPrefix = "https://www.redvaultsystems.com/redvaultmessages/desktop/";
+/// Linux: one manifest per way the app is installed (`redvault_release sign-linux` writes both).
+inline constexpr const char* kLinuxAppImageManifestUrl = "https://www.redvaultsystems.com/redvaultmessages/desktop/linux-appimage-latest.json";
+inline constexpr const char* kLinuxDebManifestUrl = "https://www.redvaultsystems.com/redvaultmessages/desktop/linux-deb-latest.json";
 
 // redvault-release-public-key
 inline constexpr const char* kPublicKeyB64 = "4GOi/rqNFDftNAHc8vCPKL7cukGzVAVXHLUD2ckyWi0=";

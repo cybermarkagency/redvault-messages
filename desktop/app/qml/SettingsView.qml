@@ -206,7 +206,6 @@ Item {
                 NavCaption { text: qsTr("ACCOUNT") }
                 NavItem { key: "account"; iconName: "user"; text: qsTr("Account and plan"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "privacy"; iconName: "lock"; text: qsTr("Privacy"); current: page.section; onPicked: (key) => page.section = key }
-                NavItem { key: "stories"; iconName: "stories"; text: qsTr("Stories"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "security"; iconName: "key"; text: qsTr("Security"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "network"; iconName: "shield"; text: qsTr("Network routing"); current: page.section; onPicked: (key) => page.section = key }
                 NavItem { key: "notifications"; iconName: "bell"; text: qsTr("Notifications"); current: page.section; onPicked: (key) => page.section = key }

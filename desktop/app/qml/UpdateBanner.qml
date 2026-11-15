@@ -50,7 +50,10 @@ Rectangle {
                 text: Updater.error.length > 0 ? Updater.error
                     : Updater.status === Updater.Available ? (Updater.notes.length > 0 ? Updater.notes + " " : "")
                                                              + qsTr("Updating signs you out; sign back in afterwards.")
+                                                             + (Updater.installKind === "deb" ? " " + qsTr("Your computer's password is needed to install it.") : "")
                                                              + (Updater.freshnessWarning.length > 0 ? " " + Updater.freshnessWarning : "")
+                    : Updater.status === Updater.Installing && Updater.installKind === "deb"
+                      ? qsTr("Enter your computer's password when it's asked for.")
                     : ""
                 textFormat: Text.PlainText
                 elide: Text.ElideRight

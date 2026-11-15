@@ -34,6 +34,15 @@ class AppController;
  * the installer's exact size and SHA-256. Installing runs the per-user
  * installer silently and quits (signing out), and the installer starts the
  * new version.
+ *
+ * On Linux it depends on how the app was installed (installKind):
+ * - "appimage": the new .AppImage is downloaded next to the running one, checked,
+ *   and moved over it; the app then restarts from it. No password needed, but the
+ *   folder must be writable.
+ * - "deb": the new .deb is downloaded and checked, then installed with
+ *   `pkexec apt-get install`, which asks for the computer's password; the app
+ *   restarts once it's in. Without pkexec it's opened in the software installer.
+ * - "": anything else (built from source, unpacked by hand): no updates, as before.
  */
 class Updater : public QObject {
     Q_OBJECT
@@ -51,6 +60,8 @@ class Updater : public QObject {
     Q_PROPERTY(bool blockedByTor READ blockedByTor CONSTANT)
     /// Non-empty when the signed update information is expired or has no expiry date.
     Q_PROPERTY(QString freshnessWarning READ freshnessWarning NOTIFY changed)
+    /// How this copy updates itself: "windows", "appimage", "deb", or "" (it doesn't).
+    Q_PROPERTY(QString installKind READ installKind CONSTANT)
 
 public:
     enum class Status { Disabled, Idle, Checking, UpToDate, Available, Downloading, Installing, Failed };
@@ -71,6 +82,7 @@ public:
     static bool fromStore();
     bool blockedByTor() const;
     QString freshnessWarning() const;
+    static QString installKind();
 
     Q_INVOKABLE void check();
     Q_INVOKABLE void install();
@@ -84,6 +96,10 @@ signals:
 
 private:
     void setStatus(Status status, const QString& error = {});
+    /// Linux: the checked file is in place (AppImage) or ready to install (.deb).
+    void finishLinuxInstall(const std::filesystem::path& file);
+    /// Starts `program` once this process has gone, without anything from the old AppImage's environment.
+    static bool relaunchAfterQuit(const QString& program);
 
     AppController* app_;
     QThreadPool pool_;
