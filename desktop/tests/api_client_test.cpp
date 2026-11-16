@@ -136,12 +136,19 @@ TEST_CASE("avatars are fetched only from the avatar route, with the session cook
     CHECK(f.transport->last().url == "https://example.com" + url);
     CHECK(FakeTransport::headerOf(f.transport->last(), "cookie") == "sid=abc");
 
+    // The server's current version tag is a 16-hex-digit keyed hash.
+    f.transport->enqueue(200, std::string("\xFF\xD8\xFF", 3));
+    const std::string hexUrl = "/api/users/3f2504e0-4f89-11d3-9a0c-0305e82c3301/avatar?v=9f86d081884c7d65";
+    CHECK(f.api.fetchAvatar(hexUrl) == std::string("\xFF\xD8\xFF", 3));
+    CHECK(f.transport->last().url == "https://example.com" + hexUrl);
+
     const auto requestsBefore = f.transport->requests.size();
     CHECK_THROWS_AS(f.api.fetchAvatar("https://evil.example/x.png"), ApiError);
     CHECK_THROWS_AS(f.api.fetchAvatar("/api/users/../auth/me"), ApiError);
     CHECK_THROWS_AS(f.api.fetchAvatar("/api/users/%2e%2e/auth/me/avatar"), ApiError);
     CHECK_THROWS_AS(f.api.fetchAvatar(url + "&x=1"), ApiError);
     CHECK_THROWS_AS(f.api.fetchAvatar("/api/auth/me"), ApiError);
+    CHECK_THROWS_AS(f.api.fetchAvatar("/api/users/3f2504e0-4f89-11d3-9a0c-0305e82c3301/avatar?v=9f86/../x"), ApiError);
     CHECK(f.transport->requests.size() == requestsBefore);
 
     f.transport->enqueue(404, R"({"error":"not_found","message":"No avatar"})");

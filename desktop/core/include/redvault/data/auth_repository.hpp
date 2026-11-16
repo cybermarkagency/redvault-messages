@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -73,9 +74,21 @@ struct SignupConsent {
  * Remembering the last handle is left to the caller (it's a UI preference),
  * as is wiping: dropping a SelfIdentity zeroes its private key.
  */
+/**
+ * Keeps the server's trusted-device token (cookie rv_device) for each handle across restarts. With it, strangers'
+ * wrong passwords can't lock this device out of the account (server: db/migrations/052_login_devices.sql). The token
+ * is a secret, so the app keeps it in the OS-protected key vault. Unset: the token lives in memory only, as before.
+ */
+struct LoginDeviceTokens {
+    std::function<std::optional<std::string>(const std::string& handle)> load;
+    std::function<void(const std::string& handle, const std::string& token)> save;
+};
+
 class AuthRepository {
 public:
     explicit AuthRepository(std::shared_ptr<api::ApiClient> api);
+
+    void setLoginDeviceTokens(LoginDeviceTokens tokens) { deviceTokens_ = std::move(tokens); }
 
     Registered registerAccount(const std::string& handle, const std::string& password, const SignupConsent& consent);
 
@@ -100,7 +113,13 @@ private:
     SelfIdentity finishLogin(const std::string& handle, const std::string& password, const api::LoginResult& result,
                              bool mfaEnabled);
 
+    /// Puts this handle's kept device token in the cookie jar before a sign-in request.
+    void restoreDeviceToken(const std::string& handle);
+    /// Keeps the token the server just handed out (each complete sign-in replaces it).
+    void keepDeviceToken(const std::string& handle);
+
     std::shared_ptr<api::ApiClient> api_;
+    LoginDeviceTokens deviceTokens_;
 };
 
 }  // namespace redvault::data

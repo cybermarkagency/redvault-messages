@@ -91,6 +91,8 @@ fun OnboardingScreen(
     onLogin: (handle: String, password: String) -> Unit,
     onSubmitMfa: (code: String) -> Unit,
     onCancelMfa: () -> Unit,
+    /** Cancel while sign-in waits for Tor to connect: back to the form. */
+    onCancelWaitForTor: () -> Unit,
     onModeChange: (OnboardingMode) -> Unit,
     onRegenerateHandle: () -> Unit,
     onOpenTransparency: () -> Unit,
@@ -111,6 +113,7 @@ fun OnboardingScreen(
         Column(Modifier.widthIn(max = 440.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Wordmark()
             when {
+                state.waitingForTor -> WaitingForTor(onCancelWaitForTor)
                 state.status == AuthStatus.MfaPending -> MfaStep(state, onSubmitMfa, onCancelMfa)
                 state.mode == OnboardingMode.Recover -> RecoverAccountForm(state, onRecover, onBack = { onModeChange(OnboardingMode.Login) })
                 state.mode == OnboardingMode.Login -> LoginForm(state, onLogin, onModeChange)
@@ -327,6 +330,21 @@ private fun ColumnScope.MfaStep(state: AuthUiState, onSubmit: (String) -> Unit, 
         busy = submitted,
     )
     LinkText("Back", onCancel, Modifier.align(Alignment.CenterHorizontally))
+}
+
+/**
+ * Sign-in (or the two-factor code) is waiting for Tor: nothing went out yet, and it goes on its own once Tor connects.
+ * Not an error. Cancel goes back to the form.
+ */
+@Composable
+private fun ColumnScope.WaitingForTor(onCancel: () -> Unit) {
+    Callout(
+        stringResource(R.string.ui_waiting_for_tor_to_connect),
+        CalloutTone.Neutral,
+        R.drawable.ui_lock,
+        detail = stringResource(R.string.ui_you_ll_be_signed_in_as_soon_as_it_does),
+    )
+    PillButton(stringResource(R.string.ui_cancel), onCancel, Modifier.fillMaxWidth(), style = PillStyle.Secondary)
 }
 
 @Composable

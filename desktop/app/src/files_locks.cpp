@@ -267,6 +267,7 @@ void FilesSession::unlockFile(const QString& id, const QString& mode, const QStr
 void FilesSession::lockNow(const QString& id) {
     const std::string key = id.toStdString();
     unlocked_.erase(key);
+    if (viewer_.value("id").toString() == id) closePreview();
     if (const auto preview = previews_.find(key); preview != previews_.end()) {
         std::error_code ignored;
         fs::remove(fs::path(QUrl(preview->second).toLocalFile().toStdWString()), ignored);

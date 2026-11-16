@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.redvaultsystems.redvaultmessage.R
@@ -182,8 +183,14 @@ fun GroupInviteSection(conversation: Conversation, chats: ChatSession, canManage
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Avatar(avatarUrl = request.avatarUrl, seed = request.handle, size = 32.dp)
-                Text(request.handle, fontFamily = FontFamily.Monospace, color = colors.text, modifier = Modifier.weight(1f))
+                Avatar(avatarUrl = request.avatarUrl, seed = if (request.nameHidden) request.userId else request.handle, size = 32.dp)
+                Text(
+                    request.handle,
+                    fontFamily = if (request.nameHidden) FontFamily.Default else FontFamily.Monospace,
+                    fontStyle = if (request.nameHidden) FontStyle.Italic else FontStyle.Normal,
+                    color = if (request.nameHidden) colors.text3 else colors.text,
+                    modifier = Modifier.weight(1f),
+                )
                 TextButton(enabled = !busy, onClick = {
                     run("Couldn't let them in.") {
                         chats.approveJoinRequest(groupId, request.userId)

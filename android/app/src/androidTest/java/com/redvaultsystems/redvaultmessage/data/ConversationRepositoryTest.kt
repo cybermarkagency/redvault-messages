@@ -228,6 +228,8 @@ private class FakeApi(private val conversation: ConversationDto, private val the
         )
     }
 
+    override suspend fun billingConfig(): BillingConfigDto = error("unused")
+    override suspend fun switchPlan(body: SwitchPlanRequest): PlanStatusDto = error("unused")
     override suspend fun register(body: RegisterRequest): AuthResult = error("unused")
     override suspend fun login(body: LoginRequest): LoginResponse = error("unused")
     override suspend fun verifyMfa(body: MfaCodeRequest): LoginResponse = error("unused")

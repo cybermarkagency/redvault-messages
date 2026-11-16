@@ -80,6 +80,11 @@ class FilesSession : public QObject {
     Q_PROPERTY(QString exportedKey READ exportedKey NOTIFY keysChanged)
     /// A lock or key operation is running (Argon2id takes a moment): dialogs show it and wait.
     Q_PROPERTY(bool lockBusy READ lockBusy NOTIFY lockBusyChanged)
+    /// The in-app viewer (files_viewer.cpp): {id, name, kind, state: "loading"|"ready"|"error", progress, url, text, rows,
+    /// truncated, message, sizeText}; empty while closed.
+    Q_PROPERTY(QVariantMap viewer READ viewer NOTIFY viewerChanged)
+    /// PDFs can be shown inside the app (built with Qt PDF).
+    Q_PROPERTY(bool pdfSupported READ pdfSupported CONSTANT)
 
 public:
     /// `tor`: when routing goes through Tor, uploads are resumable (parts + a sealed journal) and pause while Tor is down.
@@ -116,6 +121,8 @@ public:
     QVariantMap selectedKey() const;
     QString exportedKey() const { return exportedKey_; }
     bool lockBusy() const { return lockBusy_; }
+    QVariantMap viewer() const { return viewer_; }
+    static bool pdfSupported();
     /// What the last refresh decrypted (public share links read it to keep folder links in step).
     const data::DriveSnapshot& snapshot() const { return snapshot_; }
 
@@ -141,6 +148,12 @@ public:
     Q_INVOKABLE void download(const QString& id, const QUrl& destination);
     /// Decrypts into the session cache and opens it with its app (not for programs).
     Q_INVOKABLE void openFile(const QString& id);
+    /// What the in-app viewer would show for this entry ("image", "text", "csv", "json", "audio", "video", "pdf"), or empty.
+    Q_INVOKABLE QString previewKind(const QString& id) const;
+    /// Decrypts into the session cache and shows it in the in-app viewer (no other app is involved).
+    Q_INVOKABLE void openPreview(const QString& id);
+    /// Closes the viewer and deletes its decrypted copy (pictures stay as the details panel's preview until sign-out).
+    Q_INVOKABLE void closePreview();
     Q_INVOKABLE void shareWith(const QString& id, const QString& userId);
     Q_INVOKABLE void unshare(const QString& id, const QString& userId);
     /// A share link with the current switches (and this password if "Require a password" is on); copies it.
@@ -207,6 +220,7 @@ signals:
     void linkCreated(const QString& url);
     void keysChanged();
     void lockBusyChanged();
+    void viewerChanged();
     /// A lock or key operation finished: `action` names it ("upload", "unlock", "changeLock", "createKey",
     /// "importKey", "keyPassword", "export", "renameKey", "deleteKey"); `error` is empty on success.
     void lockDone(const QString& action, const QString& error);
@@ -294,6 +308,12 @@ private:
     QString selectedId_;
     std::map<std::string, QString> previews_;  // entry id -> local file URL
     std::map<std::string, std::vector<std::filesystem::path>> openedCopies_;  // entry id -> decrypted copies opened in other apps
+    QVariantMap viewer_;
+    /// Only the newest viewer load is shown: closing or opening another one makes older loads stale.
+    int viewerGeneration_ = 0;
+    /// The decrypted copy the viewer is showing (deleted on close); empty for pictures, which stay as previews_.
+    std::filesystem::path viewerCopy_;
+    void setViewer(QVariantMap viewer);
     bool linkExpires_ = true;
     bool linkPassword_ = true;
     bool linkAllowDownload_ = false;

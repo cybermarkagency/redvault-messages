@@ -125,6 +125,8 @@ SealedFallbackTransport::SealedFallbackTransport(std::shared_ptr<HttpTransport> 
       allowed_(std::move(allowed)),
       onRouteChanged_(std::move(onRouteChanged)),
       sealer_(config_.sealer ? config_.sealer : std::make_shared<CryptoCoreSealer>(config_.keyConfig)) {
+    // The route that worked last time; the check below moves back to the onion once it answers.
+    if (config_.startOnBackup && !config_.keyConfig.empty() && (!allowed_ || allowed_())) backup_ = true;
     prober_ = std::thread([this] { probeLoop(); });
 }
 
@@ -157,7 +159,7 @@ void SealedFallbackTransport::noteOnionSuccess() {
     failures_ = 0;
 }
 
-void SealedFallbackTransport::noteOnionFailure() {
+void SealedFallbackTransport::noteOnionFailure(bool notSent) {
     bool switchNow = false;
     {
         std::lock_guard lock(mutex_);
@@ -166,6 +168,8 @@ void SealedFallbackTransport::noteOnionFailure() {
         ++failures_;
         switchNow = failures_ >= config_.switchAfterFailures || now - firstFailure_ >= config_.switchAfter;
     }
+    // Tor works, yet the onion couldn't even be reached: waiting for more failures only keeps people waiting.
+    if (notSent && config_.torConnected && config_.torConnected()) switchNow = true;
     if (switchNow && !config_.keyConfig.empty() && (!allowed_ || allowed_())) setBackup(true);
 }
 
@@ -214,10 +218,11 @@ HttpResponse SealedFallbackTransport::sendStreaming(const HttpRequest& request, 
         return response;
     } catch (const TorUnavailableError&) {
         throw;  // Tor itself is down: nothing goes anywhere, on either route.
-    } catch (const NetworkError&) {
-        noteOnionFailure();
-        // A GET is safe to send again; a body that was streamed can't be replayed.
-        if (backup_.load() && isGet(request) && streams.upload == nullptr) {
+    } catch (const NetworkError& error) {
+        const bool notSent = dynamic_cast<const NotSentError*>(&error) != nullptr;
+        noteOnionFailure(notSent);
+        // A GET is safe to send again, and so is anything the onion never saw; a body that was streamed can't be replayed.
+        if (backup_.load() && (isGet(request) || notSent) && streams.upload == nullptr) {
             if (streams.download != nullptr) {
                 if (downloadStart == std::ostream::pos_type(-1)) throw;
                 streams.download->clear();

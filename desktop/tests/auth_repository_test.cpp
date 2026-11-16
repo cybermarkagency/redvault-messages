@@ -7,6 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <map>
 #include <memory>
 #include <optional>
 
@@ -280,4 +281,66 @@ TEST_CASE("logout clears the session even when the server is unreachable", "[aut
     f.transport->failWithNetworkError = true;
     f.auth.logout();
     CHECK(f.cookies->empty());
+}
+
+// RV-1115-01: the server's trusted-device token (rv_device) is kept across app restarts and sent on the next sign-in,
+// so strangers' wrong passwords can't lock this device out of the account.
+TEST_CASE("the trusted-device token survives a restart and a logout, and goes back with the next sign-in", "[auth][device]") {
+    std::map<std::string, std::string> vault;  // what the OS key vault would hold, per handle
+    LoginDeviceTokens tokens{
+        .load = [&](const std::string& handle) -> std::optional<std::string> {
+            const auto it = vault.find(handle);
+            return it == vault.end() ? std::nullopt : std::optional<std::string>(it->second);
+        },
+        .save = [&](const std::string& handle, const std::string& token) { vault[handle] = token; },
+    };
+    int issued = 0;
+    std::vector<std::string> deviceCookiesSent;
+    auto withDeviceCookies = [&](FakeAuthServer& server, const net::HttpRequest& request) {
+        auto response = server.handle(request);
+        if (request.url.ends_with("auth/login")) {
+            const auto cookie = FakeTransport::headerOf(request, "cookie");
+            const auto at = cookie.find("rv_device=");
+            deviceCookiesSent.push_back(at == std::string::npos ? "" : cookie.substr(at + 10, cookie.find(';', at) - at - 10));
+            if (response.status == 200) {
+                response.headers.emplace_back("set-cookie", "session_token=s; Path=/; HttpOnly");
+                response.headers.emplace_back("set-cookie", "rv_device=dev-" + std::to_string(++issued) + "; Path=/; HttpOnly; Expires=Fri, 13 Nov 2099 00:00:00 GMT");
+            }
+        }
+        return response;
+    };
+
+    Fixture first;
+    first.auth.setLoginDeviceTokens(tokens);
+    first.transport->handler = [&](const net::HttpRequest& r) { return withDeviceCookies(first.server, r); };
+    first.auth.registerAccount("alice", "correct horse", kAllTicked);
+    REQUIRE(std::holds_alternative<SelfIdentity>(first.auth.login("alice", "correct horse")));
+    CHECK(vault["alice"] == "dev-1");
+
+    // A new run of the app: empty cookie jar, same vault.
+    Fixture second;
+    second.server = first.server;
+    second.auth.setLoginDeviceTokens(tokens);
+    second.transport->handler = [&](const net::HttpRequest& r) { return withDeviceCookies(second.server, r); };
+    REQUIRE(std::holds_alternative<SelfIdentity>(second.auth.login("alice", "correct horse")));
+    CHECK(vault["alice"] == "dev-2");  // each sign-in replaces it
+    second.auth.logout();
+    CHECK(std::holds_alternative<SelfIdentity>(second.auth.login("alice", "correct horse")));
+
+    REQUIRE(deviceCookiesSent.size() == 3);
+    CHECK(deviceCookiesSent[0].empty());       // first ever sign-in: nothing to send
+    CHECK(deviceCookiesSent[1] == "dev-1");    // after the restart
+    CHECK(deviceCookiesSent[2] == "dev-2");    // after a logout
+}
+
+TEST_CASE("the cookie jar finds and restores a single cookie", "[auth][device]") {
+    net::SessionCookieJar jar;
+    const auto url = *net::parseUrl("https://example.com/api/auth/login");
+    jar.saveFromResponse(url, {"rv_device=abc; Path=/", "session_token=s; Path=/"});
+    REQUIRE(jar.find("rv_device"));
+    CHECK(jar.find("rv_device")->value == "abc");
+    CHECK_FALSE(jar.find("nope"));
+    jar.clear();
+    jar.restore(net::Cookie{.name = "rv_device", .value = "xyz", .host = "example.com", .path = "/"});
+    CHECK(jar.headerFor(url) == "rv_device=xyz");
 }

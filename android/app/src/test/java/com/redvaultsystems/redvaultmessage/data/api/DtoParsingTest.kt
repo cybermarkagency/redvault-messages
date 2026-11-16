@@ -61,6 +61,11 @@ class DtoParsingTest {
             """{"userId":"u1","username":"a","publicKey":"AA==","avatarUrl":null,"createdAt":"2026-09-24T09:24:19.120Z","deleted":false}""",
         )
         assertTrue(!user.deleted)
+        assertTrue(!user.usernameHidden) // older servers don't send it
+        val stranger = json.decodeFromString<UserResult>(
+            """{"userId":"u2","username":"Unknown account","usernameHidden":true,"publicKey":"AA==","avatarUrl":null,"createdAt":"2026-09-24T09:24:19.120Z","deleted":false}""",
+        )
+        assertTrue(stranger.usernameHidden)
     }
 
     @Test

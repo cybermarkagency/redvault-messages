@@ -247,6 +247,9 @@ struct UserResult {
     std::optional<std::string> avatarUrl;
     std::string createdAt;
     bool deleted = false;
+    /// The server kept their handle from us: no chat, friend request, block or shared password between us (2026-11-04
+    /// assessment, F-22). `username` is then the placeholder "Unknown account". False from older servers.
+    bool usernameHidden = false;
     /// Their Ed25519 message-signing key (db/migrations/030); unset until one of their updated apps registered it.
     std::optional<std::string> signingPublicKey;
     /// "YYYY-MM-DD": group messages from them after this day should be signed.

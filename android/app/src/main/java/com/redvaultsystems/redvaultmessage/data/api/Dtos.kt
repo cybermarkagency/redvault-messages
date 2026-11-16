@@ -227,6 +227,11 @@ data class UserResult(
     val avatarUrl: String? = null,
     val createdAt: String,
     val deleted: Boolean = false,
+    /**
+     * The server kept their handle from us: no chat, friend request, block or shared password between us (2026-11-04
+     * assessment, F-22). `username` is then the placeholder "Unknown account". False from older servers.
+     */
+    val usernameHidden: Boolean = false,
     /** Their Ed25519 message-signing key (db/migrations/030); null until one of their updated apps registered it. */
     val signingPublicKey: String? = null,
     /** "YYYY-MM-DD": group messages from them after this day should be signed. */

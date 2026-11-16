@@ -10,7 +10,7 @@
 // listener. Anonymous, no account.
 //
 //   redvault_sealed_route_check --key <KeyConfig hex> [--onion-api <dead onion API base>] [--gateway <https URL>]
-//                               [--wait <seconds>] [--tries <n>]
+//                               [--wait <seconds>] [--tries <n>] [--onion-timeout <seconds>, the app uses 90]
 
 #include <algorithm>
 #include <chrono>
@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
     std::string keyHex;
     int waitSeconds = 240;
     int tries = 6;
+    int onionTimeout = 30;
     for (int i = 1; i + 1 < argc; i += 2) {
         const std::string flag = argv[i];
         if (flag == "--key") keyHex = argv[i + 1];
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
         else if (flag == "--gateway") gatewayUrl = argv[i + 1];
         else if (flag == "--wait") waitSeconds = std::atoi(argv[i + 1]);
         else if (flag == "--tries") tries = std::atoi(argv[i + 1]);
+        else if (flag == "--onion-timeout") onionTimeout = std::atoi(argv[i + 1]);
         else {
             std::cerr << "unknown flag " << flag << "\n";
             return 2;
@@ -109,19 +111,27 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
+    // The app's gate rule (app/src/tor_controller.cpp): nothing goes out while tor-core says "unavailable".
+    // Using it here is what catches a lockout where onion failures close the gate for the backup route too.
+    const auto appGate = [tor, gate]() -> std::optional<net::SocksEndpoint> {
+        const Json status = takeJson(rv_tor_status(tor));
+        if (status.value("state", std::string("unavailable")) == "unavailable") return std::nullopt;
+        return gate;
+    };
+
     // The app's two transports (app/src/app_controller.cpp), with shorter connect timeouts so the check is quick.
     net::CurlTransport::Options onionOptions;
     onionOptions.allowedHost = onion->host;
-    onionOptions.connectTimeout = std::chrono::seconds(30);
+    onionOptions.connectTimeout = std::chrono::seconds(onionTimeout);  // the app uses 90
     onionOptions.stallTimeout = std::chrono::seconds(30);
-    onionOptions.torGate = [gate]() -> std::optional<net::SocksEndpoint> { return gate; };
+    onionOptions.torGate = appGate;
     auto onionTransport = std::make_shared<net::CurlTransport>(onionOptions);
 
     net::CurlTransport::Options website;
     website.allowedHost = gateway->host;
     website.connectTimeout = std::chrono::seconds(90);
     website.stallTimeout = std::chrono::seconds(60);
-    website.torGate = [gate]() -> std::optional<net::SocksEndpoint> { return gate; };
+    website.torGate = appGate;
     website.httpsOverTor = true;
     auto websiteTransport = std::make_shared<net::CurlTransport>(website);
 
@@ -133,6 +143,8 @@ int main(int argc, char** argv) {
     // The app switches after 3 onion failures or 30 s. The dead onion port now refuses within seconds, so a check
     // with fewer tries would never switch: switch on the last try at the latest (never later than the app would).
     routeConfig.switchAfterFailures = std::clamp(tries, 1, routeConfig.switchAfterFailures);
+    // As the app: an onion that fails before anything is sent switches at once while Tor itself is connected.
+    routeConfig.torConnected = [tor] { return takeJson(rv_tor_status(tor)).value("state", std::string()) == "connected"; };
     for (std::size_t i = 0; i + 1 < keyHex.size(); i += 2) {
         routeConfig.keyConfig.push_back(static_cast<std::uint8_t>(std::stoi(keyHex.substr(i, 2), nullptr, 16)));
     }

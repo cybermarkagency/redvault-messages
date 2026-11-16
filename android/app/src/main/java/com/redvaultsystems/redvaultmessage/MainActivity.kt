@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalAvatarLoader provides container.avatarLoader) {
                     val authViewModel: AuthViewModel = viewModel(
                         factory = viewModelFactory {
-                            initializer { AuthViewModel(container.authRepository, container::createSession) }
+                            initializer { AuthViewModel(container.authRepository, container::createSession, container.waitForTor) }
                         },
                     )
                     val state by authViewModel.state.collectAsStateWithLifecycle()
@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                             onLogin = authViewModel::login,
                             onSubmitMfa = authViewModel::submitMfaCode,
                             onCancelMfa = authViewModel::cancelMfa,
+                            onCancelWaitForTor = authViewModel::cancelWaitForTor,
                             onModeChange = authViewModel::setMode,
                             onRegenerateHandle = authViewModel::regenerateCandidate,
                             onOpenTransparency = { showFeed = true },

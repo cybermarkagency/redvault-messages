@@ -149,13 +149,27 @@ std::optional<UpdateRoute> updateRoute(std::string_view apiBase, bool torOnlyBui
     return UpdateRoute{std::string(clearManifestUrl), std::string(clearDownloadPrefix), false};
 }
 
+std::optional<UpdateRoute> websiteRouteOverTor(std::string_view apiBase, bool torOnlyBuild, std::string_view clearManifestUrl,
+                                               std::string_view clearDownloadPrefix) {
+    const auto onion = updateRoute(apiBase, torOnlyBuild, clearManifestUrl, clearDownloadPrefix);
+    if (!onion || !onion->viaTor) return std::nullopt;
+    const auto manifest = net::parseUrl(clearManifestUrl);
+    const auto folder = net::parseUrl(clearDownloadPrefix);
+    // https only, to one website: the transport then allows just that host, through Tor.
+    if (!manifest || !folder || manifest->scheme != "https" || folder->scheme != "https" || manifest->host != folder->host) {
+        return std::nullopt;
+    }
+    return UpdateRoute{std::string(clearManifestUrl), std::string(clearDownloadPrefix), true, true};
+}
+
 std::string installerUrl(const Release& release, const UpdateRoute& route, std::string_view clearDownloadPrefix) {
     if (!release.url.starts_with(clearDownloadPrefix)) return {};
     return route.downloadPrefix + release.url.substr(clearDownloadPrefix.size());
 }
 
 ManifestCheck fetchManifest(net::HttpTransport& transport, const UpdateSource& source) {
-    const auto route = updateRoute(source.apiBase, source.torOnlyBuild, source.manifestUrl, source.allowedUrlPrefix);
+    const auto route = source.route ? source.route
+                                    : updateRoute(source.apiBase, source.torOnlyBuild, source.manifestUrl, source.allowedUrlPrefix);
     if (!route) return {};
     const auto response = transport.send(net::HttpRequest{"GET", route->manifestUrl, {}, {}});
     // No release published yet: nginx answers a missing file with the website's page (or a 404).

@@ -32,7 +32,13 @@ object ApiClient {
      * them carry the session cookie and nothing else identifying, and none
      * of them can reach any host but [apiBase]'s.
      */
-    fun httpClient(cookieJar: SessionCookieJar, apiBase: String, tor: TorGateSource? = null): OkHttpClient =
+    /** [onionConnectTimeoutSeconds]: shorter where the sealed backup route can take over (tor/TorRouting.kt). */
+    fun httpClient(
+        cookieJar: SessionCookieJar,
+        apiBase: String,
+        tor: TorGateSource? = null,
+        onionConnectTimeoutSeconds: Long = TorRouting.DEFAULT_CONNECT_TIMEOUT_SECONDS,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
             // Before any connection is opened, so a refused host never even sees a TCP handshake.
@@ -44,7 +50,7 @@ object ApiClient {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             // An onion API base: everything through the Tor gate, nothing direct (tor/TorRouting.kt).
-            .apply { if (tor != null) TorRouting.install(this, tor) }
+            .apply { if (tor != null) TorRouting.install(this, tor, onionConnectTimeoutSeconds) }
             .build()
 
     /**
@@ -290,5 +296,19 @@ class SessionCookieJar : CookieJar {
     @Synchronized
     fun clear() {
         cookies.clear()
+    }
+
+    /** The live cookie called [name], if any: the trusted-device token (rv_device), so the app can keep it across restarts. */
+    @Synchronized
+    fun find(name: String): Cookie? {
+        val now = System.currentTimeMillis()
+        return cookies.firstOrNull { it.name == name && it.expiresAt > now }
+    }
+
+    /** Puts back a cookie kept from an earlier run, replacing one with the same name, domain and path. */
+    @Synchronized
+    fun restore(cookie: Cookie) {
+        cookies.removeAll { it.name == cookie.name && it.domain == cookie.domain && it.path == cookie.path }
+        cookies.add(cookie)
     }
 }

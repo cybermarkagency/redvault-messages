@@ -135,6 +135,7 @@ void TorController::poll() {
         std::lock_guard lock(shared_->mutex);
         shared_->usable = state != QStringLiteral("unavailable");
     }
+    connectedFlag_->store(state == QStringLiteral("connected"));
     if (state == state_ && progress == progress_ && detail == detail_) return;
     state_ = state;
     progress_ = progress;
@@ -165,10 +166,20 @@ void TorController::setOnionOnly(bool onionOnly) {
     emit routeChanged();
 }
 
+namespace {
+// Not secret: only which route worked last, so the next start doesn't wait for the onion to fail again.
+const QString kLastRouteBackupKey = QStringLiteral("network/lastRouteBackup");
+}  // namespace
+
+bool TorController::lastRouteWasBackup() const {
+    return backupRouteAvailable() && !onionOnly() && QSettings().value(kLastRouteBackupKey, false).toBool();
+}
+
 void TorController::reportBackupRoute(bool backup) {
     QMetaObject::invokeMethod(
         this,
         [this, backup] {
+            QSettings().setValue(kLastRouteBackupKey, backup);
             if (backupRoute_ == backup) return;
             backupRoute_ = backup;
             emit routeChanged();

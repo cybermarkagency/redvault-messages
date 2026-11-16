@@ -47,6 +47,12 @@ public:
 
     bool empty() const;
 
+    /// The live cookie called `name`, if any: the trusted-device token (rv_device), so the app can keep it across restarts.
+    std::optional<Cookie> find(std::string_view name, Clock::time_point now = Clock::now()) const;
+
+    /// Puts back a cookie kept from an earlier run, replacing one with the same name, host and path.
+    void restore(Cookie cookie);
+
 private:
     mutable std::mutex mutex_;
     std::vector<Cookie> cookies_;

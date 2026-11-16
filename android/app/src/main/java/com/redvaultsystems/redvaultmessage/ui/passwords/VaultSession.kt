@@ -95,6 +95,11 @@ class VaultSession(
     private val e2e: E2eCrypto,
     private val identity: SelfIdentity,
     private val onSessionExpired: () -> Unit,
+    /**
+     * Called right after the account password was checked (at sign-in, when this session is made, and after a
+     * password unlock): the app makes the vault's biometric key then, and only then (Biometrics.enroll, RV-1115-14).
+     */
+    private val onPasswordConfirmed: () -> Unit = {},
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(VaultState())
@@ -106,6 +111,8 @@ class VaultSession(
     private val breachResults = HashMap<String, Long>()
 
     init {
+        // A session only ever starts straight after a password sign-in (sessions don't outlive the process).
+        onPasswordConfirmed()
         load()
         touch()
     }
@@ -153,6 +160,7 @@ class VaultSession(
             _state.update { it.copy(error = "That password isn't right.") }
             return false
         }
+        onPasswordConfirmed()
         unlocked()
         return true
     }

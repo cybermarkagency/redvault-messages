@@ -95,6 +95,25 @@ Item {
         onOpened: nameField.forceActiveFocus()
     }
 
+    FilePreviewDialog {
+        id: previewDialog
+        files: root.files
+        onSaveRequested: (id, name) => root.saveAs(id, name)
+    }
+
+    /// Opens a file: inside the app when it can be previewed, otherwise with its own app (inert types only).
+    function openEntry(id) {
+        if (root.files.previewKind(id).length > 0) previewDialog.openFor(id)
+        else root.files.openFile(id)
+    }
+
+    function saveAs(id, name) {
+        saveDialog.targetId = id
+        saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(name)
+        App.lock.expectExternalReturn()
+        saveDialog.open()
+    }
+
     ShareLinkDialog {
         id: shareLinkDialog
         objectName: "shareLinkDialog"
@@ -137,19 +156,15 @@ Item {
             }
         }
         MenuItem {
-            text: qsTr("Open")
+            readonly property bool previewable: rowMenu.row.kind === "file" && root.files.previewKind(rowMenu.row.id || "").length > 0
+            text: previewable ? qsTr("Preview") : qsTr("Open")
             enabled: rowMenu.row.kind === "file" && !rowMenu.needsUnlock
-            onTriggered: root.files.openFile(rowMenu.row.id)
+            onTriggered: root.openEntry(rowMenu.row.id)
         }
         MenuItem {
             text: qsTr("Download…")
             enabled: rowMenu.row.kind === "file" && !rowMenu.needsUnlock
-            onTriggered: {
-                saveDialog.targetId = rowMenu.row.id
-                saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(rowMenu.row.name)
-                App.lock.expectExternalReturn()
-                saveDialog.open()
-            }
+            onTriggered: root.saveAs(rowMenu.row.id, rowMenu.row.name)
         }
         MenuItem {
             text: qsTr("Share link…")
@@ -718,7 +733,7 @@ Item {
                                         root.files.select(modelData.id)
                                         return unlockDialog.openFor(root.files.selected)
                                     }
-                                    root.files.openFile(modelData.id)
+                                    root.openEntry(modelData.id)
                                 }
                                 TapHandler {
                                     acceptedButtons: Qt.RightButton
@@ -935,12 +950,23 @@ Item {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: details.s.isImage ? qsTr("[decrypting a preview…]") : qsTr("[no preview for this type]")
+                            text: details.s.isImage && (details.s.previewKind || "") === "image" ? qsTr("[decrypting a preview…]")
+                                : (details.s.previewKind || "").length > 0 ? qsTr("[click to preview]")
+                                : qsTr("[no preview for this type]")
                             textFormat: Text.PlainText
                             color: Theme.text3
                             font.family: Theme.monoFamily
                             font.pixelSize: 11
                         }
+                    }
+                    // Click the preview to open the viewer.
+                    TapHandler {
+                        enabled: (details.s.previewKind || "").length > 0 && !details.lockedNow
+                        onTapped: previewDialog.openFor(details.s.id)
+                    }
+                    HoverHandler {
+                        enabled: (details.s.previewKind || "").length > 0 && !details.lockedNow
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
 
@@ -1240,7 +1266,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
-                                    text: link.modelData.expires + (link.modelData.hasPassword ? qsTr(" · password") : "") + (link.modelData.allowDownload ? qsTr(" · download") : qsTr(" · view only"))
+                                    text: link.modelData.expires + (link.modelData.hasPassword ? qsTr(" · password") : "") + (link.modelData.allowDownload ? qsTr(" · download") : qsTr(" · no download button"))
                                     textFormat: Text.PlainText
                                     color: Theme.text2
                                     font.pixelSize: 12
@@ -1277,6 +1303,20 @@ Item {
 
                 Item { Layout.fillHeight: true }
 
+                // Preview inside the app (pictures, text, CSV, JSON, audio, video, PDF).
+                RvButton {
+                    objectName: "previewButton"
+                    Layout.fillWidth: true
+                    visible: details.s.kind === "file" && (details.s.previewKind || "").length > 0
+                    enabled: !details.lockedNow
+                    ToolTip.visible: hovered && details.lockedNow
+                    ToolTip.text: qsTr("Unlock this file to preview it.")
+                    Accessible.description: details.lockedNow ? qsTr("Unavailable: unlock this file to preview it.") : ""
+                    iconName: "eye"
+                    text: qsTr("Preview")
+                    onClicked: previewDialog.openFor(root.files.selected.id)
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -1290,12 +1330,7 @@ Item {
                         ToolTip.text: qsTr("Unlock this file to download it.")
                         Accessible.description: details.lockedNow ? qsTr("Unavailable: unlock this file to download it.") : ""
                         text: qsTr("Download")
-                        onClicked: {
-                            saveDialog.targetId = root.files.selected.id
-                            saveDialog.selectedFile = saveDialog.currentFolder + "/" + encodeURIComponent(root.files.selected.name)
-                            App.lock.expectExternalReturn()
-                            saveDialog.open()
-                        }
+                        onClicked: root.saveAs(root.files.selected.id, root.files.selected.name)
                     }
                     RvButton {
                         Layout.fillWidth: true

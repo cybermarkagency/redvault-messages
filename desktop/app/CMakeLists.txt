@@ -66,6 +66,8 @@ qt_add_qml_module(redvault_desktop
         src/files_session.hpp src/files_session.cpp
         src/shares_session.hpp src/shares_session.cpp
         src/files_locks.cpp
+        src/files_viewer.cpp
+        src/file_preview.hpp src/file_preview.cpp
         src/vault_session.hpp src/vault_session.cpp
         src/inbox_session.hpp src/inbox_session.cpp
         src/device_keys_session.hpp src/device_keys_session.cpp
@@ -93,6 +95,7 @@ qt_add_qml_module(redvault_desktop
         icons/lucide/copy.svg
         icons/lucide/download.svg
         icons/lucide/external-link.svg
+        icons/lucide/minus.svg
         icons/lucide/eye-off.svg
         icons/lucide/eye.svg
         icons/lucide/file.svg
@@ -284,6 +287,7 @@ qt_add_qml_module(redvault_desktop
         qml/TorStatusChip.qml
         qml/TransparencyLogView.qml
         qml/FilesView.qml
+        qml/FilePreviewDialog.qml
         qml/PasswordsView.qml
         qml/VaultItemDialog.qml
         qml/PlanGate.qml
@@ -425,6 +429,18 @@ target_link_libraries(redvault_desktop PRIVATE
     Qt6::Widgets
     Qt6::Svg
 )
+
+# PDFs in the Files viewer (Qt PDF, drawn by PDFium as pictures: nothing in the file runs).
+# Optional: without it, PDFs are only downloaded or opened in another app.
+find_package(Qt6 QUIET COMPONENTS Pdf PdfQuick)
+if(TARGET Qt6::PdfQuick)
+    target_link_libraries(redvault_desktop PRIVATE Qt6::Pdf Qt6::PdfQuick)
+    target_compile_definitions(redvault_desktop PRIVATE REDVAULT_HAS_PDF)
+    qt_target_qml_sources(redvault_desktop QML_FILES qml/PdfPreview.qml)
+    message(STATUS "Files: PDF preview on (Qt PDF)")
+else()
+    message(STATUS "Files: Qt PDF not found, PDFs open in another app instead")
+endif()
 
 set_target_properties(redvault_desktop PROPERTIES OUTPUT_NAME "redvaultmessages")
 

@@ -21,6 +21,9 @@ using crypto::base64Encode;
 
 namespace {
 
+/// The server's trusted-device cookie (server/src/constants.ts DEVICE_COOKIE_NAME).
+constexpr const char* kDeviceCookie = "rv_device";
+
 /// Other people's keys get sealed to this one, and copies of our own: it has to be ours.
 void requireOwnPublicKey(const crypto::SecretBytes& privateKey, const crypto::Bytes& publicKey) {
     if (crypto::publicKeyOf(privateKey) != publicKey) throw UserFacingError("This account's keys don't match. Nothing was opened.");
@@ -81,6 +84,7 @@ RecoverOutcome AuthRepository::recover(const std::string& handle, const std::str
     if (!key) throw UserFacingError("That doesn't look like a recovery key. Check it and try again.");
 
     const std::string auth = crypto::recovery::authFor(*key);
+    restoreDeviceToken(handle);
     api::RecoveryStartResult started;
     try {
         started = api_->recoveryStart({.username = handle, .recoveryAuth = auth});
@@ -124,6 +128,7 @@ RecoverOutcome AuthRepository::recover(const std::string& handle, const std::str
     }
     if (next.authVersion) pinSignInKeys(handle);
     requireOwnPublicKey(privateKey, base64Decode(result.publicKey));
+    keepDeviceToken(handle);
 
     return SelfIdentity{
         .handle = handle,
@@ -141,6 +146,7 @@ RecoverOutcome AuthRepository::recover(const std::string& handle, const std::str
 LoginOutcome AuthRepository::login(const std::string& handle, const std::string& password) {
     auto credential = credentialFor(*api_, handle, password);
     const bool signInKeys = credential.authVersion.has_value() || credential.upgradeAuthKey.has_value();
+    restoreDeviceToken(handle);
     const auto response = api_->login({
         .username = handle,
         .password = std::move(credential.password),
@@ -149,13 +155,43 @@ LoginOutcome AuthRepository::login(const std::string& handle, const std::string&
     });
     if (signInKeys) pinSignInKeys(handle);
     if (response.mfaRequired) return MfaRequired{};
-    return finishLogin(handle, password, api::toLoginResult(response), false);
+    auto identity = finishLogin(handle, password, api::toLoginResult(response), false);
+    keepDeviceToken(handle);
+    return identity;
 }
 
 SelfIdentity AuthRepository::verifyMfa(const std::string& handle, const std::string& password,
                                        const std::string& code) {
     const auto response = api_->verifyMfa({.code = code});
-    return finishLogin(handle, password, api::toLoginResult(response), true);
+    auto identity = finishLogin(handle, password, api::toLoginResult(response), true);
+    keepDeviceToken(handle);
+    return identity;
+}
+
+void AuthRepository::restoreDeviceToken(const std::string& handle) {
+    if (!deviceTokens_.load) return;
+    const auto base = net::parseUrl(api_->baseUrl());
+    if (!base) return;
+    std::optional<std::string> token;
+    try {
+        token = deviceTokens_.load(handle);
+    } catch (...) {
+        return;  // An unreadable vault only costs the lockout bypass, never the sign-in.
+    }
+    if (!token || token->empty() || token->size() > 256) return;
+    // Path "/" and no Secure flag: it only has to reach this API host, which is https or a Tor onion.
+    api_->cookies().restore(net::Cookie{.name = kDeviceCookie, .value = *token, .host = base->host, .path = "/"});
+}
+
+void AuthRepository::keepDeviceToken(const std::string& handle) {
+    if (!deviceTokens_.save) return;
+    const auto cookie = api_->cookies().find(kDeviceCookie);
+    if (!cookie) return;
+    try {
+        deviceTokens_.save(handle, cookie->value);
+    } catch (...) {
+        // Not kept: the next sign-in after a restart just won't skip a stranger's lock.
+    }
 }
 
 void AuthRepository::logout() {

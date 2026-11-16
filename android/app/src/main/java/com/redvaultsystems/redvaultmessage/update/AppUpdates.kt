@@ -31,6 +31,9 @@ import java.security.MessageDigest
  *
  * - The manifest and the APK come from the API server's copy of the published folder, through [client]: the same
  *   Tor-routed client as everything else, so an update check never leaves Tor and carries no identifiers.
+ * - While the sealed backup route is in use ([backup]), they come instead from the website's published folder itself
+ *   (https), through Tor by the backup route's client, which reaches only that one host. The signature and APK checks
+ *   are the same either way.
  * - Checked once when the app starts (once Tor is up) and then every 24 hours, or from Settings › About.
  * - The APK is saved in the app's cache, checked (size, SHA-256), then handed to Android's own installer
  *   (PackageInstaller), which asks the user to confirm. Android also refuses it unless it's signed with this app's key.
@@ -42,7 +45,20 @@ class AppUpdates(
     private val apiOrigin: String,
     private val currentVersionCode: Long,
     private val verifyEd25519: (ByteArray, ByteArray, ByteArray) -> Boolean,
+    /** Where updates come from while the onion can't be reached (the sealed backup route is in use); null: never. */
+    private val backup: Backup? = null,
 ) {
+    /**
+     * The website's published folder, for while the backup route is in use: [client] reaches only the website, over
+     * https and through Tor (ApiClient.sealedRouteClient); [origin] is "https://<website>"; [inUse] says whether the
+     * backup route is in use right now.
+     */
+    class Backup(val client: OkHttpClient, val origin: String, val inUse: () -> Boolean)
+
+    /** The client and origin for this check or download: the onion's copy, or the website's while on the backup route. */
+    private fun source(): Pair<OkHttpClient, String> =
+        backup?.takeIf { it.inUse() }?.let { it.client to it.origin } ?: (client to apiOrigin)
+
     sealed interface State {
         data object Idle : State
         data object Checking : State
@@ -97,8 +113,9 @@ class AppUpdates(
         if (current is State.Downloading || current is State.Installing || current is State.Checking) return
         _state.value = State.Checking
         _state.value = try {
-            val request = Request.Builder().url(UpdateManifest.manifestUrl(apiOrigin)).get().build()
-            client.newCall(request).execute().use { response ->
+            val (http, origin) = source()
+            val request = Request.Builder().url(UpdateManifest.manifestUrl(origin)).get().build()
+            http.newCall(request).execute().use { response ->
                 val type = response.header("Content-Type").orEmpty()
                 // No Android release published yet: nginx answers a missing file with a 404 (or the site's page).
                 if (response.code == 404 || (response.code == 200 && type.startsWith("text/html"))) return@use State.UpToDate(stale = false)
@@ -161,8 +178,9 @@ class AppUpdates(
         val target = apkFile(release)
         val partial = File(dir, target.name + ".part")
         _state.value = State.Downloading(release, 0)
-        val request = Request.Builder().url(UpdateManifest.apkUrl(release, apiOrigin)).get().build()
-        client.newCall(request).execute().use { response ->
+        val (http, origin) = source()
+        val request = Request.Builder().url(UpdateManifest.apkUrl(release, origin)).get().build()
+        http.newCall(request).execute().use { response ->
             if (response.code != 200) throw IOException("The download failed (${response.code})")
             val body = response.body ?: throw IOException("The download was empty")
             val digest = MessageDigest.getInstance("SHA-256")

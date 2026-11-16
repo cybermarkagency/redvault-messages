@@ -24,16 +24,18 @@ namespace redvault::net {
  * cookie and everything else stay the same); this decides how they travel:
  * - normally straight through the onion transport;
  * - when the onion keeps failing while Tor itself works (30 s of failures, or
- *   3 in a row), and the user hasn't chosen "Only use the onion address":
+ *   3 in a row; or at once when a connection to it failed before anything was
+ *   sent while Tor is connected), and the user hasn't chosen "Only use the onion address":
  *   sealed to the gateway's pinned key (crypto-core, Oblivious HTTP) and POSTed
  *   through Tor to the website's gateway address by `website`, a transport that
  *   only speaks https to that one host through the same Tor gate;
  * - a background check tries the onion every minute and moves back when it answers.
  *
  * Never a request without Tor (both transports refuse that), never an unsealed
- * request to the website. A request that failed on the onion is only re-sent
- * on the backup route automatically when it's a GET; anything else fails as it
- * would have, and the app's own retries (the outbox) send it again.
+ * request to the website. A request that failed on the onion is re-sent on the
+ * backup route automatically when it's a GET, or when nothing of it reached
+ * the onion (NotSentError: a sign-in, say); anything else fails as it would
+ * have, and the app's own retries (the outbox) send it again.
  *
  * A chat file bigger than one sealed message goes up in Content-Range parts and
  * comes down in Range steps of kPartBytes, each part its own sealed request
@@ -67,6 +69,13 @@ public:
         std::chrono::seconds switchAfter{30};
         int switchAfterFailures = 3;
         std::chrono::seconds probeEvery{60};
+        /// Start on the backup route (it was in use when the app last closed); the background check
+        /// moves back to the onion as soon as it answers.
+        bool startOnBackup = false;
+        /// Whether Tor itself is connected now. A connection that failed before anything was sent
+        /// switches at once only while it is (during Tor's start-up such failures say nothing about
+        /// the onion). Unset: never switch on one failure.
+        std::function<bool()> torConnected;
         /// The onion request the background check makes (a cheap public one).
         std::string probeUrl;
         /// Tests only: a stand-in for crypto-core's sealing, so a fake gateway can read requests.
@@ -112,7 +121,8 @@ private:
                                const StreamOptions& streams);
     HttpResponse downloadInRanges(const std::string& method, const std::string& path, const Headers& headers,
                                   const StreamOptions& streams);
-    void noteOnionFailure();
+    /// `notSent`: the connection failed before anything went out (a dead onion, typically).
+    void noteOnionFailure(bool notSent = false);
     void noteOnionSuccess();
     void setBackup(bool backup);
     void probeLoop();

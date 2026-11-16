@@ -382,10 +382,16 @@ class FilesSession(
         _state.update { it.copy(notice = "Saved a decrypted copy of ${entry.name}.") }
     }
 
-    suspend fun openCopy(id: String): Pair<File?, String?> {
+    /** Deletes a decrypted copy from openCopy now (the viewer closed), instead of waiting for Lock now or sign-out. */
+    fun discardCopy(id: String, file: File) {
+        synchronized(openedCopies) { openedCopies[id]?.remove(file) }
+        file.parentFile?.deleteRecursively()
+    }
+
+    suspend fun openCopy(id: String, onProgress: (Float) -> Unit = {}): Pair<File?, String?> {
         val entry = _state.value.find(id) ?: return null to null
         return try {
-            val file = repository.downloadToCache(usable(entry))
+            val file = repository.downloadToCache(usable(entry)) { _, done, total -> if (total > 0) onProgress(done.toFloat() / total) }
             synchronized(openedCopies) { openedCopies.getOrPut(entry.id) { mutableListOf() }.add(file) }
             file to null
         } catch (e: CancellationException) {

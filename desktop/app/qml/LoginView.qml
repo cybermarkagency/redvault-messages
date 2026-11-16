@@ -202,10 +202,24 @@ Item {
                     text: App.error
                 }
 
+                // Tor itself isn't connected yet: sign-in waits and goes ahead by itself once it is.
+                Text {
+                    Layout.fillWidth: true
+                    visible: App.waitingForTor
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    text: qsTr("Waiting for Tor to connect. You'll be signed in as soon as it does.")
+                        + (App.tor && App.tor.state === "connecting" ? " (" + App.tor.progress + "%)" : "")
+                    textFormat: Text.PlainText
+                    color: Theme.text2
+                    font.pixelSize: Theme.fontSmall + 1
+                }
+
                 RvButton {
                     Layout.fillWidth: true
                     enabled: !App.busy && (root.needsCode || root.mode !== "register" || root.consentComplete)
-                    text: App.busy ? (root.needsCode ? qsTr("Checking…") : root.mode === "register" ? qsTr("Creating your keys…") : qsTr("Unlocking…"))
+                    text: App.waitingForTor ? qsTr("Waiting for Tor…")
+                        : App.busy ? (root.needsCode ? qsTr("Checking…") : root.mode === "register" ? qsTr("Creating your keys…") : qsTr("Unlocking…"))
                         : root.needsCode ? qsTr("Verify")
                         : root.mode === "register" ? qsTr("Create Account")
                         : root.mode === "recover" ? qsTr("Recover account")
@@ -221,6 +235,14 @@ Item {
                         running: App.busy
                         visible: App.busy
                     }
+                }
+
+                RvButton {
+                    Layout.fillWidth: true
+                    visible: App.waitingForTor
+                    primary: false
+                    text: qsTr("Cancel")
+                    onClicked: App.cancelTorWait()
                 }
 
                 // Switching between modes.

@@ -61,6 +61,8 @@ class AppController : public QObject {
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    /// Sign-in found Tor itself not connected: it waits (busy) and goes ahead once Tor connects.
+    Q_PROPERTY(bool waitingForTor READ waitingForTor NOTIFY waitingForTorChanged)
     Q_PROPERTY(QString lastHandle READ lastHandle NOTIFY lastHandleChanged)
     Q_PROPERTY(QString handle READ handle NOTIFY handleChanged)
     Q_PROPERTY(QString recoveryKey READ recoveryKey NOTIFY stateChanged)
@@ -111,6 +113,7 @@ public:
     State state() const { return state_; }
     bool busy() const { return busy_; }
     QString error() const { return error_; }
+    bool waitingForTor() const { return static_cast<bool>(torRetry_); }
     QString lastHandle() const { return lastHandle_; }
     QString handle() const;
     QString recoveryKey() const { return recoveryKey_; }
@@ -160,6 +163,8 @@ public:
     Q_INVOKABLE void signIn(const QString& handle, const QString& password);
     Q_INVOKABLE void submitCode(const QString& code);
     Q_INVOKABLE void cancelCode();
+    /// Stops waiting for Tor (the sign-in form comes back as it was).
+    Q_INVOKABLE void cancelTorWait();
     /// Creates an account; the recovery key is shown once before signing in. The three
     /// flags are the sign-up form's boxes, as ticked; nothing is created unless all are.
     Q_INVOKABLE void registerAccount(const QString& handle, const QString& password, const QString& confirm,
@@ -189,6 +194,7 @@ signals:
     void stateChanged();
     void busyChanged();
     void errorChanged();
+    void waitingForTorChanged();
     void lastHandleChanged();
     void recoveryNeedsCodeChanged();
     void handleChanged();
@@ -213,6 +219,9 @@ private:
     void setBusy(bool busy);
     void setError(const QString& error);
     void forgetPendingPassword();
+    /// A sign-in step failed with `code`: when that's Tor itself not being connected, wait (busy, no error) and run
+    /// `retry` once Tor connects; returns false for any other failure.
+    bool waitForTorIfNeeded(const QString& code, std::function<void()> retry);
     void rememberHandle(const QString& handle);
     void signOutOnQuit();
 
@@ -225,6 +234,9 @@ private:
     QThreadPool pool_;
     State state_ = State::SignedOut;
     bool busy_ = false;
+    // Set while sign-in waits for Tor: what to run once it connects.
+    std::function<void()> torRetry_;
+    QMetaObject::Connection torRetryConnection_;
     bool recoveryNeedsCode_ = false;
     QString error_;
     QString lastHandle_;

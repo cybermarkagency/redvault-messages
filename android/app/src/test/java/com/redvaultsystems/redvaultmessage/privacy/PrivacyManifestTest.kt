@@ -83,12 +83,14 @@ class PrivacyManifestTest {
         val builders = sources.filter { (_, code) -> "OkHttpClient.Builder()" in code || Regex("""OkHttpClient\(\)""").containsMatchIn(code) }.map { it.first.name }.toSet()
         assertEquals(setOf("ApiClient.kt"), builders)
         val app = sources.single { it.first.name == "RedvaultApp.kt" }.second
-        assertTrue("ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)" in app)
+        assertTrue("ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor, onionConnectTimeoutSeconds)" in app)
         assertTrue("ApiClient.publicClient(BuildConfig.API_BASE, tor)" in app)
         assertEquals(listOf("signalingClient = { host -> ApiClient.signalingClient(host) },"),
             app.lines().filter { "ApiClient.signalingClient(" in it }.map { it.trim() })
         // The sealed backup route (docs/tor-sealed-fallback.md): its own client, through the same Tor gate, https to one host.
-        assertTrue("val website = ApiClient.sealedRouteClient(gateway, torController)" in app)
+        assertTrue("?.let { ApiClient.sealedRouteClient(BuildConfig.SEALED_GATEWAY_URL, it) }" in app)
+        // The updater's backup source is that same client, never another one (update/AppUpdates.kt).
+        assertTrue("AppUpdates.Backup(website, UpdateManifest.publishedOrigin(), inUse = { route.onBackup })" in app)
         val apiClient = sources.single { it.first.name == "ApiClient.kt" }.second
         assertTrue(Regex("""fun sealedRouteClient\([^)]*\): OkHttpClient \{[\s\S]*?TorRouting\.installForWebsite\(""").containsMatchIn(apiClient))
         // The device-key API is built on the same Tor-routed client.

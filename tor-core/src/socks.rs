@@ -425,14 +425,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tor_failure_fails_closed_and_turns_unavailable() {
+    async fn tor_failure_fails_closed_but_keeps_the_gate_open() {
         let h = start(true).await;
         for _ in 0..2 {
             let (mut s, _) = authed(h.port, &"p".repeat(32)).await;
             assert_eq!(connect_domain(&mut s, ONION, 80).await, REP_HOST_UNREACHABLE);
         }
         let status = h.status.snapshot();
-        assert_eq!(status.state, TorState::Unavailable);
+        // Each stream fails closed, but onion failures don't mark Tor unavailable:
+        // that would close the apps' gate and block the sealed backup route too.
+        assert_ne!(status.state, TorState::Unavailable);
+        assert_eq!(status.onion_reachable, Some(false));
         assert_eq!(status.stats.tor_streams_failed, 2);
     }
 

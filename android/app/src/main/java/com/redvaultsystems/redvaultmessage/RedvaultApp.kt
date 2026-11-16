@@ -45,6 +45,7 @@ import com.redvaultsystems.redvaultmessage.crypto.VaultCrypto
 import com.redvaultsystems.redvaultmessage.data.AccountRepository
 import com.redvaultsystems.redvaultmessage.data.AppLockStore
 import com.redvaultsystems.redvaultmessage.data.AuthRepository
+import com.redvaultsystems.redvaultmessage.data.WrappedLoginDeviceTokens
 import com.redvaultsystems.redvaultmessage.data.ChannelDeviceStore
 import com.redvaultsystems.redvaultmessage.data.ChannelMediaClient
 import com.redvaultsystems.redvaultmessage.data.ChannelRepository
@@ -80,6 +81,9 @@ import com.redvaultsystems.redvaultmessage.data.api.ApiClient
 import com.redvaultsystems.redvaultmessage.data.api.RetrofitCommunityDeviceApi
 import com.redvaultsystems.redvaultmessage.tor.ReleaseRouting
 import com.redvaultsystems.redvaultmessage.tor.TorController
+import com.redvaultsystems.redvaultmessage.tor.TorRouting
+import com.redvaultsystems.redvaultmessage.tor.TorState
+import com.redvaultsystems.redvaultmessage.update.UpdateManifest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.File
 import com.redvaultsystems.redvaultmessage.data.api.SessionCookieJar
@@ -109,6 +113,7 @@ import com.redvaultsystems.redvaultmessage.calls.V3CallCarrier
 import com.redvaultsystems.redvaultmessage.ui.live.LiveSession
 import com.redvaultsystems.redvaultmessage.ui.stories.StoriesSession
 import com.redvaultsystems.redvaultmessage.ui.settings.SecuritySession
+import com.redvaultsystems.redvaultmessage.ui.passwords.Biometrics
 import com.redvaultsystems.redvaultmessage.ui.passwords.VaultSession
 import com.redvaultsystems.redvaultmessage.ui.components.AvatarLoader
 import com.redvaultsystems.redvaultmessage.ui.lock.AppLock
@@ -155,21 +160,29 @@ class AppContainer(app: Application) {
             .takeIf { BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() }
         TorController(host, File(app.noBackupFilesDir, "tor"), exitHost = sealedWebsite).also { it.start() }
     }
-    private val onionClient: OkHttpClient = ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor)
+    /** Whether this build and phone have the sealed backup route: Tor routing, the gateway's key, and crypto-core. */
+    private val backupRouteBuilt: Boolean = tor != null && BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() &&
+        runCatching { NativeE2ee.load() }.isSuccess
+    /** With a backup route to take over, a connection to the onion gets 30 s instead of 90 (tor/TorRouting.kt). */
+    private val onionConnectTimeoutSeconds =
+        if (backupRouteBuilt) TorRouting.BACKUP_ROUTE_CONNECT_TIMEOUT_SECONDS else TorRouting.DEFAULT_CONNECT_TIMEOUT_SECONDS
+    private val onionClient: OkHttpClient = ApiClient.httpClient(cookieJar, BuildConfig.API_BASE, tor, onionConnectTimeoutSeconds)
+    /** The backup route's own client: through Tor, https, and only the gateway's website (null without the route). */
+    private val websiteClient: OkHttpClient? = tor?.takeIf { backupRouteBuilt }?.let { ApiClient.sealedRouteClient(BuildConfig.SEALED_GATEWAY_URL, it) }
 
     /**
      * The sealed backup route (docs/tor-sealed-fallback.md): when the onion can't be reached but Tor works, the API's
      * requests go sealed to the gateway's pinned key, through Tor, to the website. Only in builds that carry the key.
      */
     private val sealedRoute: SealedRoute? = tor
-        ?.takeIf { BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() && runCatching { NativeE2ee.load() }.isSuccess }
+        ?.takeIf { backupRouteBuilt && websiteClient != null }
         ?.let { torController ->
             val base = BuildConfig.API_BASE.toHttpUrl()
             val prefs = app.getSharedPreferences("network", Context.MODE_PRIVATE)
             torController.loadOnionOnly(prefs.getBoolean("onionOnly", false))
             torController.backupRouteAvailable = true
             val gateway = BuildConfig.SEALED_GATEWAY_URL
-            val website = ApiClient.sealedRouteClient(gateway, torController)
+            val website = websiteClient!!
             SealedRoute(
                 onionOrigin = "${base.scheme}://${base.host}",
                 pathPrefix = base.encodedPath.removeSuffix("/api/"),
@@ -180,12 +193,19 @@ class AppContainer(app: Application) {
                 probeUrl = BuildConfig.API_BASE + "public/routing",
                 cookieJar = cookieJar,
                 allowed = { !torController.onionOnly.value },
-                onRouteChanged = torController::reportBackupRoute,
+                onRouteChanged = { backup ->
+                    torController.reportBackupRoute(backup)
+                    // Not a secret: only which route to start on next time.
+                    prefs.edit().putBoolean(BACKUP_ROUTE_PREF, backup).apply()
+                },
+                torConnected = { torController.connected },
             ).also { route ->
                 torController.onOnionOnlyChanged = { onionOnly ->
                     prefs.edit().putBoolean("onionOnly", onionOnly).apply()
                     if (onionOnly) route.useOnion()
                 }
+                // On the backup route last time: start there (the onion check moves back once the onion answers).
+                if (prefs.getBoolean(BACKUP_ROUTE_PREF, false)) route.startOnBackup()
             }
         }
 
@@ -205,6 +225,12 @@ class AppContainer(app: Application) {
             context = app,
             client = httpClient,
             apiOrigin = "${base.scheme}://${base.host}" + if (base.port == HttpUrl.defaultPort(base.scheme)) "" else ":${base.port}",
+            // On the backup route: the website's published copy, through Tor, by the backup route's own client
+            // (only when that client may reach the published folder's host).
+            backup = sealedRoute?.let { route ->
+                websiteClient?.takeIf { UpdateManifest.DOWNLOAD_PREFIX.toHttpUrl().host == BuildConfig.SEALED_GATEWAY_URL.toHttpUrl().host }
+                    ?.let { website -> AppUpdates.Backup(website, UpdateManifest.publishedOrigin(), inUse = { route.onBackup }) }
+            },
             currentVersionCode = BuildConfig.VERSION_CODE.toLong(),
             verifyEd25519 = { signature, message, publicKey -> sodium.cryptoSignVerifyDetached(signature, message, message.size, publicKey) },
         )
@@ -217,6 +243,14 @@ class AppContainer(app: Application) {
                 updates.startPeriodicChecks()
             }
         }
+    }
+    /**
+     * Sign-in's wait for Tor (ui/AuthViewModel.kt): returns once Tor is connected. Null without Tor routing, where
+     * nothing ever waits for it.
+     */
+    val waitForTor: (suspend () -> Unit)? = tor?.let { controller ->
+        val wait: suspend () -> Unit = { controller.status.first { it.state == TorState.Connected } }
+        wait
     }
     private val driveApi = ApiClient.createDrive(BuildConfig.API_BASE, httpClient)
     private val shareApi = ApiClient.createShares(BuildConfig.API_BASE, httpClient)
@@ -279,7 +313,13 @@ class AppContainer(app: Application) {
     val avatarLoader = AvatarLoader(httpClient, BuildConfig.API_BASE)
     /** The app's own background connection through the onion service (push/PushRegistrar.kt): same client, so through Tor. */
     val pushRegistrar = PushRegistrar(app, ApiClient.createPush(BuildConfig.API_BASE, httpClient), torBuild = tor != null, signedIn = { hasActiveSession })
-    val authRepository = AuthRepository(api, crypto, cookieJar, lastHandleStore, pushRegistrar, recoveryKeys, signInKeys)
+    /** The server's trusted-device token per handle, wrapped by a Keystore key, never backed up (RV-1115-01). */
+    private val loginDeviceTokens = WrappedLoginDeviceTokens(File(app.noBackupFilesDir, "login-devices"), AndroidKeystoreWrapper())
+    val authRepository = AuthRepository(
+        api, crypto, cookieJar, lastHandleStore, pushRegistrar, recoveryKeys, signInKeys,
+        deviceTokens = loginDeviceTokens,
+        apiBase = BuildConfig.API_BASE,
+    )
 
     /** A channel to open, from a tapped new-post notification (MainActivity sets it; the signed-in app takes it). */
     val openChannelRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
@@ -376,7 +416,9 @@ class AppContainer(app: Application) {
             files,
             onSessionExpired,
         )
-        val passwords = VaultSession(vault, vaultCrypto, crypto, identity, onSessionExpired)
+        val passwords = VaultSession(vault, vaultCrypto, crypto, identity, onSessionExpired, onPasswordConfirmed = {
+            Biometrics.enroll(appContext)
+        })
         val live = LiveSession(liveApi, identity, contactPrefs, onSessionExpired)
         chats.listenForV3Wake(live.events)
         val stories = StoriesSession(
@@ -453,3 +495,6 @@ class AppContainer(app: Application) {
         }
     }
 }
+
+/** SharedPreferences "network": whether the sealed backup route was in use, to start on it next time. Not a secret. */
+private const val BACKUP_ROUTE_PREF = "backupRoute"

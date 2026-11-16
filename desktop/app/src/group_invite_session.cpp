@@ -34,6 +34,7 @@ struct Requester {
     std::string userId;
     std::string handle;
     std::string avatarUrl;
+    bool nameHidden = true;
 };
 
 }  // namespace
@@ -124,11 +125,12 @@ void GroupInviteSession::loadRequests() {
         [api, id] {
             std::vector<Requester> out;
             for (const auto& r : api::invites::listRequests(*api, id)) {
-                Requester named{r.userId, "Unknown account", {}};
+                Requester named{r.userId, "Unknown account", {}, true};
                 try {
                     const auto user = api->getUser(r.userId);
                     named.handle = user.username;
                     named.avatarUrl = user.avatarUrl.value_or("");
+                    named.nameHidden = user.usernameHidden;
                 } catch (const std::exception&) {
                     // Shown as an unknown account; approving it fails cleanly if it's gone.
                 }
@@ -140,7 +142,7 @@ void GroupInviteSession::loadRequests() {
             if (generation != generation_) return;
             requests_.clear();
             for (const auto& r : list) {
-                requests_.append(QVariantMap{{"userId", qs(r.userId)}, {"handle", qs(r.handle)}, {"avatarUrl", qs(r.avatarUrl)}});
+                requests_.append(QVariantMap{{"userId", qs(r.userId)}, {"handle", qs(r.handle)}, {"avatarUrl", qs(r.avatarUrl)}, {"nameHidden", r.nameHidden}});
             }
             emit requestsChanged();
         },

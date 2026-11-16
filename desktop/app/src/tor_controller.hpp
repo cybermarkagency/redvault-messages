@@ -73,8 +73,12 @@ public:
     void setOnionOnly(bool onionOnly);
     /// For the transport: the shared flag behind onionOnly().
     std::shared_ptr<std::atomic<bool>> onionOnlyFlag() const { return onionOnly_; }
-    /// The transport switched routes (any thread).
+    /// The transport switched routes (any thread). Remembered for the next start.
     void reportBackupRoute(bool backup);
+    /// Whether the backup route was in use when the app last switched routes (kept on this computer).
+    bool lastRouteWasBackup() const;
+    /// Thread-safe "Tor itself is connected" for the transport (worker threads).
+    std::shared_ptr<std::atomic<bool>> connectedFlag() const { return connectedFlag_; }
 
     /// What the outbox holds (for the status chip): messages and, of those, files.
     void setQueued(int messages, int files);
@@ -111,6 +115,7 @@ private:
     int pausedUploads_ = 0;
     bool backupRoute_ = false;
     std::shared_ptr<std::atomic<bool>> onionOnly_ = std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<std::atomic<bool>> connectedFlag_ = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<Shared> shared_ = std::make_shared<Shared>();
     RvTorGateway* gateway_ = nullptr;
     QTimer timer_;

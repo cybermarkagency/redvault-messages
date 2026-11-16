@@ -161,10 +161,11 @@ std::string ApiClient::callRaw(std::string_view method, std::string_view relativ
 }
 
 std::string ApiClient::fetchAvatar(std::string_view avatarUrl) {
-    // Exactly the shape the server's AvatarService.urlFor() produces, so a URL
+    // Exactly the shape the server's AvatarService.urlFor() produces (v= is a
+    // 16-hex-digit keyed hash; older servers sent a decimal time), so a URL
     // from the server can't point this request anywhere else.
     static const std::regex kAvatarUrl(
-        "^/api/users/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/avatar(\\?v=[0-9]{1,20})?$");
+        "^/api/users/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/avatar(\\?v=[0-9a-fA-F]{1,20})?$");
     if (!std::regex_match(avatarUrl.begin(), avatarUrl.end(), kAvatarUrl)) {
         throw ApiError(0, "malformed_response", "Unexpected avatar URL");
     }

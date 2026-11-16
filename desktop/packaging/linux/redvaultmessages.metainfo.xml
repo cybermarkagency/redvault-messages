@@ -59,6 +59,15 @@
   </content_rating>
 
   <releases>
+    <release version="0.8.2" date="2026-11-17">
+      <description>
+        <p>Stays reachable when the onion address is down: the app now switches to the
+        backup route within seconds instead of saying Tor isn't connected, remembers it
+        for the next start, and signs you in once Tor connects. Files can now show
+        pictures, text, tables, audio, video and PDFs inside the app, and sign-in is
+        protected against strangers locking you out.</p>
+      </description>
+    </release>
     <release version="0.8.1" date="2026-11-15">
       <description>
         <p>A Stories studio: record voice stories, edit photos, make collages, use

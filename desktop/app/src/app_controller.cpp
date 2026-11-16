@@ -14,6 +14,17 @@
 #include <QSettings>
 
 #include "redvault/net/curl_transport.hpp"
+#ifdef REDVAULT_HAS_E2E_V3
+#include <QStandardPaths>
+
+#include <cctype>
+#include <filesystem>
+#include <mutex>
+
+#include <sodium.h>
+
+#include "redvault/e2ev3/key_vault.hpp"
+#endif
 #ifdef REDVAULT_HAS_SEALED_ROUTE
 #include "redvault/e2ev3/sealed_route.hpp"
 #endif
@@ -25,6 +36,57 @@ namespace {
 AppController* gInstance = nullptr;
 
 const QString kLastHandleKey = QStringLiteral("lastHandle");
+
+#ifdef REDVAULT_HAS_E2E_V3
+/**
+ * The server's trusted-device token per handle (RV-1115-01), in the same OS-protected vault as the device keys:
+ * DPAPI on Windows, the Secret Service on Linux, else a user-only file. Made on first use, on the sign-in worker
+ * thread (finding a keyring can take a moment).
+ */
+e2ev3::KeyVault* loginDeviceVault() {
+    static std::mutex mutex;
+    static std::unique_ptr<e2ev3::KeyVault> vault;
+    std::lock_guard lock(mutex);
+    if (!vault) {
+        const std::filesystem::path root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation).toStdString();
+        vault = e2ev3::makeDefaultVault(root / "login-devices");
+    }
+    return vault.get();
+}
+
+/// Vault id for a handle: a hash, so no account name ends up in a file name or keyring label.
+std::string loginDeviceId(const std::string& handle) {
+    std::string lower = handle;
+    for (auto& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    unsigned char digest[crypto_hash_sha256_BYTES];
+    crypto_hash_sha256(digest, reinterpret_cast<const unsigned char*>(lower.data()), lower.size());
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string id = "rv-device-";
+    for (unsigned char b : digest) {
+        id += kHex[b >> 4];
+        id += kHex[b & 15];
+    }
+    return id;
+}
+
+data::LoginDeviceTokens vaultLoginDeviceTokens() {
+    return data::LoginDeviceTokens{
+        .load = [](const std::string& handle) -> std::optional<std::string> {
+            auto* vault = loginDeviceVault();
+            if (!vault) return std::nullopt;
+            const auto secret = vault->get(loginDeviceId(handle));
+            if (!secret) return std::nullopt;
+            return std::string(reinterpret_cast<const char*>(secret->data()), secret->size());
+        },
+        .save = [](const std::string& handle, const std::string& token) {
+            if (auto* vault = loginDeviceVault()) {
+                vault->put(loginDeviceId(handle),
+                           crypto::ByteView(reinterpret_cast<const std::uint8_t*>(token.data()), token.size()));
+            }
+        },
+    };
+}
+#endif
 constexpr int kMinHandleLength = 3;
 constexpr int kMaxHandleLength = 64;  // the server's registerSchema
 constexpr int kMinPasswordLength = 8;
@@ -46,18 +108,25 @@ AppController::AppController(std::string apiBase, TorController* tor, QObject* p
     // Over Tor, first contact with the onion service can take a while, and a
     // 25 s long poll needs room for Tor's latency on top.
     const bool overTor = tor_ != nullptr && tor_->enabled();
-    std::shared_ptr<net::HttpTransport> transport = std::make_shared<net::CurlTransport>(
-        transportOptions(std::chrono::seconds(overTor ? 90 : 15), std::chrono::seconds(overTor ? 60 : 30)));
+    // With a backup route to fall back on, an onion that can't be reached in 30 s is treated as down: the request
+    // moves to the backup route instead of keeping people waiting 90 s (docs/tor-sealed-fallback.md, section 6).
+    const bool withBackup = overTor && tor_->backupRouteAvailable();
+    std::shared_ptr<net::HttpTransport> transport = std::make_shared<net::CurlTransport>(transportOptions(
+        std::chrono::seconds(withBackup ? 30 : overTor ? 90 : 15), std::chrono::seconds(overTor ? 60 : 30)));
 #ifdef REDVAULT_HAS_SEALED_ROUTE
     // The sealed backup route (docs/tor-sealed-fallback.md): when the onion can't be reached but Tor works,
     // requests go sealed to the gateway's pinned key, through Tor, to the website. Never without Tor.
-    if (overTor && tor_->backupRouteAvailable()) {
+    if (withBackup) {
         if (const auto api = net::parseUrl(apiBase); api && api->path.size() >= 5 && api->path.ends_with("/api/")) {
             net::SealedFallbackTransport::Config config;
             config.onionOrigin = api->scheme + "://" + api->host;
             config.pathPrefix = api->path.substr(0, api->path.size() - 5);
             config.gatewayUrl = REDVAULT_SEALED_GATEWAY_URL;
             config.probeUrl = apiBase + "public/routing";
+            // Start where the last run ended (the onion check moves back as soon as it answers), and switch on the
+            // first onion connection that fails outright while Tor itself is connected.
+            config.startOnBackup = tor_->lastRouteWasBackup();
+            config.torConnected = [connected = tor_->connectedFlag()] { return connected->load(); };
             const std::string hex = REDVAULT_SEALED_KEY_CONFIG;
             for (std::size_t i = 0; i + 1 < hex.size(); i += 2) {
                 config.keyConfig.push_back(static_cast<std::uint8_t>(std::stoi(hex.substr(i, 2), nullptr, 16)));
@@ -79,6 +148,8 @@ AppController::AppController(std::string apiBase, TorController* tor, QObject* p
             connect(tor_, &TorController::onionOnlyChosen, this, [this] {
                 if (sealedRoute_) sealedRoute_->useOnion();
             });
+            // Started on the backup route: no change is reported for that, so tell the status chip now.
+            if (sealedRoute_->onBackup()) tor_->reportBackupRoute(true);
             transport = sealedRoute_;
         }
     }
@@ -86,6 +157,9 @@ AppController::AppController(std::string apiBase, TorController* tor, QObject* p
     cookies_ = std::make_shared<net::SessionCookieJar>();
     api_ = std::make_shared<api::ApiClient>(std::move(apiBase), transport, cookies_);
     auth_ = std::make_shared<data::AuthRepository>(api_);
+#ifdef REDVAULT_HAS_E2E_V3
+    auth_->setLoginDeviceTokens(vaultLoginDeviceTokens());
+#endif
     pool_.setMaxThreadCount(2);
     lastHandle_ = QSettings().value(kLastHandleKey).toString();
     lock_ = std::make_unique<AppLock>();
@@ -186,10 +260,46 @@ void AppController::signIn(const QString& handle, const QString& password) {
             state_ = State::NeedsCode;
             emit stateChanged();
         },
-        [this](const Failure& failure) {
+        [this, trimmed, password](const Failure& failure) {
             setBusy(false);
+            if (waitForTorIfNeeded(failure.code, [this, trimmed, password] { signIn(trimmed, password); })) return;
             setError(failure.message);
         });
+}
+
+bool AppController::waitForTorIfNeeded(const QString& code, std::function<void()> retry) {
+    if (code != QStringLiteral("tor_unavailable") || tor_ == nullptr || !tor_->enabled()) return false;
+    // Tor itself isn't connected yet (starting, or the network is slow): nothing was sent. Wait instead of failing,
+    // and go ahead the moment Tor connects (docs/tor-sealed-fallback.md: never without Tor).
+    disconnect(torRetryConnection_);
+    torRetry_ = std::move(retry);
+    setError({});
+    setBusy(true);
+    emit waitingForTorChanged();
+    const auto goAhead = [this] {
+        disconnect(torRetryConnection_);
+        auto retryNow = std::exchange(torRetry_, {});
+        setBusy(false);
+        emit waitingForTorChanged();
+        if (retryNow) retryNow();
+    };
+    if (tor_->connected()) {
+        // Connected again between the failure and now: a short pause, so a flapping Tor can't make a tight loop.
+        QTimer::singleShot(2000, this, [this, goAhead] {
+            if (torRetry_) goAhead();
+        });
+    } else {
+        torRetryConnection_ = connect(tor_, &TorController::becameConnected, this, goAhead);
+    }
+    return true;
+}
+
+void AppController::cancelTorWait() {
+    if (!torRetry_) return;
+    disconnect(torRetryConnection_);
+    torRetry_ = {};
+    setBusy(false);
+    emit waitingForTorChanged();
 }
 
 void AppController::submitCode(const QString& code) {
@@ -213,8 +323,9 @@ void AppController::submitCode(const QString& code) {
             startSession(std::move(identity));
             enterSignedIn();
         },
-        [this](const Failure& failure) {
+        [this, trimmed](const Failure& failure) {
             setBusy(false);
+            if (waitForTorIfNeeded(failure.code, [this, trimmed] { submitCode(trimmed); })) return;
             setError(failure.code == QStringLiteral("invalid_code")
                          ? QStringLiteral("Wrong code. Check your authenticator app and try again.")
                          : failure.message);

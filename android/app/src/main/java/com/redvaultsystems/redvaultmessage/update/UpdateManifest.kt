@@ -28,6 +28,8 @@ object UpdateManifest {
     /** The published (website) folder the signed APK URL must be in; over Tor the onion service's copy is used. */
     const val DOWNLOAD_PREFIX = "https://www.redvaultsystems.com/redvaultmessages/desktop/"
     const val MANIFEST_NAME = "android-latest.json"
+    /** The published folder's path, on the website and in the onion service's copy alike. */
+    private const val FOLDER_PATH = "/redvaultmessages/desktop/"
     /** The release key's public half, the same as the desktop's (desktop/app/src/update_key.hpp). */
     const val PUBLIC_KEY_B64 = "4GOi/rqNFDftNAHc8vCPKL7cukGzVAVXHLUD2ckyWi0="
 
@@ -88,11 +90,14 @@ object UpdateManifest {
         return Check(release.takeIf { it.versionCode > currentVersionCode }, stale)
     }
 
+    /** The published folder's own origin ("https://www.redvaultsystems.com"), for while the sealed backup route is in use. */
+    fun publishedOrigin(): String = DOWNLOAD_PREFIX.removeSuffix(FOLDER_PATH)
+
     /** The onion service's (or a test server's) copy of the published folder: the manifest URL there. */
-    fun manifestUrl(apiOrigin: String): String = "$apiOrigin/redvaultmessages/desktop/$MANIFEST_NAME"
+    fun manifestUrl(apiOrigin: String): String = "$apiOrigin$FOLDER_PATH$MANIFEST_NAME"
 
     /** Where to download [release] from: its signed URL moved into [apiOrigin]'s copy of the folder. */
-    fun apkUrl(release: Release, apiOrigin: String): String = "$apiOrigin/redvaultmessages/desktop/" + release.url.substring(DOWNLOAD_PREFIX.length)
+    fun apkUrl(release: Release, apiOrigin: String): String = "$apiOrigin$FOLDER_PATH" + release.url.substring(DOWNLOAD_PREFIX.length)
 
     private fun decode(envelope: JsonObject, name: String): ByteArray =
         runCatching { Base64.getDecoder().decode(string(envelope, name)) }.getOrElse { throw Invalid("The update manifest isn't valid base64") }

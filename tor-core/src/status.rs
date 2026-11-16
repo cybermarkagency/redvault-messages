@@ -14,10 +14,16 @@ use serde::Serialize;
 pub enum TorState {
     /// Bootstrapping: messages wait in the app's encrypted outbox.
     Connecting,
-    /// Tor is up and the last onion stream (if any) worked.
+    /// Tor is up. The onion service may still be failing: `onion_reachable`
+    /// says so, and the apps' sealed backup route takes over then.
     Connected,
-    /// Tor can't make progress, or the onion service keeps failing. Nothing is
-    /// sent; the apps keep their outbox and retry when this clears.
+    /// Tor itself can't make progress (stopped, blocked, fatal, or not
+    /// bootstrapped in time). Nothing is sent; the apps keep their outbox and
+    /// retry when this clears.
+    ///
+    /// Onion failures never cause this state: it closes the apps' gate, which
+    /// would block the backup route too, and no stream could succeed to clear it
+    /// (the 2026-11-16 lockout).
     Unavailable,
 }
 
@@ -53,8 +59,8 @@ pub struct Status {
     pub stats: Stats,
 }
 
-/// Consecutive onion stream failures after which the state turns Unavailable.
-const FAILURES_BEFORE_UNAVAILABLE: u32 = 2;
+/// Consecutive onion stream failures after which the detail says the onion isn't answering.
+const ONION_FAILURES_TO_REPORT: u32 = 2;
 /// Not connected this long after starting: show Unavailable (Tor keeps trying).
 /// Arti can take a long time to call a network blocked, and a spinner that
 /// never ends hides the problem from the user.
@@ -164,8 +170,8 @@ impl StatusCell {
             (TorState::Unavailable, format!("Tor hasn't connected yet ({})", inner.summary))
         } else if !inner.ready {
             (TorState::Connecting, inner.summary.clone())
-        } else if inner.consecutive_failures >= FAILURES_BEFORE_UNAVAILABLE {
-            (TorState::Unavailable, "The Redvault onion service can't be reached".to_owned())
+        } else if inner.consecutive_failures >= ONION_FAILURES_TO_REPORT {
+            (TorState::Connected, "Tor is connected; the onion service isn't answering".to_owned())
         } else {
             (TorState::Connected, inner.summary.clone())
         };
@@ -192,7 +198,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn state_follows_bootstrap_blockage_and_stream_failures() {
+    fn state_follows_bootstrap_and_blockage_not_onion_failures() {
         let cell = StatusCell::default();
         assert_eq!(cell.snapshot().state, TorState::Connecting);
 
@@ -209,11 +215,14 @@ mod tests {
         cell.on_stream(false);
         assert_eq!(cell.snapshot().state, TorState::Connected, "one failure is tolerated");
         cell.on_stream(false);
-        assert_eq!(cell.snapshot().state, TorState::Unavailable);
+        cell.on_stream(false);
+        // The onion failing is not Tor failing: the gate stays open for the backup route.
+        assert_eq!(cell.snapshot().state, TorState::Connected, "onion failures never close the gate");
+        assert!(cell.snapshot().detail.contains("onion service isn't answering"));
         assert_eq!(cell.snapshot().onion_reachable, Some(false));
         cell.on_stream(true);
         assert_eq!(cell.snapshot().state, TorState::Connected);
-        assert_eq!(cell.snapshot().stats.tor_streams_failed, 2);
+        assert_eq!(cell.snapshot().stats.tor_streams_failed, 3);
         assert_eq!(cell.snapshot().stats.tor_streams_opened, 1);
 
         cell.on_stopped();

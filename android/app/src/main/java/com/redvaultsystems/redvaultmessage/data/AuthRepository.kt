@@ -26,6 +26,8 @@ import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
 import com.redvaultsystems.redvaultmessage.push.PushRegistrar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** A new account, and the recovery key to show once. */
 class Registered(val identity: SelfIdentity, val recoveryKey: String)
@@ -57,6 +59,10 @@ internal fun wrappedKeyOf(result: LoginResult) = WrappedPrivateKey(
     kdf = kdfSettings(result.privateKeyKdfOps, result.privateKeyKdfMem),
 )
 
+
+/** The server's trusted-device cookie (server/src/constants.ts DEVICE_COOKIE_NAME). */
+private const val DEVICE_COOKIE = "rv_device"
+
 /**
  * Port of the auth half of ui/src/state/actions.ts. Key generation, Argon2id
  * and unwrapping run on Dispatchers.Default: Argon2id alone takes a
@@ -70,6 +76,10 @@ class AuthRepository(
     private val pushRegistrar: PushRegistrar,
     private val recoveryKeys: RecoveryKey,
     private val signInKeys: SignInKeys = SignInKeys(api, crypto, MemorySignInPins()),
+    /** The server's trusted-device token per handle (RV-1115-01); kept by [WrappedLoginDeviceTokens] in the app. */
+    private val deviceTokens: LoginDeviceTokens = NoLoginDeviceTokens,
+    /** The API root (BuildConfig.API_BASE), so a kept token goes back to the right host. */
+    private val apiBase: String? = null,
 ) {
     val lastHandle: String? get() = lastHandleStore.load()
 
@@ -128,6 +138,7 @@ class AuthRepository(
                 ?: throw UserFacingException("That doesn't look like a recovery key. Check it and try again.")
             try {
                 val auth = recoveryKeys.authFor(key)
+                restoreDeviceToken(handle)
                 val started = try {
                     apiCall(ApiClient.json) { api.recoveryStart(RecoveryStartRequest(handle, auth)) }
                 } catch (e: ApiException) {
@@ -169,6 +180,7 @@ class AuthRepository(
                 }
                 if (next.authVersion != null) signInKeys.pin(handle)
                 lastHandleStore.save(handle)
+                keepDeviceToken(handle)
                 RecoverOutcome.SignedIn(
                     SelfIdentity(
                         handle = handle,
@@ -189,6 +201,7 @@ class AuthRepository(
 
     suspend fun login(handle: String, password: String): LoginOutcome = withContext(Dispatchers.Default) {
         val credential = signInKeys.credentialFor(handle, password)
+        restoreDeviceToken(handle)
         val response = apiCall(ApiClient.json) {
             api.login(LoginRequest(handle, credential.password, credential.authVersion, credential.upgradeAuthKey))
         }
@@ -196,14 +209,29 @@ class AuthRepository(
         if (response.mfaRequired) {
             LoginOutcome.MfaRequired
         } else {
-            LoginOutcome.SignedIn(finishLogin(handle, password, response.toLoginResult(), mfaEnabled = false))
+            LoginOutcome.SignedIn(finishLogin(handle, password, response.toLoginResult(), mfaEnabled = false).also { keepDeviceToken(handle) })
         }
     }
 
     /** Completes a login that returned [LoginOutcome.MfaRequired], with the same handle and password. */
     suspend fun verifyMfa(handle: String, password: String, code: String): SelfIdentity = withContext(Dispatchers.Default) {
         val response = apiCall(ApiClient.json) { api.verifyMfa(MfaCodeRequest(code)) }
-        finishLogin(handle, password, response.toLoginResult(), mfaEnabled = true)
+        finishLogin(handle, password, response.toLoginResult(), mfaEnabled = true).also { keepDeviceToken(handle) }
+    }
+
+    /** Puts this handle's kept device token in the cookie jar before a sign-in request. */
+    private fun restoreDeviceToken(handle: String) {
+        val host = apiBase?.toHttpUrlOrNull()?.host ?: return
+        val token = runCatching { deviceTokens.load(handle) }.getOrNull()?.takeIf { it.isNotEmpty() && it.length <= 256 } ?: return
+        // Path "/", not Secure: it only has to reach this API host, which is https or a Tor onion.
+        val cookie = runCatching { Cookie.Builder().name(DEVICE_COOKIE).value(token).hostOnlyDomain(host).path("/").build() }.getOrNull() ?: return
+        cookieJar.restore(cookie)
+    }
+
+    /** Keeps the token the server just handed out (each complete sign-in replaces it). */
+    private fun keepDeviceToken(handle: String) {
+        val token = cookieJar.find(DEVICE_COOKIE)?.value ?: return
+        runCatching { deviceTokens.save(handle, token) }
     }
 
     /** Best-effort server logout; local state is cleared either way. */

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:2b839b1f-b1d7-411c-9cda-26b985c5a350",
+  "serialNumber": "urn:uuid:502769df-9d66-4711-aa8a-70e2d4aff6bf",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-07T10:50:20+00:00",
+    "timestamp": "2026-11-15T23:04:54+00:00",
     "tools": [
       {
         "name": "crypto-core/tools/make_sbom.py"
@@ -14,7 +14,7 @@
       "type": "library",
       "name": "redvault-tor",
       "version": "0.1.0",
-      "description": "crypto-core with features: ffi jni"
+      "description": "crypto-core with features: (none)"
     }
   },
   "components": [
@@ -428,6 +428,40 @@
     },
     {
       "type": "library",
+      "name": "blake2",
+      "version": "0.10.6",
+      "purl": "pkg:cargo/blake2@0.10.6",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/RustCrypto/hashes"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "blake2",
+      "version": "0.11.0",
+      "purl": "pkg:cargo/blake2@0.11.0",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/RustCrypto/hashes"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "blanket",
       "version": "0.3.0",
       "purl": "pkg:cargo/blanket@0.3.0",
@@ -615,23 +649,6 @@
     },
     {
       "type": "library",
-      "name": "cesu8",
-      "version": "1.1.0",
-      "purl": "pkg:cargo/cesu8@1.1.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR MIT"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/emk/cesu8-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "name": "cfg-if",
       "version": "1.0.5",
       "purl": "pkg:cargo/cfg-if@1.0.5",
@@ -729,23 +746,6 @@
         {
           "type": "vcs",
           "url": "https://github.com/jedisct1/rust-coarsetime"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "combine",
-      "version": "4.6.9",
-      "purl": "pkg:cargo/combine@4.6.9",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/Marwes/combine"
         }
       ]
     },
@@ -1007,8 +1007,8 @@
     {
       "type": "library",
       "name": "ctutils",
-      "version": "0.4.3",
-      "purl": "pkg:cargo/ctutils@0.4.3",
+      "version": "0.4.8",
+      "purl": "pkg:cargo/ctutils@0.4.8",
       "licenses": [
         {
           "expression": "Apache-2.0 OR MIT"
@@ -1533,6 +1533,40 @@
     },
     {
       "type": "library",
+      "name": "dynasm",
+      "version": "5.1.0",
+      "purl": "pkg:cargo/dynasm@5.1.0",
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/CensoredUsername/dynasm-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "dynasmrt",
+      "version": "5.1.0",
+      "purl": "pkg:cargo/dynasmrt@5.1.0",
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/CensoredUsername/dynasm-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "ed25519",
       "version": "2.2.3",
       "purl": "pkg:cargo/ed25519@2.2.3",
@@ -1681,6 +1715,23 @@
         {
           "type": "vcs",
           "url": "https://github.com/indexmap-rs/equivalent"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "equix",
+      "version": "0.8.1",
+      "purl": "pkg:cargo/equix@0.8.1",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://gitlab.torproject.org/tpo/core/arti.git/"
         }
       ]
     },
@@ -1851,6 +1902,23 @@
         {
           "type": "vcs",
           "url": "https://github.com/rust-lang/cc-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fixed-capacity-vec",
+      "version": "1.0.1",
+      "purl": "pkg:cargo/fixed-capacity-vec@1.0.1",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://gitlab.torproject.org/tpo/core/rust-fixed-capacity-vec.git/"
         }
       ]
     },
@@ -2338,6 +2406,23 @@
         {
           "type": "vcs",
           "url": "https://github.com/djc/hashlink"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "hashx",
+      "version": "0.10.1",
+      "purl": "pkg:cargo/hashx@0.10.1",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://gitlab.torproject.org/tpo/core/arti.git/"
         }
       ]
     },
@@ -2887,74 +2972,6 @@
     },
     {
       "type": "library",
-      "name": "jni",
-      "version": "0.21.1",
-      "purl": "pkg:cargo/jni@0.21.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/jni-rs/jni-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "jni-sys",
-      "version": "0.3.1",
-      "purl": "pkg:cargo/jni-sys@0.3.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/jni-rs/jni-sys"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "jni-sys",
-      "version": "0.4.1",
-      "purl": "pkg:cargo/jni-sys@0.4.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/jni-rs/jni-sys"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "jni-sys-macros",
-      "version": "0.4.1",
-      "purl": "pkg:cargo/jni-sys-macros@0.4.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/jni-rs/jni-sys"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "name": "js-sys",
       "version": "0.3.106",
       "purl": "pkg:cargo/js-sys@0.3.106",
@@ -3109,8 +3126,8 @@
     {
       "type": "library",
       "name": "libsqlite3-sys",
-      "version": "0.38.2",
-      "purl": "pkg:cargo/libsqlite3-sys@0.38.2",
+      "version": "0.39.1",
+      "purl": "pkg:cargo/libsqlite3-sys@0.39.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -4060,6 +4077,40 @@
     },
     {
       "type": "library",
+      "name": "proc-macro-error-attr3",
+      "version": "3.1.1",
+      "purl": "pkg:cargo/proc-macro-error-attr3@3.1.1",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/gamma0987/proc-macro-error3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "proc-macro-error3",
+      "version": "3.1.1",
+      "purl": "pkg:cargo/proc-macro-error3@3.1.1",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/gamma0987/proc-macro-error3"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "proc-macro2",
       "version": "1.0.107",
       "purl": "pkg:cargo/proc-macro2@1.0.107",
@@ -4531,8 +4582,8 @@
     {
       "type": "library",
       "name": "rustix",
-      "version": "1.1.5",
-      "purl": "pkg:cargo/rustix@1.1.5",
+      "version": "1.1.6",
+      "purl": "pkg:cargo/rustix@1.1.6",
       "licenses": [
         {
           "expression": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
@@ -4582,8 +4633,8 @@
     {
       "type": "library",
       "name": "rustls-webpki",
-      "version": "0.103.15",
-      "purl": "pkg:cargo/rustls-webpki@0.103.15",
+      "version": "0.103.17",
+      "purl": "pkg:cargo/rustls-webpki@0.103.17",
       "licenses": [
         {
           "expression": "ISC"
@@ -5721,8 +5772,8 @@
     {
       "type": "library",
       "name": "tokio",
-      "version": "1.54.0",
-      "purl": "pkg:cargo/tokio@1.54.0",
+      "version": "1.54.1",
+      "purl": "pkg:cargo/tokio@1.54.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -7319,23 +7370,6 @@
     {
       "type": "library",
       "name": "windows-sys",
-      "version": "0.45.0",
-      "purl": "pkg:cargo/windows-sys@0.45.0",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows-sys",
       "version": "0.52.0",
       "purl": "pkg:cargo/windows-sys@0.52.0",
       "licenses": [
@@ -7404,23 +7438,6 @@
     {
       "type": "library",
       "name": "windows-targets",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows-targets@0.42.2",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows-targets",
       "version": "0.52.6",
       "purl": "pkg:cargo/windows-targets@0.52.6",
       "licenses": [
@@ -7472,23 +7489,6 @@
     {
       "type": "library",
       "name": "windows_aarch64_gnullvm",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.42.2",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_aarch64_gnullvm",
       "version": "0.52.6",
       "purl": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
       "licenses": [
@@ -7523,23 +7523,6 @@
     {
       "type": "library",
       "name": "windows_aarch64_msvc",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_aarch64_msvc@0.42.2",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_aarch64_msvc",
       "version": "0.52.6",
       "purl": "pkg:cargo/windows_aarch64_msvc@0.52.6",
       "licenses": [
@@ -7559,23 +7542,6 @@
       "name": "windows_aarch64_msvc",
       "version": "0.53.1",
       "purl": "pkg:cargo/windows_aarch64_msvc@0.53.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_i686_gnu",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_i686_gnu@0.42.2",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -7659,23 +7625,6 @@
     {
       "type": "library",
       "name": "windows_i686_msvc",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_i686_msvc@0.42.2",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_i686_msvc",
       "version": "0.52.6",
       "purl": "pkg:cargo/windows_i686_msvc@0.52.6",
       "licenses": [
@@ -7695,23 +7644,6 @@
       "name": "windows_i686_msvc",
       "version": "0.53.1",
       "purl": "pkg:cargo/windows_i686_msvc@0.53.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_x86_64_gnu",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_x86_64_gnu@0.42.2",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -7761,23 +7693,6 @@
     {
       "type": "library",
       "name": "windows_x86_64_gnullvm",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.42.2",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_x86_64_gnullvm",
       "version": "0.52.6",
       "purl": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
       "licenses": [
@@ -7797,23 +7712,6 @@
       "name": "windows_x86_64_gnullvm",
       "version": "0.53.1",
       "purl": "pkg:cargo/windows_x86_64_gnullvm@0.53.1",
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/microsoft/windows-rs"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "windows_x86_64_msvc",
-      "version": "0.42.2",
-      "purl": "pkg:cargo/windows_x86_64_msvc@0.42.2",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"

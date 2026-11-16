@@ -19,6 +19,7 @@
 using redvault::net::HttpRequest;
 using redvault::net::HttpResponse;
 using redvault::net::NetworkError;
+using redvault::net::NotSentError;
 using redvault::net::SealedFallbackTransport;
 using redvault::net::TorUnavailableError;
 using redvault::test::FakeTransport;
@@ -42,11 +43,13 @@ std::vector<std::uint8_t> testKey() {
 class FlakyOnion final : public redvault::net::HttpTransport {
 public:
     bool failing = false;
+    bool notSent = false;  // the connection fails before anything goes out (a dead onion)
     bool torDown = false;
     int calls = 0;
     HttpResponse send(const HttpRequest&) override {
         ++calls;
         if (torDown) throw TorUnavailableError("Tor isn't connected");
+        if (notSent) throw NotSentError("SOCKS: host unreachable");
         if (failing) throw NetworkError("timed out");
         return HttpResponse{200, {}, "onion"};
     }
@@ -56,10 +59,13 @@ struct Rig {
     std::shared_ptr<FlakyOnion> onion = std::make_shared<FlakyOnion>();
     std::shared_ptr<FakeTransport> website = std::make_shared<FakeTransport>();
     std::shared_ptr<std::atomic<bool>> onionOnly = std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<std::atomic<bool>> torConnected = std::make_shared<std::atomic<bool>>(true);
     std::vector<bool> changes;
     std::unique_ptr<SealedFallbackTransport> route;
 
-    explicit Rig(bool withKey = true, std::shared_ptr<SealedFallbackTransport::Sealer> sealer = nullptr) {
+    explicit Rig(bool withKey = true, std::shared_ptr<SealedFallbackTransport::Sealer> sealer = nullptr, bool startOnBackup = false,
+                 bool onionOnlyAtStart = false) {
+        onionOnly->store(onionOnlyAtStart);
         SealedFallbackTransport::Config config;
         config.onionOrigin = kOnion;
         config.pathPrefix = "/redvaultmessages";
@@ -68,6 +74,8 @@ struct Rig {
         config.probeEvery = std::chrono::seconds(3600);  // probes are driven by hand here
         config.probeUrl = kApi + "public/routing";
         config.sealer = std::move(sealer);
+        config.startOnBackup = startOnBackup;
+        config.torConnected = [connected = torConnected] { return connected->load(); };
         auto flag = onionOnly;
         route = std::make_unique<SealedFallbackTransport>(
             onion, website, config, [flag] { return !flag->load(); }, [this](bool backup) { changes.push_back(backup); });
@@ -131,6 +139,51 @@ TEST_CASE("a failed GET is sent again on the backup route at the switch, a POST 
     Rig other;
     other.failOnion(3);
     CHECK(other.website->requests.empty());  // the third (switching) POST wasn't re-sent
+}
+
+TEST_CASE("an onion that can't even be reached while Tor works switches at once, and the request, a POST too, goes on sealed") {
+    Rig rig;
+    rig.onion->notSent = true;
+    // The stand-in gateway answers 502, so the resent request still fails here, but it reached the gateway.
+    CHECK_THROWS_AS(rig.route->send(rig.post("auth/login")), NetworkError);
+    CHECK(rig.route->onBackup());
+    CHECK(rig.changes == std::vector<bool>{true});
+    REQUIRE(rig.website->requests.size() == 1);
+    CHECK(rig.website->last().url == kGateway);
+    CHECK(rig.onion->calls == 1);
+}
+
+TEST_CASE("while Tor itself is still connecting, an unreachable onion doesn't switch on one failure") {
+    Rig rig;
+    rig.torConnected->store(false);
+    rig.onion->notSent = true;
+    CHECK_THROWS_AS(rig.route->send(rig.post("auth/login")), NotSentError);
+    CHECK_FALSE(rig.route->onBackup());
+    CHECK(rig.website->requests.empty());
+}
+
+TEST_CASE("a POST that may have reached the onion is never sent twice") {
+    Rig rig;
+    rig.failOnion(3);  // timeouts after sending: the switch happens, but none of these POSTs is resent
+    CHECK(rig.route->onBackup());
+    CHECK(rig.website->requests.empty());
+}
+
+TEST_CASE("starting where the last run ended: on the backup route, unless only the onion is allowed") {
+    Rig rig(true, nullptr, true);
+    CHECK(rig.route->onBackup());
+    CHECK(rig.changes.empty());  // the app reports the starting route itself
+    CHECK_THROWS_AS(rig.route->send(rig.get("me")), NetworkError);  // the stand-in gateway's 502
+    CHECK(rig.website->requests.size() == 1);
+    CHECK(rig.onion->calls == 0);
+    // The onion answers again: the check moves back.
+    CHECK(rig.route->probeOnionNow());
+    CHECK_FALSE(rig.route->onBackup());
+
+    Rig onionOnly(true, nullptr, true, true);
+    CHECK_FALSE(onionOnly.route->onBackup());
+    Rig noKey(false, nullptr, true);
+    CHECK_FALSE(noKey.route->onBackup());
 }
 
 TEST_CASE("Tor being down never switches routes") {

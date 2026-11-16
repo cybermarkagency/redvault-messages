@@ -42,6 +42,13 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+/// The connection failed before any byte of the request went out (connect, SOCKS or TLS failure, or a
+/// connect timeout): the server never saw it, so any request, a POST included, is safe to send again.
+class NotSentError : public NetworkError {
+public:
+    using NetworkError::NetworkError;
+};
+
 /// Tor routing is on but the gateway isn't running: nothing was sent, and nothing may go any other way.
 class TorUnavailableError : public NetworkError {
 public:

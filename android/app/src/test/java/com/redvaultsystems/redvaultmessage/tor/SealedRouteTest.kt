@@ -38,6 +38,9 @@ class SealedRouteTest {
     private val website = MockWebServer()
     private val onionOnly = AtomicBoolean(false)
     private val torDown = AtomicBoolean(false)
+    private val torConnected = AtomicBoolean(true)
+    /** How many of the next requests fail as the onion transport never sending them (NotSentException). */
+    private val notSent = java.util.concurrent.atomic.AtomicInteger(0)
     private val changes = mutableListOf<Boolean>()
     private lateinit var route: SealedRoute
     private lateinit var client: OkHttpClient
@@ -69,10 +72,18 @@ class SealedRouteTest {
             cookieJar = jar,
             allowed = { !onionOnly.get() },
             onRouteChanged = { synchronized(changes) { changes.add(it) } },
+            torConnected = { torConnected.get() },
             probeEverySeconds = 3600,
         )
-        // Stands in for the Tor gate after the route: Tor down means TorUnavailableException, as in the app.
-        val gate = Interceptor { chain -> if (torDown.get()) throw TorUnavailableException() else chain.proceed(chain.request()) }
+        // Stands in for the Tor gate after the route: Tor down means TorUnavailableException, as in the app, and a
+        // connection Tor couldn't open (TorRouting.SendWatch) means NotSentException.
+        val gate = Interceptor { chain ->
+            when {
+                torDown.get() -> throw TorUnavailableException()
+                notSent.getAndUpdate { if (it > 0) it - 1 else 0 } > 0 -> throw NotSentException(java.net.SocketException("SOCKS: Host unreachable"))
+                else -> chain.proceed(chain.request())
+            }
+        }
         client = plain.newBuilder().addInterceptor(route).addInterceptor(gate).build()
     }
 
@@ -102,6 +113,8 @@ class SealedRouteTest {
         failOnion(3)
         assertTrue(route.onBackup)
         assertEquals(listOf(true), changes)
+        // The third POST had gone out on the onion: it isn't sent again on the backup route.
+        assertEquals(0, website.requestCount)
         assertTrue(runCatching { send(post("messages")) }.exceptionOrNull() is IOException) // the stand-in answers 502
         val sealed = website.takeRequest(5, TimeUnit.SECONDS)!!
         assertEquals("POST", sealed.method)
@@ -151,6 +164,77 @@ class SealedRouteTest {
         val c = OkHttpClient.Builder().readTimeout(2, TimeUnit.SECONDS).addInterceptor(noKey).build()
         repeat(4) { onion.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)) }
         repeat(4) { runCatching { c.newCall(get("me")).execute().close() } }
+        assertFalse(noKey.onBackup)
+    }
+
+    // --- A request the onion transport never sent (docs/tor-sealed-fallback.md; the desktop's rules too) ---
+
+    @Test fun aPostThatWasNeverSentSwitchesAtOnceAndGoesByTheBackupRoute() {
+        notSent.set(1)
+        // The stand-in gateway answers 502: the POST reached it, sealed, so it was resent on the backup route.
+        assertTrue(runCatching { send(post("auth/login")) }.exceptionOrNull() is IOException)
+        assertTrue(route.onBackup)
+        assertEquals(listOf(true), changes)
+        assertEquals(1, website.requestCount)
+        val sealed = website.takeRequest(5, TimeUnit.SECONDS)!!
+        assertEquals("/redvaultmessages/ohttp", sealed.path)
+        assertFalse(String(sealed.body.readByteArray(), Charsets.ISO_8859_1).contains("hello"))
+        assertEquals(0, onion.requestCount)
+    }
+
+    @Test fun neverSentWhileTorIsStillConnectingDoesNotSwitchAtOnce() {
+        torConnected.set(false)
+        notSent.set(1)
+        assertTrue(runCatching { send(post("auth/login")) }.exceptionOrNull() is NotSentException)
+        assertFalse(route.onBackup)
+        assertEquals(0, website.requestCount)
+    }
+
+    @Test fun neverSentWithOnlyTheOnionAddressNeverUsesTheBackupRoute() {
+        onionOnly.set(true)
+        notSent.set(5)
+        repeat(5) { assertTrue(runCatching { send(post("auth/login")) }.exceptionOrNull() is NotSentException) }
+        assertFalse(route.onBackup)
+        assertEquals(0, website.requestCount)
+    }
+
+    @Test fun aStreamedBodyThatWasNeverSentIsNotResent() {
+        notSent.set(1)
+        val streamed = object : okhttp3.RequestBody() {
+            override fun contentType() = "application/octet-stream".toMediaType()
+            override fun contentLength() = -1L
+            override fun writeTo(sink: okio.BufferedSink) { sink.writeUtf8("stream") }
+        }
+        val error = runCatching { send(Request.Builder().url(api("files")).post(streamed).build()) }.exceptionOrNull()
+        assertTrue(error is NotSentException)
+        assertTrue(route.onBackup) // the route still switches; only this request isn't sent again
+        assertEquals(0, website.requestCount)
+    }
+
+    @Test fun startOnBackupStartsThereAndTheCheckStillMovesBack() {
+        route.startOnBackup()
+        assertTrue(route.onBackup)
+        assertEquals(listOf(true), changes)
+        onion.enqueue(MockResponse().setBody("{}"))
+        assertTrue(route.probeOnionNow())
+        assertFalse(route.onBackup)
+        assertEquals(listOf(true, false), changes)
+    }
+
+    @Test fun startOnBackupRespectsOnlyTheOnionAddress() {
+        onionOnly.set(true)
+        route.startOnBackup()
+        assertFalse(route.onBackup)
+        assertTrue(changes.isEmpty())
+    }
+
+    @Test fun startOnBackupNeedsAKey() {
+        val noKey = SealedRoute(
+            onionOrigin = "http://x", pathPrefix = "", gatewayUrl = website.url("/").toString(), keyConfig = ByteArray(0),
+            website = OkHttpClient(), probeClient = { OkHttpClient() }, probeUrl = "http://x/", cookieJar = jar,
+            allowed = { true }, onRouteChanged = {},
+        )
+        noKey.startOnBackup()
         assertFalse(noKey.onBackup)
     }
 

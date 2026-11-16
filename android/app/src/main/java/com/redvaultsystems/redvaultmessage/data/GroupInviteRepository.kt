@@ -33,7 +33,8 @@ import kotlinx.coroutines.withContext
 /** The group's link as a member sees it. [url] is null when its secret doesn't open with this device's group key. */
 class InviteLinkView(val id: String, val approval: Boolean, val secret: ByteArray?, val url: String?)
 
-class JoinRequestView(val userId: String, val handle: String, val avatarUrl: String?)
+/** `nameHidden`: `handle` is a placeholder, not a name (the server hid it, F-22, or the account couldn't be looked up). */
+class JoinRequestView(val userId: String, val handle: String, val avatarUrl: String?, val nameHidden: Boolean = false)
 
 /** What someone opening a link sees before joining. */
 class InvitePreview(
@@ -114,7 +115,7 @@ class GroupInviteRepository(
             pending.map { request ->
                 async {
                     val user = runCatching { apiCall(ApiClient.json) { users.getUser(request.userId) } }.getOrNull()
-                    JoinRequestView(request.userId, user?.username ?: "Unknown account", user?.avatarUrl)
+                    JoinRequestView(request.userId, user?.username ?: "Unknown account", user?.avatarUrl, user?.usernameHidden ?: true)
                 }
             }.awaitAll()
         }

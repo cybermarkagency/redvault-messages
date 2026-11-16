@@ -49,7 +49,8 @@ std::string bytes(const Json& j) {
 std::vector<float> floats(const Json& j) {
     const std::string b = bytes(j);
     std::vector<float> out(b.size() / 4);
-    std::memcpy(out.data(), b.data(), out.size() * 4);  // little-endian, as on every machine this runs on
+    // memcpy with a null pointer is undefined even for 0 bytes (UBSan, RV-1115-13): skip empty vectors.
+    if (!out.empty()) std::memcpy(out.data(), b.data(), out.size() * 4);  // little-endian, as on every machine this runs on
     return out;
 }
 

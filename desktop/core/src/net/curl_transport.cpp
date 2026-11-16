@@ -334,7 +334,11 @@ HttpResponse CurlTransport::sendStreaming(const HttpRequest& request, const Stre
     // The header list dies with this call: don't leave the pooled handle pointing at it.
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, nullptr);
     if (result != CURLE_OK) {
-        throw NetworkError(errorBuffer[0] != '\0' ? errorBuffer : curl_easy_strerror(result));
+        const std::string message = errorBuffer[0] != '\0' ? errorBuffer : curl_easy_strerror(result);
+        // Not one byte of the request went out: the server can't have seen it, so a caller may resend it anywhere.
+        long sent = -1;
+        if (curl_easy_getinfo(handle, CURLINFO_REQUEST_SIZE, &sent) == CURLE_OK && sent == 0) throw NotSentError(message);
+        throw NetworkError(message);
     }
     long status = 0;
     check(curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status));

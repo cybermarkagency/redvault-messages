@@ -172,4 +172,20 @@ bool SessionCookieJar::empty() const {
     return cookies_.empty();
 }
 
+std::optional<Cookie> SessionCookieJar::find(std::string_view name, Clock::time_point now) const {
+    std::lock_guard lock(mutex_);
+    for (const auto& cookie : cookies_) {
+        if (cookie.name == name && !isExpired(cookie, now)) return cookie;
+    }
+    return std::nullopt;
+}
+
+void SessionCookieJar::restore(Cookie cookie) {
+    std::lock_guard lock(mutex_);
+    std::erase_if(cookies_, [&](const Cookie& existing) {
+        return existing.name == cookie.name && existing.host == cookie.host && existing.path == cookie.path;
+    });
+    cookies_.push_back(std::move(cookie));
+}
+
 }  // namespace redvault::net

@@ -508,6 +508,7 @@ QVariantMap FilesSession::selected() const {
         {"sharedWith", sharedWith},
         {"links", links},
         {"canOpen", e->kind == "file" && file_safety::isSafeToOpen(qs(e->name))},
+        {"previewKind", previewKind(qs(e->id))},
     };
 }
 

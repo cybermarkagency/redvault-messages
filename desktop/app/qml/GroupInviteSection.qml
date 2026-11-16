@@ -178,7 +178,7 @@ ColumnLayout {
 
                 Avatar {
                     size: 30
-                    initial: request.modelData.handle.charAt(0).toUpperCase()
+                    initial: request.modelData.nameHidden === true ? "?" : request.modelData.handle.charAt(0).toUpperCase()
                     tintKey: request.modelData.userId
                     source: request.modelData.avatarUrl
                 }
@@ -187,7 +187,9 @@ ColumnLayout {
                     text: request.modelData.handle
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
-                    color: Theme.text
+                    // No handle from the server (F-22) or the account is gone: a placeholder, not a name.
+                    font.italic: request.modelData.nameHidden === true
+                    color: request.modelData.nameHidden === true ? Theme.text2 : Theme.text
                 }
                 RvButton {
                     implicitHeight: 28

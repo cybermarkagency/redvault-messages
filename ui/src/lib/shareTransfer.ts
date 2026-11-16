@@ -151,7 +151,7 @@ export class OpenedShare {
     if (node.meta.kind !== "file") throw new Error("Not a file");
     const meta = node.meta as ShareFileMeta;
     const ticket = options.ticket ?? (await this.ticketFor([node.id]));
-    const body = resilientBody(
+    const stream = resilientBody(
       (offset) =>
         shareFetch(this.publicId, `/items/${node.id}/content`, {
           headers: { ...accessHeaders(this.keys.access), "X-Share-Ticket": ticket, ...(offset > 0 ? { Range: `bytes=${offset}-` } : {}) },
@@ -160,6 +160,17 @@ export class OpenedShare {
       node.encryptedSize,
       options.signal
     );
+    // decryptFile reports anything thrown inside it as a failed integrity check;
+    // keep the real reason when it was the download itself (gone, expired, offline).
+    let transportError: unknown = null;
+    const body = (async function* () {
+      try {
+        yield* stream;
+      } catch (err) {
+        transportError = err;
+        throw err;
+      }
+    })();
     try {
       return await decryptFile(
         body,
@@ -168,6 +179,7 @@ export class OpenedShare {
         options.onProgress
       );
     } catch (err) {
+      if (transportError !== null) throw transportError;
       if (err instanceof ShareLinkError || (err as { name?: string }).name === "AbortError") throw err;
       if (err instanceof FileDecryptError) throw new ShareLinkError("This file failed its integrity check, so it wasn't saved.", "corrupt");
       throw err;

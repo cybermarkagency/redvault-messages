@@ -52,6 +52,11 @@ import java.util.concurrent.TimeUnit
  * answers. Never a request without Tor, never an unsealed request to the website. Only a GET is sent again
  * automatically at the switch; anything else fails as it would have and the outbox retries it.
  *
+ * A request the onion transport never sent ([NotSentException]: the connection through Tor never opened) while Tor
+ * itself is connected switches at once, without waiting for the other failures, and that request (even a POST, such
+ * as a sign-in) goes on by the backup route, unless its body is streamed ([resendable]). [startOnBackup] starts there
+ * when the app was on the backup route last time; the onion check moves back as usual.
+ *
  * Cookies: application interceptors run before OkHttp adds them, so this loads and saves them through [cookieJar].
  *
  * A chat file bigger than one sealed message goes up in `Content-Range` parts and comes down in `Range`s of
@@ -68,6 +73,8 @@ class SealedRoute(
     private val cookieJar: CookieJar,
     private val allowed: () -> Boolean,
     private val onRouteChanged: (Boolean) -> Unit,
+    /** Whether Tor itself is connected (TorController status Connected), not just the onion failing. */
+    private val torConnected: () -> Boolean = { true },
     private val clock: () -> Long = System::nanoTime,
     private val probeEverySeconds: Long = 60,
     private val sealer: Sealer = NativeSealer,
@@ -93,9 +100,19 @@ class SealedRoute(
             throw e // Tor itself is down: nothing goes anywhere, on either route.
         } catch (e: IOException) {
             if (chain.call().isCanceled()) throw e
-            noteFailure()
-            if (onBackup && (request.method == "GET" || request.method == "HEAD")) sendSealed(request) else throw e
+            val notSent = e is NotSentException
+            if (notSent && torConnected()) switchNow() else noteFailure()
+            val again = request.method == "GET" || request.method == "HEAD" || (notSent && resendable(request))
+            if (onBackup && again) sendSealed(request) else throw e
         }
+    }
+
+    /**
+     * Starts on the backup route (it was in use when the app last ran), unless the user chose "Only use the onion
+     * address" or this build has no gateway key. The onion check runs as usual and moves back when the onion answers.
+     */
+    fun startOnBackup() {
+        if (keyConfig.isNotEmpty() && allowed()) setBackup(true)
     }
 
     /** Back to the onion now (the user turned "Only use the onion address" on). */
@@ -120,6 +137,21 @@ class SealedRoute(
     }
 
     private fun noteSuccess() = synchronized(lock) { failures = 0 }
+
+    /** The onion transport never sent a request while Tor works: the onion is what's failing, so switch now. */
+    private fun switchNow() {
+        synchronized(lock) { failures = 0 }
+        if (keyConfig.isNotEmpty() && allowed()) setBackup(true)
+    }
+
+    /**
+     * A request that was never sent goes again by the backup route when its body can be written in full there: none,
+     * or one of known length that isn't one-shot or duplex (an unknown length means a streamed body).
+     */
+    private fun resendable(request: Request): Boolean {
+        val body = request.body ?: return true
+        return !body.isOneShot() && !body.isDuplex() && (runCatching { body.contentLength() }.getOrNull() ?: -1L) >= 0
+    }
 
     private fun noteFailure() {
         val switchNow = synchronized(lock) {

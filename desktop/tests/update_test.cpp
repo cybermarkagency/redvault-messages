@@ -471,3 +471,30 @@ TEST_CASE("the Linux manifest is fetched over the same route as the Windows one"
     REQUIRE(transport.requests.size() == 1);
     CHECK(transport.requests[0].url == "http://" + std::string(56, 'a') + ".onion/redvaultmessages/desktop/linux-deb-latest.json");
 }
+
+TEST_CASE("on the backup route updates come from the website's https files, over Tor, and only for onion builds", "[update][tor]") {
+    const auto keys = generateSigningKey();
+    const auto route = websiteRouteOverTor(kOnion, true, kManifest, kPrefix);
+    REQUIRE(route);
+    CHECK(route->viaTor);
+    CHECK(route->viaTorToWebsite);
+    CHECK(route->manifestUrl == kManifest);
+    CHECK(route->downloadPrefix == kPrefix);
+    // Not an onion build: no such route (the normal route applies), and never plain http.
+    CHECK_FALSE(websiteRouteOverTor(kClearApi, false, kManifest, kPrefix));
+    CHECK_FALSE(websiteRouteOverTor(kClearApi, true, kManifest, kPrefix));
+    CHECK_FALSE(websiteRouteOverTor(kOnion, true, "http://www.redvaultsystems.com/redvaultmessages/desktop/latest.json", kPrefix));
+    CHECK_FALSE(websiteRouteOverTor(kOnion, true, kManifest, "https://elsewhere.example/desktop/"));
+
+    test::FakeTransport transport;
+    transport.handler = [&](const net::HttpRequest&) {
+        return net::HttpResponse{200, {{"content-type", "application/json"}}, signManifest(expiring("0.2.0", "2027-02-01T00:00:00Z"), keys.secretKey)};
+    };
+    auto source = sourceFor(keys, kOnion, true);
+    source.route = *route;
+    const auto check = fetchManifest(transport, source);
+    REQUIRE(transport.requests.size() == 1);
+    CHECK(transport.requests[0].url == kManifest);
+    REQUIRE(check.release);  // the same signature check
+    CHECK(installerUrl(*check.release, *route, kPrefix) == check.release->url);
+}

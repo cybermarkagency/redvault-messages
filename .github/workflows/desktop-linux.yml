@@ -35,11 +35,12 @@ jobs:
       # CMake at a pinned release and SHA-256, bundled in the AppImage's lib/) and the
       # protoc that compiles its protocol (libprotobuf-dev, protobuf-compiler above).
       # Ubuntu's own Qt is 6.4; the app needs 6.5+. Calls use Qt Multimedia
-      # (microphone, speaker, camera, screen capture).
+      # (microphone, speaker, camera, screen capture). Qt PDF draws PDFs in the
+      # Files viewer (optional in CMake: without it PDFs only download).
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
-          modules: 'qtmultimedia'
+          modules: 'qtmultimedia qtpdf'
           cache: true
 
       - name: Build, test and package

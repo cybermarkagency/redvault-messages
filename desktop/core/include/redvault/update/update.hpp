@@ -115,9 +115,16 @@ struct UpdateRoute {
     /// Where the installer is fetched from: `clearDownloadPrefix`, or the onion service's copy of that folder.
     std::string downloadPrefix;
     bool viaTor = false;
+    /// Over Tor to the published https files on the website (the app is on the sealed backup route, so the onion
+    /// can't be reached): the same signed manifest and installer, fetched through a Tor exit to that one host.
+    bool viaTorToWebsite = false;
 };
 std::optional<UpdateRoute> updateRoute(std::string_view apiBase, bool torOnlyBuild, std::string_view clearManifestUrl,
                                        std::string_view clearDownloadPrefix);
+/// The route while the app is on the sealed backup route: `updateRoute`'s answer (so only where updates are
+/// permitted at all), moved to the published https files, over Tor. Nothing when the onion route doesn't apply.
+std::optional<UpdateRoute> websiteRouteOverTor(std::string_view apiBase, bool torOnlyBuild, std::string_view clearManifestUrl,
+                                               std::string_view clearDownloadPrefix);
 
 /// Whether this app may check for updates at all (updateRoute has an answer).
 bool updatesPermitted(std::string_view apiBase, bool torOnlyBuild);
@@ -134,6 +141,8 @@ struct UpdateSource {
     std::int64_t nowMillis = 0;
     /// The product the manifest must be for (kProduct, or one of the Linux ones).
     std::string product{kProduct};
+    /// Fetch along this route instead of updateRoute's (websiteRouteOverTor's, on the backup route).
+    std::optional<UpdateRoute> route;
 };
 
 /// Fetches and checks the manifest along updateRoute. Sends nothing at all without a route. Throws net::NetworkError or UpdateError.

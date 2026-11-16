@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.tor
 
+import okhttp3.Call
 import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -17,6 +18,7 @@ import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
 import java.net.UnknownHostException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /** Where the Tor gate is right now; null while nothing may be sent (Tor stopped or unavailable). */
@@ -29,6 +31,40 @@ fun interface TorGateSource {
  * keeps the item and sends it once Tor is back, never another way.
  */
 class TorUnavailableException : IOException("Tor connection unavailable")
+
+/**
+ * An onion request that failed before any byte of it went out: the connection through the Tor gate never opened
+ * (SOCKS refused it, Tor answered "host unreachable", the connect timed out). Sending it again, even a POST, can't
+ * do anything twice. Thrown only when that is certain ([SendWatch]); any other failure stays a plain IOException.
+ */
+class NotSentException(cause: IOException) : IOException(cause.message ?: "The request wasn't sent", cause)
+
+/**
+ * Tells a failure before sending from one after it. OkHttp runs network interceptors only once a connection is open,
+ * right before it writes the request's headers; a call that never reached [network] never wrote a byte. [application]
+ * sits last among the application interceptors and turns such a call's failure into a [NotSentException]. A call that
+ * reached the network even once (a retry included) counts as sent.
+ */
+class SendWatch {
+    private val reached: MutableSet<Call> = ConcurrentHashMap.newKeySet()
+
+    val network = Interceptor { chain ->
+        reached.add(chain.call())
+        chain.proceed(chain.request())
+    }
+
+    val application = Interceptor { chain ->
+        val call = chain.call()
+        try {
+            chain.proceed(chain.request())
+        } catch (e: IOException) {
+            if (e is TorUnavailableException || e is NotSentException || call.isCanceled() || call in reached) throw e
+            throw NotSentException(e)
+        } finally {
+            reached.remove(call)
+        }
+    }
+}
 
 /**
  * Routes an OkHttp client through the Tor gate and nowhere else
@@ -45,14 +81,22 @@ class TorUnavailableException : IOException("Tor connection unavailable")
  *   loopback port's SOCKS5 request ([SocksCredentials]).
  */
 object TorRouting {
-    fun install(builder: OkHttpClient.Builder, tor: TorGateSource): OkHttpClient.Builder {
+    /**
+     * [connectTimeoutSeconds]: how long a connection to the onion may take. 90 s by default (a circuit can take a while);
+     * shorter ([BACKUP_ROUTE_CONNECT_TIMEOUT_SECONDS]) where the sealed backup route can take over sooner.
+     */
+    fun install(builder: OkHttpClient.Builder, tor: TorGateSource, connectTimeoutSeconds: Long = DEFAULT_CONNECT_TIMEOUT_SECONDS): OkHttpClient.Builder {
         SocksCredentials.install(tor)
+        val watch = SendWatch()
         return builder
             .addInterceptor(TorGate(tor))
+            // Last, so it sees the failure exactly as the connection attempt left it.
+            .addInterceptor(watch.application)
+            .addNetworkInterceptor(watch.network)
             .proxySelector(GateSelector(tor))
             .dns(NoDns)
             // A circuit can take a while; an onion round trip is several hops each way.
-            .connectTimeout(90, TimeUnit.SECONDS)
+            .connectTimeout(connectTimeoutSeconds, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
     }
@@ -67,7 +111,7 @@ object TorRouting {
             .addInterceptor(WebsiteGate(tor, host.lowercase()))
             .proxySelector(GateSelector(tor))
             .dns(NoDns)
-            .connectTimeout(90, TimeUnit.SECONDS)
+            .connectTimeout(DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
     }
@@ -136,4 +180,8 @@ object TorRouting {
 
     /** "discard": nothing listens there, so a request that somehow got past [TorGate] fails instead of going direct. */
     private const val CLOSED_PORT = 9
+
+    const val DEFAULT_CONNECT_TIMEOUT_SECONDS = 90L
+    /** The onion's connect timeout when the sealed backup route exists (the desktop's too). */
+    const val BACKUP_ROUTE_CONNECT_TIMEOUT_SECONDS = 30L
 }

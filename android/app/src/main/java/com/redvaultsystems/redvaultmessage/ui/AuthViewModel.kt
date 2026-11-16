@@ -3,6 +3,7 @@
 
 package com.redvaultsystems.redvaultmessage.ui
 
+import com.redvaultsystems.redvaultmessage.ui.passwords.Biometrics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.redvaultsystems.redvaultmessage.crypto.E2eCrypto
@@ -13,8 +14,13 @@ import com.redvaultsystems.redvaultmessage.data.RecoverOutcome
 import com.redvaultsystems.redvaultmessage.data.SignupConsent
 import com.redvaultsystems.redvaultmessage.data.UserFacingException
 import com.redvaultsystems.redvaultmessage.data.api.ApiException
+import com.redvaultsystems.redvaultmessage.data.api.TOR_UNAVAILABLE_MESSAGE
 import com.redvaultsystems.redvaultmessage.identity.HandleGenerator
 import com.redvaultsystems.redvaultmessage.identity.SelfIdentity
+import com.redvaultsystems.redvaultmessage.tor.TorUnavailableException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +44,47 @@ data class AuthUiState(
     val issuedRecoveryKey: String? = null,
     /** Recovery needs the two-factor code for this account. */
     val recoverNeedsCode: Boolean = false,
+    /**
+     * Sign-in (or its two-factor code) couldn't go out because Tor isn't connected yet: it goes as soon as Tor is
+     * (no error shown meanwhile). Cancel ([AuthViewModel.cancelWaitForTor]) goes back to the form.
+     */
+    val waitingForTor: Boolean = false,
 )
+
+/** Whether [e] means Tor itself isn't connected, so nothing was sent (data/api/ApiException.kt, tor/TorRouting.kt). */
+internal fun isTorUnavailable(e: Throwable): Boolean =
+    e is TorUnavailableException || (e is ApiException && e.code == "tor_unavailable")
+
+/**
+ * Runs [attempt]; while it fails only because Tor isn't connected, says so through [waiting] (true), waits for Tor
+ * ([waitForTor]) and tries again, at most once per [pauseMillis]. Any other outcome ends it ([waiting] false first).
+ * Cancelling the coroutine stops the wait.
+ */
+internal suspend fun <T> retryWhenTorConnects(
+    waitForTor: suspend () -> Unit,
+    waiting: (Boolean) -> Unit,
+    pauseMillis: Long = TOR_RETRY_PAUSE_MILLIS,
+    attempt: suspend () -> T,
+): T {
+    while (true) {
+        try {
+            return attempt().also { waiting(false) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!isTorUnavailable(e)) {
+                waiting(false)
+                throw e
+            }
+        }
+        waiting(true)
+        waitForTor()
+        // Tor may say "connected" a moment before its gate takes requests: never a tight loop.
+        delay(pauseMillis)
+    }
+}
+
+internal const val TOR_RETRY_PAUSE_MILLIS = 1_000L
 
 /**
  * Port of the auth flow in ui/src/state (reducer + actions). Owns the
@@ -48,6 +94,8 @@ data class AuthUiState(
 class AuthViewModel(
     private val repository: AuthRepository,
     private val createSession: (identity: SelfIdentity, onSessionExpired: () -> Unit) -> SignedInSession,
+    /** Returns once Tor is connected (AppContainer.waitForTor); null without Tor routing: nothing waits. */
+    private val waitForTor: (suspend () -> Unit)? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -66,6 +114,29 @@ class AuthViewModel(
     // Kept only between a login that answered "MFA required" and the code
     // being verified; the key can't be unwrapped without the password.
     private var pendingLogin: Pair<String, String>? = null
+
+    /** The sign-in or code check that may wait for Tor, so Cancel can stop it. */
+    private var waiting: Job? = null
+
+    /** Runs [attempt], waiting for Tor and trying again while Tor isn't connected (when this app routes through Tor). */
+    private suspend fun <T> whenTorConnects(attempt: suspend () -> T): T {
+        val wait = waitForTor ?: return attempt()
+        return retryWhenTorConnects(wait, { on -> _state.update { it.copy(waitingForTor = on) } }, attempt = attempt)
+    }
+
+    /** "Cancel" while waiting for Tor: stop, and go back to the form (or the code screen) as it was. */
+    fun cancelWaitForTor() {
+        val job = waiting ?: return
+        waiting = null
+        job.cancel()
+        _state.update {
+            it.copy(
+                status = if (it.status == AuthStatus.MfaPending) AuthStatus.MfaPending else AuthStatus.SignedOut,
+                waitingForTor = false,
+                error = null,
+            )
+        }
+    }
 
     fun setMode(mode: OnboardingMode) = _state.update { it.copy(mode = mode, error = null, recoverNeedsCode = false) }
 
@@ -89,8 +160,9 @@ class AuthViewModel(
         }
     }
 
-    fun login(handle: String, password: String) = authenticate(genericError = WRONG_CREDENTIALS) {
-        when (val outcome = repository.login(handle, password)) {
+    fun login(handle: String, password: String) = authenticate(genericError = WRONG_CREDENTIALS, waitsForTor = true) {
+        // While it waits for Tor, the password stays only here, as it does for the whole sign-in; Cancel drops it.
+        when (val outcome = whenTorConnects { repository.login(handle, password) }) {
             is LoginOutcome.SignedIn -> signedIn(outcome.identity)
             LoginOutcome.MfaRequired -> {
                 pendingLogin = handle to password
@@ -104,25 +176,32 @@ class AuthViewModel(
         // Cleared first so a repeat of the same error still registers as a
         // change (the code screen re-enables Verify when an error arrives).
         _state.update { it.copy(error = null) }
-        viewModelScope.launch {
+        if (waiting?.isActive == true) return
+        waiting = viewModelScope.launch {
             try {
-                signedIn(repository.verifyMfa(handle, password, code))
+                signedIn(whenTorConnects { repository.verifyMfa(handle, password, code) })
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Stays on the code screen rather than bouncing back to sign-in.
-                _state.update { it.copy(status = AuthStatus.MfaPending, error = describe(e, "Wrong code. Try again.")) }
+                _state.update { it.copy(status = AuthStatus.MfaPending, waitingForTor = false, error = describe(e, "Wrong code. Try again.")) }
             }
         }
     }
 
     fun cancelMfa() {
+        waiting?.cancel()
+        waiting = null
         pendingLogin = null
-        _state.update { it.copy(status = AuthStatus.SignedOut, error = null) }
+        _state.update { it.copy(status = AuthStatus.SignedOut, waitingForTor = false, error = null) }
     }
 
     fun logout(message: String? = null) {
         val current = _state.value
         if (current.status != AuthStatus.SignedIn) return
         current.session?.close()
+        // The vault's biometric key belongs to this sign-in; the next one makes its own after its password (RV-1115-14).
+        Biometrics.forget()
         // Leave the signed-in screens at once; the server call is best-effort.
         _state.update {
             AuthUiState(
@@ -155,14 +234,18 @@ class AuthViewModel(
         }
     }
 
-    private fun authenticate(genericError: String? = null, recovering: Boolean = false, block: suspend () -> Unit) {
+    private fun authenticate(genericError: String? = null, recovering: Boolean = false, waitsForTor: Boolean = false, block: suspend () -> Unit) {
         if (_state.value.status == AuthStatus.Authenticating) return
         _state.update { it.copy(status = AuthStatus.Authenticating, error = null) }
-        viewModelScope.launch {
+        val job = viewModelScope.launch {
             try {
                 block()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val message = when {
+                    // Tor isn't connected, so nothing was sent: never "wrong password".
+                    isTorUnavailable(e) -> (e as? ApiException)?.message ?: TOR_UNAVAILABLE_MESSAGE
                     // Network trouble is worth saying plainly; anything else on
                     // login gets one message whether the handle doesn't exist,
                     // the password was rejected, or the key failed to unwrap,
@@ -174,9 +257,10 @@ class AuthViewModel(
                     genericError != null -> genericError
                     else -> describe(e, "Couldn't create that identity.")
                 }
-                _state.update { it.copy(status = AuthStatus.SignedOut, error = message) }
+                _state.update { it.copy(status = AuthStatus.SignedOut, waitingForTor = false, error = message) }
             }
         }
+        if (waitsForTor) waiting = job
     }
 
     private fun describe(e: Exception, fallback: String): String =

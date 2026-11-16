@@ -21,6 +21,9 @@
 
 #include "app_controller.hpp"
 #include "async.hpp"
+#ifdef REDVAULT_HAS_SEALED_ROUTE
+#include "redvault/e2ev3/sealed_route.hpp"
+#endif
 #include "redvault/crypto/base64.hpp"
 #include "redvault/net/curl_transport.hpp"
 #include "redvault/util/text.hpp"
@@ -56,6 +59,17 @@ constexpr int kRecheckMs = 12 * 60 * 60 * 1000;
 /// Updates come from our own server only, like everything else the app fetches: over Tor, the app's own
 /// Tor-only transport to the onion service (no other host, no direct connection); otherwise the website.
 net::CurlTransport::Options updateTransportOptions(const AppController& app, const update::UpdateRoute& route) {
+    if (route.viaTorToWebsite && app.tor() != nullptr) {
+        // On the backup route: the published https files, through Tor to that one website (the same host as the
+        // sealed gateway, the only one Tor lets the app reach outside onion services). Never without Tor.
+        net::CurlTransport::Options options;
+        if (const auto url = net::parseUrl(route.manifestUrl)) options.allowedHost = url->host;
+        options.connectTimeout = std::chrono::seconds(90);
+        options.stallTimeout = std::chrono::seconds(60);
+        options.torGate = app.tor()->gate();
+        options.httpsOverTor = true;
+        return options;
+    }
     if (route.viaTor) return app.transportOptions(std::chrono::seconds(90), std::chrono::seconds(60));
     net::CurlTransport::Options options;
     if (const auto url = net::parseUrl(route.manifestUrl)) options.allowedHost = url->host;
@@ -119,6 +133,19 @@ fs::path toPath(const QString& path) {
 }
 
 std::optional<update::UpdateRoute> routeFor(const AppController& app) {
+#ifdef REDVAULT_HAS_SEALED_ROUTE
+    // The onion can't be reached (the app is on the sealed backup route): updates come from the website, over Tor,
+    // but only when it is the gateway's own host, the one place outside onion services Tor lets the app go.
+    if (app.sealedRoute_ && app.sealedRoute_->onBackup()) {
+        const auto gateway = net::parseUrl(REDVAULT_SEALED_GATEWAY_URL);
+        const auto website = net::parseUrl(manifestUrl());
+        if (gateway && website && gateway->host == website->host) {
+            if (auto route = update::websiteRouteOverTor(app.apiBase(), kTorOnlyBuild, manifestUrl(), update_config::kDownloadPrefix)) {
+                return route;
+            }
+        }
+    }
+#endif
     return update::updateRoute(app.apiBase(), kTorOnlyBuild, manifestUrl(), update_config::kDownloadPrefix);
 }
 
@@ -246,6 +273,7 @@ void Updater::check() {
     update::UpdateSource source{manifestUrl(), publicKey(), REDVAULT_VERSION, update_config::kDownloadPrefix,
                                 app_->apiBase(), kTorOnlyBuild, QDateTime::currentMSecsSinceEpoch()};
     source.product = std::string(product());
+    source.route = *route;
     runInBackground(
         pool_, this,
         [source, options = updateTransportOptions(*app_, *route)]() {

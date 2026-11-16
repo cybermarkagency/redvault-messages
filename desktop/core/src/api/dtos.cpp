@@ -207,6 +207,7 @@ void from_json(const Json& j, UserResult& v) {
     opt(j, "avatarUrl", v.avatarUrl);
     req(j, "createdAt", v.createdAt);
     def(j, "deleted", v.deleted);
+    def(j, "usernameHidden", v.usernameHidden);
     opt(j, "signingPublicKey", v.signingPublicKey);
     opt(j, "signingKeySince", v.signingKeySince);
 }

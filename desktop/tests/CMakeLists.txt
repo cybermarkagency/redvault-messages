@@ -134,11 +134,26 @@ if(TARGET Qt6::Quick)
         REDVAULT_CHANNEL_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_channel_stubs")
     catch_discover_tests(redvault_channel_page_tests)
 
+    # The Files viewer's real QML showing real files of each kind, over a stand-in FilesSession.
+    add_executable(redvault_files_preview_tests file_preview_page_test.cpp)
+    target_include_directories(redvault_files_preview_tests PRIVATE ../app/src)
+    target_link_libraries(redvault_files_preview_tests PRIVATE Qt6::Quick Qt6::Qml Qt6::Multimedia Catch2::Catch2WithMain)
+    target_compile_definitions(redvault_files_preview_tests PRIVATE
+        REDVAULT_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/qml"
+        REDVAULT_FILES_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_files_stubs")
+    if(TARGET Qt6::PdfQuick)
+        target_compile_definitions(redvault_files_preview_tests PRIVATE REDVAULT_HAS_PDF)
+    endif()
+    catch_discover_tests(redvault_files_preview_tests)
+
 # The bits of the app with no window: the real AppLock against real QSettings, and the in-call chat panel's real QML
 # against stand-ins for the app's types. Runs on Qt's offscreen platform.
     add_executable(redvault_app_tests
         app_logic_test.cpp
         chat_guard_test.cpp
+        file_preview_test.cpp
+        ../app/src/file_preview.cpp
+        ../app/src/file_preview.hpp
         open_source_test.cpp
         qr_scanner_test.cpp
         vault_session_test.cpp

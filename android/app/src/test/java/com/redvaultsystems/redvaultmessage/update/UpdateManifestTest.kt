@@ -108,6 +108,15 @@ class UpdateManifestTest {
         assertEquals("$onion/redvaultmessages/desktop/android-latest.json", UpdateManifest.manifestUrl(onion))
     }
 
+    @Test fun onTheBackupRouteTheWebsitesPublishedFolderIsUsedAsSigned() {
+        val release = UpdateManifest.check(manifest, key, 11, now, verify).release!!
+        val website = UpdateManifest.publishedOrigin()
+        assertEquals("https://www.redvaultsystems.com", website)
+        // The APK's URL there is exactly the signed one; the manifest sits in the same folder.
+        assertEquals(release.url, UpdateManifest.apkUrl(release, website))
+        assertEquals(UpdateManifest.DOWNLOAD_PREFIX + UpdateManifest.MANIFEST_NAME, UpdateManifest.manifestUrl(website))
+    }
+
     @Test fun theBuiltInKeyIsTheDesktopsReleaseKey() {
         assertEquals(32, Base64.getDecoder().decode(UpdateManifest.PUBLIC_KEY_B64).size)
         val desktop = java.io.File("../../desktop/app/src/update_key.hpp").readText()

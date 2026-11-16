@@ -569,6 +569,12 @@ fun FileDetailScreen(
             }
         }
     }
+    // Pictures, text, CSV, JSON, audio, video and PDF open in the in-app viewer (FileViewer.kt).
+    val previewable = entry.isFile && FilePreview.kindFor(entry.name) != null
+    var viewing by rememberSaveable(entry.id) { mutableStateOf(false) }
+    if (viewing && !lockedNow) {
+        FileViewerDialog(files, entry, onDismiss = { viewing = false }, onSave = { saver.launch(entry.name) })
+    }
     val preview by produceState<ImageBitmap?>(null, entry.id, lockedNow) {
         value = null
         if (!lockedNow && entry.mimeType.startsWith("image/") && entry.size <= 25L * 1024 * 1024) {
@@ -594,6 +600,10 @@ fun FileDetailScreen(
                     .background(if (lockedNow) colors.lockBg else colors.surface)
                     .border(1.dp, if (lockedNow) colors.lockBorder else colors.border, RoundedCornerShape(18.dp))
                     .clickable(enabled = !lockedNow && entry.isFile) {
+                        if (previewable) {
+                            viewing = true
+                            return@clickable
+                        }
                         scope.launch {
                             val (file, error) = files.openCopy(entry.id)
                             if (file != null) openFile(context, file, entry.mimeType) { android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show() }
@@ -612,7 +622,10 @@ fun FileDetailScreen(
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         val (label, tint) = typeOf(entry.name, false)
                         Text(label, color = tint, fontFamily = MonoFamily, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.ui_tap_to_open_decrypted_on_this), color = colors.text3, fontFamily = MonoFamily, fontSize = 11.sp)
+                        Text(
+                            if (previewable) "[tap to preview · decrypted on this phone]" else stringResource(R.string.ui_tap_to_open_decrypted_on_this),
+                            color = colors.text3, fontFamily = MonoFamily, fontSize = 11.sp,
+                        )
                     }
                 }
             }
@@ -654,6 +667,12 @@ fun FileDetailScreen(
             state.error?.let { Callout(it, CalloutTone.Error, R.drawable.ui_alert_circle, Modifier.clickable { files.dismissMessages() }) }
             state.notice?.let { Callout(it, CalloutTone.Ok, R.drawable.ui_check, Modifier.clickable { files.dismissMessages() }) }
             Spacer(Modifier.height(12.dp))
+        }
+        if (previewable) {
+            PillButton(
+                "Preview", { viewing = true }, Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                style = PillStyle.Primary, enabled = !lockedNow, icon = R.drawable.ui_eye,
+            )
         }
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PillButton(
@@ -787,7 +806,9 @@ fun ShareFileScreen(files: FilesSession, state: FilesState, id: String, contacts
                 DsIcon(R.drawable.ui_link, colors.accent, 16.dp)
                 Text(
                     (if (link.expiresAt != null) "Expires ${link.expiresAt.take(10)}" else "Never expires") +
-                        (if (link.hasPassword) " · password" else "") + (if (link.allowDownload) " · download" else " · view only"),
+                        (if (link.hasPassword) " · password" else "") +
+                        // Not "view only": a browser that shows the file holds all of it (2026-11-04 assessment, F-33).
+                        (if (link.allowDownload) " · download" else " · no download button"),
                     color = colors.text2,
                     fontSize = 13.sp,
                     modifier = Modifier.weight(1f),

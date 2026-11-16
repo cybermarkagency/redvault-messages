@@ -56,6 +56,10 @@ TEST_CASE("conversation, participant and user", "[dto]") {
     const auto user = parse<UserResult>(R"({"userId":"u1","username":"a","publicKey":"AA==","avatarUrl":null,
         "createdAt":"2026-09-24T09:24:19.120Z","deleted":false})");
     CHECK_FALSE(user.deleted);
+    CHECK_FALSE(user.usernameHidden);  // older servers don't send it
+    const auto stranger = parse<UserResult>(R"({"userId":"u2","username":"Unknown account","usernameHidden":true,
+        "publicKey":"AA==","avatarUrl":null,"createdAt":"2026-09-24T09:24:19.120Z","deleted":false})");
+    CHECK(stranger.usernameHidden);
 }
 
 TEST_CASE("friend request, lookup and me", "[dto]") {

@@ -5,10 +5,13 @@ package com.redvaultsystems.redvaultmessage.tor
 
 import com.redvaultsystems.redvaultmessage.data.api.ApiClient
 import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -141,6 +144,44 @@ class TorRoutingTest {
         assertTrue(gate.seen.all { it.httpRequest.startsWith("GET /redvaultmessages/api/users/u1/avatar HTTP/1.1") })
     }
 
+    // --- "Nothing was sent" (TorRouting.SendWatch): only a failure before the request went out may be resent ---
+
+    @Test
+    fun torsHostUnreachableMeansNothingWasSent() {
+        gate.socksReply = 4 // Tor: "host unreachable" (the onion service didn't answer)
+        val post = Request.Builder().url("http://$onion/api/auth/login").post("{}".toRequestBody("application/json".toMediaType())).build()
+        val error = runCatching { client().newCall(post).execute().close() }.exceptionOrNull()
+        assertTrue("expected NotSentException, got $error", error is NotSentException)
+        assertTrue(gate.seen.isEmpty())
+    }
+
+    @Test
+    fun aGateThatRefusesTheConnectionMeansNothingWasSent() {
+        val closed = ServerSocket(0, 1, InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))).let { val port = it.localPort; it.close(); port }
+        val nowhere = TorGateSource { SocksEndpoint("127.0.0.1", closed, gate.username, gate.password) }
+        val error = runCatching {
+            TorRouting.install(OkHttpClient.Builder(), nowhere).build().newCall(Request.Builder().url("http://$onion/api/health").build()).execute().close()
+        }.exceptionOrNull()
+        assertTrue("expected NotSentException, got $error", error is NotSentException)
+    }
+
+    @Test
+    fun aFailureAfterTheRequestWentOutIsNotNotSent() {
+        gate.closeAfterRequest = true
+        val post = Request.Builder().url("http://$onion/api/messages").post("{}".toRequestBody("application/json".toMediaType())).build()
+        val error = runCatching { client().newCall(post).execute().close() }.exceptionOrNull()
+        assertTrue("expected an IOException, got $error", error is IOException)
+        assertFalse("a request that reached the onion must never count as unsent", error is NotSentException)
+        assertTrue(gate.seen.isNotEmpty())
+    }
+
+    @Test
+    fun torBeingDownStaysTorUnavailableNotNotSent() {
+        up = false
+        val error = runCatching { client().newCall(Request.Builder().url("http://$onion/api/health").build()).execute().close() }.exceptionOrNull()
+        assertTrue("expected TorUnavailableException, got $error", error is TorUnavailableException)
+    }
+
     /** A minimal SOCKS5 gate (username/password, CONNECT) that answers one HTTP request itself. */
     // --- The background connection (push/PushFallbackService.kt) in a Tor build ---
     // Strict no-push mode still allows it with Tor routing (push/PushRegistrar.kt), on the promise that it
@@ -174,6 +215,10 @@ class TorRoutingTest {
         val port: Int get() = server.localPort
         val seen = CopyOnWriteArrayList<Seen>()
         val connections = AtomicInteger()
+        /** The SOCKS5 CONNECT reply: 0 succeeded, 4 host unreachable (what tor-core answers when an onion fails). */
+        @Volatile var socksReply = 0
+        /** Read the HTTP request, then close without an answer (a failure after the request went out). */
+        @Volatile var closeAfterRequest = false
 
         init {
             thread(isDaemon = true) {
@@ -210,10 +255,12 @@ class TorRoutingTest {
                 else -> InetAddress.getByAddress(ByteArray(16).also(input::readFully)).hostAddress
             }
             val port = input.readUnsignedShort()
-            output.write(byteArrayOf(5, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+            output.write(byteArrayOf(5, socksReply.toByte(), 0, 1, 0, 0, 0, 0, 0, 0))
+            if (socksReply != 0) return
             val request = StringBuilder()
             while (!request.endsWith("\r\n\r\n")) request.append(input.readUnsignedByte().toChar())
             seen += Seen(user, pass, type, host, port, request.toString())
+            if (closeAfterRequest) return
             output.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".toByteArray())
             output.flush()
         }
