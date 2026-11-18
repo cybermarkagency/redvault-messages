@@ -36,6 +36,7 @@ async fn blocked_gateway(name: &str) -> Gateway {
         cache_dir: root.join("cache"),
         allowed_targets: vec![format!("{ONION}:80")],
         allowed_exit_targets: Vec::new(),
+        bridges: Default::default(),
         test_blocked_network: true,
     })
     .await
@@ -146,6 +147,7 @@ async fn can_start_again_on_the_same_directories_after_stopping() {
         cache_dir: root.join("cache"),
         allowed_targets: vec![format!("{ONION}:80")],
         allowed_exit_targets: Vec::new(),
+        bridges: Default::default(),
         test_blocked_network: true,
     };
     let first = Gateway::start(config()).await.expect("first start");

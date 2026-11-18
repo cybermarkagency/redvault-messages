@@ -121,11 +121,17 @@ void Vp8Enc::configure(int width, int height) {
 }
 
 void Vp8Enc::setBitrate(int kbps) {
-    kbps_ = std::clamp(kbps, 100, 4000);
-    width_ = 0;  // reconfigure on the next frame
+    kbps = std::clamp(kbps, 100, 4000);
+    if (kbps == kbps_) return;
+    kbps_ = kbps;
+    if (!ctx_ || !ctx_->config.enc) return;  // used when the encoder is next set up
+    // Changed in place: rebuilding the encoder would force a keyframe, the blocky picture this avoids.
+    vpx_codec_enc_cfg_t cfg = *ctx_->config.enc;
+    cfg.rc_target_bitrate = static_cast<unsigned>(kbps_);
+    if (vpx_codec_enc_config_set(ctx_, &cfg) != VPX_CODEC_OK) width_ = 0;  // fall back to a rebuild on the next frame
 }
 
-std::vector<std::uint8_t> Vp8Enc::encode(const VideoFrame& frame, bool forceKeyframe, bool& isKeyframe) {
+std::vector<std::uint8_t> Vp8Enc::encode(const VideoFrame& frame, bool forceKeyframe, bool& isKeyframe, std::int64_t ptsMs) {
     isKeyframe = false;
     if (frame.width <= 0 || frame.height <= 0 || frame.width % 2 || frame.height % 2) return {};
     if (frame.width != width_ || frame.height != height_ || !ctx_) {
@@ -135,8 +141,12 @@ std::vector<std::uint8_t> Vp8Enc::encode(const VideoFrame& frame, bool forceKeyf
     vpx_image_t img;
     vpx_img_wrap(&img, VPX_IMG_FMT_I420, static_cast<unsigned>(frame.width), static_cast<unsigned>(frame.height), 1,
                  const_cast<std::uint8_t*>(frame.data.data()));
-    pts_ += 33;
-    if (vpx_codec_encode(ctx_, &img, pts_, 33, forceKeyframe ? VPX_EFLAG_FORCE_KF : 0, VPX_DL_REALTIME) != VPX_CODEC_OK) return {};
+    // Real timestamps: the camera runs at ~24 fps, and a fixed 33 ms step made the rate control
+    // spend about a fifth less than the target.
+    const std::int64_t pts = std::max(ptsMs, pts_ + 1);
+    const unsigned long duration = pts_ < 0 ? 33 : static_cast<unsigned long>(std::min<std::int64_t>(pts - pts_, 200));
+    pts_ = pts;
+    if (vpx_codec_encode(ctx_, &img, pts_, duration, forceKeyframe ? VPX_EFLAG_FORCE_KF : 0, VPX_DL_REALTIME) != VPX_CODEC_OK) return {};
     std::vector<std::uint8_t> out;
     vpx_codec_iter_t iter = nullptr;
     while (const vpx_codec_cx_pkt_t* pkt = vpx_codec_get_cx_data(ctx_, &iter)) {

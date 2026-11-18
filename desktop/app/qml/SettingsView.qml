@@ -504,10 +504,10 @@ Item {
                             }
                         }
 
-                        // Files sent in chats (Pro and Premium only: Free can't send files).
+                        // Files sent in chats (every plan; Free has a smaller limit).
                         ColumnLayout {
                             Layout.fillWidth: true
-                            visible: page.account.pro && page.account.storageText.length > 0
+                            visible: page.account.storageText.length > 0
                             spacing: 6
                             Text {
                                 text: qsTr("Files sent in chats")

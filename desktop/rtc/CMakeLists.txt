@@ -42,6 +42,7 @@ add_library(redvault_rtc STATIC
     src/codecs.cpp
     src/relay_sdp.cpp
     src/rtp.cpp
+    src/video_receive.cpp
 )
 target_include_directories(redvault_rtc PUBLIC include PRIVATE src)
 target_link_libraries(redvault_rtc

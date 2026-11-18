@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 // The desktop app's call media engine: WebRTC-compatible audio (Opus) and
@@ -106,7 +107,11 @@ public:
     void readAudio(std::int16_t* out, std::size_t samples);
     /// Encodes and sends one picture (camera or screen). An empty frame stops nothing; just don't call it to send no video.
     void sendVideo(const VideoFrame& frame);
+    /// Fixes the video bitrate until the peer's next report moves it (it adapts to loss and bandwidth on its own).
     void setVideoBitrate(int kbps);
+    /// The largest camera picture worth sending at the current bitrate (720p on a good link, 480p otherwise).
+    std::pair<int, int> maxVideoSize();
+    int videoBitrateKbps() const;
     /// Received audio packets so far (for diagnostics and tests).
     std::uint64_t audioPacketsReceived() const;
 

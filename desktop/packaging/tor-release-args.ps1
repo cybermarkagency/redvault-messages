@@ -25,8 +25,20 @@ if (-not $keyMatch) { throw "No sealed backup route key in $settings" }
 $sealedKey = $keyMatch.Matches[0].Groups[1].Value
 
 if (-not $Verify) {
+    # Bridges (tor-core/src/bridges.rs): build the Tor Project's transport programs (lyrebird, snowflake-client)
+    # from pinned source with Go; every published build ships them.
+    $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $ptDir = Join-Path $repo "tor-core\target\pt\windows-amd64"
+    $bash = @("C:\Program Files\Git\bin\bash.exe", "bash") | Where-Object { $_ -eq "bash" -or (Test-Path $_) } | Select-Object -First 1
+    $goBin = "C:\Program Files\Go\bin"
+    if (Test-Path $goBin) { $env:PATH = "$goBin;$env:PATH" }
+    Push-Location (Join-Path $repo "tor-core")
+    try {
+        & $bash pt/build-transports.sh windows-amd64 ($ptDir -replace '\\', '/') | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "Building the bridge programs failed (needs Go: winget install GoLang.Go)" }
+    } finally { Pop-Location }
     return @("-DREDVAULT_TOR=ON", "-DREDVAULT_TOR_ONLY=ON", "-DREDVAULT_ONION_API_BASE=$onion", "-DREDVAULT_RELEASE_BUILD=ON",
-        "-DREDVAULT_SEALED_KEY_CONFIG=$sealedKey")
+        "-DREDVAULT_SEALED_KEY_CONFIG=$sealedKey", "-DREDVAULT_PT_DIR=$($ptDir -replace '\\', '/')")
 }
 
 if (-not (Test-Path $Verify)) { throw "$Verify is missing: configure the release build first" }

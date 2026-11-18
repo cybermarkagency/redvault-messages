@@ -42,6 +42,10 @@ void rv_tor_set_dormant(const RvTorGateway* gateway, int dormant);
 /* Closes the SOCKS port and every stream, stops Tor, frees the gateway. */
 void rv_tor_stop(RvTorGateway* gateway);
 
+/* Checks bridge settings ({"mode":"off"|"snowflake"|"obfs4"|"custom","lines":[…]})
+ * without starting Tor: {"ok":true,"count":N} or {"ok":false,"error":"…"}. */
+char* rv_tor_validate_bridges(const char* settings_json);
+
 void rv_tor_free_string(char* text);
 
 #ifdef __cplusplus

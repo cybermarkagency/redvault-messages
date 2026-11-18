@@ -28,8 +28,9 @@ namespace {
 constexpr int kMaxAttempts = 4;
 
 // Refusals the server words for the user (plan, storage, rate limits): shown as-is.
-constexpr std::array<std::string_view, 5> kQuotaCodes = {
-    "pro_required", "upload_quota_exceeded", "too_many_pending_uploads", "rate_limited", "storage_limit_exceeded"};
+constexpr std::array<std::string_view, 6> kQuotaCodes = {
+    "pro_required",         "upload_quota_exceeded",   "too_many_pending_uploads",
+    "rate_limited",         "storage_limit_exceeded",  "file_too_large_for_plan"};
 
 /// UTF-8 <-> path without going through the ANSI code page on Windows.
 fs::path pathFromUtf8(const std::string& utf8) {
@@ -142,7 +143,14 @@ model::FileDescriptor FileRepository::uploadForDeviceKeys(const std::string& con
 model::FileDescriptor FileRepository::upload(const std::string& conversationId, const fs::path& file,
                                              const std::string& displayName, const std::string& mimeType,
                                              const SendStageFn& onStage) {
-    if (!config_) config_ = api_->fileConfig();
+    // The limits depend on the plan (Free has a smaller file size), which can
+    // change while the app runs: ask each time, keeping the last answer only
+    // for when the server can't be reached.
+    try {
+        config_ = api_->fileConfig();
+    } catch (...) {
+        if (!config_) throw;
+    }
     const auto& limits = *config_;
     const auto tooLarge = [&] {
         return UserFacingError("File too large. The limit is " + megabytes(limits.maxFileSize) + " MB.");

@@ -21,9 +21,21 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
+import com.redvaultsystems.redvaultmessage.ui.components.PrimaryButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,7 +112,12 @@ fun NetworkRoutingScreen(
                         Line("Waiting to send", "Encrypted on this phone until Tor connects", "$queued queued", colors.text3)
                     }
                 }
-                if (status?.state == TorState.Unavailable) Callout(TOR_UNAVAILABLE_MESSAGE, CalloutTone.Warn, R.drawable.ui_alert_circle)
+                if (status?.state == TorState.Unavailable) {
+                    val hint = if (tor.bridgeMode.value == TorController.BRIDGES_OFF && tor.bridgesAvailable)
+                        " If Tor is blocked on this network, try Snowflake under Bridges below." else ""
+                    Callout(TOR_UNAVAILABLE_MESSAGE + hint, CalloutTone.Warn, R.drawable.ui_alert_circle)
+                }
+                BridgesSection(tor)
                 if (backupAvailable) {
                     // The sealed backup route (docs/tor-sealed-fallback.md).
                     SectionCaps("Backup route", edge = 0.dp)
@@ -159,6 +176,80 @@ fun NetworkRoutingScreen(
                 color = colors.text3, fontSize = 13.sp,
             )
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+private val BRIDGE_CHOICES = listOf(
+    "off" to "Off: connect to Tor directly",
+    "snowflake" to "Snowflake (looks like a video call)",
+    "obfs4" to "obfs4 (built-in bridges)",
+    "custom" to "Bridges I enter myself",
+)
+
+/** Bridges (tor-core/src/bridges.rs): a hidden way into Tor where it's blocked. Still Tor; only the way in changes. */
+@Composable
+private fun BridgesSection(tor: TorController) {
+    val colors = RedvaultTheme.colors
+    val savedMode by tor.bridgeMode.collectAsStateWithLifecycle()
+    val savedLines by tor.bridgeLines.collectAsStateWithLifecycle()
+    val torState = tor.status.collectAsStateWithLifecycle().value.state
+    var mode by remember(savedMode) { mutableStateOf(savedMode) }
+    var lines by remember(savedLines) { mutableStateOf(savedLines) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var saved by remember { mutableStateOf(false) }
+    val available = tor.bridgesAvailable
+
+    SectionCaps("Bridges", edge = 0.dp)
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "If Tor is blocked where you are, bridges are hidden entrances to it, disguised as ordinary traffic. Your messages " +
+                    "still travel through Tor; only the way in changes. Try Snowflake first: it works in most places that block Tor.",
+                color = colors.text2, fontSize = 13.sp,
+            )
+            if (!available) Text("This copy of the app doesn't include bridge support.", color = colors.warn, fontSize = 13.sp)
+            for ((value, label) in BRIDGE_CHOICES) {
+                Row(
+                    Modifier.fillMaxWidth().selectable(
+                        selected = mode == value,
+                        enabled = available || value == TorController.BRIDGES_OFF,
+                        role = Role.RadioButton,
+                        onClick = { mode = value; problem = null; saved = false },
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = mode == value, onClick = null,
+                        enabled = available || value == TorController.BRIDGES_OFF,
+                        colors = RadioButtonDefaults.colors(selectedColor = colors.accent),
+                    )
+                    Text(label, color = colors.text, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+            if (mode == "custom") {
+                Text(
+                    "Paste bridge lines, one per line. Get them from bridges.torproject.org, by emailing bridges@torproject.org, or from " +
+                        "someone you trust. obfs4, WebTunnel and Snowflake bridges work.",
+                    color = colors.text2, fontSize = 12.sp,
+                )
+                OutlinedTextField(
+                    value = lines,
+                    onValueChange = { lines = it; saved = false },
+                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = colors.text),
+                    placeholder = { Text("obfs4 192.0.2.1:443 FINGERPRINT cert=... iat-mode=0", fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.accent, cursorColor = colors.accent),
+                )
+            }
+            problem?.let { Text(it, color = colors.danger, fontSize = 13.sp) }
+            if (saved && torState != TorState.Connected) Text("Saved. Tor is reconnecting; messages wait until it's back.", color = colors.text2, fontSize = 13.sp)
+            val changed = mode != savedMode || (mode == "custom" && lines.trim() != savedLines)
+            PrimaryButton("Save and reconnect", enabled = changed && (available || mode == TorController.BRIDGES_OFF)) {
+                val result = tor.setBridges(mode, lines)
+                problem = result
+                saved = result == null
+            }
         }
     }
 }

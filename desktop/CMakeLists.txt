@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-project(RedvaultDesktop VERSION 0.8.2 LANGUAGES CXX)
+project(RedvaultDesktop VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -115,8 +115,11 @@ endif()
 
 if(REDVAULT_BUILD_APP)
     find_package(Qt6 6.5 COMPONENTS Quick QuickControls2 Widgets Svg Multimedia)
-    # Optional: PDFs in the Files viewer (app/CMakeLists.txt, tests/CMakeLists.txt).
+    # Optional: PDFs in the Files viewer (app/CMakeLists.txt, tests/CMakeLists.txt). Without Qt PDF this second
+    # call sets Qt6_FOUND to FALSE, which would skip the whole app: keep the first call's answer.
+    set(_redvault_qt6_found ${Qt6_FOUND})
     find_package(Qt6 QUIET COMPONENTS Pdf PdfQuick)
+    set(Qt6_FOUND ${_redvault_qt6_found})
     if(Qt6_FOUND AND NOT REDVAULT_BUILD_CALLS)
         message(FATAL_ERROR "The desktop app includes calls: configure with REDVAULT_BUILD_CALLS=ON")
     endif()

@@ -15,7 +15,7 @@ Item {
     id: root
     required property ChatSession session
     required property PeopleSession people
-    // Sending files is Pro-only, like on the web and Android; the server refuses it too.
+    // The plan: some features (call links, group calls) need Pro or Premium.
     required property AccountSession account
     property string replyToId: ""
     property string replyPreview: ""
@@ -282,15 +282,10 @@ Item {
         onTriggered: messageId = ""
     }
 
-    // Dropped or pasted files: only on plans that can send files (the server refuses otherwise too).
+    // Dropped or pasted files: every plan can send files (Free has a smaller size limit, checked on send).
     function offerFiles(urls) {
         const local = urls.filter(u => String(u).startsWith("file:"))
         if (local.length === 0) return
-        if (!root.account.pro) {
-            for (const url of local) root.session.discardPasted(String(url))
-            PlanGate.ask("pro", "Sending files")
-            return
-        }
         root.planNotice = ""
         sendFilesDialog.openFor(local.map(u => String(u)))
     }
@@ -356,7 +351,7 @@ Item {
     ForwardDialog {
         id: forwardDialog
         chats: root.session
-        canSendFiles: root.account.pro
+        canSendFiles: true
         onForwarded: root.stopSelect()
     }
 
@@ -1406,9 +1401,11 @@ Item {
         }
 
         // --- Devices & encryption: how this chat is encrypted (chosen by itself, no switch) ---
+        // Not shown once the chat runs on device keys / Signal: only the states that need the
+        // user (link this computer, contact on the earlier encryption, checking) get a banner.
         Rectangle {
             Layout.fillWidth: true
-            visible: root.dkMode.length > 0
+            visible: root.dkMode.length > 0 && !root.v3Mode
             implicitHeight: dkRow.implicitHeight + 14
             color: root.v3Mode ? Theme.accentSoft : Theme.surface
             RowLayout {
@@ -2106,13 +2103,8 @@ Item {
                         iconName: "paperclip"
                         enabled: root.fileActivity.length === 0
                         tip: root.account.pro ? qsTr("Send a file (encrypted on this computer first)")
-                                              : qsTr("Send a file (Pro)")
-                        locked: !root.account.pro
+                                              : qsTr("Send a file up to 25 MB (encrypted on this computer first)")
                         onClicked: {
-                            if (!root.account.pro) {
-                                PlanGate.ask("pro", "Sending files")
-                                return
-                            }
                             root.planNotice = ""
                             App.lock.expectExternalReturn()
                             attachDialog.open()
@@ -2251,20 +2243,15 @@ Item {
                         }
                     }
 
-                    // Voice message (Pro and Premium): shown while the text box is empty, like the phone.
+                    // Voice message (every plan; it's sent as an encrypted file): shown while the text box is empty, like the phone.
                     IconButton {
                         Layout.alignment: Qt.AlignBottom
                         implicitHeight: 42
                         visible: !voice.recording && composer.text.trim().length === 0 && root.editingId.length === 0
                         iconName: "mic"
-                        tip: root.account.pro ? qsTr("Record a voice message") : qsTr("Record a voice message (Pro)")
-                        locked: !root.account.pro
+                        tip: qsTr("Record a voice message")
                         enabled: root.fileActivity.length === 0 && !root.dkHold
                         onClicked: {
-                            if (!root.account.pro) {
-                                PlanGate.ask("pro", "Voice messages")
-                                return
-                            }
                             root.planNotice = ""
                             voice.start(root.session.newVoiceFile())
                         }

@@ -45,6 +45,22 @@ pub extern "system" fn Java_com_redvaultsystems_tor_NativeTor_nativeStart<'local
     }
 }
 
+/// `static native String nativeValidateBridges(String settingsJson)`: `{"ok":true,"count":N}` or `{"ok":false,"error":"…"}`.
+#[no_mangle]
+pub extern "system" fn Java_com_redvaultsystems_tor_NativeTor_nativeValidateBridges<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    settings: JString<'local>,
+) -> jstring {
+    let text: String = match env.get_string(&settings) {
+        Ok(value) => value.into(),
+        Err(_) => return new_string(&mut env, r#"{"ok":false,"error":"unreadable settings"}"#.to_owned()),
+    };
+    let result = catch_unwind(AssertUnwindSafe(|| crate::json_config::validate_bridges_json(&text)))
+        .unwrap_or_else(|_| r#"{"ok":false,"error":"couldn't check the bridges"}"#.to_owned());
+    new_string(&mut env, result)
+}
+
 /// `static native String nativeEndpoint(long handle)`.
 #[no_mangle]
 pub extern "system" fn Java_com_redvaultsystems_tor_NativeTor_nativeEndpoint<'local>(

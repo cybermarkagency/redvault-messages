@@ -439,7 +439,7 @@ data class BillingConfigDto(
 @Serializable
 data class SwitchPlanRequest(val tier: String)
 
-/** Your own storage in use vs. your own plan's limit (0 for Free: sending files is Pro-only). */
+/** Your own storage in use for files sent in chats vs. your own plan's limit (Free has a smaller one). */
 @Serializable
 data class FileStorageUsageDto(val used: Long, val limit: Long)
 

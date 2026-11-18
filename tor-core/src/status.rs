@@ -65,6 +65,10 @@ const ONION_FAILURES_TO_REPORT: u32 = 2;
 /// Arti can take a long time to call a network blocked, and a spinner that
 /// never ends hides the problem from the user.
 const BOOTSTRAP_DEADLINE: std::time::Duration = std::time::Duration::from_secs(45);
+/// With bridges: Snowflake routinely takes 1-2 minutes, and Arti may call the
+/// bootstrap "blocked" on the way (seen at 101 s on a run that connected at
+/// 132 s). Neither counts as Unavailable until this long after starting.
+pub(crate) const BRIDGE_BOOTSTRAP_DEADLINE: std::time::Duration = std::time::Duration::from_secs(180);
 
 struct Inner {
     started: std::time::Instant,
@@ -76,6 +80,10 @@ struct Inner {
     consecutive_failures: u32,
     onion_reachable: Option<bool>,
     stopped: bool,
+    /// How long to show Connecting before Unavailable.
+    deadline: std::time::Duration,
+    /// Bridges: Arti's "blocked" only counts once the deadline has passed.
+    patient: bool,
 }
 
 impl Default for Inner {
@@ -90,6 +98,8 @@ impl Default for Inner {
             consecutive_failures: 0,
             onion_reachable: None,
             stopped: false,
+            deadline: BOOTSTRAP_DEADLINE,
+            patient: false,
         }
     }
 }
@@ -117,6 +127,13 @@ pub(crate) enum Counter {
 impl StatusCell {
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Bridges are in use: wait longer before calling Tor unavailable (see BRIDGE_BOOTSTRAP_DEADLINE).
+    pub(crate) fn use_bridge_deadline(&self) {
+        let mut inner = self.lock();
+        inner.deadline = BRIDGE_BOOTSTRAP_DEADLINE;
+        inner.patient = true;
     }
 
     pub(crate) fn on_bootstrap(&self, progress: f32, ready: bool, summary: String, blocked: Option<String>) {
@@ -164,9 +181,9 @@ impl StatusCell {
             (TorState::Unavailable, "Tor is stopped".to_owned())
         } else if let Some(fatal) = &inner.fatal {
             (TorState::Unavailable, fatal.clone())
-        } else if let Some(blocked) = &inner.blocked {
+        } else if let Some(blocked) = inner.blocked.as_ref().filter(|_| !inner.patient || inner.started.elapsed() >= inner.deadline) {
             (TorState::Unavailable, blocked.clone())
-        } else if !inner.ready && inner.started.elapsed() >= BOOTSTRAP_DEADLINE {
+        } else if !inner.ready && inner.started.elapsed() >= inner.deadline {
             (TorState::Unavailable, format!("Tor hasn't connected yet ({})", inner.summary))
         } else if !inner.ready {
             (TorState::Connecting, inner.summary.clone())
@@ -227,5 +244,32 @@ mod tests {
 
         cell.on_stopped();
         assert_eq!(cell.snapshot().state, TorState::Unavailable);
+    }
+
+    #[test]
+    fn bridges_get_longer_before_unavailable() {
+        let started_long_ago = |cell: &StatusCell, secs: u64| {
+            cell.lock().started = std::time::Instant::now() - std::time::Duration::from_secs(secs);
+        };
+
+        // Without bridges: 45 s, and a blockage counts at once.
+        let direct = StatusCell::default();
+        started_long_ago(&direct, 60);
+        assert_eq!(direct.snapshot().state, TorState::Unavailable);
+        let direct = StatusCell::default();
+        direct.on_bootstrap(0.15, false, "15%".into(), Some("Can't make progress".into()));
+        assert_eq!(direct.snapshot().state, TorState::Unavailable);
+
+        // With bridges: still connecting at 60 s and through a blockage, until 180 s.
+        let bridges = StatusCell::default();
+        bridges.use_bridge_deadline();
+        started_long_ago(&bridges, 101);
+        bridges.on_bootstrap(0.15, false, "15%".into(), Some("Can't make progress".into()));
+        assert_eq!(bridges.snapshot().state, TorState::Connecting);
+        started_long_ago(&bridges, 181);
+        assert_eq!(bridges.snapshot().state, TorState::Unavailable);
+        assert_eq!(bridges.snapshot().detail, "Can't make progress");
+        bridges.on_bootstrap(1.0, true, "done".into(), None);
+        assert_eq!(bridges.snapshot().state, TorState::Connected);
     }
 }

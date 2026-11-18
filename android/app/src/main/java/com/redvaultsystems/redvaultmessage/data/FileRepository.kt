@@ -85,7 +85,7 @@ class FileRepository(
     suspend fun sendPicked(meta: ConversationMeta, picked: PickedFile, onStage: (FileSendStage) -> Unit): Message =
         sendStream(meta, picked.name, picked.size, picked.mimeType, picked.open, onStage)
 
-    /** The server's file size limit, once it's been fetched (null before the first upload). */
+    /** This plan's file size limit, as last fetched (null before the first upload). */
     val maxFileSizeIfKnown: Long? get() = config?.maxFileSize
 
     /** A picked file's name, type and size, and a way to read it (for the Tor outbox). */
@@ -206,7 +206,14 @@ class FileRepository(
         onStage: (FileSendStage) -> Unit,
         release: Boolean,
     ): FileDescriptor {
-        val limits = config ?: apiCall(ApiClient.json) { api.fileConfig() }.also { config = it }
+        // The limits depend on the plan (Free has a smaller file size), which can change while the app
+        // runs: ask each time, keeping the last answer only for when the server can't be reached.
+        val limits = try {
+            apiCall(ApiClient.json) { api.fileConfig() }.also { config = it }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            config ?: throw e
+        }
         val size = sizeHint
         if (size != null && size > limits.maxFileSize) {
             throw UserFacingException("File too large. The limit is ${limits.maxFileSize / (1024 * 1024)} MB.")
@@ -425,7 +432,10 @@ class FileRepository(
         const val VOICE_MIME_TYPE = "audio/mp4"
         private const val MAX_ATTEMPTS = 4
         // Refusals the server words for the user (plan, storage, rate limits): shown as-is.
-        private val QUOTA_CODES = setOf("pro_required", "upload_quota_exceeded", "too_many_pending_uploads", "rate_limited", "storage_limit_exceeded")
+        private val QUOTA_CODES = setOf(
+            "pro_required", "upload_quota_exceeded", "too_many_pending_uploads", "rate_limited", "storage_limit_exceeded",
+            "file_too_large_for_plan",
+        )
     }
 }
 

@@ -15,7 +15,7 @@ RvDialog {
     readonly property var adds: tier === "premium"
         ? ["Video call links", "Start group voice and video calls", "Screen sharing in calls",
            "Create and post in your own channels", "100 GB of Files storage", "Everything in Pro"]
-        : ["Send files, photos and pasted images in chats", "Voice call links", "50 GB of Files storage"]
+        : ["Send files up to 100 MB in chats (Free: 25 MB)", "Voice call links", "50 GB of Files storage"]
 
     signal seePlans()
 

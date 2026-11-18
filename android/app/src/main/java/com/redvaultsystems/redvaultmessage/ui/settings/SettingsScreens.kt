@@ -397,7 +397,7 @@ fun SettingsScreen(
         SettingsRow(title = stringResource(R.string.ui_handle), description = profile.handle, onClick = onOpenChangeUsername, icon = R.drawable.ui_user)
         PlanRow(account, profile.subscriptionTier, onOpenPlans)
         if (filesUsed != null && filesLimit != null && filesLimit > 0) FilesStorageRow(filesUsed, filesLimit, profile.subscriptionTier, onOpenPlans)
-        if (isPaidTier(profile.subscriptionTier)) StorageRow(account)
+        StorageRow(account)
 
         SectionLabel(stringResource(R.string.ui_security))
         SettingsRow(

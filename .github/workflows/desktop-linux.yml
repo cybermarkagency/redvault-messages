@@ -43,6 +43,13 @@ jobs:
           modules: 'qtmultimedia qtpdf'
           cache: true
 
+      # Bridges: package-linux.sh builds lyrebird and snowflake-client from pinned
+      # Tor Project source (tor-core/pt/build-transports.sh).
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache: false
+
       - name: Build, test and package
         run: bash desktop/packaging/package-linux.sh
 

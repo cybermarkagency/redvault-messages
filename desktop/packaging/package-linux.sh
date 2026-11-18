@@ -39,7 +39,13 @@ if [ -z "$source_url" ]; then
     echo "No source link: set REDVAULT_SOURCE_CODE_URL or REDVAULT_OFFICIAL_SOURCE_CODE_URL in cmake/source_info.cmake" >&2
     exit 1
 fi
-cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+# Bridges (tor-core/src/bridges.rs): the Tor Project's transport programs, from pinned source with Go.
+pt_dir="$(cd .. && pwd)/tor-core/target/pt/linux-amd64"
+(cd ../tor-core && bash pt/build-transports.sh linux-amd64 "$pt_dir") || {
+    echo "Building the bridge programs failed (needs Go 1.24+ on PATH)" >&2
+    exit 1
+}
+cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr "-DREDVAULT_PT_DIR=$pt_dir" \
     -DREDVAULT_BUILD_CLI=OFF -DREDVAULT_BUILD_TOOLS=OFF -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON \
     -DREDVAULT_TOR=ON -DREDVAULT_TOR_ONLY=ON "-DREDVAULT_ONION_API_BASE=$onion" -DREDVAULT_RELEASE_BUILD=ON "-DREDVAULT_SEALED_KEY_CONFIG=$sealed_key" \
     "-DREDVAULT_SOURCE_CODE_URL=$source_url" "-DREDVAULT_SOURCE_CONTACT=${REDVAULT_SOURCE_CONTACT:-}"

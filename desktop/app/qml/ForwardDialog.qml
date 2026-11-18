@@ -14,7 +14,7 @@ import Redvault
 RvDialog {
     id: dialog
     required property ChatSession chats
-    // Sending files is Pro-only; forwarding a file is sending it again.
+    // Forwarding a file is sending it again. Every plan can send files now; kept for an older server.
     property bool canSendFiles: true
     property var messageIds: []
     /// Forwarding a channel post instead: {text, channelId, postId, channelName}.

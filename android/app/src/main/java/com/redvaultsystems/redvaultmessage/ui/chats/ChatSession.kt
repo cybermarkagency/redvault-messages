@@ -735,8 +735,8 @@ class ChatSession(
 
     /**
      * Forwards messages to other chats, oldest first, like the desktop's forwardMessages: text as forwarded
-     * text, a file as a new copy with a new key for each chat (decrypted once; sending files is Pro-only,
-     * and the server enforces it). [onResult] gets null once everything is sent, or a message that's safe
+     * text, a file as a new copy with a new key for each chat (decrypted once; the server enforces
+     * each plan's file limits). [onResult] gets null once everything is sent, or a message that's safe
      * to show (what went out before the failure stays sent).
      */
     fun forwardMany(messages: List<Message>, toConversationIds: List<String>, onResult: (error: String?) -> Unit) {

@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-16T23:18:15+00:00",
- "repository_commit": "36896d45576236f5d811794f8262a0bbb530986a",
+ "generated": "2026-11-18T22:22:09+00:00",
+ "repository_commit": "5ab50ab1a96fa92bbd20b73f2284a0c01c916be6",
  "branch": "HEAD",
  "uncommitted_changes_included": false,
  "app_versions": {
-  "desktop": "0.8.2",
-  "android": "0.7.2",
+  "desktop": "0.9.0",
+  "android": "0.8.0",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -49,8 +49,8 @@
  "files": [
   {
    "path": ".github/workflows/desktop-linux.yml",
-   "sha256": "81402083587c211240226d0a0fc2918c164024707bfa2e8e7fa4f298878f1a02",
-   "bytes": 2669
+   "sha256": "77189182bedf48fc9dd7cf559f97c2b5080bdb34eff16a5a3f752244a8ebc136",
+   "bytes": 2924
   },
   {
    "path": ".github/workflows/license-compliance.yml",
@@ -94,8 +94,8 @@
   },
   {
    "path": "android/app/build.gradle.kts",
-   "sha256": "2bca410fb2e105596a63ea3e4b4093611769d957faf5f3a77fcb319a3f1e67b7",
-   "bytes": 24776
+   "sha256": "4309f3660183e4617be200f1bf4c793da3b8134c9229b58c5ec49d719d46bb52",
+   "bytes": 27252
   },
   {
    "path": "android/app/proguard-rules.pro",
@@ -166,6 +166,11 @@
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/studio/StudioDeviceTest.kt",
    "sha256": "f41e6ddab330a3f71df1b06f90fd60f6fe36fe48fc19a990f56893a1e4ad75a9",
    "bytes": 13251
+  },
+  {
+   "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/tor/BridgesDeviceTest.kt",
+   "sha256": "41f7bf4cb718e7d86533d02ea806f4f046eae386a290de8e679583147c82c6c9",
+   "bytes": 4695
   },
   {
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/tor/TorAppProbeTest.kt",
@@ -253,14 +258,29 @@
    "bytes": 3251
   },
   {
+   "path": "android/app/src/main/assets/licenses/lyrebird-LICENSE-GPL3.txt",
+   "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+   "bytes": 35823
+  },
+  {
+   "path": "android/app/src/main/assets/licenses/lyrebird-LICENSE.txt",
+   "sha256": "7a59bdf0048ac039e211433fa1931dfdd1640e68d1055c82939c721f07a05a93",
+   "bytes": 2992
+  },
+  {
+   "path": "android/app/src/main/assets/licenses/snowflake-LICENSE.txt",
+   "sha256": "9ff13055ce66c5d3522dc6381df3b382979115d4bb8cf7ea5f4218f8151d7194",
+   "bytes": 1854
+  },
+  {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/MainActivity.kt",
    "sha256": "f09b5eee20cfd03c6f15a25d9bbec70d58c0ca8ec905afff921ddf18be601698",
    "bytes": 8370
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/RedvaultApp.kt",
-   "sha256": "6db1d88557cc2e49dd6473fc09cf3eb55fdaedc4977657c37a5bf35d9ae21817",
-   "bytes": 31212
+   "sha256": "345ac11d37e159a0b008bd8abc6b09610119b4a3d27e6ff908c0486ab1e1ef48",
+   "bytes": 31836
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ShareIntents.kt",
@@ -494,8 +514,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/FileRepository.kt",
-   "sha256": "14e56e2aaf18e097dd2789f96fca0d51e73ab3566061959acae67e1047e48479",
-   "bytes": 21920
+   "sha256": "b97a0d5e1338dc7c4618c1af3eb7f5b7a22bae99dc8fa4341f5c0a9ae761f3db",
+   "bytes": 22339
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/FriendRepository.kt",
@@ -644,8 +664,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/Dtos.kt",
-   "sha256": "ce5b91fadac8132a6480979a742fda3d6c3dfc0c67703a9665e3d3a9c6e17307",
-   "bytes": 17466
+   "sha256": "b5f6ffbef00cc0ffa7b2ae56543f4ab03301763b43f1d15a9aa277428facb4c8",
+   "bytes": 17475
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/api/GroupInviteApi.kt",
@@ -724,8 +744,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/OpenSourceInfo.kt",
-   "sha256": "a488a81b8539cc80fadc93344e7b220f3107c0d832009c570e2a3a2af7217e67",
-   "bytes": 5141
+   "sha256": "cc11494ed071d0cb65ae8e13293c89cf59430915175e8882fdb10bc8e2ef1e89",
+   "bytes": 5582
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/data/model/RichMessage.kt",
@@ -954,8 +974,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/tor/TorController.kt",
-   "sha256": "52de5dd8a197b9851159f96530b0fa4b8d70b3b7c940de06376f3370f505a85d",
-   "bytes": 9246
+   "sha256": "95ddc1db98efef264032219bbfd4c0fcb64f660103a8c4d9407d9956b0fbe141",
+   "bytes": 12939
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/tor/TorRouting.kt",
@@ -979,8 +999,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInApp.kt",
-   "sha256": "589fc7d75e33dd20b4d4800d8e3a1b59b4c0de276b14f393e0f10df940ba429a",
-   "bytes": 71149
+   "sha256": "978d79bd1eacadf202de7ca7234615729160e13127141e5bc095ffa6dbedd756",
+   "bytes": 71152
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/SignedInSession.kt",
@@ -1084,8 +1104,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatSession.kt",
-   "sha256": "9372d146fe7c32995dba416935958148489c377f3eaefbef31bab74cd24073aa",
-   "bytes": 85425
+   "sha256": "1fbece577037b915e5ed8d4550b65d3df2146243f781ee71f729e4d1c498162c",
+   "bytes": 85415
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ChatsScreen.kt",
@@ -1134,8 +1154,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/ThreadScreen.kt",
-   "sha256": "f6a69ee4d24218eece8b2ab4c9d3c53e7f4be0a34da2d327b7c65d5dfb0eef62",
-   "bytes": 127256
+   "sha256": "f874c1a6ff537215ef8c5080221bf1b3a41bce4898750baa2ae77136ddfa3d69",
+   "bytes": 127172
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/chats/VoiceRecorder.kt",
@@ -1334,8 +1354,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/NetworkRoutingScreen.kt",
-   "sha256": "71150e978050e574794f624bdd6d5c2237766ade4b0ffd0e63359a37f5e7ea7d",
-   "bytes": 12880
+   "sha256": "5ebec72b7eef0944a3d96d2b65ba7e1359030a7f2dc18ffd0244fab9025edd9f",
+   "bytes": 18045
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/OpenSourceSection.kt",
@@ -1344,8 +1364,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/PlanChoices.kt",
-   "sha256": "9f7d43a655fb4e8e76e945fed64ade8cfc23b9034b22fcf01c0ffcb5dbccb39d",
-   "bytes": 8883
+   "sha256": "4eff19a1fec5e0e6a10bbd8c70abd817ea54c7099c779924a4f61179864e1c10",
+   "bytes": 8914
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/PlansScreen.kt",
@@ -1369,8 +1389,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/SettingsScreens.kt",
-   "sha256": "7537fdaae77f2ffaf525776434b47c1665fdc74981e86d9e92dc3b6738bbc718",
-   "bytes": 40590
+   "sha256": "3e9d2027a41d4c2f4e916efc82496eb2cc508662080981f970280fdb7dbe320e",
+   "bytes": 40548
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/ui/settings/UpdateViews.kt",
@@ -1474,8 +1494,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/tor/NativeTor.java",
-   "sha256": "c10a1eccce13507109f7dbe3f7944350f22a58e5fc6deea2550361a2a13f7297",
-   "bytes": 1746
+   "sha256": "f08fc00cfb835f829cf9085e0eb3f53976fd8885eba70334f60270da486ae727",
+   "bytes": 1940
   },
   {
    "path": "android/app/src/main/res/drawable/ic_alert.xml",
@@ -2994,8 +3014,8 @@
   },
   {
    "path": "desktop/CMakeLists.txt",
-   "sha256": "ec5a1d293d10f8b5a5260c9e620d8c5c7ef92a3796d2abfcae8348c7c745d508",
-   "bytes": 6821
+   "sha256": "a511acd9f99119b1dc5c55dc7273db009cb9f6221cdac94aa71a0ee847b9c85b",
+   "bytes": 7033
   },
   {
    "path": "desktop/CMakePresets.json",
@@ -3019,8 +3039,8 @@
   },
   {
    "path": "desktop/app/CMakeLists.txt",
-   "sha256": "ddcf9082b8c766969c8478ba9510c25a0f9af84aef80d3a3136ea22d45066b24",
-   "bytes": 24555
+   "sha256": "317b9d9ef0bee5784d1d39c610c8ae41b8f14ec522deab81e506d7433613eabb",
+   "bytes": 26306
   },
   {
    "path": "desktop/app/fonts/BricolageGrotesque-OFL.txt",
@@ -4029,8 +4049,8 @@
   },
   {
    "path": "desktop/app/qml/ForwardDialog.qml",
-   "sha256": "a8474f2df86fd8142b156042dffa627af71569c69a5c70afc2a12fb19e9a14a2",
-   "bytes": 8171
+   "sha256": "2fb7f2c1133a866980e36ab2a4ca842c62269b149931f8bce0bf794d0de30d93",
+   "bytes": 8201
   },
   {
    "path": "desktop/app/qml/FriendPicker.qml",
@@ -4179,8 +4199,8 @@
   },
   {
    "path": "desktop/app/qml/NetworkRoutingSection.qml",
-   "sha256": "65655e8b41fef9474c2ca4ddedd1bb455305a97a4428c2af08f8126750af66e2",
-   "bytes": 8984
+   "sha256": "d979aaf02943d53ce7107749e18044356f40480a5d88422b6c773fe90dbd810d",
+   "bytes": 14539
   },
   {
    "path": "desktop/app/qml/NewGroupDialog.qml",
@@ -4309,8 +4329,8 @@
   },
   {
    "path": "desktop/app/qml/SettingsView.qml",
-   "sha256": "666ce4cc32f4ccda382c4cefe27522ab7cfb88331d162266e98a5504439e22b5",
-   "bytes": 69906
+   "sha256": "81af2dd650a14ce54bdc110dd37cc83a3a50189fc55edf27a0f7d50afacb26fe",
+   "bytes": 69879
   },
   {
    "path": "desktop/app/qml/ShareLinkDialog.qml",
@@ -4404,8 +4424,8 @@
   },
   {
    "path": "desktop/app/qml/ThreadView.qml",
-   "sha256": "1ab9760246493fac74e67d472ea465370872a71594d90caa22bca35178d6bb16",
-   "bytes": 105314
+   "sha256": "0bec95fbab9ee9090e1f1764925a39138b531b7e7e32c5cfe6d78eebe878b91e",
+   "bytes": 104829
   },
   {
    "path": "desktop/app/qml/TipDialog.qml",
@@ -4434,8 +4454,8 @@
   },
   {
    "path": "desktop/app/qml/UpgradeDialog.qml",
-   "sha256": "0b86ce312fa2b2d46d8fe3e87eed1a6955864cda66006d5d7d65dfb011ff3bbb",
-   "bytes": 2907
+   "sha256": "b8b8b660772aa9271bede883833a1b3f0e675d7ff829ca11d11d012646238dde",
+   "bytes": 2908
   },
   {
    "path": "desktop/app/qml/UploadLockDialog.qml",
@@ -4464,8 +4484,8 @@
   },
   {
    "path": "desktop/app/src/account_session.cpp",
-   "sha256": "332e5339f7e86d26bd9e3fbe36fc1802576f972e8dada3cd59049d594a5e2bff",
-   "bytes": 22087
+   "sha256": "7b82046125a4ea17e4587d34492777f406152af89e8cbb86ba3395133629a7ea",
+   "bytes": 22020
   },
   {
    "path": "desktop/app/src/account_session.hpp",
@@ -4589,8 +4609,8 @@
   },
   {
    "path": "desktop/app/src/chat_session.hpp",
-   "sha256": "22fac639c7c0b9b3b1e4ce8c34f636ad0897e721104d3cacc6947b01d5908d80",
-   "bytes": 29006
+   "sha256": "9209a13d3b3c81b004e9f62ef9d6c48963f34f224fbee429897d0c21cd7c5f02",
+   "bytes": 28980
   },
   {
    "path": "desktop/app/src/community_admin_session.cpp",
@@ -4739,13 +4759,13 @@
   },
   {
    "path": "desktop/app/src/media_io.cpp",
-   "sha256": "11431f7991a0795a12d0de62866c3164eeca7f9f74722219aaa3f3a4e4216036",
-   "bytes": 10983
+   "sha256": "95e344399b1116661c7619e8f39e0df94ba1de7b9f96752642247e369026b04e",
+   "bytes": 11913
   },
   {
    "path": "desktop/app/src/media_io.hpp",
-   "sha256": "71e0764038e81511c245bcff2fea1e087ec478d65dc506c8fdacc7219177024d",
-   "bytes": 5275
+   "sha256": "f30bd5f3ec523c0849d3fb2528a497128675eaad8af6d83ec65d28f9170c2160",
+   "bytes": 5420
   },
   {
    "path": "desktop/app/src/people_session.cpp",
@@ -4824,13 +4844,13 @@
   },
   {
    "path": "desktop/app/src/tor_controller.cpp",
-   "sha256": "c18b93908b16460bcbaa901ff25052c98bf0876edbb4a3bb0f570c453dc227b8",
-   "bytes": 7351
+   "sha256": "eac9925b1870e04f3bf780e5f94c4349a4173a4ed3349231e4b1af6601f2c596",
+   "bytes": 11152
   },
   {
    "path": "desktop/app/src/tor_controller.hpp",
-   "sha256": "0943a1f79a128d4430f8daba17283691fb47bf59b606bb35c07a96d2c7ffb1e6",
-   "bytes": 5147
+   "sha256": "92cfa537951035e1afafec9c8d87c60c73328a4081a5f2f85dfe2c99daa7d596",
+   "bytes": 6392
   },
   {
    "path": "desktop/app/src/update_key.hpp",
@@ -5409,8 +5429,8 @@
   },
   {
    "path": "desktop/core/src/data/file_repository.cpp",
-   "sha256": "27f7f60362e88230bbe9a53a97a3e7b092129aba5864b8b26bd0194db1ebb817",
-   "bytes": 14040
+   "sha256": "fbc82633f355387146519f7848e0a60d72cd57b3381b41b47db080d6eb163bde",
+   "bytes": 14355
   },
   {
    "path": "desktop/core/src/data/friend_repository.cpp",
@@ -5849,8 +5869,8 @@
   },
   {
    "path": "desktop/packaging/linux/redvaultmessages.metainfo.xml",
-   "sha256": "1fe2b96dbb39dcc91ac9e85439cf7651e1ea997317e1f68534e4e8ebb41ec960",
-   "bytes": 3907
+   "sha256": "a4970ff7f64df4b94b9ee16a0f414b2968b685b763adcd309b752148a23e1a0f",
+   "bytes": 4441
   },
   {
    "path": "desktop/packaging/msix/AppxManifest.xml.in",
@@ -6009,8 +6029,8 @@
   },
   {
    "path": "desktop/packaging/package-linux.sh",
-   "sha256": "6703e2e5faa498a5814a9387ba1d61ba5ac107b50275a1965800adeec30ea56d",
-   "bytes": 6182
+   "sha256": "e46a93972de492d0b2b52c6101ca7d3d4e20f996164c767b02f53f72456afae9",
+   "bytes": 6533
   },
   {
    "path": "desktop/packaging/package-msix.ps1",
@@ -6039,8 +6059,8 @@
   },
   {
    "path": "desktop/packaging/tor-release-args.ps1",
-   "sha256": "edbbf1b3d6057bed1a1426192f210647b7b0611b8b4b3ca9993d6c69577cf5f8",
-   "bytes": 2428
+   "sha256": "a586885c68f6b7d0a66a62f9be37aa3ec0a20a0be67dabd41286f641daeaabb9",
+   "bytes": 3335
   },
   {
    "path": "desktop/privacy-proof/desktop-wire-capture.txt",
@@ -6049,18 +6069,23 @@
   },
   {
    "path": "desktop/rtc/CMakeLists.txt",
-   "sha256": "ce76b13ce758b99f4eba58b90e778b5e5f100dddd7c7cd93bd47a43f554de38a",
-   "bytes": 2028
+   "sha256": "137f6a1ee51df2f62a479e61d121f067c88c320ec1a6927131e83b3a3051a889",
+   "bytes": 2055
   },
   {
    "path": "desktop/rtc/include/redvault/rtc/call_media.hpp",
-   "sha256": "9595dbc249502a42d152fc253d4160382d1f8b2a6c8a9eb85fca86cc03981db8",
-   "bytes": 5118
+   "sha256": "2c1459e0b7ac3ed22a498457db8464cf09aa2d53cf97e1f7e5a8a73fec4ce5ae",
+   "bytes": 5443
   },
   {
    "path": "desktop/rtc/include/redvault/rtc/relay_sdp.hpp",
    "sha256": "503345a9b09f0961dc25f9476cc8ccbd9a2a77f3c73c50561bfb68dc6b67837d",
    "bytes": 1810
+  },
+  {
+   "path": "desktop/rtc/include/redvault/rtc/video_receive.hpp",
+   "sha256": "ad923f37f9a240b125f460624e7278873d4887ef0829718c2b9a6f79f3ae9008",
+   "bytes": 5766
   },
   {
    "path": "desktop/rtc/patch_relay_only.cmake",
@@ -6069,18 +6094,18 @@
   },
   {
    "path": "desktop/rtc/src/call_media.cpp",
-   "sha256": "8f3a232258db79e8588ff41902348785f952667017caef83d2ffe124a7d08ec5",
-   "bytes": 17689
+   "sha256": "64ecb1a3ec065ca82b64ce5cfd6c01080b3c3361511fd859a285c28039ddb106",
+   "bytes": 21661
   },
   {
    "path": "desktop/rtc/src/codecs.cpp",
-   "sha256": "8e5d0941f3fcc459538f2085151199435dae23618cded7edfc7d788e04cdcf51",
-   "bytes": 7002
+   "sha256": "f1fb53b573928ac2a3ae33621ab386d4c720aa156c00787a6e5a58bb9c71a6fb",
+   "bytes": 7773
   },
   {
    "path": "desktop/rtc/src/codecs.hpp",
-   "sha256": "c028cb5bc8f908c831d794e7a0d92459138620a36b2eefcaf4a25b17221cc0f4",
-   "bytes": 2311
+   "sha256": "4ad4e585ec239ae622240356a8b34e9a854c85f9e25dc0c2df53df9cf0fa9d23",
+   "bytes": 2491
   },
   {
    "path": "desktop/rtc/src/relay_sdp.cpp",
@@ -6089,18 +6114,23 @@
   },
   {
    "path": "desktop/rtc/src/rtp.cpp",
-   "sha256": "6b8ff335ba72f2078347bfc6a5765e9c22fbd6bd48491b2ac59806a74b05163d",
-   "bytes": 7436
+   "sha256": "2460fc89e4ba0f15f08da7b6df539cbf44a980a0005046e42cc94c05fe6a73c5",
+   "bytes": 5398
   },
   {
    "path": "desktop/rtc/src/rtp.hpp",
-   "sha256": "6277420bfb75c535db7f948ac3a124163ea6fb4ae3a8f105651fe9769778f0bc",
-   "bytes": 2754
+   "sha256": "81369ed172302d6bf5966a05da931819ccf64d15df34f02ae7dbedc355bcb13b",
+   "bytes": 2182
+  },
+  {
+   "path": "desktop/rtc/src/video_receive.cpp",
+   "sha256": "9ade8e6b46c08f6c801e9281ac7dcc1f26b50c91ea9787125f3ba1aada4a2ed7",
+   "bytes": 12147
   },
   {
    "path": "desktop/tests/CMakeLists.txt",
-   "sha256": "b24ad3a1d9e814a1e6b786a65979c3b3ed0a5099ac7d60e80c683afc08fa41dd",
-   "bytes": 16781
+   "sha256": "1b9a77793cf2688d803250188cf24453bf4f38553f8e9a9413c09ebd69bcaae9",
+   "bytes": 18986
   },
   {
    "path": "desktop/tests/account_repository_test.cpp",
@@ -6278,6 +6308,11 @@
    "bytes": 10269
   },
   {
+   "path": "desktop/tests/files_preview_main.cpp",
+   "sha256": "c4fca8f0075988db248125a29ad1b286881e89fde555a25b798dfd9293d12252",
+   "bytes": 957
+  },
+  {
    "path": "desktop/tests/group_call_link_test.cpp",
    "sha256": "bf8a85192db2cff459eb74a119cd8eb12cc9e3625615310edff6ed6140f9db84",
    "bytes": 2538
@@ -6336,6 +6371,11 @@
    "path": "desktop/tests/net_test.cpp",
    "sha256": "96675246d664f530e8ef9fc0d97640e114c65fbe6d06bee37221f2fb95a32acd",
    "bytes": 5492
+  },
+  {
+   "path": "desktop/tests/network_routing_page_test.cpp",
+   "sha256": "0fe1052b2ad8da9b5a6dca5ec05e67a932873aa9b16952ea42fd3993297176b8",
+   "bytes": 9214
   },
   {
    "path": "desktop/tests/open_source_test.cpp",
@@ -6403,6 +6443,16 @@
    "bytes": 477
   },
   {
+   "path": "desktop/tests/qml_network_stubs/App.qml",
+   "sha256": "4554e1bad0f7365e561079118479addfaa07c912f22a849fb2571dbb5b65f422",
+   "bytes": 281
+  },
+  {
+   "path": "desktop/tests/qml_network_stubs/TorController.qml",
+   "sha256": "6d12e0cafa1c70ab44bf8158d4858031fc816f482edfc06171324694fd1aa55b",
+   "bytes": 1335
+  },
+  {
    "path": "desktop/tests/qml_stubs/Redvault/App.qml",
    "sha256": "a6c84b6b9688681479549a93e08d24c4ad2a47c60e07b4b5430042277875e65a",
    "bytes": 378
@@ -6461,6 +6511,11 @@
    "path": "desktop/tests/rtc_relay_test.cpp",
    "sha256": "85de1533f8644868f547fc0b30c83d66afaf7d1e27a84f3d6348ba6cb494f0bd",
    "bytes": 21734
+  },
+  {
+   "path": "desktop/tests/rtc_video_receive_test.cpp",
+   "sha256": "02c02419578ff4be6d426e9df477ad38e5aaedc8ccb08cd409d46689befd6573",
+   "bytes": 10036
   },
   {
    "path": "desktop/tests/safety_number_qr_test.cpp",
@@ -6531,6 +6586,11 @@
    "path": "desktop/tests/text_format_test.cpp",
    "sha256": "fecfe55257eeccec82c670b5dec3298ede3867fdbbf975acbb3289e9e17cf772",
    "bytes": 5196
+  },
+  {
+   "path": "desktop/tests/tor_bridges_live.cpp",
+   "sha256": "2ae2a1a9da82791bdc29295413dd85a86e87179f403bb2030d7468109909af65",
+   "bytes": 4508
   },
   {
    "path": "desktop/tests/tor_transport_test.cpp",
@@ -6924,8 +6984,8 @@
   },
   {
    "path": "legal/privacy-policy.md",
-   "sha256": "f167bb24f834d7de569a33ea6522deb1477e0e3f270f3413d1695481b145827e",
-   "bytes": 18038
+   "sha256": "9e43eb64412806d6baf2f1748b2bd47bf9f679aee929b20493ff3314ebb82674",
+   "bytes": 19058
   },
   {
    "path": "legal/terms-of-service.md",
@@ -6984,13 +7044,13 @@
   },
   {
    "path": "tor-core/Cargo.lock",
-   "sha256": "6d76f4ab9250d75b69b8d57d2bcce80c8f44e4e282c31e591eae86de61d07566",
-   "bytes": 147603
+   "sha256": "672e9f9d25475cec2be416ef6ce1ac373e6d58ed2b5ca1d1d70fadda8ffc1ef4",
+   "bytes": 148259
   },
   {
    "path": "tor-core/Cargo.toml",
-   "sha256": "6988c640a437d459a909e9b45d51efdd2b13004af85e0527b94b155f4479da6b",
-   "bytes": 2891
+   "sha256": "3b0e49e6e51808cdee7a6daeb216ddaaf9752509ce3dd2bf12a1ab18b748ff16",
+   "bytes": 2904
   },
   {
    "path": "tor-core/LICENSE",
@@ -7004,8 +7064,8 @@
   },
   {
    "path": "tor-core/bindings/android/com/redvaultsystems/tor/NativeTor.java",
-   "sha256": "c10a1eccce13507109f7dbe3f7944350f22a58e5fc6deea2550361a2a13f7297",
-   "bytes": 1746
+   "sha256": "f08fc00cfb835f829cf9085e0eb3f53976fd8885eba70334f60270da486ae727",
+   "bytes": 1940
   },
   {
    "path": "tor-core/bindings/android/com/redvaultsystems/tor/Probe.java",
@@ -7014,8 +7074,8 @@
   },
   {
    "path": "tor-core/include/redvault_tor.h",
-   "sha256": "8462042bfa858ecc002cbef58bd71d41026f5314bd0c3a57d3ddc9c57bf64899",
-   "bytes": 1956
+   "sha256": "0219897104c2d56837c567fcf657230ca67e423eb80381f3a66a91d5e9e4aa59",
+   "bytes": 2186
   },
   {
    "path": "tor-core/patches/rusqlite-0.40.2-sqlite-3.54.diff",
@@ -7648,39 +7708,74 @@
    "bytes": 593
   },
   {
+   "path": "tor-core/pt/README.md",
+   "sha256": "83ef033fd7a09b3e908ea9d43524d1598617c7c78904cb2c30129fd594ca107b",
+   "bytes": 1634
+  },
+  {
+   "path": "tor-core/pt/build-transports.sh",
+   "sha256": "af2b7879b1147411b9d843f3498e849fb3f098fc571b4c65da53b385443c0a55",
+   "bytes": 3819
+  },
+  {
+   "path": "tor-core/pt/licenses/lyrebird-LICENSE-GPL3.txt",
+   "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+   "bytes": 35823
+  },
+  {
+   "path": "tor-core/pt/licenses/lyrebird-LICENSE.txt",
+   "sha256": "7a59bdf0048ac039e211433fa1931dfdd1640e68d1055c82939c721f07a05a93",
+   "bytes": 2992
+  },
+  {
+   "path": "tor-core/pt/licenses/snowflake-LICENSE.txt",
+   "sha256": "9ff13055ce66c5d3522dc6381df3b382979115d4bb8cf7ea5f4218f8151d7194",
+   "bytes": 1854
+  },
+  {
    "path": "tor-core/src/bin/rv-onion-host.rs",
    "sha256": "6183df43194c8302efe07edab828437b0f22bb4deab70415b6e0fcd399bd3f7c",
    "bytes": 4999
   },
   {
    "path": "tor-core/src/bin/rv-tor-probe.rs",
-   "sha256": "24f308c0ed1af8392bc20bbc1f9eb0ffb8162216dbc358c7fb9eeec506ca53c5",
-   "bytes": 7120
+   "sha256": "0731068b11538b1d12e1dbe781ac87566ba4fbfe9862603aca777e1947d3bd3e",
+   "bytes": 8619
+  },
+  {
+   "path": "tor-core/src/bridges.rs",
+   "sha256": "71fac7651464346c241a2c57a5a9ede00292182b0be8f0e379812ec5ca6e8364",
+   "bytes": 11716
+  },
+  {
+   "path": "tor-core/src/builtin_bridges.json",
+   "sha256": "b5287c03af23caf4d7acbafc4de24f147b3875718dac66d396c33fce4940d895",
+   "bytes": 1897
   },
   {
    "path": "tor-core/src/ffi.rs",
-   "sha256": "ea5fda37dd03beaeeb42e456d17ec2f03016b92e3a78434aaa1bb804d0010bba",
-   "bytes": 3381
+   "sha256": "dac3ff4b5845d0493ed34074339738702be76deea317c26a252951d51de0ef3c",
+   "bytes": 4158
   },
   {
    "path": "tor-core/src/gateway.rs",
-   "sha256": "de3c30b3ac8ae0dbd8e540de082ea067c00c19442398d582b97abfb4fb381423",
-   "bytes": 8677
+   "sha256": "42fdb024703847b7b26904f2d769199c88eeaca29254e39e2dbbc2c77e4bdfc2",
+   "bytes": 10260
   },
   {
    "path": "tor-core/src/jni_binding.rs",
-   "sha256": "5525357bc3ca05675a252b7fd19c5e3aabf52fc20daeea1078e895d8da3446e6",
-   "bytes": 3442
+   "sha256": "bc8551035905c11340bd9df185dcda35106d1ec73bc9d444a3d0b762b09b9c48",
+   "bytes": 4234
   },
   {
    "path": "tor-core/src/json_config.rs",
-   "sha256": "dfa214e431a01dd2602f24393205b430f07ef85ade424e45440411db6530b87b",
-   "bytes": 3623
+   "sha256": "f8470dec51796ce2c4f260e2bec57c58bc403847b7cc2585f30a38d5ec554110",
+   "bytes": 4451
   },
   {
    "path": "tor-core/src/lib.rs",
-   "sha256": "08783fbf3da0af877db0acb0265cc1b26ffa8666bc2f719bf1d8576f845bd966",
-   "bytes": 976
+   "sha256": "80198f307532be1352f7498e856d844736c1bf5b97cf64d23c7904ed10668b4e",
+   "bytes": 1081
   },
   {
    "path": "tor-core/src/policy.rs",
@@ -7694,13 +7789,13 @@
   },
   {
    "path": "tor-core/src/status.rs",
-   "sha256": "b6d85d1385ff42b543801454f680732058c28499ea27faa5445f9d40f7a47244",
-   "bytes": 8799
+   "sha256": "a06310871769fe93e11ce33667c4f9273de09ca6d8b584fce83364e29ab2f2e4",
+   "bytes": 11132
   },
   {
    "path": "tor-core/tests/gateway_hardening.rs",
-   "sha256": "4d7efa29c0dc9b9136277ad95fed17e8a1618c0b211fe7ddfd9703672f3de7d2",
-   "bytes": 6713
+   "sha256": "b8bc65ad5be3397b8a3dd87dce7e0c9098513b9a1abfa72df29c89e14774f365",
+   "bytes": 6789
   },
   {
    "path": "tor-core/tests/saturating_time_regression.rs",
@@ -7894,8 +7989,8 @@
   },
   {
    "path": "ui/src/lib/planChoices.ts",
-   "sha256": "e08368156427f953a4c9cc260d640e96e41d1f60a0d3000e2711975d8ba99b4f",
-   "bytes": 7396
+   "sha256": "cf3764b6a4975d93e1c69edd4179b1f684cc487ab3d4f6fd39c92ecfed5b0317",
+   "bytes": 7427
   },
   {
    "path": "ui/src/lib/safePreview.ts",

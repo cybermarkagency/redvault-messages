@@ -59,6 +59,15 @@
   </content_rating>
 
   <releases>
+    <release version="0.9.0" date="2026-11-18">
+      <description>
+        <p>Free accounts can now send files and voice messages in chats, up to 25 MB each.
+        If Tor is blocked where you are, Settings › Network routing › Bridges connects
+        through Snowflake, obfs4 or bridges you enter yourself: still Tor, with a hidden
+        way in. Video calls stay sharp when the connection drops packets, and the desktop
+        sends 720p video when the connection allows it.</p>
+      </description>
+    </release>
     <release version="0.8.2" date="2026-11-17">
       <description>
         <p>Stays reachable when the onion address is down: the app now switches to the

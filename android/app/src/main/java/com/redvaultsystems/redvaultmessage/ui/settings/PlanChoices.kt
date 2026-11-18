@@ -67,13 +67,13 @@ object PlanChoices {
                 includes = listOf(
                     "Unlimited end-to-end encrypted messages and groups",
                     "One-to-one voice and video calls",
-                    "Open files people send you",
+                    "Send files and voice messages in chats, up to 25 MB each",
                     "Password vault",
                 ) + listOfNotNull(files?.let { storage(it.free) }),
             )
             "pro" -> Choice(
                 tier, "Pro", "$8", "per month",
-                includes = listOf("Everything in Free", "Send files and voice messages in chats", "Voice call links") +
+                includes = listOf("Everything in Free", "Send files in chats up to 100 MB each", "Voice call links") +
                     listOfNotNull(files?.let { storage(it.pro) }),
             )
             else -> Choice(
@@ -119,8 +119,8 @@ object PlanChoices {
                         action = Action.Cancel,
                         actionLabel = "Switch to Free",
                         confirm = "Your subscription stops renewing and you won't be charged again. You keep ${nameOf(tier)} " +
-                            "until the end of the period you've paid for, then move to Free: messages and calls, but no " +
-                            "sending files. Files you've already sent stay available until they expire.",
+                            "until the end of the period you've paid for, then move to Free: messages, calls and files " +
+                            "up to 25 MB each. Files you've already sent stay available until they expire.",
                     )
                     source == "granted" -> c.copy(note = "Your plan was set by an administrator.")
                     else -> c.copy(note = "This server can't change plans from the app.")

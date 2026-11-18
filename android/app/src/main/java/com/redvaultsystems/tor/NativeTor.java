@@ -39,4 +39,7 @@ public final class NativeTor {
 
     /** Closes the SOCKS port and stops Tor; the handle is invalid afterwards. */
     public static native void nativeStop(long handle);
+
+    /** Checks bridge settings JSON without starting Tor: {"ok":true,"count":N} or {"ok":false,"error":"…"}. */
+    public static native String nativeValidateBridges(String settingsJson);
 }

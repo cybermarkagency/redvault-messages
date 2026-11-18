@@ -59,6 +59,11 @@ class TorController(
      * onion services the gate may reach, on port 443 through a Tor exit. Null: onion services only.
      */
     private val exitHost: String? = null,
+    /**
+     * The app's native-library folder (ApplicationInfo.nativeLibraryDir), where the bridge programs liblyrebird.so and
+     * libsnowflake.so are: the only place Android lets an app run a program it ships. Null: no bridges.
+     */
+    private val nativeLibDir: File? = null,
 ) : TorGateSource {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Any()
@@ -96,6 +101,64 @@ class TorController(
         onOnionOnlyChanged?.invoke(onionOnly)
     }
 
+    // --- Bridges (tor-core/src/bridges.rs): a hidden way into Tor where it's blocked. Still Tor. ---
+    private val _bridgeMode = MutableStateFlow(BRIDGES_OFF)
+    /** "off", "snowflake", "obfs4" or "custom" (kept on this phone by the app). */
+    val bridgeMode: StateFlow<String> = _bridgeMode.asStateFlow()
+    private val _bridgeLines = MutableStateFlow("")
+    /** The pasted bridge lines for "custom", one per line. */
+    val bridgeLines: StateFlow<String> = _bridgeLines.asStateFlow()
+    /** Called when the user saves new bridge settings (to keep them). */
+    @Volatile var onBridgesChanged: ((mode: String, lines: String) -> Unit)? = null
+
+    private fun program(name: String): File? = nativeLibDir?.let { File(it, name) }?.takeIf { it.isFile }
+
+    /** Whether this build ships the bridge programs. */
+    val bridgesAvailable: Boolean get() = program(LYREBIRD) != null && program(SNOWFLAKE) != null
+
+    /** Sets the saved bridge settings before [start] (no restart, no callback). */
+    fun loadBridges(mode: String, lines: String) {
+        _bridgeMode.value = if (mode in BRIDGE_MODES) mode else BRIDGES_OFF
+        _bridgeLines.value = lines
+    }
+
+    private fun bridgesJson(mode: String, lines: String) = buildJsonObject {
+        put("mode", mode)
+        if (mode == "custom") put("lines", buildJsonArray { lines.lines().forEach { add(it) } })
+        program(LYREBIRD)?.let { put("lyrebirdPath", it.absolutePath) }
+        program(SNOWFLAKE)?.let { put("snowflakePath", it.absolutePath) }
+    }
+
+    /**
+     * Checks and saves bridge settings, then restarts Tor with them (what's waiting to send waits a little longer).
+     * Returns null when saved, or what's wrong (nothing changes then).
+     */
+    fun setBridges(mode: String, lines: String): String? {
+        if (mode !in BRIDGE_MODES) return "Choose how to connect."
+        val trimmed = if (mode == "custom") lines.trim() else ""
+        if (mode != BRIDGES_OFF) {
+            if (!bridgesAvailable) return "This copy of the app doesn't include bridge support."
+            val result = runCatching {
+                NativeTor.load()
+                json.decodeFromString<ValidationJson>(NativeTor.nativeValidateBridges(bridgesJson(mode, trimmed).toString()))
+            }.getOrElse { return "Couldn't check those bridges." }
+            if (!result.ok) return result.error ?: "Those bridges can't be used."
+        }
+        if (mode == _bridgeMode.value && trimmed == _bridgeLines.value) return null
+        _bridgeMode.value = mode
+        _bridgeLines.value = trimmed
+        onBridgesChanged?.invoke(mode, trimmed)
+        // Off the caller's (UI) thread: stopping Tor can take a few seconds.
+        scope.launch {
+            stop()
+            start()
+        }
+        return null
+    }
+
+    @Serializable
+    private class ValidationJson(val ok: Boolean = false, val count: Int = 0, val error: String? = null)
+
     private val _connected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** Each time Tor becomes connected: drain the outbox, resume paused uploads. */
     val becameConnected: SharedFlow<Unit> = _connected.asSharedFlow()
@@ -107,7 +170,8 @@ class TorController(
         scope.launch {
             synchronized(lock) {
                 if (handle != 0L) return@launch
-                _status.value = TorStatus(TorState.Connecting, detail = "Starting Tor")
+                val mode = _bridgeMode.value
+                _status.value = TorStatus(TorState.Connecting, detail = if (mode == BRIDGES_OFF) "Starting Tor" else "Starting Tor with bridges")
                 try {
                     NativeTor.load()
                     // Arti refuses state that other users could read or change: owner-only.
@@ -119,6 +183,7 @@ class TorController(
                         put("cacheDir", cache.absolutePath)
                         put("allowedTargets", buildJsonArray { add("$onionHost:80") })
                         exitHost?.let { host -> put("allowedExitTargets", buildJsonArray { add("$host:443") }) }
+                        if (mode != BRIDGES_OFF) put("bridges", bridgesJson(mode, _bridgeLines.value))
                     }
                     handle = NativeTor.nativeStart(config.toString())
                     val e = json.decodeFromString<EndpointJson>(NativeTor.nativeEndpoint(handle))
@@ -187,6 +252,10 @@ class TorController(
     private class StatusJson(val state: String = "unavailable", val progress: Int = 0, val detail: String = "")
 
     companion object {
+        const val BRIDGES_OFF = "off"
+        val BRIDGE_MODES = listOf("off", "snowflake", "obfs4", "custom")
+        private const val LYREBIRD = "liblyrebird.so"
+        private const val SNOWFLAKE = "libsnowflake.so"
         private const val POLL_MS = 1_000L
         private val json = Json { ignoreUnknownKeys = true }
 

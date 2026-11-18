@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
+use crate::bridges::BridgeSettings;
 use crate::gateway::{Gateway, GatewayConfig};
 
 #[derive(Deserialize)]
@@ -21,6 +22,9 @@ struct JsonConfig {
     /// The sealed backup route's website (`"<hostname>:443"`, at most one); absent: onion services only.
     #[serde(default)]
     allowed_exit_targets: Vec<String>,
+    /// Bridges (absent: straight to the public Tor network).
+    #[serde(default)]
+    bridges: BridgeSettings,
     /// "error" | "warn" | "info" | "debug": Arti's log (addresses redacted) on stderr.
     #[serde(default)]
     log: Option<String>,
@@ -34,6 +38,18 @@ pub(crate) struct Handle {
 }
 
 static LOGGING: Once = Once::new();
+
+/// Checks bridge settings (the `bridges` object of the start config) without
+/// starting Tor: `{"ok":true,"count":N}` or `{"ok":false,"error":"…"}`.
+pub(crate) fn validate_bridges_json(json: &str) -> String {
+    let result = serde_json::from_str::<BridgeSettings>(json)
+        .map_err(|e| format!("bad bridge settings: {e}"))
+        .and_then(|settings| crate::bridges::validate(&settings).map_err(|e| e.to_string()));
+    match result {
+        Ok(count) => serde_json::json!({ "ok": true, "count": count }).to_string(),
+        Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
+    }
+}
 
 impl Handle {
     pub(crate) fn start(json: &str) -> Result<Handle, String> {
@@ -56,6 +72,7 @@ impl Handle {
             cache_dir: parsed.cache_dir,
             allowed_targets: parsed.allowed_targets,
             allowed_exit_targets: parsed.allowed_exit_targets,
+            bridges: parsed.bridges,
             #[cfg(feature = "test-hooks")]
             test_blocked_network: parsed.test_blocked_network,
         };

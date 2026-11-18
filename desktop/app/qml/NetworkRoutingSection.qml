@@ -137,6 +137,118 @@ ColumnLayout {
             }
         }
     }
+    // Bridges (tor-core/src/bridges.rs): a hidden way into Tor for networks that block it. Still Tor.
+    Caption { visible: root.torOn; text: qsTr("BRIDGES") }
+    Card {
+        id: bridgesCard
+        Layout.fillWidth: true
+        visible: root.torOn
+        readonly property var modes: [
+            { value: "off", label: qsTr("Off: connect to Tor directly") },
+            { value: "snowflake", label: qsTr("Snowflake (looks like a video call)") },
+            { value: "obfs4", label: qsTr("obfs4 (built-in bridges)") },
+            { value: "custom", label: qsTr("Bridges I enter myself") }
+        ]
+        property string pickedMode: root.torOn ? root.tor.bridgeMode : "off"
+        property string problem: ""
+        property bool saved: false
+        Connections {
+            target: root.tor
+            function onBridgesChanged() { bridgesCard.pickedMode = root.tor.bridgeMode }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("If Tor is blocked where you are, bridges are hidden entrances to it, disguised as ordinary traffic. Your messages still travel through Tor; only the way in changes. Try Snowflake first: it works in most places that block Tor.")
+                color: Theme.text2
+                font.pixelSize: 13
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: root.torOn && !root.tor.bridgesAvailable
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("This copy of the app doesn't include bridge support.")
+                color: Theme.warn
+                font.pixelSize: 13
+            }
+            RvChoice {
+                id: modeChoice
+                objectName: "bridgeMode"
+                Layout.fillWidth: true
+                enabled: root.torOn && root.tor.bridgesAvailable
+                model: bridgesCard.modes
+                textRole: "label"
+                currentIndex: Math.max(0, bridgesCard.modes.findIndex(m => m.value === bridgesCard.pickedMode))
+                onActivated: (index) => {
+                    bridgesCard.pickedMode = bridgesCard.modes[index].value
+                    bridgesCard.problem = ""
+                    bridgesCard.saved = false
+                }
+                Accessible.name: qsTr("How to connect to Tor")
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: bridgesCard.pickedMode === "custom"
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("Paste bridge lines, one per line. Get them from bridges.torproject.org, by emailing bridges@torproject.org, or from someone you trust. obfs4, WebTunnel and Snowflake bridges work.")
+                color: Theme.text2
+                font.pixelSize: 12
+            }
+            TextArea {
+                id: bridgeLinesField
+                objectName: "bridgeLines"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 110
+                visible: bridgesCard.pickedMode === "custom"
+                wrapMode: TextEdit.WrapAnywhere
+                text: root.torOn ? root.tor.bridgeLines : ""
+                color: Theme.text
+                font.family: "monospace"
+                font.pixelSize: 12
+                placeholderText: "obfs4 192.0.2.1:443 FINGERPRINT cert=... iat-mode=0"
+                placeholderTextColor: Theme.text3
+                background: Rectangle { radius: Theme.radiusSmall; color: Theme.surface2 }
+                onTextChanged: bridgesCard.saved = false
+                Accessible.name: qsTr("Bridge lines")
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: bridgesCard.problem.length > 0
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: bridgesCard.problem
+                color: Theme.danger
+                font.pixelSize: 13
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: bridgesCard.saved && root.tor.state !== "connected"
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: qsTr("Saved. Tor is reconnecting; messages wait until it's back.")
+                color: Theme.text2
+                font.pixelSize: 13
+            }
+            RvButton {
+                objectName: "saveBridges"
+                text: qsTr("Save and reconnect")
+                enabled: root.torOn && (root.tor.bridgesAvailable || bridgesCard.pickedMode === "off")
+                         && (bridgesCard.pickedMode !== root.tor.bridgeMode
+                             || (bridgesCard.pickedMode === "custom" && bridgeLinesField.text.trim() !== root.tor.bridgeLines))
+                onClicked: {
+                    const problem = root.tor.setBridges(bridgesCard.pickedMode, bridgeLinesField.text)
+                    bridgesCard.problem = problem
+                    bridgesCard.saved = problem.length === 0
+                }
+            }
+        }
+    }
     // The sealed backup route (docs/tor-sealed-fallback.md): only in builds that carry the gateway's key.
     Caption { visible: root.torOn && root.tor.backupRouteAvailable; text: qsTr("BACKUP ROUTE") }
     Card {
@@ -169,6 +281,8 @@ ColumnLayout {
         error: true
         text: root.torOn && root.tor.state === "unavailable"
               ? qsTr("Tor connection unavailable. Your private messages and media will remain queued until the secure connection is restored.")
+                + (root.tor.bridgeMode === "off" && root.tor.bridgesAvailable
+                   ? qsTr(" If Tor is blocked on this network, try Snowflake under Bridges above.") : "")
               : ""
     }
     Text {

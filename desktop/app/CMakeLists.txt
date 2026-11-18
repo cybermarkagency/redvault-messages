@@ -559,6 +559,36 @@ if(REDVAULT_TOR)
     install(FILES "${REDVAULT_TOR_CORE_DIR}/patches/saturating-time/PATCHED.md" DESTINATION licenses RENAME tor-core-patches.md)
 endif()
 
+# Bridges: the Tor Project's transport programs (lyrebird for obfs4/WebTunnel, snowflake-client),
+# built by tor-core/pt/build-transports.sh. Windows keeps them in bin/pt next to the program, Linux
+# in lib/redvaultmessages/pt; TorController looks in both. Empty: this copy has no bridge support.
+set(REDVAULT_PT_DIR "" CACHE PATH "Folder with lyrebird and snowflake-client for Tor bridges (empty: no bridges)")
+if(REDVAULT_TOR AND REDVAULT_PT_DIR)
+    if(WIN32)
+        set(_rv_pt_suffix ".exe")
+        set(_rv_pt_dest bin/pt)
+    else()
+        set(_rv_pt_suffix "")
+        set(_rv_pt_dest lib/redvaultmessages/pt)
+    endif()
+    foreach(_rv_pt lyrebird snowflake-client)
+        set(_rv_pt_file "${REDVAULT_PT_DIR}/${_rv_pt}${_rv_pt_suffix}")
+        if(NOT EXISTS "${_rv_pt_file}")
+            message(FATAL_ERROR "REDVAULT_PT_DIR has no ${_rv_pt}${_rv_pt_suffix} (run tor-core/pt/build-transports.sh)")
+        endif()
+        install(PROGRAMS "${_rv_pt_file}" DESTINATION ${_rv_pt_dest})
+        # Also next to the built program, so a development build has bridges too.
+        add_custom_command(TARGET redvault_desktop POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:redvault_desktop>/pt"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_rv_pt_file}" "$<TARGET_FILE_DIR:redvault_desktop>/pt/")
+    endforeach()
+    install(FILES "${REDVAULT_TOR_CORE_DIR}/pt/licenses/lyrebird-LICENSE.txt"
+                  "${REDVAULT_TOR_CORE_DIR}/pt/licenses/lyrebird-LICENSE-GPL3.txt"
+                  "${REDVAULT_TOR_CORE_DIR}/pt/licenses/snowflake-LICENSE.txt"
+                  "${REDVAULT_TOR_CORE_DIR}/pt/README.md"
+            DESTINATION licenses/bridges)
+endif()
+
 # The app's own licence and every third-party notice, next to the program: dist/redvaultmessages/licenses
 # (the Windows installer) and usr/licenses in the AppImage.
 install(FILES ${REDVAULT_OPEN_SOURCE_FILES} DESTINATION licenses)

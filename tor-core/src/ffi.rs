@@ -89,6 +89,22 @@ pub unsafe extern "C" fn rv_tor_stop(gateway: *mut RvTorGateway) {
 }
 
 /// # Safety
+/// Checks bridge settings JSON (`{"mode":…,"lines":[…]}`) without starting
+/// Tor: `{"ok":true,"count":N}` or `{"ok":false,"error":"…"}`. Free with rv_tor_free_string.
+///
+/// # Safety
+/// `settings_json` must be a valid NUL-terminated string.
+#[no_mangle]
+pub unsafe extern "C" fn rv_tor_validate_bridges(settings_json: *const c_char) -> *mut c_char {
+    if settings_json.is_null() {
+        return to_c(r#"{"ok":false,"error":"no settings"}"#.to_owned());
+    }
+    let text = CStr::from_ptr(settings_json).to_string_lossy().into_owned();
+    let result = std::panic::catch_unwind(|| crate::json_config::validate_bridges_json(&text))
+        .unwrap_or_else(|_| r#"{"ok":false,"error":"couldn't check the bridges"}"#.to_owned());
+    to_c(result)
+}
+
 /// `text` must come from this library, freed once.
 #[no_mangle]
 pub unsafe extern "C" fn rv_tor_free_string(text: *mut c_char) {

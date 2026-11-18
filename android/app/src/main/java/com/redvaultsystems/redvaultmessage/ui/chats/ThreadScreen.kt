@@ -144,7 +144,6 @@ import com.redvaultsystems.redvaultmessage.ui.components.describeError
 import kotlinx.coroutines.launch
 import com.redvaultsystems.redvaultmessage.ui.theme.RedvaultTheme
 
-/** Same wording as the server's pro_required refusal (FileService.requestUpload), which stays the real gate. */
 
 /** 1 week, matching the server's RETENTION_WARNING_MS. */
 private const val RETENTION_WARNING_MS = 7L * 24 * 60 * 60 * 1000
@@ -197,7 +196,7 @@ fun ThreadScreen(
     onDiscardQueued: (id: String) -> Unit = {},
     /** Tor routing: what to say while Tor is down or messages are waiting (null: nothing to say). */
     torNotice: String? = null,
-    /** Sending files is Pro-only; the server enforces it, this just says so up front. Opening received files is for everyone. */
+    /** Whether this account may send files. Every plan can now (Free with a smaller size limit); kept so a plan gate can come back. */
     canSendFiles: Boolean,
     /** This user has blocked the other person. */
     blocked: Boolean,
@@ -2124,7 +2123,7 @@ private fun Composer(
             }
         }
     }
-    // Voice messages: tap the mic to record, then Send or Cancel. Pro-only, like files.
+    // Voice messages: tap the mic to record, then Send or Cancel. Sent as files, so the same plan limits apply.
     val recorder = remember { VoiceRecorder(context) }
     var recording by remember { mutableStateOf(false) }
     var recordedMs by remember { mutableStateOf(0L) }

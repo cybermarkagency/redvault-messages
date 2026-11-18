@@ -122,6 +122,7 @@ public:
     void sendAudio(const std::int16_t* pcm) override { media_->sendAudio(pcm); }
     void readAudio(std::int16_t* out, std::size_t samples) override { media_->readAudio(out, samples); }
     void sendVideo(const rtc::VideoFrame& frame, bool) override { media_->sendVideo(frame); }
+    std::pair<int, int> maxCameraSize() override { return media_->maxVideoSize(); }
 
 private:
     std::shared_ptr<rtc::CallMedia> media_;
@@ -250,6 +251,17 @@ void VideoIo::startCamera(const QByteArray& cameraId) {
     }
     if (device.isNull()) return;
     camera_ = new QCamera(device, this);
+    // The camera's own default is often 640x480: ask for up to 720p at a real-time frame rate, so a
+    // call on a good link can send a sharp picture (the engine scales it down when the link is poor).
+    QCameraFormat best;
+    for (const auto& format : device.videoFormats()) {
+        const QSize size = format.resolution();
+        if (size.width() > 1280 || size.height() > 720 || format.maxFrameRate() < 20) continue;
+        const qint64 area = qint64(size.width()) * size.height();
+        const qint64 bestArea = best.isNull() ? 0 : qint64(best.resolution().width()) * best.resolution().height();
+        if (area > bestArea || (area == bestArea && format.maxFrameRate() > best.maxFrameRate())) best = format;
+    }
+    if (!best.isNull()) camera_->setCameraFormat(best);
     cameraSession_.setCamera(camera_);
     camera_->start();
 }
@@ -307,7 +319,8 @@ void VideoIo::onFrame(const QVideoFrame& frame, bool fromScreen) {
     auto port = port_;
     QVideoFrame copy = frame;
     encoder_.start([this, port, copy, fromScreen, index]() mutable {
-        const rtc::VideoFrame i420 = fromScreen ? video::toI420(copy, 1280, 720) : video::toI420(copy, 640, 480);
+        const auto [camW, camH] = fromScreen ? std::pair{1280, 720} : port->maxCameraSize();
+        const rtc::VideoFrame i420 = video::toI420(copy, camW, camH);
         if (i420.width > 0) port->sendVideo(i420, fromScreen);
         encoding_[index] = false;
     });

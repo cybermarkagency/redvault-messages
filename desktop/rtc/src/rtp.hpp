@@ -40,25 +40,6 @@ protected:
     std::vector<::rtc::binary> fragment(::rtc::binary data) override;
 };
 
-/// Rebuilds VP8 frames from RTP packets (RFC 7741). A frame with a missing packet is dropped.
-class Vp8Assembler {
-public:
-    struct Result {
-        std::optional<std::vector<std::uint8_t>> frame;
-        bool keyframe = false;
-        /// A packet was lost: ask the sender for a keyframe.
-        bool lost = false;
-    };
-    Result push(const RtpView& packet);
-
-private:
-    std::vector<std::uint8_t> buffer_;
-    std::uint32_t timestamp_ = 0;
-    std::optional<std::uint16_t> lastSeq_;
-    bool collecting_ = false;
-    bool broken_ = false;
-};
-
 /**
  * Received Opus packets in, steady 48 kHz audio out. Holds about 60 ms
  * before starting, conceals a lost packet (with the next packet's FEC when

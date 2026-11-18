@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QMetaObject>
 #include <QSettings>
+#include <QFileInfo>
+#include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -31,18 +33,28 @@ QJsonObject takeJson(char* text) {
 }  // namespace
 
 TorController::TorController(QString onionHost, QString stateDir, QObject* parent)
-    : QObject(parent), onionHost_(std::move(onionHost)) {
+    : QObject(parent), onionHost_(std::move(onionHost)), stateDir_(std::move(stateDir)) {
     onionOnly_->store(QSettings().value(QStringLiteral("network/onionOnly"), false).toBool());
+    bridgeMode_ = QSettings().value(QStringLiteral("network/bridgeMode"), QStringLiteral("off")).toString();
+    bridgeLines_ = QSettings().value(QStringLiteral("network/bridgeLines")).toString();
     if (!enabled()) return;
-    state_ = QStringLiteral("connecting");
-    detail_ = QStringLiteral("Starting Tor");
-#ifdef REDVAULT_HAS_TOR
     // Arti's guard state and directory cache live with the app's data, readable by this user only.
     // Arti refuses state that other users could read or change: owner-only.
-    for (const QString& dir : {stateDir, stateDir + QStringLiteral("/state"), stateDir + QStringLiteral("/cache")}) {
+    for (const QString& dir : {stateDir_, stateDir_ + QStringLiteral("/state"), stateDir_ + QStringLiteral("/cache")}) {
         QDir().mkpath(dir);
         QFile::setPermissions(dir, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     }
+    connect(&timer_, &QTimer::timeout, this, &TorController::poll);
+    startGateway();
+}
+
+void TorController::startGateway() {
+    state_ = QStringLiteral("connecting");
+    progress_ = 0;
+    detail_ = bridgeMode_ == QStringLiteral("off") ? QStringLiteral("Starting Tor") : QStringLiteral("Starting Tor with bridges");
+    emit changed();
+#ifdef REDVAULT_HAS_TOR
+    const QString stateDir = stateDir_;
     QJsonObject config{{QStringLiteral("stateDir"), QDir::toNativeSeparators(stateDir + QStringLiteral("/state"))},
                        {QStringLiteral("cacheDir"), QDir::toNativeSeparators(stateDir + QStringLiteral("/cache"))},
                        {QStringLiteral("allowedTargets"), QJsonArray{onionHost_ + QStringLiteral(":80")}}};
@@ -53,6 +65,7 @@ TorController::TorController(QString onionHost, QString stateDir, QObject* paren
     if (sealedGateway.scheme() == QStringLiteral("https") && !sealedGateway.host().isEmpty())
         config.insert(QStringLiteral("allowedExitTargets"), QJsonArray{sealedGateway.host() + QStringLiteral(":443")});
 #endif
+    if (bridgeMode_ != QStringLiteral("off")) config.insert(QStringLiteral("bridges"), bridgesConfig(bridgeMode_, bridgeLines_));
     char* error = nullptr;
     gateway_ = rv_tor_start(QJsonDocument(config).toJson(QJsonDocument::Compact).constData(), &error);
     if (gateway_ == nullptr) {
@@ -69,11 +82,9 @@ TorController::TorController(QString onionHost, QString stateDir, QObject* paren
                                                endpoint.value(QStringLiteral("username")).toString().toStdString(),
                                                endpoint.value(QStringLiteral("password")).toString().toStdString()};
     }
-    connect(&timer_, &QTimer::timeout, this, &TorController::poll);
     timer_.start(1000);
     poll();
 #else
-    Q_UNUSED(stateDir);
     // A .onion server but no gateway in this build: fail closed, never fall back.
     state_ = QStringLiteral("unavailable");
     detail_ = QStringLiteral("This build has no Tor gateway");
@@ -118,6 +129,68 @@ void TorController::setQueued(int messages, int files) {
     queued_ = messages;
     pausedUploads_ = files;
     emit queuedChanged();
+}
+
+namespace {
+
+/// Where this copy keeps the transport programs: next to the app (Windows,
+/// a Linux tarball), or in the package's library folder (AppImage, .deb, snap).
+QString transportProgram(const QString& name) {
+#ifdef Q_OS_WIN
+    const QString file = name + QStringLiteral(".exe");
+#else
+    const QString file = name;
+#endif
+    const QString appDir = QCoreApplication::applicationDirPath();
+    for (const QString& dir : {appDir + QStringLiteral("/pt"), appDir + QStringLiteral("/../lib/redvaultmessages/pt"),
+                               appDir + QStringLiteral("/../lib/pt")}) {
+        const QFileInfo info(dir + QLatin1Char('/') + file);
+        if (info.isFile() && info.isExecutable()) return QDir::toNativeSeparators(info.canonicalFilePath());
+    }
+    return {};
+}
+
+const QStringList kBridgeModes{QStringLiteral("off"), QStringLiteral("snowflake"), QStringLiteral("obfs4"), QStringLiteral("custom")};
+
+}  // namespace
+
+bool TorController::bridgesAvailable() const {
+    return !transportProgram(QStringLiteral("lyrebird")).isEmpty() && !transportProgram(QStringLiteral("snowflake-client")).isEmpty();
+}
+
+QJsonObject TorController::bridgesConfig(const QString& mode, const QString& lines) const {
+    QJsonObject bridges{{QStringLiteral("mode"), mode}};
+    if (mode == QStringLiteral("custom")) bridges.insert(QStringLiteral("lines"), QJsonArray::fromStringList(lines.split(QLatin1Char('\n'))));
+    const QString lyrebird = transportProgram(QStringLiteral("lyrebird"));
+    const QString snowflake = transportProgram(QStringLiteral("snowflake-client"));
+    if (!lyrebird.isEmpty()) bridges.insert(QStringLiteral("lyrebirdPath"), lyrebird);
+    if (!snowflake.isEmpty()) bridges.insert(QStringLiteral("snowflakePath"), snowflake);
+    return bridges;
+}
+
+QString TorController::setBridges(const QString& mode, const QString& lines) {
+    if (!kBridgeModes.contains(mode)) return QStringLiteral("Choose how to connect.");
+    if (!enabled()) return QStringLiteral("This copy doesn't use Tor.");
+    const QString trimmed = mode == QStringLiteral("custom") ? lines.trimmed() : QString();
+#ifdef REDVAULT_HAS_TOR
+    if (mode != QStringLiteral("off")) {
+        if (!bridgesAvailable()) return QStringLiteral("This copy of the app doesn't include bridge support.");
+        const QByteArray json = QJsonDocument(bridgesConfig(mode, trimmed)).toJson(QJsonDocument::Compact);
+        const QJsonObject result = takeJson(rv_tor_validate_bridges(json.constData()));
+        if (!result.value(QStringLiteral("ok")).toBool())
+            return result.value(QStringLiteral("error")).toString(QStringLiteral("Those bridges can't be used."));
+    }
+#endif
+    if (mode == bridgeMode_ && trimmed == bridgeLines_) return {};
+    bridgeMode_ = mode;
+    bridgeLines_ = trimmed;
+    QSettings().setValue(QStringLiteral("network/bridgeMode"), bridgeMode_);
+    QSettings().setValue(QStringLiteral("network/bridgeLines"), bridgeLines_);
+    emit bridgesChanged();
+    // Restart Tor with the new way in: requests wait (queued) meanwhile, never leave another way.
+    stop();
+    startGateway();
+    return {};
 }
 
 void TorController::poll() {

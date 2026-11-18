@@ -124,7 +124,7 @@ void AccountSession::reload() {
         });
 }
 
-// Pro: storage use. Free has no storage (sending files is Pro-only), but may upgrade.
+// Every plan: storage use for files sent in chats (Free has a smaller limit).
 void AccountSession::reloadPlanDetails() {
     auto api = api_;
     runInBackground(
@@ -137,13 +137,6 @@ void AccountSession::reloadPlanDetails() {
             emit planChanged();
         },
         [](const Failure&) {});
-    if (!pro()) {
-        storage_.reset();
-        emit storageChanged();
-        planStatus_.reset();
-        emit planChanged();
-        return;
-    }
     runInBackground(
         pool_, this, [api]() { return api->fileStorageUsage(); },
         [this](api::FileStorageUsageDto usage) {
@@ -151,6 +144,11 @@ void AccountSession::reloadPlanDetails() {
             emit storageChanged();
         },
         [](const Failure&) {});
+    if (!pro()) {
+        planStatus_.reset();
+        emit planChanged();
+        return;
+    }
     // An older server has no /billing/status; the plan then shows without an end date or buttons.
     runInBackground(
         pool_, this, [api]() { return api->planStatus(); },

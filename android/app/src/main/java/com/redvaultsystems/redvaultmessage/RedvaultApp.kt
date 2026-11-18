@@ -158,7 +158,18 @@ class AppContainer(app: Application) {
         // A build with the sealed backup route also lets the gate reach that one website (port 443, through Tor).
         val sealedWebsite = BuildConfig.SEALED_GATEWAY_URL.toHttpUrl().host
             .takeIf { BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() }
-        TorController(host, File(app.noBackupFilesDir, "tor"), exitHost = sealedWebsite).also { it.start() }
+        val network = app.getSharedPreferences("network", Context.MODE_PRIVATE)
+        TorController(
+            host, File(app.noBackupFilesDir, "tor"), exitHost = sealedWebsite,
+            nativeLibDir = File(app.applicationInfo.nativeLibraryDir),
+        ).also { controller ->
+            // Bridges: not secret (which way into Tor), kept so the next start uses them too.
+            controller.loadBridges(network.getString("bridgeMode", "off") ?: "off", network.getString("bridgeLines", "") ?: "")
+            controller.onBridgesChanged = { mode, lines ->
+                network.edit().putString("bridgeMode", mode).putString("bridgeLines", lines).apply()
+            }
+            controller.start()
+        }
     }
     /** Whether this build and phone have the sealed backup route: Tor routing, the gateway's key, and crypto-core. */
     private val backupRouteBuilt: Boolean = tor != null && BuildConfig.E2E_V3 && BuildConfig.SEALED_KEY_CONFIG.isNotEmpty() &&

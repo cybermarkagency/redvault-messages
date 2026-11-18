@@ -109,7 +109,7 @@ catch_discover_tests(redvault_core_tests)
 # candidates, no relay) and exchange real Opus audio and VP8 video.
 if(TARGET redvault_rtc)
     # rtc_relay_test runs real ICE agents against libjuice's own TURN server on loopback.
-    add_executable(redvault_rtc_tests rtc_loopback_test.cpp rtc_relay_test.cpp)
+    add_executable(redvault_rtc_tests rtc_loopback_test.cpp rtc_relay_test.cpp rtc_video_receive_test.cpp)
     target_link_libraries(redvault_rtc_tests PRIVATE redvault_rtc redvault_core LibJuice::LibJuiceStatic Catch2::Catch2WithMain)
     if(WIN32)
         target_link_libraries(redvault_rtc_tests PRIVATE ws2_32)
@@ -135,16 +135,27 @@ if(TARGET Qt6::Quick)
     catch_discover_tests(redvault_channel_page_tests)
 
     # The Files viewer's real QML showing real files of each kind, over a stand-in FilesSession.
-    add_executable(redvault_files_preview_tests file_preview_page_test.cpp)
+    # Own main(): see files_preview_main.cpp (Qt Multimedia can hang the exit on Windows).
+    add_executable(redvault_files_preview_tests file_preview_page_test.cpp files_preview_main.cpp)
     target_include_directories(redvault_files_preview_tests PRIVATE ../app/src)
-    target_link_libraries(redvault_files_preview_tests PRIVATE Qt6::Quick Qt6::Qml Qt6::Multimedia Catch2::Catch2WithMain)
+    target_link_libraries(redvault_files_preview_tests PRIVATE Qt6::Quick Qt6::Qml Qt6::Multimedia Catch2::Catch2)
     target_compile_definitions(redvault_files_preview_tests PRIVATE
         REDVAULT_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/qml"
         REDVAULT_FILES_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_files_stubs")
     if(TARGET Qt6::PdfQuick)
         target_compile_definitions(redvault_files_preview_tests PRIVATE REDVAULT_HAS_PDF)
     endif()
-    catch_discover_tests(redvault_files_preview_tests)
+    # A hang fails that one test after 2 minutes instead of stopping the whole run.
+    catch_discover_tests(redvault_files_preview_tests PROPERTIES TIMEOUT 120)
+
+    # Settings › Network routing (the Bridges part): its real QML over a stand-in TorController.
+    add_executable(redvault_network_routing_tests network_routing_page_test.cpp)
+    target_include_directories(redvault_network_routing_tests PRIVATE ../app/src)
+    target_link_libraries(redvault_network_routing_tests PRIVATE Qt6::Quick Qt6::Qml Catch2::Catch2WithMain)
+    target_compile_definitions(redvault_network_routing_tests PRIVATE
+        REDVAULT_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app/qml"
+        REDVAULT_NETWORK_QML_STUBS="${CMAKE_CURRENT_SOURCE_DIR}/qml_network_stubs")
+    catch_discover_tests(redvault_network_routing_tests)
 
 # The bits of the app with no window: the real AppLock against real QSettings, and the in-call chat panel's real QML
 # against stand-ins for the app's types. Runs on Qt's offscreen platform.
@@ -274,3 +285,22 @@ set_tests_properties(tor_settings_release_refuses_other_onion PROPERTIES
     PASS_REGULAR_EXPRESSION "talks only to" FAIL_REGULAR_EXPRESSION "Tor settings accepted")
 set_tests_properties(tor_settings_refuses_clearnet_base PROPERTIES
     PASS_REGULAR_EXPRESSION "needs REDVAULT_ONION_API_BASE" FAIL_REGULAR_EXPRESSION "Tor settings accepted")
+
+# A manual live check of bridges through the app's real TorController (needs the internet; not run by ctest):
+# build target redvault_tor_bridges_live, then run it with snowflake, obfs4 or a file of bridge lines.
+if(REDVAULT_TOR AND TARGET Qt6::Core)
+    add_executable(redvault_tor_bridges_live tor_bridges_live.cpp ../app/src/tor_controller.cpp ../app/src/tor_controller.hpp)
+    set_target_properties(redvault_tor_bridges_live PROPERTIES AUTOMOC ON EXCLUDE_FROM_ALL ON)
+    target_include_directories(redvault_tor_bridges_live PRIVATE ../app/src)
+    target_link_libraries(redvault_tor_bridges_live PRIVATE redvault_core Qt6::Core Qt6::Qml redvault_tor)
+    target_compile_definitions(redvault_tor_bridges_live PRIVATE REDVAULT_HAS_TOR=1)
+    redvault_copy_tor(redvault_tor_bridges_live)
+    if(REDVAULT_PT_DIR)
+        foreach(_rv_pt lyrebird snowflake-client)
+            add_custom_command(TARGET redvault_tor_bridges_live POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:redvault_tor_bridges_live>/pt"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${REDVAULT_PT_DIR}/${_rv_pt}${CMAKE_EXECUTABLE_SUFFIX}"
+                        "$<TARGET_FILE_DIR:redvault_tor_bridges_live>/pt/")
+        endforeach()
+    endif()
+endif()

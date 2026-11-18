@@ -51,7 +51,9 @@ public:
     Vp8Enc(const Vp8Enc&) = delete;
     Vp8Enc& operator=(const Vp8Enc&) = delete;
     /// Returns the encoded frame, and whether it's a keyframe. Reconfigures itself when the size changes.
-    std::vector<std::uint8_t> encode(const VideoFrame& frame, bool forceKeyframe, bool& isKeyframe);
+    /// `ptsMs` is when the picture was taken, so the rate control knows the real frame rate.
+    std::vector<std::uint8_t> encode(const VideoFrame& frame, bool forceKeyframe, bool& isKeyframe, std::int64_t ptsMs);
+    /// Takes effect on the next frame without a new keyframe.
     void setBitrate(int kbps);
 
 private:
@@ -59,8 +61,8 @@ private:
     vpx_codec_ctx* ctx_ = nullptr;
     int width_ = 0;
     int height_ = 0;
-    int kbps_ = 900;
-    std::int64_t pts_ = 0;
+    int kbps_ = 800;
+    std::int64_t pts_ = -1;
 };
 
 class Vp8Dec {

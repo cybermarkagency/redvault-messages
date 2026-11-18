@@ -83,9 +83,9 @@ function base(tier: SubscriptionTier, files: FilesStorageLimits | null): PlanCho
     free: {
       price: "$0",
       per: "",
-      includes: ["Unlimited end-to-end encrypted messages and groups", "One-to-one voice and video calls", "Open files people send you", "Password vault"],
+      includes: ["Unlimited end-to-end encrypted messages and groups", "One-to-one voice and video calls", "Send files in chats, up to 25 MB each", "Password vault"],
     },
-    pro: { price: "$8", per: "per month", includes: ["Everything in Free", "Send files in chats", "Voice call links"] },
+    pro: { price: "$8", per: "per month", includes: ["Everything in Free", "Send files in chats up to 100 MB each", "Voice call links"] },
     premium: {
       price: "$15",
       per: "per month",
@@ -143,7 +143,7 @@ export function planChoices(input: PlanInputs): PlanChoice[] {
         c.actionLabel = "Switch to Free";
         c.confirm =
           `Your subscription stops renewing and you won't be charged again. You keep ${TIER_LABELS[tier]} until the end of the ` +
-          "period you've paid for, then move to Free: messages and calls, but no sending files. Files you've already sent stay " +
+          "period you've paid for, then move to Free: messages, calls and files up to 25 MB each. Files you've already sent stay " +
           "available until they expire.";
       } else if (source === "granted") {
         c.note = "Your plan was set by an administrator.";

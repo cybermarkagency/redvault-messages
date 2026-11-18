@@ -16,6 +16,7 @@
 
 #include "codecs.hpp"
 #include "redvault/rtc/relay_sdp.hpp"
+#include "redvault/rtc/video_receive.hpp"
 #include "rtp.hpp"
 
 namespace redvault::rtc {
@@ -108,6 +109,52 @@ void findCodecs(const ::rtc::Description& d, Offered& audio, Offered& video) {
     }
 }
 
+/**
+ * The last link of the video track's chain, so it sees every RTCP packet before the stock handlers
+ * consume them. Reads what the peer reports about our video (loss, bandwidth) and sends the NACKs
+ * the receive buffer asks for; libdatachannel only hands out its send path inside the chain.
+ */
+class VideoFeedbackHandler final : public ::rtc::MediaHandler {
+public:
+    std::uint32_t ourSsrc = 0;
+    std::function<void(const RtcpFeedback&)> onFeedback;
+
+    void queue(std::vector<std::uint8_t> rtcp) {
+        std::lock_guard lock(mutex_);
+        pending_.push_back(std::move(rtcp));
+    }
+
+    void incoming(::rtc::message_vector& messages, const ::rtc::message_callback& send) override {
+        for (const auto& m : messages) {
+            if (!m || m->type != ::rtc::Message::Control || !onFeedback) continue;
+            const auto feedback = parseRtcpFeedback(reinterpret_cast<const std::uint8_t*>(m->data()), m->size(), ourSsrc);
+            if (feedback.fractionLost || feedback.rembBps) onFeedback(feedback);
+        }
+        flush(send);
+    }
+
+    void outgoing(::rtc::message_vector&, const ::rtc::message_callback& send) override { flush(send); }
+
+private:
+    void flush(const ::rtc::message_callback& send) {
+        std::vector<std::vector<std::uint8_t>> out;
+        {
+            std::lock_guard lock(mutex_);
+            out.swap(pending_);
+        }
+        for (auto& rtcp : out) {
+            auto bytes = reinterpret_cast<const std::byte*>(rtcp.data());
+            send(::rtc::make_message(bytes, bytes + rtcp.size(), ::rtc::Message::Control));
+        }
+    }
+
+    std::mutex mutex_;
+    std::vector<std::vector<std::uint8_t>> pending_;
+};
+
+/// What we tell the sender it may use for the video it sends us (REMB). Its own loss checks still apply.
+constexpr unsigned kReceiveBitrateBps = 2'500'000;
+
 }  // namespace
 
 struct CallMedia::Impl : std::enable_shared_from_this<CallMedia::Impl> {
@@ -129,12 +176,17 @@ struct CallMedia::Impl : std::enable_shared_from_this<CallMedia::Impl> {
     Vp8Enc vp8Encoder;
     std::atomic<bool> keyframeWanted{true};
     Clock::time_point videoStart = Clock::now();
+    SendBitrate sendBitrate;
+    std::atomic<int> wantedKbps{0};  // set from libdatachannel's thread, applied on the encoder's
+    int appliedKbps = 0;
+    std::uint32_t videoSsrc = 0;
+    std::shared_ptr<VideoFeedbackHandler> feedback;
 
     std::mutex videoRecvMutex;
-    Vp8Assembler assembler;
+    VideoReceiveBuffer receiveBuffer;
     Vp8Dec vp8Decoder;
-    bool haveKeyframe = false;
     Clock::time_point lastKeyframeRequest{};
+    bool bitrateRequested = false;
 
     mutable std::mutex stateMutex;
     std::condition_variable gatheredCv;
@@ -211,7 +263,7 @@ struct CallMedia::Impl : std::enable_shared_from_this<CallMedia::Impl> {
 
         if (!videoOffer) return;
         videoPt = videoOffer->payloadType;
-        const std::uint32_t videoSsrc = randomU32();
+        videoSsrc = randomU32();
         ::rtc::Description::Video v(videoOffer->mid, ::rtc::Description::Direction::SendRecv);
         v.addVP8Codec(videoPt);
         v.addSSRC(videoSsrc, cname, msid, "rv-video");
@@ -225,6 +277,17 @@ struct CallMedia::Impl : std::enable_shared_from_this<CallMedia::Impl> {
             if (auto self = weak.lock()) self->keyframeWanted = true;
         }));
         videoPacketizer->addToChain(std::make_shared<::rtc::RtcpReceivingSession>());
+        feedback = std::make_shared<VideoFeedbackHandler>();
+        feedback->ourSsrc = videoSsrc;
+        feedback->onFeedback = [weak](const RtcpFeedback& f) {
+            auto self = weak.lock();
+            if (!self) return;
+            int kbps = self->sendBitrate.targetKbps();
+            if (f.rembBps) kbps = self->sendBitrate.onRemb(*f.rembBps);
+            if (f.fractionLost) kbps = self->sendBitrate.onLoss(*f.fractionLost);
+            self->wantedKbps = kbps;
+        };
+        videoPacketizer->addToChain(feedback);
         video->setMediaHandler(videoPacketizer);
         video->onMessage(
             [weak](::rtc::binary message) {
@@ -236,29 +299,39 @@ struct CallMedia::Impl : std::enable_shared_from_this<CallMedia::Impl> {
     void receiveVideo(const ::rtc::binary& message) {
         const auto rtp = parseRtp(reinterpret_cast<const std::uint8_t*>(message.data()), message.size());
         if (!rtp || rtp->payloadType != videoPt) return;
-        std::optional<VideoFrame> decoded;
+        std::vector<VideoFrame> decoded;
         bool askKeyframe = false;
+        bool askBitrate = false;
+        std::vector<std::uint8_t> nack;
         {
             std::lock_guard lock(videoRecvMutex);
-            auto result = assembler.push(*rtp);
-            if (result.lost) askKeyframe = true;
-            if (result.frame) {
-                if (result.keyframe) haveKeyframe = true;
-                if (haveKeyframe) {
-                    decoded = vp8Decoder.decode(*result.frame);
-                    if (!decoded) askKeyframe = true;
-                } else {
+            const auto now = Clock::now();
+            VideoPacket packet{rtp->sequence, rtp->timestamp, rtp->marker, rtp->payload, rtp->payloadSize};
+            auto result = receiveBuffer.push(packet, now);
+            for (auto& frame : result.frames) {
+                auto picture = vp8Decoder.decode(frame.data);
+                if (!picture) {
+                    // Couldn't use it: hold the last good picture until a keyframe instead of showing damage.
+                    receiveBuffer.resync();
                     askKeyframe = true;
+                    break;
                 }
+                decoded.push_back(std::move(*picture));
             }
+            if (result.needKeyframe) askKeyframe = true;
             if (askKeyframe) {
-                const auto now = Clock::now();
-                if (now - lastKeyframeRequest < std::chrono::milliseconds(500)) askKeyframe = false;
+                // A keyframe takes a round trip to come back; asking again sooner only makes more of them.
+                if (now - lastKeyframeRequest < std::chrono::milliseconds(700)) askKeyframe = false;
                 else lastKeyframeRequest = now;
             }
+            if (!result.nack.empty()) nack = buildNack(videoSsrc, rtp->ssrc, result.nack);
+            if (!bitrateRequested) bitrateRequested = askBitrate = true;
         }
+        if (!nack.empty() && feedback) feedback->queue(std::move(nack));
         if (askKeyframe && video) video->requestKeyframe();
-        if (decoded && callbacks.onVideoFrame) callbacks.onVideoFrame(*decoded);
+        if (askBitrate && video) video->requestBitrate(kReceiveBitrateBps);
+        // Several frames at once only after a resend filled a gap: show the newest, the rest are already late.
+        if (!decoded.empty() && callbacks.onVideoFrame) callbacks.onVideoFrame(decoded.back());
     }
 
     /// The only way a remote description gets in, so offers, answers and anything later pass the same filter.
@@ -375,10 +448,14 @@ void CallMedia::sendVideo(const VideoFrame& frame) {
     auto& i = *impl_;
     if (!i.video || !i.video->isOpen()) return;
     std::lock_guard lock(i.videoSendMutex);
-    bool keyframe = false;
-    auto encoded = i.vp8Encoder.encode(frame, i.keyframeWanted.exchange(false), keyframe);
-    if (encoded.empty()) return;
+    if (const int wanted = i.wantedKbps.load(); wanted > 0 && wanted != i.appliedKbps) {
+        i.vp8Encoder.setBitrate(wanted);
+        i.appliedKbps = wanted;
+    }
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - i.videoStart).count();
+    bool keyframe = false;
+    auto encoded = i.vp8Encoder.encode(frame, i.keyframeWanted.exchange(false), keyframe, elapsed);
+    if (encoded.empty()) return;
     const auto timestamp = static_cast<std::uint32_t>(i.videoConfig->startTimestamp + static_cast<std::uint32_t>(elapsed * 90));
     ::rtc::binary data(reinterpret_cast<const std::byte*>(encoded.data()), reinterpret_cast<const std::byte*>(encoded.data() + encoded.size()));
     try {
@@ -390,6 +467,15 @@ void CallMedia::sendVideo(const VideoFrame& frame) {
 void CallMedia::setVideoBitrate(int kbps) {
     std::lock_guard lock(impl_->videoSendMutex);
     impl_->vp8Encoder.setBitrate(kbps);
+    impl_->appliedKbps = kbps;
+}
+
+std::pair<int, int> CallMedia::maxVideoSize() {
+    return impl_->sendBitrate.maxSize();
+}
+
+int CallMedia::videoBitrateKbps() const {
+    return impl_->sendBitrate.targetKbps();
 }
 
 std::uint64_t CallMedia::audioPacketsReceived() const {

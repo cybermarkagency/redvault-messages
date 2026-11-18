@@ -17,6 +17,7 @@ use tokio::task::JoinHandle;
 use tor_rtcompat::tokio::TokioRustlsRuntime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::bridges::{self, BridgeError, BridgeSettings};
 use crate::policy::{PolicyError, TargetPolicy};
 use crate::socks::{self, Connector, SocksContext};
 use crate::status::{Status, StatusCell};
@@ -32,6 +33,8 @@ pub struct GatewayConfig {
     /// `"<hostname>:443"`, at most one: the sealed backup route's website, reached
     /// through a Tor exit (see `policy`). Empty: onion services only.
     pub allowed_exit_targets: Vec<String>,
+    /// How to reach Tor: straight, or through bridges (see `bridges`).
+    pub bridges: BridgeSettings,
     /// Test only: point Arti at an unreachable directory cache so it can never
     /// bootstrap (a censored or offline network). Needs an empty cache_dir.
     #[cfg(feature = "test-hooks")]
@@ -66,6 +69,8 @@ impl std::fmt::Debug for SocksEndpoint {
 pub enum GatewayError {
     #[error("bad routing policy: {0}")]
     Policy(#[from] PolicyError),
+    #[error("bad bridge settings: {0}")]
+    Bridges(#[from] BridgeError),
     #[error("bad Tor configuration: {0}")]
     Config(String),
     #[error("couldn't start Tor: {0}")]
@@ -84,18 +89,37 @@ pub struct Gateway {
 struct TorConnector {
     client: Arc<TorClient<TokioRustlsRuntime>>,
     prefs: StreamPrefs,
+    /// Extra tries for a failed connection (bridges only, see `connect`).
+    retries: u32,
 }
+
+/// With bridges, Arti can report "connected" before it has fetched each
+/// bridge's own details, and until then refuses circuits at once ("no usable
+/// guards"). After a few such failures Arti also backs off its onion-service
+/// circuits for a while. Seen on obfs4 runs against the live service on Windows
+/// and Linux, always fine within about a minute; so a failed connection is
+/// tried again for up to a minute.
+const BRIDGE_RETRIES: u32 = 6;
+const BRIDGE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(10);
 
 impl Connector for TorConnector {
     type Stream = DataStream;
     fn connect(&self, host: String, port: u16) -> impl std::future::Future<Output = io::Result<DataStream>> + Send {
         let client = Arc::clone(&self.client);
         let prefs = self.prefs.clone();
+        let retries = self.retries;
         async move {
-            client
-                .connect_with_prefs((host.as_str(), port), &prefs)
-                .await
-                .map_err(|e| io::Error::other(e.to_string()))
+            let mut attempt = 0;
+            loop {
+                match client.connect_with_prefs((host.as_str(), port), &prefs).await {
+                    Ok(stream) => return Ok(stream),
+                    Err(e) if attempt >= retries => return Err(io::Error::other(e.to_string())),
+                    Err(_) => {
+                        attempt += 1;
+                        tokio::time::sleep(BRIDGE_RETRY_DELAY).await;
+                    }
+                }
+            }
         }
     }
 }
@@ -112,6 +136,7 @@ impl Gateway {
         let policy = TargetPolicy::parse_with_exits(&config.allowed_targets, &config.allowed_exit_targets)?;
 
         let mut builder = TorClientConfigBuilder::from_directories(&config.state_dir, &config.cache_dir);
+        bridges::apply(&config.bridges, &mut builder)?;
         #[cfg(feature = "test-hooks")]
         if config.test_blocked_network {
             let mut fallback = arti_client::config::dir::FallbackDir::builder();
@@ -132,6 +157,9 @@ impl Gateway {
             .map_err(|e| GatewayError::Tor(e.to_string()))?;
 
         let status = Arc::new(StatusCell::default());
+        if config.bridges.mode != crate::bridges::BridgeMode::Off {
+            status.use_bridge_deadline();
+        }
         let mut tasks = Vec::new();
 
         let mut events = client.bootstrap_events();
@@ -175,7 +203,11 @@ impl Gateway {
         let mut prefs = StreamPrefs::new();
         prefs.connect_to_onion_services(arti_client::config::BoolOrAuto::Explicit(true));
         let ctx = Arc::new(SocksContext {
-            connector: TorConnector { client: Arc::clone(&client), prefs },
+            connector: TorConnector {
+                client: Arc::clone(&client),
+                prefs,
+                retries: if config.bridges.mode == crate::bridges::BridgeMode::Off { 0 } else { BRIDGE_RETRIES },
+            },
             policy,
             username: endpoint.username.clone(),
             password: endpoint.password.clone(),

@@ -39,6 +39,10 @@ object OpenSourceInfo {
         LicenseAsset("IBM Plex Sans (SIL Open Font License 1.1)", "licenses/ibm-plex-sans-OFL.txt"),
         LicenseAsset("IBM Plex Mono (SIL Open Font License 1.1)", "licenses/ibm-plex-mono-OFL.txt"),
         LicenseAsset("Lucide icons (ISC License)", "licenses/lucide-LICENSE.txt"),
+        // Bridges: the Tor Project's transport programs (tor-core/pt/README.md has the exact source versions).
+        LicenseAsset("lyrebird, obfs4 and WebTunnel bridges (BSD-2-Clause)", "licenses/lyrebird-LICENSE.txt"),
+        LicenseAsset("lyrebird as built (GNU General Public License v3 or later)", "licenses/lyrebird-LICENSE-GPL3.txt"),
+        LicenseAsset("Snowflake bridges (BSD-3-Clause)", "licenses/snowflake-LICENSE.txt"),
     )
 
     /** Every asset the section can open. */

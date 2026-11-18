@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <QObject>
+#include <QJsonObject>
 #include <QString>
 #include <QTimer>
 #include <QtQml/qqmlregistration.h>
@@ -51,6 +52,12 @@ class TorController : public QObject {
     Q_PROPERTY(bool backupRouteAvailable READ backupRouteAvailable CONSTANT)
     /// The user's choice "Only use the onion address" (kept on this computer; off by default).
     Q_PROPERTY(bool onionOnly READ onionOnly WRITE setOnionOnly NOTIFY routeChanged)
+    /// Bridges: "off", "snowflake", "obfs4" or "custom" (kept on this computer).
+    Q_PROPERTY(QString bridgeMode READ bridgeMode NOTIFY bridgesChanged)
+    /// The pasted bridge lines for "custom", one per line.
+    Q_PROPERTY(QString bridgeLines READ bridgeLines NOTIFY bridgesChanged)
+    /// Whether this copy ships the programs bridges need (lyrebird, snowflake-client).
+    Q_PROPERTY(bool bridgesAvailable READ bridgesAvailable CONSTANT)
 
 public:
     /// `onionHost` empty: Tor routing is off for this run (clearnet build talking to a clearnet server).
@@ -71,6 +78,13 @@ public:
     /// Thread-safe (the transport reads it on worker threads).
     bool onionOnly() const { return onionOnly_->load(); }
     void setOnionOnly(bool onionOnly);
+
+    QString bridgeMode() const { return bridgeMode_; }
+    QString bridgeLines() const { return bridgeLines_; }
+    bool bridgesAvailable() const;
+    /// Checks and saves bridge settings, then restarts Tor with them.
+    /// Returns "" when saved, or what's wrong (nothing is changed then).
+    Q_INVOKABLE QString setBridges(const QString& mode, const QString& lines);
     /// For the transport: the shared flag behind onionOnly().
     std::shared_ptr<std::atomic<bool>> onionOnlyFlag() const { return onionOnly_; }
     /// The transport switched routes (any thread). Remembered for the next start.
@@ -93,6 +107,7 @@ signals:
     void changed();
     void queuedChanged();
     void routeChanged();
+    void bridgesChanged();
     /// The user turned "Only use the onion address" on: the transport must leave the backup route now.
     void onionOnlyChosen();
     /// Tor just became usable: time to send what's queued.
@@ -100,6 +115,10 @@ signals:
 
 private:
     void poll();
+    /// Starts the gateway with the current settings (constructor, and after a bridge change).
+    void startGateway();
+    /// The bridges part of the gateway's start config.
+    QJsonObject bridgesConfig(const QString& mode, const QString& lines) const;
 
     struct Shared {
         std::mutex mutex;
@@ -108,6 +127,9 @@ private:
     };
 
     QString onionHost_;
+    QString stateDir_;
+    QString bridgeMode_ = QStringLiteral("off");
+    QString bridgeLines_;
     QString state_ = QStringLiteral("off");
     int progress_ = 0;
     QString detail_;

@@ -55,63 +55,6 @@ std::vector<::rtc::binary> Vp8RtpPacketizer::fragment(::rtc::binary data) {
     return out;
 }
 
-Vp8Assembler::Result Vp8Assembler::push(const RtpView& packet) {
-    Result result;
-    if (packet.payloadSize < 1) return result;
-    const std::uint8_t* p = packet.payload;
-    std::size_t n = packet.payloadSize;
-    // Payload descriptor.
-    const std::uint8_t first = p[0];
-    const bool extended = first & 0x80;
-    const bool start = first & 0x10;
-    const std::uint8_t partition = first & 0x07;
-    std::size_t header = 1;
-    if (extended) {
-        if (n < 2) return result;
-        const std::uint8_t ext = p[1];
-        header = 2;
-        if (ext & 0x80) {  // PictureID
-            if (n < header + 1) return result;
-            header += (p[header] & 0x80) ? 2 : 1;
-        }
-        if (ext & 0x40) header += 1;           // TL0PICIDX
-        if (ext & 0x20 || ext & 0x10) header += 1;  // TID / KEYIDX
-    }
-    if (n <= header) return result;
-
-    const bool gap = lastSeq_ && static_cast<std::uint16_t>(*lastSeq_ + 1) != packet.sequence;
-    lastSeq_ = packet.sequence;
-    if (gap && collecting_) {
-        broken_ = true;
-        result.lost = true;
-    }
-
-    if (start && partition == 0) {
-        if (collecting_ && !broken_ && packet.timestamp != timestamp_) result.lost = true;  // previous frame never finished
-        buffer_.clear();
-        collecting_ = true;
-        broken_ = false;
-        timestamp_ = packet.timestamp;
-    } else if (!collecting_ || packet.timestamp != timestamp_) {
-        // The start of this frame was lost.
-        collecting_ = false;
-        result.lost = gap || result.lost;
-        return result;
-    }
-    buffer_.insert(buffer_.end(), p + header, p + n);
-    if (packet.marker) {
-        collecting_ = false;
-        if (broken_) {
-            result.lost = true;
-        } else if (!buffer_.empty()) {
-            result.keyframe = (buffer_[0] & 0x01) == 0;  // VP8 payload header: P bit clear on keyframes
-            result.frame = std::move(buffer_);
-        }
-        buffer_ = {};
-    }
-    return result;
-}
-
 namespace {
 constexpr std::size_t kStartPackets = 3;  // ~60 ms before playing
 constexpr std::size_t kMaxPackets = 15;   // past ~300 ms, skip ahead

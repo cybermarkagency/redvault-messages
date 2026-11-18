@@ -11,6 +11,7 @@
 //!
 //! Isolated: no app uses it yet. See docs/tor-routing-plan.md.
 
+mod bridges;
 mod gateway;
 mod policy;
 mod socks;
@@ -23,6 +24,7 @@ mod jni_binding;
 #[cfg(any(feature = "ffi", feature = "jni"))]
 mod json_config;
 
+pub use bridges::{validate as validate_bridges, BridgeError, BridgeMode, BridgeSettings};
 pub use gateway::{Gateway, GatewayConfig, GatewayError, SocksEndpoint};
 pub use policy::{OnionTarget, PolicyError, TargetPolicy};
 pub use status::{Stats, Status, TorState};

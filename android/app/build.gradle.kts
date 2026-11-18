@@ -92,8 +92,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // redvaultTestVersionCode: for testing in-app updates only (a "newer" debug APK); never set for a release.
-        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 16
-        versionName = "0.7.2"
+        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 17
+        versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
@@ -141,6 +141,9 @@ android {
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // The bridge programs (liblyrebird.so, libsnowflake.so) are programs, not libraries: Android only lets an app
+        // run them from its native-library folder, which needs the libraries extracted at install time.
+        jniLibs.useLegacyPackaging = true
     }
     // The Terms of Service and Privacy Policy, shared with the web and
     // desktop apps: legal/ at the repository root, bundled as assets.
@@ -149,6 +152,8 @@ android {
             assets.directories.add("../../legal")
             // The Tor gateway's native library (buildTorCore below), in every build.
             jniLibs.directories.add(layout.buildDirectory.dir("torJniLibs").get().asFile.path)
+            // The Tor Project's bridge programs (buildTransports below), in every build.
+            jniLibs.directories.add(layout.buildDirectory.dir("ptJniLibs").get().asFile.path)
             // The Java side of the engine's JNI binding (com.redvaultsystems.e2ee.NativeE2ee) and its library.
             java.directories.add("../../crypto-core/bindings/android")
             if (e2eV3) jniLibs.directories.add(layout.buildDirectory.dir("e2eeJniLibs").get().asFile.path)
@@ -304,6 +309,37 @@ run {
         }
     }
     tasks.named("preBuild") { dependsOn(buildTorCore) }
+
+    // Bridges (tor-core/src/bridges.rs): lyrebird (obfs4, WebTunnel) and snowflake-client, built from pinned Tor
+    // Project source with Go and the NDK by tor-core/pt/build-transports.sh. Needs Go (redvaultGo, else "go" on
+    // PATH) and bash (redvaultBash; on Windows Git's bash).
+    val ptOut = layout.buildDirectory.dir("ptJniLibs")
+    val ptTargets = mapOf("arm64-v8a" to "android-arm64", "armeabi-v7a" to "android-arm", "x86_64" to "android-x86_64")
+    val bash = (project.findProperty("redvaultBash") as String?)
+        ?: listOf("C:/Program Files/Git/bin/bash.exe", "/bin/bash", "/usr/bin/bash").firstOrNull { File(it).exists() }
+        ?: "bash"
+    val goBin = (project.findProperty("redvaultGo") as String?)?.let { File(it).parentFile?.path }
+        ?: listOf("C:/Program Files/Go/bin", "/usr/local/go/bin").firstOrNull { File(it).exists() }
+    val buildTransports = tasks.register("buildTransports") {
+        group = "build"
+        description = "Builds the Tor bridge programs (lyrebird, snowflake-client) for $abis with Go"
+        inputs.file(File(torCore, "pt/build-transports.sh"))
+        outputs.dir(ptOut)
+        doLast {
+            require(toolchain.exists()) { "The NDK $ndkVersion isn't installed at $toolchain (set redvaultNdkVersion)" }
+            for (abi in abis) {
+                val target = ptTargets[abi] ?: error("No bridge programs for ABI $abi")
+                val dest = ptOut.get().dir(abi).asFile
+                execs.exec {
+                    workingDir = torCore
+                    commandLine(bash, "pt/build-transports.sh", target, dest.path.replace('\\', '/'))
+                    environment("ANDROID_NDK_HOME", File("$sdkDir/ndk/$ndkVersion").path.replace('\\', '/'))
+                    if (goBin != null) environment("PATH", goBin + File.pathSeparator + System.getenv("PATH"))
+                }.result.get().assertNormalExitValue()
+            }
+        }
+    }
+    tasks.named("preBuild") { dependsOn(buildTransports) }
 }
 
 // A release build only ever talks to the onion API base through Tor: any other redvaultApiBase fails the build here,

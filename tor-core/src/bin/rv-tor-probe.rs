@@ -8,6 +8,9 @@
 //!
 //! rv-tor-probe --state DIR --cache DIR --target HOST.onion:80
 //!              [--get PATH]... [--wait SECONDS] [--blocked-network]
+//!              [--bridges snowflake|obfs4|FILE] [--lyrebird EXE] [--snowflake EXE]
+//!
+//! --bridges FILE reads custom bridge lines from FILE, one per line.
 //!
 //! Each --get prints one JSON line on stdout: {"path","status","bytes"} or
 //! {"path","error"}. Exit code 0 only if every --get got an HTTP response.
@@ -27,6 +30,7 @@ struct Args {
     gets: Vec<String>,
     wait: u64,
     blocked: bool,
+    bridges: redvault_tor::BridgeSettings,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -37,6 +41,7 @@ fn parse_args() -> Result<Args, String> {
         gets: Vec::new(),
         wait: 300,
         blocked: false,
+        bridges: Default::default(),
     };
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
@@ -51,6 +56,17 @@ fn parse_args() -> Result<Args, String> {
             "--target" => args.target = value,
             "--get" => args.gets.push(value),
             "--wait" => args.wait = value.parse().map_err(|_| "bad --wait")?,
+            "--bridges" => match value.as_str() {
+                "snowflake" => args.bridges.mode = redvault_tor::BridgeMode::Snowflake,
+                "obfs4" => args.bridges.mode = redvault_tor::BridgeMode::Obfs4,
+                file => {
+                    args.bridges.mode = redvault_tor::BridgeMode::Custom;
+                    let text = std::fs::read_to_string(file).map_err(|e| format!("--bridges {file}: {e}"))?;
+                    args.bridges.lines = text.lines().map(str::to_owned).collect();
+                }
+            },
+            "--lyrebird" => args.bridges.lyrebird_path = Some(value.into()),
+            "--snowflake" => args.bridges.snowflake_path = Some(value.into()),
             other => return Err(format!("unknown flag {other}")),
         }
     }
@@ -129,6 +145,7 @@ async fn main() {
         cache_dir: args.cache,
         allowed_targets: vec![args.target.clone()],
         allowed_exit_targets: Vec::new(),
+        bridges: args.bridges.clone(),
         #[cfg(feature = "test-hooks")]
         test_blocked_network: args.blocked,
     })
@@ -171,13 +188,23 @@ async fn main() {
     let mut all_ok = true;
     for path in &args.gets {
         let began = Instant::now();
-        let line = match http_get(gateway.endpoint(), &args.target, path).await {
-            Ok((status, bytes)) => serde_json::json!({
-                "path": path, "status": status, "bytes": bytes, "ms": began.elapsed().as_millis() as u64
-            }),
-            Err(error) => {
-                all_ok = false;
-                serde_json::json!({ "path": path, "error": error, "ms": began.elapsed().as_millis() as u64 })
+        // Like the apps, retry a few times: with bridges, Arti can say
+        // "connected" before it has each bridge's own details, and refuses
+        // circuits until it does.
+        let mut attempt = 0;
+        let line = loop {
+            attempt += 1;
+            match http_get(gateway.endpoint(), &args.target, path).await {
+                Ok((status, bytes)) => {
+                    break serde_json::json!({
+                        "path": path, "status": status, "bytes": bytes, "ms": began.elapsed().as_millis() as u64, "attempts": attempt
+                    })
+                }
+                Err(error) if attempt >= 6 => {
+                    all_ok = false;
+                    break serde_json::json!({ "path": path, "error": error, "ms": began.elapsed().as_millis() as u64, "attempts": attempt });
+                }
+                Err(_) => tokio::time::sleep(Duration::from_secs(10)).await,
             }
         };
         println!("{line}");

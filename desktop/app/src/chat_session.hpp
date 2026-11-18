@@ -206,7 +206,7 @@ public:
     /**
      * Forwards messages of the open chat (oldest first) to other chats: text
      * as a new message marked "Forwarded", files re-encrypted and uploaded
-     * again (sending files needs Pro). `forwardDone` reports the outcome.
+     * again. `forwardDone` reports the outcome.
      */
     Q_INVOKABLE void forwardMessages(const QStringList& messageIds, const QStringList& chatIds);
     /**

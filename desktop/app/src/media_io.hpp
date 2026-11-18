@@ -43,6 +43,8 @@ public:
     virtual void readAudio(std::int16_t* out, std::size_t samples) = 0;
     /// One camera or screen picture. A one-to-one call has a single video track, so it ignores `screen`.
     virtual void sendVideo(const rtc::VideoFrame& frame, bool screen) = 0;
+    /// The largest camera picture to send (width, height). Any thread.
+    virtual std::pair<int, int> maxCameraSize() { return {640, 480}; }
 };
 
 /// The port of a one-to-one call.

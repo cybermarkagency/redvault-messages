@@ -123,7 +123,6 @@ import com.redvaultsystems.redvaultmessage.ui.settings.RelayServersScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.TransparencyLogScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.PrivacyModeScreen
 import com.redvaultsystems.redvaultmessage.ui.settings.SettingsScreen
-import com.redvaultsystems.redvaultmessage.ui.settings.isPaidTier
 import com.redvaultsystems.redvaultmessage.ui.settings.PlansScreen
 import com.redvaultsystems.redvaultmessage.ui.components.PlanGate
 import com.redvaultsystems.redvaultmessage.ui.components.UpgradeSheet
@@ -771,7 +770,8 @@ private fun SignedInContent(
                         chats.queued > 0 && torStatus.state == TorState.Connecting -> "Connecting to Tor. ${chats.queued} waiting to send."
                         else -> null
                     },
-                    canSendFiles = isPaidTier(account.profile.subscriptionTier),
+                    // Every plan can send files (Free has a smaller size limit, which the server enforces).
+                    canSendFiles = true,
                     blocked = account.blocked.any { it.userId == conversation.meta.otherUserId },
                     onSetBlocked = { block ->
                         if (block) session.account.block(conversation.meta.otherUserId)
