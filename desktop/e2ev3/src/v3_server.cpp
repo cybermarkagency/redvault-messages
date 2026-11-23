@@ -19,7 +19,30 @@ Json nullIfEmpty(const std::string& text) {
 }  // namespace
 
 Json HttpV3Server::config() {
-    return api_->call("GET", "e2e/v3/config");
+    Json answer = api_->call("GET", "e2e/v3/config");
+    noteConfig(answer);
+    return answer;
+}
+
+void HttpV3Server::noteConfig(const Json& config) {
+    if (!config.is_object()) return;
+    const auto it = config.find("allDevices");
+    std::lock_guard lock(configMutex_);
+    allDevices_ = it != config.end() && it->is_boolean() && it->get<bool>();
+}
+
+bool HttpV3Server::takesAllDevices() {
+    {
+        std::lock_guard lock(configMutex_);
+        if (allDevices_) return *allDevices_;
+    }
+    try {
+        config();
+    } catch (const std::exception&) {
+        return false;  // not known: the send goes unmarked, as to an older server (asked again next time)
+    }
+    std::lock_guard lock(configMutex_);
+    return allDevices_.value_or(false);
 }
 
 Json HttpV3Server::registerDevice(const Json& upload) {
@@ -53,9 +76,11 @@ Json HttpV3Server::claimKeys(const std::string& conversationId, const Json& devi
     return api_->call("POST", "e2e/v3/claim", Json{{"conversationId", nullIfEmpty(conversationId)}, {"devices", devices}});
 }
 
-void HttpV3Server::sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) {
-    api_->call("POST", "e2e/v3/messages",
-               Json{{"senderDeviceId", senderDeviceId}, {"conversationId", nullIfEmpty(conversationId)}, {"messages", messages}});
+void HttpV3Server::sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages,
+                                bool allDevices) {
+    Json request{{"senderDeviceId", senderDeviceId}, {"conversationId", nullIfEmpty(conversationId)}, {"messages", messages}};
+    if (allDevices && takesAllDevices()) request["allDevices"] = true;
+    api_->call("POST", "e2e/v3/messages", request);
 }
 
 Json HttpV3Server::conversationDeviceLists(const std::string& conversationId) {
@@ -63,9 +88,10 @@ Json HttpV3Server::conversationDeviceLists(const std::string& conversationId) {
 }
 
 void HttpV3Server::sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                                    const Json& recipients) {
-    api_->call("POST", "e2e/v3/group-messages",
-               Json{{"senderDeviceId", senderDeviceId}, {"conversationId", conversationId}, {"body", body}, {"recipients", recipients}});
+                                    const Json& recipients, bool allDevices) {
+    Json request{{"senderDeviceId", senderDeviceId}, {"conversationId", conversationId}, {"body", body}, {"recipients", recipients}};
+    if (allDevices && takesAllDevices()) request["allDevices"] = true;
+    api_->call("POST", "e2e/v3/group-messages", request);
 }
 
 Json HttpV3Server::inbox(const std::string& deviceId) {

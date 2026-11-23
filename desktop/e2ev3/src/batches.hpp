@@ -25,9 +25,11 @@ std::set<std::string> refusedAccounts(const api::ApiError& error);
  * non-empty set of accounts (recipient_not_entitled) drops those accounts from this batch and every later one, tells
  * `dropped`, and tries once more; a second such refusal is thrown. Tor down inside a chat send (SendQueued): every
  * later batch is queued behind it, in order, and SendQueued is thrown once all are. Returns how many items went now.
+ * `byAccount` (a send marked allDevices): items are grouped by account, first appearance first, and a batch never
+ * cuts one account's devices across two requests (an account has at most 10 devices).
  */
 int sendInBatches(const Json& items, const std::function<void(const Json& batch)>& send, bool dropOnce = false,
-                  std::set<std::string>* dropped = nullptr);
+                  std::set<std::string>* dropped = nullptr, bool byAccount = false);
 
 /// A key claim for any number of devices, at most 100 per request (the server's limit); the answers in order.
 Json claimInBatches(const Json& devices, const std::function<Json(const Json& batch)>& claim);

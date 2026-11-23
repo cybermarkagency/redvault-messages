@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <mutex>
+#include <optional>
 #include <string>
 
 #include "redvault/api/api_client.hpp"
@@ -20,7 +22,7 @@ namespace redvault::e2ev3 {
 class V3Server {
 public:
     virtual ~V3Server() = default;
-    /// {enabled, resetDelayHours}
+    /// {enabled, resetDelayHours, signal, allDevices}
     virtual Json config() = 0;
     /// `upload` is the engine's {identity, oneTimeKeys, fallbackKey}.
     virtual Json registerDevice(const Json& upload) = 0;
@@ -31,12 +33,18 @@ public:
     virtual Json putDeviceList(const Json& deviceList, const Json& rotationProof) = 0;
     virtual void cancelReset(const std::string& signature) = 0;
     virtual Json claimKeys(const std::string& conversationId, const Json& devices) = 0;
-    virtual void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) = 0;
+    /**
+     * `allDevices` (docs/signal-integration/13-every-device-and-session-reset.md, gap 1): the request holds every
+     * listed device of each account it addresses, and the server refuses it (409 device_list_stale) if not. Sent only
+     * to a server whose config says it takes the field (older servers refuse unknown fields); dropped otherwise.
+     */
+    virtual void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages,
+                              bool allDevices = false) = 0;
     /// {members: [{userId, deviceList, pendingReset}]}: the signed list of every active participant (the caller verifies each).
     virtual Json conversationDeviceLists(const std::string& conversationId) = 0;
-    /// One body fanned out to many devices; `recipients` is [{userId, deviceId}].
+    /// One body fanned out to many devices; `recipients` is [{userId, deviceId}]. `allDevices` as for sendMessages.
     virtual void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                                  const Json& recipients) = 0;
+                                  const Json& recipients, bool allDevices = false) = 0;
     virtual Json inbox(const std::string& deviceId) = 0;
     virtual void ack(const std::string& deviceId, const Json& ids) = 0;
     virtual Json createEnrollment(const std::string& newDeviceId) = 0;
@@ -78,10 +86,11 @@ public:
     Json putDeviceList(const Json& deviceList, const Json& rotationProof) override;
     void cancelReset(const std::string& signature) override;
     Json claimKeys(const std::string& conversationId, const Json& devices) override;
-    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override;
+    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages,
+                      bool allDevices = false) override;
     Json conversationDeviceLists(const std::string& conversationId) override;
     void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                          const Json& recipients) override;
+                          const Json& recipients, bool allDevices = false) override;
     Json inbox(const std::string& deviceId) override;
     void ack(const std::string& deviceId, const Json& ids) override;
     Json createEnrollment(const std::string& newDeviceId) override;
@@ -99,8 +108,14 @@ public:
     Json postRoster(const std::string& conversationId, const Json& roster) override;
     Json signalCertificates(const std::string& userId, const std::string& conversationId = {}) override;
 
+    /// Whether this server takes `allDevices` (its config said so). Asks for the config once if no answer was seen yet.
+    bool takesAllDevices();
+
 private:
+    void noteConfig(const Json& config);
     std::shared_ptr<api::ApiClient> api_;
+    std::mutex configMutex_;
+    std::optional<bool> allDevices_;
 };
 
 }  // namespace redvault::e2ev3

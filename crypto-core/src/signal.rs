@@ -39,7 +39,7 @@ use libsignal_protocol::{
     kem, message_decrypt, message_encrypt, process_prekey_bundle, CiphertextMessage, CiphertextMessageType, DeviceId,
     Direction, GenericSignedPreKey, IdentityChange, IdentityKey, IdentityKeyPair, IdentityKeyStore, KeyPair,
     KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyBundle, PreKeyId, PreKeyRecord, PreKeySignalMessage,
-    PreKeyStore, ProtocolAddress, PublicKey, SessionRecord, SessionStore, SignalMessage, SignalProtocolError,
+    PreKeyStore, ProtocolAddress, PublicKey, SessionRecord, SessionStore, SessionUsabilityRequirements, SignalMessage, SignalProtocolError,
     SignedPreKeyId, SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
 };
 use rand09::{Rng as _, TryRngCore as _};
@@ -60,6 +60,8 @@ const MAX_ONE_TIME_KEYS: usize = 100;
 const MAX_SEEN_BASE_KEYS: usize = 2000;
 /// Prekey ids stay below 2^24, as in Signal's clients.
 const MAX_KEY_ID: u32 = 0x00FF_FFFF;
+/// The least time between two session resets with the same peer device (see [`reset_session`]).
+pub(crate) const RESET_INTERVAL_MS: u64 = 10 * 60 * 1000;
 
 type SpResult<T> = std::result::Result<T, SignalProtocolError>;
 
@@ -647,7 +649,11 @@ pub(crate) fn decrypt(state: &mut State, account: &Account, request: &Value) -> 
             let key = inner.get("senderKey").ok_or_else(|| Error::new("malformed_payload", "no sender key"))?;
             return crate::signal_group::receive_sender_key(state, &sender, key);
         }
-        Some(_) => return Err(Error::new("malformed_payload", "unknown payload type")),
+        // The peer set aside a broken session and started this one (see `reset_session`). The new
+        // session is already in place: nothing to show.
+        Some("refresh") => return Ok(json!({ "protocol": SIGNAL_PROTOCOL, "kind": "refresh" })),
+        // A type from a newer version. The session it came on is kept (an error would throw it away).
+        Some(_) => return Ok(json!({ "protocol": SIGNAL_PROTOCOL, "kind": "ignored" })),
     }
     let body = inner.get("body").and_then(Value::as_str).ok_or_else(|| Error::new("malformed_payload", "no body"))?;
     Ok(json!({ "protocol": SIGNAL_PROTOCOL, "kind": "message", "plaintext": body }))
@@ -674,7 +680,7 @@ pub(crate) fn encrypt_for(state: &mut State, account: &Account, recipient: &Devi
 /// [`encrypt_for`] with a typed payload (see [`encrypt_payload`]).
 pub(crate) fn encrypt_payload_for(state: &mut State, account: &Account, recipient: &DeviceIdentity, claimed: Option<&Value>, fields: Value) -> Result<Value> {
     let peer = serde_json::to_value(recipient).map_err(|e| Error::new("internal", e.to_string()))?;
-    let has_session = state.signal.session.as_ref().is_some_and(|st| st.sessions.contains_key(&recipient.curve25519));
+    let has_session = state.signal.session.as_ref().is_some_and(|st| has_current_session(st, &recipient.curve25519));
     if !has_session {
         let claimed = claimed.ok_or_else(|| Error::new("no_signal_session", "no Signal session with this device yet: claim its bundle"))?;
         if claimed.get("certificate").is_none_or(Value::is_null) || claimed.get("bundle").is_none_or(Value::is_null) {
@@ -689,6 +695,55 @@ pub(crate) fn encrypt_payload_for(state: &mut State, account: &Account, recipien
         message["certificate"] = serde_json::to_value(own_certificate(state, account)?).map_err(|e| Error::new("internal", e.to_string()))?;
     }
     Ok(message)
+}
+
+/// Whether this device has a session with the peer address that it can send on. A record whose
+/// current state was set aside by [`reset_session`] has none: the next message starts a new one.
+fn has_current_session(st: &SignalState, curve25519: &str) -> bool {
+    st.sessions
+        .get(curve25519)
+        .and_then(|text| SessionRecord::deserialize(&stored(text).ok()?).ok())
+        .and_then(|record| record.has_usable_sender_chain(SystemTime::now(), SessionUsabilityRequirements::empty()).ok())
+        .unwrap_or(false)
+}
+
+// --- Session reset (docs/signal-integration/13-every-device-and-session-reset.md) ---
+
+/// Sets aside this device's current session with `peer`, after a message from it couldn't be
+/// opened (`decrypt_failed`, `no_signal_session`, `unknown_prekey`). The old state is archived,
+/// not deleted, so messages already on their way under it still open. The next message to the
+/// peer, normally the `signalRefresh` the app sends straight away, starts a new session from a
+/// freshly claimed bundle, and the peer switches to it when it opens that message.
+///
+/// At most once per peer device every [`RESET_INTERVAL_MS`]: otherwise `{ "reset": false }` and
+/// nothing changes, so a stream of broken (or forged) messages can't make two devices loop.
+pub(crate) fn reset_session(state: &mut State, request: &Value) -> Result<Value> {
+    let peer = identity_field(request, "peer")?;
+    if !crate::identity::check_listed(state, &peer)? {
+        return Err(Error::new("unlisted_device", "only a device in a verified signed list can be reset"));
+    }
+    let now = request.get("now").and_then(Value::as_u64).unwrap_or_else(now_millis);
+    let st = signal_state(state)?;
+    st.resets.retain(|_, at| now.saturating_sub(*at) < RESET_INTERVAL_MS);
+    if st.resets.contains_key(&peer.curve25519) {
+        return Ok(json!({ "reset": false, "reason": "recent" }));
+    }
+    if let Some(text) = st.sessions.get(&peer.curve25519).cloned() {
+        let mut record = SessionRecord::deserialize(&stored(&text).map_err(sig_err)?).map_err(sig_err)?;
+        record.archive_current_state().map_err(sig_err)?;
+        st.sessions.insert(peer.curve25519.clone(), b64(&record.serialize().map_err(sig_err)?));
+    }
+    st.resets.insert(peer.curve25519, now);
+    Ok(json!({ "reset": true }))
+}
+
+/// The message that starts a new session with `peer` after [`reset_session`]: an empty payload of
+/// type `refresh`, which the peer opens and ignores. Without a current session, `claimed` must be
+/// the peer's bundle from /signal/claim, as for `encryptMany`.
+pub(crate) fn refresh(state: &mut State, account: &Account, request: &Value) -> Result<Value> {
+    let peer = identity_field(request, "peer")?;
+    let message = encrypt_payload_for(state, account, &peer, request.get("claimed"), json!({ "t": "refresh" }))?;
+    Ok(json!({ "message": message }))
 }
 
 /// Reports whether Signal is on, the key counts, and the sessions and pins this device has.

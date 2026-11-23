@@ -206,7 +206,8 @@ std::string maintainSignal(V3Device& device, const Json& config, int low = 10);
 /**
  * Sends `text` to every device of the contact and every other device of this
  * account, claiming one-time keys only where there's no session yet. Returns
- * how many device copies were delivered to the server.
+ * how many device copies were delivered to the server. Marked allDevices
+ * (FanOut) unless a device was unreachable.
  *
  * The engine picks the protocol for each device: rv-signal-v1 when both
  * devices speak it, Olm otherwise. It asks for a Signal bundle
@@ -231,6 +232,12 @@ struct FanOut {
     std::function<std::string(const std::string& userId)> claimVia;
     /// Filled with "userId/deviceId" for every device that got a copy (or whose copy waits, encrypted, for Tor).
     std::vector<std::string>* delivered = nullptr;
+    /**
+     * `recipients` are every listed device (but this one) of each account they name, from lists just verified
+     * (docs/signal-integration/13-every-device-and-session-reset.md, gap 1). The request is then marked allDevices,
+     * unless a device gets no copy (unreachable), and split by account.
+     */
+    bool allDevices = false;
 };
 /// sendToDevices with those options.
 int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,

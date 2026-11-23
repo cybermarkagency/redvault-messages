@@ -829,6 +829,10 @@ fn run(request: &Value) -> Result<Value> {
         #[cfg(feature = "signal")]
         "signalStatus" => crate::signal::status(&state)?,
         #[cfg(feature = "signal")]
+        "signalResetSession" => crate::signal::reset_session(&mut state, request)?,
+        #[cfg(feature = "signal")]
+        "signalRefresh" => crate::signal::refresh(&mut state, &account, request)?,
+        #[cfg(feature = "signal")]
         "storySeal" => crate::signal::story_seal(&state, request)?,
         #[cfg(feature = "signal")]
         "storyUnseal" => crate::signal::story_unseal(&state, request)?,

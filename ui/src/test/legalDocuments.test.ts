@@ -23,6 +23,6 @@ describe("legal documents", () => {
     expect(sections("terms")).toHaveLength(27);
     expect(sections("privacy")).toHaveLength(26);
     expect(LEGAL_DOCUMENTS.terms).toContain("Effective Date: 6 October 2026");
-    expect(LEGAL_DOCUMENTS.privacy).toContain("Effective Date: 6 October 2026");
+    expect(LEGAL_DOCUMENTS.privacy).toContain("Effective Date: 19 November 2026");
   });
 });

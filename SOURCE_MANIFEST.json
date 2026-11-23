@@ -1,11 +1,11 @@
 {
- "generated": "2026-11-18T22:22:09+00:00",
- "repository_commit": "5ab50ab1a96fa92bbd20b73f2284a0c01c916be6",
- "branch": "HEAD",
+ "generated": "2026-11-23T10:35:34+00:00",
+ "repository_commit": "4c75dc3a027488a7374f45957a10588522681b3b",
+ "branch": "release/0.9.1",
  "uncommitted_changes_included": false,
  "app_versions": {
-  "desktop": "0.9.0",
-  "android": "0.8.0",
+  "desktop": "0.9.1",
+  "android": "0.8.1",
   "web": "0.1.0"
  },
  "libsignal": "signalapp/libsignal v0.106.2 @ 850942581c06fa65c0323fd52029afa02fa1a1ba (unmodified)",
@@ -94,8 +94,8 @@
   },
   {
    "path": "android/app/build.gradle.kts",
-   "sha256": "4309f3660183e4617be200f1bf4c793da3b8134c9229b58c5ec49d719d46bb52",
-   "bytes": 27252
+   "sha256": "d9ef75ba77e42ab05b22910ddbcd5de947ccd303cdd04788f2423cc101c77b8e",
+   "bytes": 26800
   },
   {
    "path": "android/app/proguard-rules.pro",
@@ -184,8 +184,8 @@
   },
   {
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/ui/components/SecretClipboardTest.kt",
-   "sha256": "a1a484a59223b1d21d21a708bd4996590abf7d93de737a98413cea55421542e7",
-   "bytes": 2334
+   "sha256": "a25a1ec8115ec65c505eb59dce8421879acbd9c811ba8f1ddba6b418ddcaa297",
+   "bytes": 2457
   },
   {
    "path": "android/app/src/androidTest/java/com/redvaultsystems/redvaultmessage/ui/files/FileViewerUiTest.kt",
@@ -774,8 +774,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/Chat.kt",
-   "sha256": "2abc1674c69cd62d77480a97d73936aea1bc69c624442b333ecc8a25f4cdafbf",
-   "bytes": 40586
+   "sha256": "f088f41e255bbb852b8bf0c8406dd7e53c8ccee9b6c554da0401cc4c40a120d7",
+   "bytes": 45472
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/ChatContent.kt",
@@ -789,8 +789,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/CommunityChat.kt",
-   "sha256": "0024f700ba8a3cec12f9c05edeccf8220efdea3482f5908c23460b43ade14e51",
-   "bytes": 25571
+   "sha256": "00c739715f320e99cfd0fb33b2f1ca7a2bc8f4939df401d39d03d9ff5f150776",
+   "bytes": 26486
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeySafety.kt",
@@ -834,8 +834,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/SignalGroup.kt",
-   "sha256": "5b66c75c8f66e5f4336e33bb8485d0f3dcaebb010051e498c8132ceeee995e42",
-   "bytes": 6491
+   "sha256": "4431d6158eac5b935341cbb42449e8eb43cef742fb61965489c51ed0bdb0bbd4",
+   "bytes": 6678
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/StoryEnvelopes.kt",
@@ -849,8 +849,8 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Api.kt",
-   "sha256": "561db8f3cb72bdc90de50d52c737764579861b4fb0bbe1cad8584a9fe2e03187",
-   "bytes": 17403
+   "sha256": "ef079cb9d2c377b51d4c192a6eac44de1235c76167b0c5e700611548baa47414",
+   "bytes": 18837
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Chat.kt",
@@ -864,13 +864,13 @@
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3SendQueue.kt",
-   "sha256": "2a0be26b5d7bca0b52278fb0de60862ce02c9d8eb0af0072947dd154d73a74fb",
-   "bytes": 12451
+   "sha256": "00e37097a6af40b842b9cf6ad111996b945c164f65aec0c98155f69b1f42ac7c",
+   "bytes": 13615
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/devicekeys/V3Stories.kt",
-   "sha256": "4ad654fc6da2b18f0acb24d34a0eb69ed12b00bc048c2225539bd6f9bd9358e6",
-   "bytes": 17778
+   "sha256": "e1484a489501188775b792d40c75bccf003056eddb4579bab712a7a6809dc04c",
+   "bytes": 18189
   },
   {
    "path": "android/app/src/main/java/com/redvaultsystems/redvaultmessage/identity/Glyph.kt",
@@ -2273,6 +2273,11 @@
    "bytes": 2588
   },
   {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/AllDevicesTest.kt",
+   "sha256": "dd3b03fc5d18f2c2b5870974dc692b7ae981071786b3950f3a58292656885c4c",
+   "bytes": 12426
+  },
+  {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/CallEnvelopesTest.kt",
    "sha256": "e280196cce806264eb2975a65122ba671460492a847b48b00f7dfe0379ae6c85",
    "bytes": 10091
@@ -2289,8 +2294,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/CommunityChatTest.kt",
-   "sha256": "de1a0ea703865c706e77615ed798c2672cacd21abd2d1b107363dc38752d55ff",
-   "bytes": 19290
+   "sha256": "6a88912c75edc8b74b53b0408688548767149e089d6cbd593b20d4bb1227381a",
+   "bytes": 19906
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/DeviceKeySafetyTest.kt",
@@ -2314,8 +2319,13 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/FakeV3Api.kt",
-   "sha256": "52b1a453ef3d77359a59b17773bb4dc557a364ce40234f43b57e40cf9adfcc1d",
-   "bytes": 21092
+   "sha256": "4413937bd66ac07385777d4ac9250558cc4335b1208922e64bf5c95f143d7e9e",
+   "bytes": 22933
+  },
+  {
+   "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/SessionResetTest.kt",
+   "sha256": "1dfc92328c1751eaeb2ea1882511235e3c336bff9bdba9f3ae693ca79d45e29c",
+   "bytes": 8015
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/SignalChatTest.kt",
@@ -2324,8 +2334,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/StoryDeviceKeysTest.kt",
-   "sha256": "2e07829abf9112b6c665e5ae01331ad73d4857d0486d57da2eae57c15ecbe785",
-   "bytes": 31537
+   "sha256": "9935d3f7cea564b8202df8fd8f88d468ccb344f75b3c5c7d7e023e8dd97e1fa9",
+   "bytes": 31978
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/StoryEnvelopesTest.kt",
@@ -2334,18 +2344,18 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3CallTest.kt",
-   "sha256": "cf5b576d2bf93493874912d68ee82107eab0cab517895f25890c122c18117176",
-   "bytes": 12860
+   "sha256": "810bb746709a20ac41e8629d5ea78884642dfdb3cfc27b67b23ffd0b6b2ac432",
+   "bytes": 12881
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3ChatPartATest.kt",
-   "sha256": "5f5967bc082a312c8473d687dbedd9bbf92c53ced46d1ece1308a26071b5cad7",
-   "bytes": 12834
+   "sha256": "12639a04ddaf9a0ac7737cf3427cfb894f7b1fbab2cbd5843c35a37c85d17679",
+   "bytes": 12900
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3ChatTest.kt",
-   "sha256": "cf01912a1e888aaa0d471c68801e895b6024b67756dfe823b279a48c414828a7",
-   "bytes": 18597
+   "sha256": "2a9faeed1ae3dc40a1c015115644dfbb7b423b94bfb2ee525792afdd70087f4f",
+   "bytes": 18663
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3OverTorTest.kt",
@@ -2354,8 +2364,8 @@
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/devicekeys/V3SendQueueTest.kt",
-   "sha256": "3e4b7c30f4b6b555f1a91eda1ff11d6b0131f7bfa831a86aecd61573f72f952f",
-   "bytes": 10350
+   "sha256": "4823ea5a997ab9b8a13b56d3c720941dfd08817b9ca1013e554ea5e7e063dd70",
+   "bytes": 14791
   },
   {
    "path": "android/app/src/test/java/com/redvaultsystems/redvaultmessage/identity/GlyphTest.kt",
@@ -2849,8 +2859,8 @@
   },
   {
    "path": "crypto-core/src/engine.rs",
-   "sha256": "749f3a00059d6488952a0cd8e87984e809ed406870d2dd9bb9013b417ade7108",
-   "bytes": 44399
+   "sha256": "ef5b498448b4a4d192c92f3b7e182d437dd5216356288e9c8f54b0a36ca91639",
+   "bytes": 43794
   },
   {
    "path": "crypto-core/src/ffi.rs",
@@ -2889,8 +2899,8 @@
   },
   {
    "path": "crypto-core/src/signal.rs",
-   "sha256": "b3ae13b79bbd55a8b4d5441cfdf87c0eafea5c1acd40e498e1cc3b7df198a179",
-   "bytes": 41805
+   "sha256": "6776e6dc1cf8cf45875f9042ee2795374e0a4810fd1f6153a53635229fd97cd0",
+   "bytes": 44407
   },
   {
    "path": "crypto-core/src/signal_group.rs",
@@ -2899,8 +2909,8 @@
   },
   {
    "path": "crypto-core/src/signal_state.rs",
-   "sha256": "054aa9df53a97e8310b7f54dd52cb8389a97c111d2240f4e6d374df7bdf8659b",
-   "bytes": 15386
+   "sha256": "bfd894be232f3aa63f2bff2659658a63e20de188bc2e76b440019e8917343dc7",
+   "bytes": 15305
   },
   {
    "path": "crypto-core/src/stories.rs",
@@ -2968,6 +2978,11 @@
    "bytes": 7604
   },
   {
+   "path": "crypto-core/tests/signal_reset.rs",
+   "sha256": "e7bc350b6e22ebc5cd71f6ba49cf5641071a225b616710bdeb7610952cf2cbb0",
+   "bytes": 6634
+  },
+  {
    "path": "crypto-core/tests/signal_routing.rs",
    "sha256": "ddaf40b55565faf4f23e6d1d5a921fed03a3ae528fb2bfc3ffb4b20852c5746b",
    "bytes": 9014
@@ -3014,8 +3029,8 @@
   },
   {
    "path": "desktop/CMakeLists.txt",
-   "sha256": "a511acd9f99119b1dc5c55dc7273db009cb9f6221cdac94aa71a0ee847b9c85b",
-   "bytes": 7033
+   "sha256": "50a3aecc2f03c68552aa0952d888091535116870231500996873799421a5c31f",
+   "bytes": 6897
   },
   {
    "path": "desktop/CMakePresets.json",
@@ -5674,8 +5689,8 @@
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/device.hpp",
-   "sha256": "d99ed01dc3a29383f59f167f467bc52efb063fd20e6c70f527e0aa9516f5867b",
-   "bytes": 13168
+   "sha256": "91ffbee086ddd47ca2fd7eca8d9adca4b893aaa0803f423349ddbf2cafff8dcd",
+   "bytes": 13584
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/device_store.hpp",
@@ -5704,8 +5719,8 @@
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/send_queue.hpp",
-   "sha256": "bf9bbe82d9460d4b2770af461d88e54fa11e6370be41f579013fc5d556bde167",
-   "bytes": 8908
+   "sha256": "63ec9e8e0888b1a67c6ee5694b2eca3991203ca62397cae73ae355ad06bc5116",
+   "bytes": 9378
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/stories.hpp",
@@ -5714,28 +5729,28 @@
   },
   {
    "path": "desktop/e2ev3/include/redvault/e2ev3/v3_server.hpp",
-   "sha256": "03a97aadc9b2cb2838aacc7aa8e53683c19cb618668fd1da7e1b44504984e701",
-   "bytes": 6480
+   "sha256": "1a32ed015d8ad34ae0afc38ec911fe2f19361febf9d5e9da5a9b6b397067fbd0",
+   "bytes": 7359
   },
   {
    "path": "desktop/e2ev3/src/batches.hpp",
-   "sha256": "7cafb6cfec4b218ff2161f3bfc97faced9dd71cc8bfdcca4cbf47c97d48df02b",
-   "bytes": 1792
+   "sha256": "04adf420bf9bd9a65453327e3e25e44ff591fb16d937dd220b88ab315db77c1a",
+   "bytes": 2020
   },
   {
    "path": "desktop/e2ev3/src/chat.cpp",
-   "sha256": "da8ca6162f104dec485b32df1504add4c8ac248fad9ecf8ba018a58f143857a9",
-   "bytes": 93219
+   "sha256": "1c5ca38d2f3dd750f9f1dfcbac1e86361405d5fb9f95b2ee76dd28b3c3ed3ac2",
+   "bytes": 96586
   },
   {
    "path": "desktop/e2ev3/src/community.cpp",
-   "sha256": "3ec447c15f4d4ecce385be92435c1b8c058c901dbfcdb0bf6b872fa529cd4399",
-   "bytes": 29840
+   "sha256": "35d6ab03b526d88edf5de76f604e7d5e1a4a4cea6c263369bd05cf352beaf1e4",
+   "bytes": 30261
   },
   {
    "path": "desktop/e2ev3/src/device.cpp",
-   "sha256": "e76cec2f51a17da8efefeb27d9ba55fe06758fe05f4e1134d6ba0ca56f4d6fe8",
-   "bytes": 27278
+   "sha256": "2c96a7a7dc56ef74b27506a13522e8e041b325f0b4ff6027f4748c78e2d715e7",
+   "bytes": 27699
   },
   {
    "path": "desktop/e2ev3/src/device_store.cpp",
@@ -5774,18 +5789,18 @@
   },
   {
    "path": "desktop/e2ev3/src/send_queue.cpp",
-   "sha256": "24d2281394952e4506b3f59ddfc3b75b8c84227fa9b5bf0bfa1cb59b7bdf0159",
-   "bytes": 12088
+   "sha256": "3fcbb61467372c3fcd92243c7fec17ba5355bab85148bafd6ab3c371ba988546",
+   "bytes": 14340
   },
   {
    "path": "desktop/e2ev3/src/stories.cpp",
-   "sha256": "39f50880c6a53e43f3b896eaa8416a862a1564219db64e89d20d3be75bc64852",
-   "bytes": 28831
+   "sha256": "88aadcd406c2f00b127d4334f49eb1c3719912737d3adbe6090a9de995e45040",
+   "bytes": 29233
   },
   {
    "path": "desktop/e2ev3/src/v3_server.cpp",
-   "sha256": "b7ad5f9f13edc707d1d760ebe2255aa31f146bf499c41bcc38934e4625e34871",
-   "bytes": 6817
+   "sha256": "71b58abbe42d3d59a3dc09c8b82433611fb07acfa756b2f2e9effb5c3f78fb68",
+   "bytes": 7772
   },
   {
    "path": "desktop/groupcall/CMakeLists.txt",
@@ -5869,13 +5884,13 @@
   },
   {
    "path": "desktop/packaging/linux/redvaultmessages.metainfo.xml",
-   "sha256": "a4970ff7f64df4b94b9ee16a0f414b2968b685b763adcd309b752148a23e1a0f",
-   "bytes": 4441
+   "sha256": "8edcf95f7dbe75209bf8e808bfe822e306673aad1f95b2637d720a2e76f9895b",
+   "bytes": 4806
   },
   {
    "path": "desktop/packaging/msix/AppxManifest.xml.in",
-   "sha256": "af6a68df7c9bf2de1733c644c82774b6a6469a4f015dcb1673d3a27d90a3bca9",
-   "bytes": 1787
+   "sha256": "e84ffc71e743ec176f6ddf049175ce9bdc47bff9cf8879372bd2432ea49b4579",
+   "bytes": 1958
   },
   {
    "path": "desktop/packaging/msix/Assets/Square150x150Logo.png",
@@ -6034,8 +6049,8 @@
   },
   {
    "path": "desktop/packaging/package-msix.ps1",
-   "sha256": "98db5eaa080c2a87a1082e87c53cc0854244175c5626c8a698a2065216ad9630",
-   "bytes": 5967
+   "sha256": "da8bec75571cbe093d6898f137a9f447fae030fea5d38dfecaab2b00c1fb228c",
+   "bytes": 6748
   },
   {
    "path": "desktop/packaging/package.ps1",
@@ -6249,13 +6264,13 @@
   },
   {
    "path": "desktop/tests/e2ev3_part_c2_test.cpp",
-   "sha256": "2b26bd9ef2fe627724be2e52bbc7eddcdd4249a321a77dedd3cc73357e8160e2",
-   "bytes": 40821
+   "sha256": "e13cfb07836fa422da22bab1e10e0716229215995e750bab7f580cff61f00d36",
+   "bytes": 41491
   },
   {
    "path": "desktop/tests/e2ev3_part_d_test.cpp",
-   "sha256": "548c7e61a909fc804e472813f9875323a53d7ce0f2892fbf74525f89daa946b5",
-   "bytes": 53394
+   "sha256": "9db4489d5ab48141f5f08fe9711db3cd1a18e1a1969d0fb5c2e15a43a4b1117b",
+   "bytes": 53764
   },
   {
    "path": "desktop/tests/e2ev3_rollback_test.cpp",
@@ -6264,8 +6279,8 @@
   },
   {
    "path": "desktop/tests/e2ev3_test.cpp",
-   "sha256": "a45cf127ec198c24e2afb6ec1d18db9be22737068dbc733b7792e1bf1ec90790",
-   "bytes": 94103
+   "sha256": "9274c4f0536262217535fc17af603bd44821970a8d9f6bff55950547d47de5f1",
+   "bytes": 111949
   },
   {
    "path": "desktop/tests/earnings_test.cpp",
@@ -6933,6 +6948,11 @@
    "bytes": 32954
   },
   {
+   "path": "desktop/tools/v3_probe/sesame-run.mjs",
+   "sha256": "d5ac97416b0503e921d01a86a95dbfc990defbf433dd60df7e2615d5922ace20",
+   "bytes": 28343
+  },
+  {
    "path": "desktop/tools/v3_probe/signal-run.mjs",
    "sha256": "7fad7d5af5789b60debd2ba823c996f49dc1d7c77bcc8776d5c157b9ab0ee234",
    "bytes": 31009
@@ -6984,8 +7004,8 @@
   },
   {
    "path": "legal/privacy-policy.md",
-   "sha256": "9e43eb64412806d6baf2f1748b2bd47bf9f679aee929b20493ff3314ebb82674",
-   "bytes": 19058
+   "sha256": "8fcfb26f33129d9d7e8cf3c1d39b27b36b601a2114ae80b9c1499e3515ac4169",
+   "bytes": 18576
   },
   {
    "path": "legal/terms-of-service.md",
@@ -8164,13 +8184,13 @@
   },
   {
    "path": "ui/src/site/Site.module.css",
-   "sha256": "bb06d408ed746079320362235c060d73bdcb4147fa393b489c01470f49b08e0c",
-   "bytes": 6060
+   "sha256": "56afd39bf73b514709cd9498b3c4c042e2c9b2acd768a354ec47e0fc5d239f0e",
+   "bytes": 6295
   },
   {
    "path": "ui/src/site/SiteFrame.tsx",
-   "sha256": "510e518e5cc62a77467fcc0f8e981952b5a7cdf14f03da055c7c81582e9d689e",
-   "bytes": 2725
+   "sha256": "58c02d7e1cc96470c05fdf6830f61d373060b36aa64cd06e1ee5f2ea5d373341",
+   "bytes": 3184
   },
   {
    "path": "ui/src/state/AppStateContext.tsx",
@@ -8219,8 +8239,8 @@
   },
   {
    "path": "ui/src/test/legalDocuments.test.ts",
-   "sha256": "cb928dafa6828c0df367e7009846dfc9729a3f569edd3e574e73db6290db7c14",
-   "bytes": 1357
+   "sha256": "4645fe6da99829af8603203fa0efac9e780deab722a7d8a16d1bd5a2008a2081",
+   "bytes": 1331
   },
   {
    "path": "ui/src/test/legalPages.test.ts",

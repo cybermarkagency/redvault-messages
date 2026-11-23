@@ -226,22 +226,28 @@ class V3Stories(
                     lastFailure = e.code
                 }
             }
+            var ownMissed = false
             if (includeOwn) {
                 try {
                     val mine = verifiedDevices(device, userId, null).devices.filter { it["deviceId"]?.jsonPrimitive?.contentOrNull != device.deviceId }
                     messages += encryptToDevices(device, null, envelope, mine)
                 } catch (e: EngineException) {
                     // This account's other devices miss it; viewers still get theirs.
+                    ownMissed = true
                 } catch (e: ApiException) {
                     if (e.status == 401) throw e
+                    ownMissed = true
                 }
             }
+            // Gap 1: marked only when nobody was left out (no viewer owed, this account's devices included).
+            val marked = owed.isEmpty() && !ownMissed
             val sentTo = LinkedHashSet<String>()
             try {
                 val tag = V3Chat.tagOf(storyId, UUID.randomUUID().toString())
-                for (chunk in messages.chunked(ChatLimits.MAX_RECIPIENTS)) {
-                    if (outgoing != null) withContext(V3SendTag(tag)) { device.api.sendMessages(device.deviceId, storyId, chunk) }
-                    else device.api.sendMessages(device.deviceId, storyId, chunk)
+                // Marked: by account, so one account's devices (this one's, appended last, too) stay in one request.
+                for (chunk in sendChunks(messages, marked, { it.first })) {
+                    if (outgoing != null) withContext(V3SendTag(tag)) { device.api.sendMessages(device.deviceId, storyId, chunk, marked) }
+                    else device.api.sendMessages(device.deviceId, storyId, chunk, marked)
                     chunk.forEach { sentTo += it.first }
                 }
             } catch (e: ApiException) {

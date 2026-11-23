@@ -361,7 +361,9 @@ int sendText(V3Device& device, const std::string& conversationId, const std::str
     for (const Json& d : verifiedDevices(device, device.userId()).devices) {
         if (d.value("deviceId", std::string()) != device.deviceId()) recipients.push_back(d);
     }
-    return sendToDevices(device, conversationId, recipients, text, unreachable);
+    FanOut every;
+    every.allDevices = true;  // the contact's whole list and this account's other devices, just verified
+    return sendToDevices(device, conversationId, recipients, text, unreachable, every);
 }
 
 int sendToDevices(V3Device& device, const std::string& conversationId, const std::vector<Json>& recipients, const std::string& text,
@@ -458,10 +460,14 @@ int sendToDevices(V3Device& device, const std::string& conversationId, const std
         if (!fanOut.delivered) return;
         for (const Json& m : delivered) fanOut.delivered->push_back(m.at("userId").get<std::string>() + "/" + m.at("deviceId").get<std::string>());
     };
-    // At most 100 devices per request, in order (a large community's receipts or call keys).
+    // Marked only when every device it was asked to reach gets a copy (none unreachable or left without a message).
+    const bool mark = fanOut.allDevices && delivered.size() == recipients.size();
+    // At most 100 devices per request, in order (a large community's receipts or call keys); by account when marked.
     if (!delivered.empty()) {
         try {
-            detail::sendInBatches(delivered, [&](const Json& batch) { device.server().sendMessages(device.deviceId(), conversationId, batch); });
+            detail::sendInBatches(
+                delivered, [&](const Json& batch) { device.server().sendMessages(device.deviceId(), conversationId, batch, mark); }, false,
+                nullptr, mark);
         } catch (const SendQueued&) {
             note();  // every copy waits, encrypted, in the Tor queue: none is made again
             throw;

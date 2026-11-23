@@ -305,6 +305,8 @@ struct State {
     std::int64_t now = 1'000'000;
     /// Every message request that reached the server: (conversation, how many devices); refused ones marked "!".
     std::vector<std::pair<std::string, std::size_t>> requests;
+    // Gap 1: each accepted request's allDevices mark.
+    std::vector<bool> marked;
     std::set<std::string> torDown;
 
     bool areFriends(const std::string& a, const std::string& b) { return friends.count({std::min(a, b), std::max(a, b)}) > 0; }
@@ -480,7 +482,7 @@ public:
             if (u != user_) throw refusal(404, "not_found");
         }
     }
-    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override {
+    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages, bool allDevices) override {
         gate("sendMessages");
         std::lock_guard lock(s_->mutex);
         if (messages.empty() || messages.size() > 100) throw refusal(400, "validation_error");
@@ -491,6 +493,7 @@ public:
             throw;
         }
         s_->requests.emplace_back(conversationId, messages.size());
+        s_->marked.push_back(allDevices);
         for (const auto& m : messages) {
             s_->mailboxes[m.at("deviceId").get<std::string>()].push_back(
                 {{"id", "m" + std::to_string(++s_->counter)},
@@ -501,7 +504,7 @@ public:
         }
     }
     Json conversationDeviceLists(const std::string&) override { return Json{{"members", Json::array()}}; }
-    void sendGroupMessage(const std::string&, const std::string&, const std::string&, const Json&) override {
+    void sendGroupMessage(const std::string&, const std::string&, const std::string&, const Json&, bool) override {
         throw refusal(404, "not_found");  // never used for stories
     }
     Json inbox(const std::string& deviceId) override {
@@ -682,8 +685,12 @@ TEST_CASE("part D: a story posted to three viewers, one with a linked device, op
     const std::string storyId = createStory(*state, alice, {bob, carol, dave});
     const auto key = sc::newStoryKey();
     const std::int64_t expiresAt = state->stories[storyId].expiresAt;
+    state->marked.clear();
     const auto sent = e2::sendStoryKey(*a1.device, *a1.stories, storyId, key, expiresAt, {bob, carol, dave}, a1.fanOut());
     CHECK(sent.unreachable == 0);
+    // Gap 1: nothing left out and nothing already done, so every request was marked allDevices.
+    CHECK_FALSE(state->marked.empty());
+    for (const bool m : state->marked) CHECK(m);
     CHECK_FALSE(sent.waiting);
     CHECK(sent.delivered == 5);  // bob, carol's two devices, dave, and alice's other device
     CHECK_FALSE(a1.stories->hasDeliveries());

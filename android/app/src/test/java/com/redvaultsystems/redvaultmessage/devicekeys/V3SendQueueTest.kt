@@ -33,20 +33,28 @@ class V3SendQueueTest {
     private class Server : V3Api by NotUsed {
         var down = true
         var refuseWith: Int? = null
+        /** Gap 1: a marked post is refused with 409 device_list_stale (a device was linked meanwhile). */
+        var staleWhenMarked = false
+        /** Every post is refused with 409 device_list_stale, marked or not. */
+        var alwaysStale = false
         val posts = mutableListOf<String>()
+        /** The allDevices flag of every post that reached the server, refused or not. */
+        val marks = mutableListOf<Boolean>()
 
-        private fun check() {
+        private fun check(allDevices: Boolean) {
             if (down) throw ApiException(0, "tor_unavailable", "Tor connection unavailable")
+            marks += allDevices
             refuseWith?.let { throw ApiException(it, "refused", "refused") }
+            if (alwaysStale || (staleWhenMarked && allDevices)) throw ApiException(409, "device_list_stale", "stale")
         }
 
-        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
-            check()
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
+            check(allDevices)
             posts += messages.joinToString { it.third }
         }
 
-        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
-            check()
+        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) {
+            check(allDevices)
             posts += "group:$body"
         }
     }
@@ -64,7 +72,7 @@ class V3SendQueueTest {
         override suspend fun postEnrollmentMessage(id: String, fromDeviceId: String, body: String) = error("not used")
         override suspend fun enrollmentMessages(id: String, after: Int) = error("not used")
         override suspend fun deleteEnrollment(id: String) = error("not used")
-        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) = error("not used")
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) = error("not used")
         override suspend fun inbox(deviceId: String) = error("not used")
         override suspend fun ack(deviceId: String, ids: List<String>) = error("not used")
         override suspend fun putRecoveryBackup(backup: String, signature: String) = error("not used")
@@ -72,13 +80,90 @@ class V3SendQueueTest {
         override suspend fun events(after: Int) = error("not used")
         override suspend fun claimKeys(conversationId: String?, devices: List<Pair<String, String>>) = error("not used")
         override suspend fun conversationDeviceLists(conversationId: String) = error("not used")
-        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) = error("not used")
+        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) = error("not used")
     }
 
     private fun queue() = V3SendQueue(dir, user, wrapper)
 
-    private suspend fun QueueingV3Api.post(messageId: String, body: String) = withContext(V3SendTag(V3Chat.tagOf(chat, messageId))) {
-        sendMessages("device-1", chat, listOf(Triple(contact, "their-device", body)))
+    private suspend fun QueueingV3Api.post(messageId: String, body: String, allDevices: Boolean = false) = withContext(V3SendTag(V3Chat.tagOf(chat, messageId))) {
+        sendMessages("device-1", chat, listOf(Triple(contact, "their-device", body)), allDevices)
+    }
+
+    // --- Gap 1 (docs/signal-integration/13-every-device-and-session-reset.md): queued posts marked allDevices ---
+
+    @Test
+    fun aQueuedPostKeepsItsAllDevicesMark() = runBlocking {
+        val server = Server()
+        val api = QueueingV3Api(server, queue())
+        api.post("m1", "marked", allDevices = true)
+        api.post("m2", "plain")
+        withContext(V3SendTag(V3Chat.tagOf(chat, "m3"))) { api.sendGroupMessage("device-1", chat, "g", listOf(contact to "their-device"), allDevices = true) }
+        assertEquals(listOf(true, false, true), queue().items().map { it.allDevices })
+        server.down = false
+        assertFalse(api.drain().waiting)
+        assertEquals(listOf(true, false, true), server.marks)
+        assertEquals(listOf("marked", "plain", "group:g"), server.posts)
+    }
+
+    @Test
+    fun aMarkedQueuedPostRefusedAsStaleGoesOnceMoreUnmarkedWithTheSameBodies() = runBlocking {
+        val server = Server()
+        val api = QueueingV3Api(server, queue())
+        api.post("m1", "ciphertext-1", allDevices = true)
+        withContext(V3SendTag(V3Chat.tagOf(chat, "m2"))) { api.sendGroupMessage("device-1", chat, "group-ct", listOf(contact to "their-device"), allDevices = true) }
+        server.down = false
+        server.staleWhenMarked = true
+        val drained = api.drain()
+        assertEquals(setOf(V3Chat.tagOf(chat, "m1"), V3Chat.tagOf(chat, "m2")), drained.sent)
+        assertTrue(drained.refused.isEmpty())
+        assertEquals(listOf(true, false, true, false), server.marks)
+        assertEquals(listOf("ciphertext-1", "group:group-ct"), server.posts)
+        assertTrue(api.queue.isEmpty())
+    }
+
+    @Test
+    fun aMarkedQueuedPostStillStaleUnmarkedIsRefusedAsBefore() = runBlocking {
+        val server = Server()
+        val api = QueueingV3Api(server, queue())
+        api.post("m1", "one", allDevices = true)
+        api.post("m2", "two")
+        server.down = false
+        server.alwaysStale = true
+        val drained = api.drain()
+        assertEquals(setOf(V3Chat.tagOf(chat, "m1"), V3Chat.tagOf(chat, "m2")), drained.refused)
+        // m1: marked, then once unmarked; m2 (never marked): once.
+        assertEquals(listOf(true, false, false), server.marks)
+        assertTrue(server.posts.isEmpty())
+        assertTrue(api.queue.isEmpty())
+    }
+
+    @Test
+    fun anUnmarkedQueuedPostRefusedAsStaleIsNotSentAgain() = runBlocking {
+        val server = Server()
+        val api = QueueingV3Api(server, queue())
+        api.post("m1", "one")
+        server.down = false
+        server.alwaysStale = true
+        assertEquals(setOf(V3Chat.tagOf(chat, "m1")), api.drain().refused)
+        assertEquals(listOf(false), server.marks)
+    }
+
+    @Test
+    fun aRecordSavedBeforeTheMarkReadsAsUnmarked() {
+        val old = """{"id":"x","order":1,"kind":"direct","senderDeviceId":"d","conversationId":"c","messages":[{"userId":"u","deviceId":"v","body":"b"}],"tag":"t"}"""
+        val item = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(QueuedV3Send.serializer(), old)
+        assertFalse(item.allDevices)
+    }
+
+    @Test
+    fun anUntaggedPostInsideATaggedSendIsNeverQueued() = runBlocking {
+        val server = Server()
+        val api = QueueingV3Api(server, queue())
+        val failure = withContext(V3SendTag(V3Chat.tagOf(chat, "m1"))) {
+            withContext(V3SendTag.UNTAGGED) { runCatching { api.sendMessages("device-1", chat, listOf(Triple(contact, "their-device", "refresh"))) }.exceptionOrNull() }
+        }
+        assertTrue("$failure", failure is ApiException && failure.code == "tor_unavailable")
+        assertTrue(api.queue.isEmpty())
     }
 
     @Test

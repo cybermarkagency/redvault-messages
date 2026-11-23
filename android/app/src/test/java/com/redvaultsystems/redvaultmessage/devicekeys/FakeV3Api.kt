@@ -73,6 +73,20 @@ class FakeV3Server {
     /** How many device copies each send request carried, in order (group messages and pairwise batches). */
     val requestSizes = mutableListOf<Int>()
 
+    /** Gap 1: each send request as (kind "direct"/"group", allDevices, its (userId, deviceId) recipients), in order. */
+    class SendRequest(val kind: String, val allDevices: Boolean, val recipients: List<Pair<String, String>>)
+
+    val requests = mutableListOf<SendRequest>()
+
+    /**
+     * Gap 1, the server's rule: a request marked `allDevices` must carry every listed device of each account it
+     * addresses (the sender's device excepted), else 409 `device_list_stale` and nothing is delivered.
+     */
+    var enforceAllDevices = true
+
+    /** Devices listed for an account but left out of the lists the apps read (as when one was linked just now). */
+    val hiddenDevices = HashMap<String, MutableSet<String>>()
+
     /**
      * Part D: device-keys stories by id, with their author and the accounts with an access row (the author included).
      * A send addressed with a story id follows the server's story mailbox rule, and a list lookup, key claim or
@@ -202,10 +216,24 @@ class FakeV3Server {
             enrollments.remove(id)
         }
 
-        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
+            post("direct", senderDeviceId, conversationId, messages, allDevices)
+        }
+
+        private fun post(kind: String, senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
             if (offline) throw ApiException(0, "network_error", "offline")
             rec(messages.joinToString { it.third })
             requestSizes += messages.size
+            requests += SendRequest(kind, allDevices, messages.map { it.first to it.second })
+            if (allDevices && enforceAllDevices) {
+                val addressed = messages.map { it.first to it.second }.toSet()
+                val missing = messages.map { it.first }.distinct().flatMap { account ->
+                    val listed = lists[account]?.get("devices")?.jsonArray?.map { it.jsonObject["deviceId"]!!.jsonPrimitive.content }.orEmpty() +
+                        hiddenDevices[account].orEmpty()
+                    listed.filter { !(account == userId && it == senderDeviceId) && (account to it) !in addressed }.map { account to it }
+                }
+                if (missing.isNotEmpty()) throw ApiException(409, "device_list_stale", "stale")
+            }
             stories[conversationId]?.let { story ->
                 val addressed = messages.map { it.first }.toSet()
                 val ok = !story.deleted && if (userId == story.author) {
@@ -293,8 +321,8 @@ class FakeV3Server {
             return members.map { it to ListView(lists[it], null) }
         }
 
-        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
-            sendMessages(senderDeviceId, conversationId, recipients.map { Triple(it.first, it.second, body) })
+        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) {
+            post("group", senderDeviceId, conversationId, recipients.map { Triple(it.first, it.second, body) }, allDevices)
         }
 
         override suspend fun recoveryBackup(): String? = backups[userId]

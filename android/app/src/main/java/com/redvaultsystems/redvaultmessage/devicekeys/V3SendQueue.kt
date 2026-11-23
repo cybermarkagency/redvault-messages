@@ -43,6 +43,8 @@ data class QueuedV3Send(
     val recipients: List<QueuedRecipient> = emptyList(),
     /** The chat message it belongs to ("<conversation>/<message id>"), so the message shows as sent once all of it is. */
     val tag: String,
+    /** Gap 1: posted with `allDevices: true`. Records saved before this field read as false. */
+    val allDevices: Boolean = false,
 )
 
 /**
@@ -174,9 +176,14 @@ class V3SendQueue(private val dir: File, private val userId: String, private val
     }
 }
 
-/** The chat message a device-key post belongs to: only posts made under one are ever queued (chat sends, not pairing). */
-class V3SendTag(val tag: String) : AbstractCoroutineContextElement(Key) {
-    companion object Key : CoroutineContext.Key<V3SendTag>
+/**
+ * The chat message a device-key post belongs to: only posts made under one are ever queued (chat sends, not pairing).
+ * A null [tag] ([UNTAGGED]) clears an outer one: the post goes straight to the server, never into the queue.
+ */
+class V3SendTag(val tag: String?) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<V3SendTag> {
+        val UNTAGGED = V3SendTag(null)
+    }
 }
 
 /** Nothing reached the server, or it can't take it right now: the post waits in the queue instead of failing. */
@@ -188,22 +195,31 @@ internal fun waitsForTor(e: ApiException): Boolean = e.status == 0 || e.status =
  * posts queue behind it, so they reach the server in the order they were encrypted.
  */
 class QueueingV3Api(private val inner: V3Api, val queue: V3SendQueue) : V3Api by inner {
-    override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
-        val tag = currentCoroutineContext()[V3SendTag]?.tag ?: return inner.sendMessages(senderDeviceId, conversationId, messages)
+    override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
+        val tag = currentCoroutineContext()[V3SendTag]?.tag ?: return inner.sendMessages(senderDeviceId, conversationId, messages, allDevices)
         val item = QueuedV3Send(
             id = "", order = 0, kind = DIRECT, senderDeviceId = senderDeviceId, conversationId = conversationId,
-            messages = messages.map { (u, d, body) -> QueuedDeviceMessage(u, d, body) }, tag = tag,
+            messages = messages.map { (u, d, body) -> QueuedDeviceMessage(u, d, body) }, tag = tag, allDevices = allDevices,
         )
-        postOrQueue(item) { inner.sendMessages(senderDeviceId, conversationId, messages) }
+        postOrQueue(item) { inner.sendMessages(senderDeviceId, conversationId, messages, allDevices) }
     }
 
-    override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
-        val tag = currentCoroutineContext()[V3SendTag]?.tag ?: return inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients)
+    override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) {
+        val tag = currentCoroutineContext()[V3SendTag]?.tag ?: return inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients, allDevices)
         val item = QueuedV3Send(
             id = "", order = 0, kind = GROUP, senderDeviceId = senderDeviceId, conversationId = conversationId,
-            body = body, recipients = recipients.map { (u, d) -> QueuedRecipient(u, d) }, tag = tag,
+            body = body, recipients = recipients.map { (u, d) -> QueuedRecipient(u, d) }, tag = tag, allDevices = allDevices,
         )
-        postOrQueue(item) { inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients) }
+        postOrQueue(item) { inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients, allDevices) }
+    }
+
+    /** One queued post as it was made; [marked] false sends it without `allDevices`. */
+    private suspend fun post(item: QueuedV3Send, marked: Boolean) {
+        when (item.kind) {
+            DIRECT -> inner.sendMessages(item.senderDeviceId, item.conversationId, item.messages.map { Triple(it.userId, it.deviceId, it.body) }, marked)
+            GROUP -> inner.sendGroupMessage(item.senderDeviceId, item.conversationId!!, item.body!!, item.recipients.map { it.userId to it.deviceId }, marked)
+            else -> Unit
+        }
     }
 
     private suspend fun postOrQueue(item: QueuedV3Send, post: suspend () -> Unit) {
@@ -226,6 +242,10 @@ class QueueingV3Api(private val inner: V3Api, val queue: V3SendQueue) : V3Api by
      * Sends the queue oldest first, stopping at the first post that still can't go out (Tor down, the server busy).
      * A post the server refuses (4xx) is dropped with every other queued post of the same message: that message shows
      * as failed and can be retried (encrypted again). A 401 is thrown: the session expired.
+     *
+     * Gap 1: a post queued with `allDevices` was encrypted for a fixed set of devices. If a list changed meanwhile
+     * (`device_list_stale`), it is sent once more without the mark, with the same bodies, so it still reaches the devices
+     * it was made for; only a refusal of that is handled as above.
      */
     suspend fun drain(): Drained {
         val sent = LinkedHashSet<String>()
@@ -236,10 +256,11 @@ class QueueingV3Api(private val inner: V3Api, val queue: V3SendQueue) : V3Api by
                 continue
             }
             try {
-                when (item.kind) {
-                    DIRECT -> inner.sendMessages(item.senderDeviceId, item.conversationId, item.messages.map { Triple(it.userId, it.deviceId, it.body) })
-                    GROUP -> inner.sendGroupMessage(item.senderDeviceId, item.conversationId!!, item.body!!, item.recipients.map { it.userId to it.deviceId })
-                    else -> Unit
+                try {
+                    post(item, item.allDevices)
+                } catch (e: ApiException) {
+                    if (!item.allDevices || e.code != "device_list_stale") throw e
+                    post(item, false)
                 }
                 queue.remove(item.id)
                 sent += item.tag

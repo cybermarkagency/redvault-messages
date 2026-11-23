@@ -153,7 +153,12 @@ class CommunityChatTest {
         assertEquals(MembershipTaskReport(), runMembershipTasks(a1, api, cursors()))
 
         // bob (whose refused roster was undone on his phone) posts to everyone.
+        val beforePost = server.requests.size
         assertTrue(sendGroupText(b1, hb, conv, "hello from bob", community = route("group", false, api)) is SendOutcome.Sent)
+        // Gap 1: the sender-key share is never marked; the fan-out, which reached every device, is.
+        val postRequests = server.requests.drop(beforePost)
+        assertTrue(postRequests.filter { it.kind == "direct" }.let { it.isNotEmpty() && it.none { r -> r.allDevices } })
+        assertTrue(postRequests.single { it.kind == "group" }.allDevices)
         for ((user, device) in listOf(alice to a1.deviceId, alice to a2.deviceId, carol to c1.deviceId)) {
             assertEquals("rv-signal-group-v1", bodies(user, device).last()["protocol"]!!.jsonPrimitive.content)
         }
@@ -193,7 +198,10 @@ class CommunityChatTest {
 
         // A member's reaction goes to the owner (pairwise) and never to other members.
         val postId = hb.messages(conv).single { it.op == null }.id
+        val beforeOp = server.requests.size
         sendChatOp(b1, hb, conv, true, "", ChatOp.reaction(postId, "👍"), community = route("channel", false, api))
+        // Gap 1: every staff account's list was read, so the channel-reader op is marked.
+        assertTrue(server.requests.drop(beforeOp).single().allDevices)
         assertEquals(0, server.pending(carol, c1.deviceId))
         assertEquals(ChatOp.REACTION, receive(a1, ha, "channel").received.single().op?.t)
 

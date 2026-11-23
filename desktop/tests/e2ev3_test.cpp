@@ -7,6 +7,7 @@
 #include <atomic>
 #include <chrono>
 #include <fstream>
+#include <functional>
 #include <mutex>
 #include <filesystem>
 #include <map>
@@ -22,6 +23,10 @@
 #include "redvault/e2ev3/pairing.hpp"
 #include "redvault/e2ev3/send_queue.hpp"
 #include "redvault/util/text.hpp"
+#include "redvault/api/api_client.hpp"
+#include "redvault/net/cookie_jar.hpp"
+#include "../e2ev3/src/batches.hpp"
+#include "fake_transport.hpp"
 
 // Protocol 3 on the desktop: key storage, the device logic and pairing, against
 // the real engine (crypto-core through its C ABI) and a small in-memory stand-in
@@ -79,13 +84,40 @@ struct FakeState {
     std::set<std::string> torDown;
     // Every message request that reached the server: (kind, conversation, bodies), oldest first.
     std::vector<std::pair<std::string, std::vector<std::string>>> posted;
+    // Gap 1: whether each posted request was marked allDevices (same order as `posted`).
+    std::vector<bool> marked;
+    // Devices the server lists beyond the signed lists the apps fetched (one linked meanwhile): user -> device ids.
+    std::map<std::string, std::set<std::string>> alsoListed;
+    // Marked requests refused with device_list_stale.
+    int staleRefusals = 0;
+    // Called with each message request before it's checked (the test changes things "meanwhile").
+    std::function<void()> beforeSend;
 };
 
 class FakeServer final : public e2::V3Server {
 public:
     FakeServer(std::shared_ptr<FakeState> state, std::string userId) : s_(std::move(state)), user_(std::move(userId)) {}
 
-    Json config() override { return Json{{"enabled", true}, {"resetDelayHours", 72}, {"signal", s_->signalOn}}; }
+    Json config() override { return Json{{"enabled", true}, {"resetDelayHours", 72}, {"signal", s_->signalOn}, {"allDevices", true}}; }
+
+    /// The server's allDevices rule: a marked request holds every listed device (but the sender) of each account it addresses.
+    void checkAllDevices(const std::string& senderDeviceId, const Json& addressed, bool allDevices) {
+        if (!allDevices) return;
+        std::map<std::string, std::set<std::string>> got;
+        for (const auto& m : addressed) got[m.at("userId").get<std::string>()].insert(m.at("deviceId").get<std::string>());
+        for (const auto& [userId, ids] : got) {
+            std::set<std::string> listed = s_->alsoListed[userId];
+            if (s_->lists.count(userId)) {
+                for (const auto& d : s_->lists[userId].at("devices")) listed.insert(d.at("deviceId").get<std::string>());
+            }
+            for (const auto& id : listed) {
+                if (id != senderDeviceId && !ids.count(id)) {
+                    ++s_->staleRefusals;
+                    throw redvault::api::ApiError(409, "device_list_stale", "Some of the recipients' devices weren't included.");
+                }
+            }
+        }
+    }
 
     /// Refuses the call the way the Tor-only transport does when the gateway isn't connected: nothing reaches the server.
     void gate(const char* call) const {
@@ -209,9 +241,12 @@ public:
         }
         return out;
     }
-    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override {
+    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages, bool allDevices) override {
         gate("sendMessages");
+        if (s_->beforeSend) s_->beforeSend();
         std::lock_guard lock(s_->mutex);
+        checkAllDevices(senderDeviceId, messages, allDevices);
+        s_->marked.push_back(allDevices);
         std::vector<std::string> bodies;
         for (const auto& m : messages) bodies.push_back(m.at("body").get<std::string>());
         s_->posted.emplace_back("messages", bodies);
@@ -233,9 +268,12 @@ public:
         return Json{{"members", members}};
     }
     void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                          const Json& recipients) override {
+                          const Json& recipients, bool allDevices) override {
         gate("sendGroupMessage");
+        if (s_->beforeSend) s_->beforeSend();
         std::lock_guard lock(s_->mutex);
+        checkAllDevices(senderDeviceId, recipients, allDevices);
+        s_->marked.push_back(allDevices);
         s_->posted.emplace_back("group", std::vector<std::string>{body});
         for (const auto& r : recipients) {
             s_->mailboxes[r.at("deviceId")].push_back({{"id", "m" + std::to_string(++s_->counter)},
@@ -1675,6 +1713,7 @@ TEST_CASE("part B: a one-to-one call set up over device keys, offer to both call
     // 1. The offer goes to every device of the callee, none of the caller's other devices.
     const std::string offerSdp = "v=0\r\no=- offer\r\n";
     REQUIRE(e2::sendCallSignal(*a1, kCallChat, "bob", callSignal("offer", offerSdp, "*")) == 2);
+    REQUIRE(state->marked.back());  // gap 1: the offer reaches every device of bob's, so it's marked
     REQUIRE(mailboxSize(state, a2->deviceId()) == 0);
     for (const std::string& id : {b1->deviceId(), b2->deviceId()}) {
         const auto bodies = mailboxBodies(state, id);
@@ -1703,6 +1742,7 @@ TEST_CASE("part B: a one-to-one call set up over device keys, offer to both call
     // 3. The answer from b2 goes to the offering device only.
     const std::string answerSdp = "v=0\r\no=- answer\r\n";
     REQUIRE(e2::sendCallSignal(*b2, kCallChat, "alice", callSignal("answer", answerSdp, answerTo[1])) == 1);
+    REQUIRE_FALSE(state->marked.back());  // to one device of alice's: never marked
     REQUIRE(mailboxSize(state, a2->deviceId()) == 0);
     REQUIRE(mailboxSize(state, b1->deviceId()) == 0);  // the other callee device gets nothing more: it stops at "ended"
     e2::CallGate aliceGate;
@@ -1885,3 +1925,312 @@ TEST_CASE("signal: a linked second device sends over Signal too, to a contact an
     REQUIRE(e2::receiveChat(*a2, ha2).at(0).text == "to both");
     REQUIRE(e2::receiveChat(*a1, ha1).at(0).text == "to both");
 }
+
+// --- Every device, and session reset (docs/signal-integration/13-every-device-and-session-reset.md) ---
+
+namespace {
+
+std::vector<Json> bodiesFor(const std::shared_ptr<FakeState>& state, const std::string& deviceId) {
+    std::lock_guard lock(state->mutex);
+    std::vector<Json> out;
+    for (const auto& item : state->mailboxes[deviceId]) out.push_back(Json::parse(item.at("body").get<std::string>()));
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("every device: one-to-one sends are marked, and a device the server lists that the send left out is refused",
+          "[e2ev3][alldevices]") {
+    auto state = std::make_shared<FakeState>();
+    Computer a1c(state, "alice"), a2c(state, "alice"), b1c(state, "bob");
+    auto a1 = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), a1c.backend);
+    auto b1 = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), b1c.backend);
+    auto a2 = linkSecondDevice(*a1, "alice", a2c.backend);
+    auto ha1 = historyFor(*a1, a1c.dir.path);
+    auto ha2 = historyFor(*a2, a2c.dir.path);
+    state->posted.clear();
+    state->marked.clear();
+    REQUIRE(e2::sendChat(*a1, ha1, "chat-all", "bob", "to every device").delivered == 2);
+    REQUIRE(state->marked == std::vector<bool>{true});
+    REQUIRE(state->staleRefusals == 0);
+
+    // A device of bob's the server lists but alice's app didn't see: refused, retried once (the stale retry), failed.
+    state->alsoListed["bob"] = {"bobs-new-device"};
+    REQUIRE_THROWS_AS(e2::sendChat(*a1, ha1, "chat-all", "bob", "misses one"), redvault::api::ApiError);
+    REQUIRE(state->staleRefusals == 2);
+    REQUIRE(ha1.list("chat-all").back().status == "failed");
+
+    // The same for one of alice's own devices: her other devices are part of every send.
+    state->alsoListed.clear();
+    state->alsoListed["alice"] = {"alices-new-device"};
+    REQUIRE_THROWS_AS(e2::sendChat(*a2, ha2, "chat-all", "bob", "misses mine"), redvault::api::ApiError);
+    REQUIRE(state->staleRefusals == 4);
+
+    // A device linked between the list fetch and the send: refused once, and the stale retry's fresh list has it.
+    state->alsoListed.clear();
+    Computer a3c(state, "alice");
+    std::unique_ptr<e2::V3Device> a3;
+    int sends = 0;
+    state->beforeSend = [&] {
+        if (++sends == 1) a3 = linkSecondDevice(*a1, "alice", a3c.backend);
+    };
+    const auto healed = e2::sendChat(*a2, ha2, "chat-all", "bob", "after the link");
+    state->beforeSend = nullptr;
+    REQUIRE(a3);
+    REQUIRE(healed.delivered == 3);  // bob, a1 and the new a3
+    REQUIRE(state->staleRefusals == 5);
+    REQUIRE(state->marked.back());
+}
+
+TEST_CASE("every device: a group's fan-out is marked, its room-key shares never", "[e2ev3][alldevices][group]") {
+    auto state = std::make_shared<FakeState>();
+    Computer ac(state, "alice"), bc(state, "bob"), cc(state, "carol");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    auto c = e2::setUpFirstDevice("carol", redvault::crypto::toBytes(bytesFor('C')), cc.backend);
+    const std::string group = "group-all";
+    state->groups[group] = {"alice", "bob", "carol"};
+    auto ha = historyFor(*a, ac.dir.path);
+    state->posted.clear();
+    state->marked.clear();
+    REQUIRE(e2::sendGroupChat(*a, ha, group, "hello group").delivered == 2);
+    REQUIRE(state->posted.size() == 2);
+    CHECK(state->posted[0].first == "messages");  // room keys to the devices without one
+    CHECK(state->posted[1].first == "group");
+    REQUIRE(state->marked == std::vector<bool>{false, true});
+    // A member device the app didn't see: the fan-out is refused rather than silently missing it.
+    state->alsoListed["carol"] = {"carols-new-device"};
+    REQUIRE_THROWS_AS(e2::sendGroupChat(*a, ha, group, "misses one"), redvault::api::ApiError);
+    REQUIRE(state->staleRefusals == 2);
+}
+
+TEST_CASE("every device: a queued marked send refused as stale goes once more unmarked, with the same bodies",
+          "[e2ev3][alldevices][tor]") {
+    auto state = std::make_shared<FakeState>();
+    QueuedComputer ac(state, "alice");
+    Computer bc(state, "bob");
+    auto a = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), ac.backend);
+    auto b = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), bc.backend);
+    ac.attach(*a);
+    auto ha = historyFor(*a, ac.dir.path);
+    auto hb = historyFor(*b, bc.dir.path);
+    state->torDown = {"sendMessages"};
+    const auto sent = e2::sendChat(*a, ha, "chat-q", "bob", "queued and marked");
+    REQUIRE(sent.queued);
+    const auto queued = ac.server->queue()->items();
+    REQUIRE(queued.size() == 1);
+    CHECK(queued[0].allDevices);
+    {
+        // The mark is kept with the item on disk; an item stored before it existed reads as unmarked.
+        e2::SendQueue reopened(ac.queueFile(*a), a->deriveKey("redvault-v3-send-queue"));
+        REQUIRE(reopened.items().size() == 1);
+        CHECK(reopened.items()[0].allDevices);
+        TempDir other;
+        {
+            e2::SendQueue old(other.path / "q", redvault::crypto::toBytes(bytesFor('Q')));
+            e2::QueuedSend plain;
+            plain.kind = "messages";
+            old.push(plain);
+        }
+        e2::SendQueue again(other.path / "q", redvault::crypto::toBytes(bytesFor('Q')));
+        REQUIRE(again.items().size() == 1);
+        CHECK_FALSE(again.items()[0].allDevices);
+    }
+    const std::string ciphertext = queued[0].messages.at(0).at("body").get<std::string>();
+
+    // Tor is back, but bob linked a device meanwhile: refused marked, then sent unmarked, exactly as queued.
+    state->torDown.clear();
+    state->alsoListed["bob"] = {"bobs-new-device"};
+    const auto drained = e2::sendQueuedChat(*a, ha, *ac.server);
+    CHECK(drained.sent == 1);
+    CHECK(drained.failed == 0);
+    CHECK(state->staleRefusals == 1);
+    REQUIRE(state->posted.size() == 1);
+    CHECK(state->posted[0].second.at(0) == ciphertext);
+    CHECK_FALSE(state->marked.back());
+    CHECK(ac.server->queue()->empty());
+    CHECK(ha.list("chat-q")[0].status == "sent");
+    state->alsoListed.clear();
+    REQUIRE(e2::receiveChat(*b, hb).at(0).text == "queued and marked");
+}
+
+TEST_CASE("every device: allDevices goes to the server only when its config says it takes it", "[e2ev3][alldevices][http]") {
+    for (const bool takes : {true, false}) {
+        auto transport = std::make_shared<redvault::test::FakeTransport>();
+        int configCalls = 0;
+        transport->handler = [&](const redvault::net::HttpRequest& request) {
+            if (request.url.find("e2e/v3/config") != std::string::npos) {
+                ++configCalls;
+                Json config = {{"enabled", true}, {"resetDelayHours", 72}, {"signal", true}};
+                if (takes) config["allDevices"] = true;
+                return redvault::net::HttpResponse{200, {{"content-type", "application/json"}}, config.dump()};
+            }
+            return redvault::net::HttpResponse{200, {{"content-type", "application/json"}}, R"({"ids":[]})"};
+        };
+        auto api = std::make_shared<redvault::api::ApiClient>("https://example.test/api/", transport,
+                                                              std::make_shared<redvault::net::SessionCookieJar>());
+        e2::HttpV3Server server(api);
+        const Json messages = Json::array({Json{{"userId", "bob"}, {"deviceId", "d1"}, {"body", "x"}}});
+        const Json recipients = Json::array({Json{{"userId", "bob"}, {"deviceId", "d1"}}});
+        const auto lastBody = [&](const std::string& path) {
+            for (auto it = transport->requests.rbegin(); it != transport->requests.rend(); ++it) {
+                if (it->url.find(path) != std::string::npos) return Json::parse(it->body);
+            }
+            return Json();
+        };
+        server.sendMessages("me", "conv", messages, false);
+        CHECK_FALSE(lastBody("e2e/v3/messages").contains("allDevices"));
+        CHECK(configCalls == 0);  // an unmarked send never asks
+        server.sendMessages("me", "conv", messages, true);
+        CHECK(lastBody("e2e/v3/messages").contains("allDevices") == takes);
+        if (takes) CHECK(lastBody("e2e/v3/messages").at("allDevices") == true);
+        server.sendGroupMessage("me", "conv", "body", recipients, true);
+        CHECK(lastBody("e2e/v3/group-messages").contains("allDevices") == takes);
+        server.sendGroupMessage("me", "conv", "body", recipients, false);
+        CHECK_FALSE(lastBody("e2e/v3/group-messages").contains("allDevices"));
+        CHECK(configCalls == 1);  // asked once, then remembered
+        server.config();
+        CHECK(server.takesAllDevices() == takes);
+        CHECK(configCalls == 2);
+    }
+}
+
+TEST_CASE("every device: a marked send over 100 devices is split by account, never cutting one account", "[e2ev3][alldevices][batches]") {
+    // 20 accounts of 6 devices each, interleaved: 120 devices.
+    Json items = Json::array();
+    for (int d = 0; d < 6; ++d)
+        for (int u = 0; u < 20; ++u) items.push_back(Json{{"userId", "u" + std::to_string(u)}, {"deviceId", "d" + std::to_string(d)}});
+    for (const bool byAccount : {false, true}) {
+        std::vector<Json> batches;
+        const int sent = e2::detail::sendInBatches(items, [&](const Json& batch) { batches.push_back(batch); }, false, nullptr, byAccount);
+        REQUIRE(sent == 120);
+        std::map<std::string, std::set<std::size_t>> batchesOf;
+        for (std::size_t i = 0; i < batches.size(); ++i) {
+            REQUIRE(batches[i].size() <= 100);
+            for (const auto& item : batches[i]) batchesOf[item.at("userId").get<std::string>()].insert(i);
+        }
+        std::size_t cut = 0;
+        for (const auto& [user, which] : batchesOf) cut += which.size() > 1 ? 1 : 0;
+        REQUIRE(batches.size() == 2);
+        if (byAccount) {
+            CHECK(batches[0].size() == 96);  // 16 whole accounts; the 17th would cross 100
+            CHECK(batches[1].size() == 24);
+            CHECK(cut == 0);
+            CHECK(batches[0].at(0).at("userId") == "u0");
+            CHECK(batches[0].at(5).at("userId") == "u0");  // one account's devices next to each other
+        } else {
+            CHECK(batches[0].size() == 100);
+            CHECK(cut > 0);
+        }
+    }
+    // An account the server refuses is dropped whole, and the rest stays split by account.
+    std::vector<Json> batches;
+    std::set<std::string> dropped;
+    bool refusedOnce = false;
+    const int sent = e2::detail::sendInBatches(
+        items,
+        [&](const Json& batch) {
+            if (!refusedOnce) {
+                refusedOnce = true;
+                throw redvault::api::ApiError(409, "recipient_not_entitled", "no", Json{{"userIds", {"u3"}}}.dump());
+            }
+            batches.push_back(batch);
+        },
+        true, &dropped, true);
+    CHECK(sent == 114);
+    CHECK(dropped == std::set<std::string>{"u3"});
+    REQUIRE(batches.size() == 2);
+    CHECK(batches[0].size() == 96);
+    CHECK(batches[1].size() == 18);
+}
+
+#ifdef REDVAULT_HAS_E2E_SIGNAL
+namespace {
+
+/// A copy of a computer's store as it is now: later, the same device from an older state (restored from a backup).
+struct OldCopy {
+    TempDir dir;
+    e2::Backend backend;
+    OldCopy(const fs::path& from, const std::shared_ptr<FakeState>& state, const std::string& userId) {
+        fs::copy(from, dir.path, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+        backend.store = std::make_shared<e2::DeviceStore>(dir.path, e2::makeFileVault(dir.path / "keys"));
+        backend.server = std::make_shared<FakeServer>(state, userId);
+    }
+};
+
+}  // namespace
+
+TEST_CASE("session reset: a device restored from an old copy rebuilds its Signal session with one refresh", "[e2ev3][signal][reset]") {
+    auto state = std::make_shared<FakeState>();
+    Computer a1c(state, "alice"), b1c(state, "bob");
+    auto a1 = e2::setUpFirstDevice("alice", redvault::crypto::toBytes(bytesFor('A')), a1c.backend);
+    auto b1 = e2::setUpFirstDevice("bob", redvault::crypto::toBytes(bytesFor('B')), b1c.backend);
+    const Json config = a1c.backend.server->config();
+    for (auto* d : {a1.get(), b1.get()}) REQUIRE(e2::maintainSignal(*d, config) != "off");
+    auto ha1 = historyFor(*a1, a1c.dir.path);
+    const std::string chat = "chat-reset";
+    {
+        auto hb1 = historyFor(*b1, b1c.dir.path);
+        REQUIRE(e2::sendChat(*a1, ha1, chat, "bob", "hello").delivered == 1);
+        REQUIRE(e2::receiveChat(*b1, hb1).at(0).text == "hello");
+        REQUIRE(e2::sendChat(*b1, hb1, chat, "alice", "hi").delivered == 1);
+        REQUIRE(e2::receiveChat(*a1, ha1).at(0).text == "hi");
+    }
+    // Bob's computer will come back from this copy, after the two have moved on.
+    b1.reset();
+    auto snapshot = std::make_unique<OldCopy>(b1c.dir.path, state, "bob");
+    b1 = e2::V3Device::open("bob", b1c.backend);
+    REQUIRE(b1);
+    {
+        auto hb1 = historyFor(*b1, b1c.dir.path);
+        for (int round = 0; round < 3; ++round) {
+            REQUIRE(e2::sendChat(*a1, ha1, chat, "bob", "a" + std::to_string(round)).delivered == 1);
+            REQUIRE(e2::receiveChat(*b1, hb1).size() == 1);
+            REQUIRE(e2::sendChat(*b1, hb1, chat, "alice", "b" + std::to_string(round)).delivered == 1);
+            REQUIRE(e2::receiveChat(*a1, ha1).size() == 1);
+        }
+    }
+    b1.reset();
+    auto old = e2::V3Device::open("bob", snapshot->backend);
+    REQUIRE(old);
+    auto hOld = historyFor(*old, snapshot->dir.path);
+
+    // Alice writes on the session the old copy never saw: it can't open, is acknowledged, and the session is rebuilt.
+    REQUIRE(e2::sendChat(*a1, ha1, chat, "bob", "can you read this?").delivered == 1);
+    Json lost;
+    {
+        std::lock_guard lock(state->mutex);
+        lost = state->mailboxes[old->deviceId()].back();
+    }
+    state->marked.clear();
+    REQUIRE(e2::receiveChat(*old, hOld).empty());
+    REQUIRE(mailboxSize(state, old->deviceId()) == 0);  // acknowledged as before
+    // One refresh, to alice's device only, unmarked.
+    REQUIRE(state->marked == std::vector<bool>{false});
+    const auto refresh = bodiesFor(state, a1->deviceId());
+    REQUIRE(refresh.size() == 1);
+    REQUIRE(refresh[0].value("protocol", std::string()) == "rv-signal-v1");
+    // Alice opens it, shows nothing, and switches to the new session.
+    REQUIRE(e2::receiveChat(*a1, ha1).empty());
+    REQUIRE(mailboxSize(state, a1->deviceId()) == 0);
+    REQUIRE(e2::sendChat(*a1, ha1, chat, "bob", "and now?").delivered == 1);
+    const auto atOld = e2::receiveChat(*old, hOld);
+    REQUIRE(atOld.size() == 1);
+    REQUIRE(atOld[0].text == "and now?");
+    REQUIRE(e2::sendChat(*old, hOld, chat, "alice", "back in step").delivered == 1);
+    REQUIRE(e2::receiveChat(*a1, ha1).at(0).text == "back in step");
+
+    // The same broken message once more within ten minutes: acknowledged, but no second reset and no refresh.
+    const std::size_t before = state->posted.size();
+    {
+        std::lock_guard lock(state->mutex);
+        lost["id"] = "m-again";
+        state->mailboxes[old->deviceId()].push_back(lost);
+    }
+    REQUIRE(e2::receiveChat(*old, hOld).empty());
+    REQUIRE(mailboxSize(state, old->deviceId()) == 0);
+    REQUIRE(state->posted.size() == before);
+    REQUIRE(e2::sendChat(*a1, ha1, chat, "bob", "still fine").delivered == 1);
+    REQUIRE(e2::receiveChat(*old, hOld).at(0).text == "still fine");
+}
+#endif

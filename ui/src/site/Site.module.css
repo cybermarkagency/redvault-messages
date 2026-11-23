@@ -320,6 +320,17 @@
   color: var(--text-3);
 }
 
+/* Its own row above the rest of the footer. */
+.footerProducts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  width: 100%;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
 .footerLink {
   border: none;
   background: transparent;

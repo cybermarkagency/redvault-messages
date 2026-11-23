@@ -300,8 +300,10 @@ Outcome deliverOnce(V3Device& device, StoryStore::Delivery& d, const StoryFanOut
     std::set<std::string> done(d.done.begin(), d.done.end());
     std::vector<std::string> delivered;
     int unreachable = 0;
+    bool complete = true;  // no device of an addressed account left out (already done, or a list that couldn't be read)
     const auto collect = [&] {
         recipients.clear();
+        complete = true;
         for (const std::string& userId : d.userIds) {
             // A story id is no conversation: lists are looked up as a friend's (or this account's own).
             Json devices = Json::array();
@@ -309,6 +311,7 @@ Outcome deliverOnce(V3Device& device, StoryStore::Delivery& d, const StoryFanOut
                 devices = storyDevices(device, d.storyId, userId, fanOut);
             } catch (const EngineError&) {
                 ++unreachable;  // their keys changed (held until the person accepts it), or a list that doesn't verify
+                complete = false;
                 continue;
             } catch (const api::ApiError& error) {
                 if (error.status() != 404) throw;  // Tor or the server: the whole delivery waits
@@ -317,7 +320,10 @@ Outcome deliverOnce(V3Device& device, StoryStore::Delivery& d, const StoryFanOut
             for (const Json& r : devices) {
                 const std::string deviceId = r.value("deviceId", std::string());
                 if (userId == device.userId() && deviceId == device.deviceId()) continue;
-                if (done.count(userId + "/" + deviceId)) continue;
+                if (done.count(userId + "/" + deviceId)) {
+                    complete = false;
+                    continue;
+                }
                 recipients.push_back(r);
             }
         }
@@ -340,6 +346,7 @@ Outcome deliverOnce(V3Device& device, StoryStore::Delivery& d, const StoryFanOut
         try {
             collect();
             if (recipients.empty()) return Outcome::Done;
+            options.allDevices = complete;  // marked only when nothing was left out (gap 1)
             sendToDevices(device, d.storyId, recipients, d.plaintext, &unreachable, options);
         } catch (const api::ApiError& error) {
             if (error.code() != "device_list_stale") throw;
@@ -352,6 +359,7 @@ Outcome deliverOnce(V3Device& device, StoryStore::Delivery& d, const StoryFanOut
                 if (std::find(d.done.begin(), d.done.end(), id) == d.done.end()) d.done.push_back(id);
             }
             collect();
+            options.allDevices = complete;
             if (!recipients.empty()) sendToDevices(device, d.storyId, recipients, d.plaintext, &unreachable, options);
         }
     } catch (const SendQueued&) {

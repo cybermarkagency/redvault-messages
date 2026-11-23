@@ -53,7 +53,16 @@ try {
         # Release builds carry device keys with Signal sessions (the preset sets them; passed so an old cache can't undo it).
         # Tor by default (docs/tor-by-default.md): every published build is Tor-only at the official onion service.
         $torArgs = & (Join-Path $PSScriptRoot "tor-release-args.ps1")
-        Invoke-Step "Configure (release)" { cmake --preset release -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON @torArgs }
+        # This version's source link (Settings > About), AGPL-3.0-only: the official public repository unless
+        # REDVAULT_SOURCE_CODE_URL is set, as in package.ps1. Always passed, so an old cache value can't stick.
+        $sourceUrl = $env:REDVAULT_SOURCE_CODE_URL
+        if (-not $sourceUrl) {
+            $urlMatch = Select-String -Path (Join-Path $desktop "cmake\source_info.cmake") -Pattern 'set\(REDVAULT_OFFICIAL_SOURCE_CODE_URL "([^"]+)"\)'
+            if (-not $urlMatch) { throw "No REDVAULT_OFFICIAL_SOURCE_CODE_URL in cmake/source_info.cmake" }
+            $sourceUrl = $urlMatch.Matches[0].Groups[1].Value
+        }
+        $sourceArgs = @("-DREDVAULT_SOURCE_CODE_URL=$sourceUrl", "-DREDVAULT_SOURCE_CONTACT=$env:REDVAULT_SOURCE_CONTACT")
+        Invoke-Step "Configure (release)" { cmake --preset release -DREDVAULT_E2E_V3=ON -DREDVAULT_E2E_SIGNAL=ON @sourceArgs @torArgs }
         & (Join-Path $PSScriptRoot "tor-release-args.ps1") -Verify "build\release\CMakeCache.txt"
         Invoke-Step "Build" { cmake --build --preset release }
         Invoke-Step "Test" { ctest --preset release }

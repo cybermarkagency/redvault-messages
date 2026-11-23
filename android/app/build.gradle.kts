@@ -92,8 +92,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // redvaultTestVersionCode: for testing in-app updates only (a "newer" debug APK); never set for a release.
-        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 17
-        versionName = "0.8.0"
+        versionCode = (project.findProperty("redvaultTestVersionCode") as String?)?.toInt() ?: 18
+        versionName = "0.8.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")

@@ -115,6 +115,32 @@ private fun recipientsJson(list: List<Pair<JsonObject, kotlinx.serialization.jso
 private fun staleOnce(e: Throwable) = e is ApiException && e.code == "device_list_stale"
 
 /**
+ * Splits [items] into requests of at most [size] copies without cutting one account's devices across two requests
+ * (gap 1: a send marked `allDevices` must carry all of an account's devices in each request that addresses it). Accounts
+ * keep the order they first appear in, so devices appended last (this account's own) stay together at the end.
+ */
+internal fun <T> chunkByAccount(items: List<T>, userOf: (T) -> String, size: Int = ChatLimits.MAX_RECIPIENTS): List<List<T>> {
+    val accounts = LinkedHashMap<String, MutableList<T>>()
+    for (item in items) accounts.getOrPut(userOf(item).lowercase()) { ArrayList() } += item
+    val out = ArrayList<List<T>>()
+    var current = ArrayList<T>()
+    for (devices in accounts.values) {
+        if (current.isNotEmpty() && current.size + devices.size > size) {
+            out += current
+            current = ArrayList()
+        }
+        // An account has at most 10 devices; a bigger one would still be split rather than refused locally.
+        if (devices.size > size) devices.chunked(size).forEach { out += it } else current.addAll(devices)
+    }
+    if (current.isNotEmpty()) out += current
+    return out
+}
+
+/** [chunkByAccount] for a marked send, plain chunks otherwise. */
+internal fun <T> sendChunks(items: List<T>, allDevices: Boolean, userOf: (T) -> String, size: Int = ChatLimits.MAX_RECIPIENTS): List<List<T>> =
+    if (allDevices) chunkByAccount(items, userOf, size) else items.chunked(size)
+
+/**
  * Sends [text] to every device of [contactUserId] and every other device of this account (9.4). Returns
  * [SendOutcome.Protocol1] when the contact has no device keys and the chat isn't pinned to v3; throws
  * EngineException("contact_has_no_devices") when it is pinned (never a silent fall-back, 9.1 rule 5).
@@ -181,7 +207,8 @@ private suspend fun deliverDirect(
             val mine = verifiedDevices(device, device.userId, null).devices.filter { it["deviceId"]!!.jsonPrimitive.content != device.deviceId }
             val messages = encryptToDevices(device, conversation, envelope, theirs + mine)
             try {
-                device.api.sendMessages(device.deviceId, conversation, messages)
+                // Gap 1: every listed device of both accounts (this one excepted), from the lists just verified.
+                device.api.sendMessages(device.deviceId, conversation, messages, allDevices = true)
             } catch (e: Throwable) {
                 if (keepFailed && (!staleOnce(e) || attempt > 1)) history.put(record.copy(status = "failed"), replace = true)
                 throw e
@@ -315,6 +342,7 @@ private suspend fun deliverGroup(
                     }
                 }
                 try {
+                    // Never marked: room keys go only to the devices that don't have this session yet.
                     keyMessages.chunked(ChatLimits.MAX_RECIPIENTS).forEach { device.api.sendMessages(device.deviceId, group, it) }
                 } catch (e: Throwable) {
                     // The engine counts these keys as shared; a new session makes the next send share again.
@@ -332,7 +360,7 @@ private suspend fun deliverGroup(
             }.toString()
             val recipients = members.map { it.identityKey() }.filter { it.second != device.deviceId }
             try {
-                device.api.sendGroupMessage(device.deviceId, group, body, recipients)
+                device.api.sendGroupMessage(device.deviceId, group, body, recipients, allDevices = true)
             } catch (e: Throwable) {
                 if (keepFailed && (!staleOnce(e) || attempt > 1)) history.put(record.copy(status = "failed"), replace = true)
                 throw e
@@ -469,6 +497,44 @@ interface StorySink {
 
 private fun JsonObject.str(name: String) = this[name]?.jsonPrimitive?.contentOrNull
 
+/** Gap 2: decrypt errors of an rv-signal-v1 message that mean the session with its sender fell out of step. */
+private val BROKEN_SESSION_CODES = setOf("decrypt_failed", "no_signal_session", "unknown_prekey")
+
+/** A listed sender device whose rv-signal-v1 message didn't open; [conversationId] is the item's (for the claim). */
+internal class BrokenSession(val identity: JsonObject, val userId: String, val deviceId: String, val conversationId: String?)
+
+/**
+ * Gap 2 (docs/signal-integration/13-every-device-and-session-reset.md): for each device in [broken], sets the session
+ * aside (`signalResetSession`, at most once per device every 10 minutes) and, when it was, claims the device's bundle,
+ * makes a `signalRefresh` and sends it to that device alone: unmarked, straight to the server (never queued). Best
+ * effort: every failure is swallowed, and nothing is logged.
+ */
+internal suspend fun healSignalSessions(device: V3Device, broken: Collection<BrokenSession>) {
+    for (b in broken) {
+        try {
+            val reset = device.op("signalResetSession", "peer" to b.identity)
+            if (!reset.ok || reset.bool("reset") != true) continue
+            val claimed = device.api.signalClaim(b.conversationId, listOf(b.userId to b.deviceId)).firstOrNull() ?: continue
+            val refresh = device.op(
+                "signalRefresh", "peer" to b.identity,
+                "claimed" to buildJsonObject {
+                    put("certificate", claimed["certificate"] ?: kotlinx.serialization.json.JsonNull)
+                    put("bundle", claimed["bundle"] ?: kotlinx.serialization.json.JsonNull)
+                },
+            )
+            if (!refresh.ok) continue
+            val message = refresh.obj("message")
+            kotlinx.coroutines.withContext(V3SendTag.UNTAGGED) {
+                device.api.sendMessages(device.deviceId, b.conversationId, listOf(Triple(b.userId, b.deviceId, message.toString())))
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Best effort: the next failed message from this device tries again (after the engine's 10 minutes).
+        }
+    }
+}
+
 private fun incoming(conversationId: String, id: String, senderUserId: String, senderDeviceId: String, ts: Long, now: Long, device: V3Device): ChatRecord {
     val own = senderUserId == device.userId
     return ChatRecord(conversationId, id, senderUserId, senderDeviceId, ts, now, "", if (own) "out" else "in", if (own) "sent" else "received")
@@ -533,6 +599,9 @@ suspend fun receiveMessages(
             device.op("groupSetMembers", "groupId" to groupId, "members" to kotlinx.serialization.json.JsonArray(members))
         }
     }
+
+    // Gap 2: sender devices whose Signal messages didn't open this pass, once each.
+    val broken = LinkedHashMap<String, BrokenSession>()
 
     for (item in items) {
         val id = item.str("id") ?: continue
@@ -629,11 +698,19 @@ suspend fun receiveMessages(
                 r = device.op("decrypt", "sender" to senderIdentity, "message" to body)
             }
             if (!r.ok) {
-                if (r.error in HOLD_CODES) held += id else drop(id, "decrypt:" + (r.error ?: "failed"))
+                if (r.error in HOLD_CODES) {
+                    held += id
+                } else {
+                    drop(id, "decrypt:" + (r.error ?: "failed"))
+                    if (body.str("protocol") == "rv-signal-v1" && r.error in BROKEN_SESSION_CODES) {
+                        broken.getOrPut("$senderUserId/$senderDeviceId") { BrokenSession(senderIdentity, senderUserId, senderDeviceId, conversationId) }
+                    }
+                }
                 continue
             }
             if (r.json["kind"]?.jsonPrimitive?.contentOrNull != "message") {
-                // A room key, a link or a story key: the engine has taken it; nothing to show.
+                // A room key, a link or a story key: the engine has taken it; nothing to show. Gap 2's session refresh
+                // (kind "refresh") and a payload type this app doesn't know (kind "ignored") end here too.
                 drop(id, "r5")
                 continue
             }
@@ -714,6 +791,7 @@ suspend fun receiveMessages(
         acks += id
     }
     acks.chunked(ChatLimits.ACK_BATCH).forEach { device.api.ack(device.deviceId, it) }
+    if (broken.isNotEmpty()) healSignalSessions(device, broken.values)
     return ReceiveReport(received, held, needUpdate, dropped, calls, storyItems)
 }
 
@@ -735,7 +813,8 @@ suspend fun sendCallMessage(
 ) {
     val conversation = conversationId.lowercase()
     val envelope = encodeCall(conversation, call, id.lowercase(), now)
-    sendEphemeral(device, conversation, envelope) {
+    // Gap 1: the offer to every device is marked; an answer or later step to one device never is.
+    sendEphemeral(device, conversation, envelope, allDevices = onlyDevice == null) {
         val theirs = verifiedDevices(device, contactUserId, conversation).devices
             .filter { onlyDevice == null || it.str("deviceId") == onlyDevice }
         if (theirs.isEmpty()) {
@@ -762,7 +841,7 @@ suspend fun sendCallKeyMessage(
     val others = participants.map { it.lowercase() }.distinct().filter { it != device.userId }
     if (others.isEmpty()) return
     val envelope = encodeCallKey(group, key, id.lowercase(), now)
-    sendEphemeral(device, group, envelope) {
+    sendEphemeral(device, group, envelope, allDevices = true) {
         others.flatMap { user ->
             verifiedDevices(device, user, group).devices.also { if (it.isEmpty()) throw memberWithoutDevices() }
         }
@@ -770,13 +849,13 @@ suspend fun sendCallKeyMessage(
 }
 
 /** Encrypts [envelope] to the devices [recipients] lists and posts the copies, 100 at a time; a stale list is fetched again once. */
-private suspend fun sendEphemeral(device: V3Device, conversation: String, envelope: String, recipients: suspend () -> List<JsonObject>) {
+private suspend fun sendEphemeral(device: V3Device, conversation: String, envelope: String, allDevices: Boolean, recipients: suspend () -> List<JsonObject>) {
     var attempt = 0
     while (true) {
         attempt++
         try {
             val messages = encryptToDevices(device, conversation, envelope, recipients())
-            messages.chunked(ChatLimits.MAX_RECIPIENTS).forEach { device.api.sendMessages(device.deviceId, conversation, it) }
+            sendChunks(messages, allDevices, { it.first }).forEach { device.api.sendMessages(device.deviceId, conversation, it, allDevices) }
             break
         } catch (e: ApiException) {
             if (staleOnce(e) && attempt == 1) continue

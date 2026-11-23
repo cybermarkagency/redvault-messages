@@ -79,6 +79,10 @@ pub(crate) struct SignalState {
     /// Sender keys received, by distribution id: which device, group and roster epoch each belongs to.
     #[serde(default)]
     pub group_in: BTreeMap<String, InboundSenderKey>,
+    /// When this device last set aside its session with each peer address (ms since the epoch), so a
+    /// stream of broken messages costs at most one fresh session per peer per RESET_INTERVAL_MS.
+    #[serde(default)]
+    pub resets: BTreeMap<String, u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

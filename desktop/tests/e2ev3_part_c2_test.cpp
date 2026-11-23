@@ -86,6 +86,9 @@ struct State {
     int counter = 0;
     /// Every message request that reached the server: (kind, how many devices). Refused ones too, marked "!".
     std::vector<std::pair<std::string, std::size_t>> requests;
+    // Gap 1: each accepted request's allDevices mark and its device entries (same order as the accepted requests).
+    std::vector<bool> marked;
+    std::vector<Json> batches;
     /// The next group-message requests to refuse with 503, once each (a server restarting).
     int failGroupRequests = 0;
     std::set<std::string> torDown;
@@ -260,7 +263,7 @@ public:
                                           {"conversationId", conversationId.empty() ? Json(nullptr) : Json(conversationId)},
                                           {"body", body}});
     }
-    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override {
+    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages, bool allDevices) override {
         gate("sendMessages");
         std::lock_guard lock(s_->mutex);
         if (messages.empty() || messages.size() > 100) throw refusal(400, "validation_error");
@@ -271,6 +274,8 @@ public:
             throw;
         }
         s_->requests.emplace_back("messages", messages.size());
+        s_->marked.push_back(allDevices);
+        s_->batches.push_back(messages);
         for (const auto& m : messages) deliver(senderDeviceId, conversationId, m.at("deviceId").get<std::string>(), m.at("body"));
     }
     Json conversationDeviceLists(const std::string& conversationId) override {
@@ -291,7 +296,7 @@ public:
         return Json{{"members", members}};
     }
     void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                          const Json& recipients) override {
+                          const Json& recipients, bool allDevices) override {
         gate("sendGroupMessage");
         std::lock_guard lock(s_->mutex);
         if (recipients.empty() || recipients.size() > 100) throw refusal(400, "validation_error");
@@ -310,6 +315,8 @@ public:
             throw;
         }
         s_->requests.emplace_back("group", recipients.size());
+        s_->marked.push_back(allDevices);
+        s_->batches.push_back(recipients);
         for (const auto& r : recipients) deliver(senderDeviceId, conversationId, r.at("deviceId").get<std::string>(), body);
     }
     Json inbox(const std::string& deviceId) override {
@@ -774,18 +781,22 @@ TEST_CASE("part C2: one post to more than 100 devices goes in ordered batches of
     }
     // Admit everyone and share the key: 103 sender-key messages in two requests.
     state->requests.clear();
+    state->marked.clear();
     const auto round = e2::runMembershipTasks(*o.device);
     REQUIRE(round.errors.empty());
     REQUIRE(round.admitted == kReaders);
     REQUIRE(round.shared == kReaders);
     REQUIRE(state->requests == std::vector<std::pair<std::string, std::size_t>>{{"messages", 100}, {"messages", 3}});
+    REQUIRE(state->marked == std::vector<bool>{false, false});  // sender-key shares are never marked allDevices
 
     // One post: encrypted once, sent in two batches; the first try of the first batch meets a 503 and is tried again.
     state->requests.clear();
+    state->marked.clear();
     state->failGroupRequests = 1;
     const auto sent = e2::sendChatMessage(*o.device, *o.history, conv, "", textMessage("to everyone"));
     REQUIRE(sent.delivered == kReaders);
     REQUIRE(state->requests == std::vector<std::pair<std::string, std::size_t>>{{"!group", 100}, {"group", 100}, {"group", 3}});
+    REQUIRE(state->marked == std::vector<bool>{true, true});  // the fan-out reaches every listed device: marked
     std::set<std::string> bodies;
     for (const auto& r : rs) bodies.insert(state->mailboxes[r->device->deviceId()].back().at("body").get<std::string>());
     REQUIRE(bodies.size() == 1);  // the same ciphertext for every device

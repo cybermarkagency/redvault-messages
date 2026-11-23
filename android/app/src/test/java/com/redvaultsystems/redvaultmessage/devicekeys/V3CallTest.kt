@@ -207,7 +207,7 @@ class V3CallTest {
 
     /** The fake server's API with Tor "down" for the posts (as in V3ChatPartATest). */
     private class TorDropsPosts(private val inner: V3Api) : V3Api by inner {
-        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
             throw ApiException(0, "tor_unavailable", "Tor connection unavailable")
         }
     }

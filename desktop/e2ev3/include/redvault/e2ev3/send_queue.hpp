@@ -38,6 +38,8 @@ struct QueuedSend {
     std::string recordId;
     /// True when the request carries that record's own message, not a key share sent ahead of it.
     bool carriesRecord = false;
+    /// Sent marked `allDevices` (v3_server.hpp). Items stored before the mark existed read as false.
+    bool allDevices = false;
 };
 
 /// The queued requests, oldest first, in one file sealed with XChaCha20-Poly1305 and rewritten on each change.
@@ -122,7 +124,11 @@ public:
         /// Tor or the server isn't reachable yet: this request and the ones after it still wait.
         bool waiting = false;
     };
-    /// Sends what's queued, oldest first, exactly as queued.
+    /**
+     * Sends what's queued, oldest first, exactly as queued. A marked item refused with device_list_stale (a device
+     * was linked meanwhile) goes once more unmarked, with the same bodies, so it still reaches the devices it was
+     * made for; it is never dropped because of the mark.
+     */
     Flushed flush();
 
     Json config() override { return inner_->config(); }
@@ -135,10 +141,11 @@ public:
     Json putDeviceList(const Json& deviceList, const Json& rotationProof) override { return inner_->putDeviceList(deviceList, rotationProof); }
     void cancelReset(const std::string& signature) override { inner_->cancelReset(signature); }
     Json claimKeys(const std::string& conversationId, const Json& devices) override { return inner_->claimKeys(conversationId, devices); }
-    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) override;
+    void sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages,
+                      bool allDevices = false) override;
     Json conversationDeviceLists(const std::string& conversationId) override { return inner_->conversationDeviceLists(conversationId); }
     void sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                          const Json& recipients) override;
+                          const Json& recipients, bool allDevices = false) override;
     Json inbox(const std::string& deviceId) override { return inner_->inbox(deviceId); }
     void ack(const std::string& deviceId, const Json& ids) override { inner_->ack(deviceId, ids); }
     Json createEnrollment(const std::string& newDeviceId) override { return inner_->createEnrollment(newDeviceId); }
@@ -162,7 +169,7 @@ public:
 
 private:
     void sendOrQueue(QueuedSend item);
-    void sendNow(const QueuedSend& item);
+    void sendNow(const QueuedSend& item, bool allDevices);
     std::shared_ptr<V3Server> inner_;
     mutable std::mutex mutex_;
     std::shared_ptr<SendQueue> queue_;

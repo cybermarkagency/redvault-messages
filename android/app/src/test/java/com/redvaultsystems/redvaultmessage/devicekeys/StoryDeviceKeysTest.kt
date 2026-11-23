@@ -151,9 +151,12 @@ class StoryDeviceKeysTest {
         val posted = post(a1, listOf(bob, carol, dave))
         assertTrue(a1.stories.ready())
         a1.stories.rememberOwnKey(posted.id, posted.key, System.currentTimeMillis() + 86_400_000)
+        val beforeKey = server.requests.size
         val delivery = a1.stories.deliverKey(posted.id, posted.key, System.currentTimeMillis() + 86_400_000, listOf(bob, carol, dave))
         assertEquals(setOf(bob, carol, dave), delivery.delivered)
         assertTrue(delivery.owed.isEmpty())
+        // Gap 1: nobody left out, so every request is marked.
+        assertTrue(server.requests.drop(beforeKey).let { it.isNotEmpty() && it.all { r -> r.allDevices } })
         // Every request stays within 100 copies.
         assertTrue(server.requestSizes.all { it <= 100 })
         // Keys were claimed under the story id (there is no one-to-one chat to name).
@@ -175,8 +178,11 @@ class StoryDeviceKeysTest {
         assertEquals(0, e.chat.receive()!!.stories)
         assertTrue(open(e, posted) is StoryDecoding.Waiting)
         // And the server refuses a key addressed to her.
+        val beforeEve = server.requests.size
         val refused = runCatching { a1.stories.deliverKey(posted.id, posted.key, System.currentTimeMillis() + 86_400_000, listOf(eve)) }.getOrThrow()
         assertEquals(setOf(eve), refused.owed)
+        // A viewer was left out (owed): what still goes (the author's other device) isn't marked.
+        assertTrue(server.requests.drop(beforeEve).none { it.allDevices })
         // Nothing the server holds or was sent carries K in the clear.
         val k = Base64Codec.encode(posted.key)
         assertTrue(server.sent.none { it.contains(k) })

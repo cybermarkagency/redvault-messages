@@ -59,6 +59,14 @@
   </content_rating>
 
   <releases>
+    <release version="0.9.1" date="2026-11-23">
+      <description>
+        <p>A message now reaches a phone or computer you link while someone is writing to you,
+        instead of skipping it. And when a chat's encryption falls out of step with one of the
+        other person's devices (for example after a device is restored from an old copy), the
+        app sets up a fresh secure session by itself so new messages open again.</p>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-11-18">
       <description>
         <p>Free accounts can now send files and voice messages in chats, up to 25 MB each.

@@ -102,8 +102,10 @@ suspend fun sendSignalGroup(device: V3Device, groupId: String, plaintext: String
         if (error != null) throw EngineException(error, r.str("message") ?: "a member device can't get the group key")
         r["message"]?.let { keyMessages += Triple(others[i].str("userId")!!, others[i].str("deviceId")!!, it.toString()) }
     }
+    // Never marked: the sender key goes only to the devices that lack it.
     keyMessages.chunked(ChatLimits.MAX_RECIPIENTS).forEach { device.api.sendMessages(device.deviceId, groupId, it) }
     val sealed = device.must("groupSignalEncrypt", "groupId" to groupId, "plaintext" to plaintext).obj("message")
-    device.api.sendGroupMessage(device.deviceId, groupId, sealed.toString(), others.map { it.str("userId")!! to it.str("deviceId")!! })
+    // Gap 1: the fan-out goes to every listed device of every member (this one excepted).
+    device.api.sendGroupMessage(device.deviceId, groupId, sealed.toString(), others.map { it.str("userId")!! to it.str("deviceId")!! }, allDevices = true)
     return others.size
 }

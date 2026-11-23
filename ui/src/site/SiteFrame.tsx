@@ -40,6 +40,18 @@ export function SiteFrame({ children }: { children: ReactNode }) {
       </header>
       <main className={styles.main}>{children}</main>
       <footer className={styles.footer}>
+        {/* The same product links as the footer of the rest of redvaultsystems.com (same-site paths). */}
+        <nav className={styles.footerProducts} aria-label="Products">
+          <a className={styles.footerLink} href="/cloud-agent">
+            RedVaultCloud
+          </a>
+          <a className={styles.footerLink} href="/backup-agent">
+            RedVaultBackup
+          </a>
+          <a className={styles.footerLink} href="/encrypted-messages/">
+            RedVaultMessages
+          </a>
+        </nav>
         <a className={styles.footerLink} href="terms.html" target="_blank" rel="noopener noreferrer">
           Terms of Service
         </a>

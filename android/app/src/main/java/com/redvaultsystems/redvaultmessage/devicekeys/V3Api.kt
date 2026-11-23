@@ -147,7 +147,12 @@ interface V3Api {
     suspend fun postEnrollmentMessage(id: String, fromDeviceId: String, body: String)
     suspend fun enrollmentMessages(id: String, after: Int = 0): List<EnrollmentMessage>
     suspend fun deleteEnrollment(id: String)
-    suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>)
+    /**
+     * [allDevices] (docs/signal-integration/13-every-device-and-session-reset.md, gap 1): the recipients are every listed
+     * device of each account addressed, so the server refuses the send (409 `device_list_stale`) when a list changed.
+     * Sent only to a server whose /e2e/v3/config says `allDevices: true`; older servers refuse unknown fields.
+     */
+    suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean = false)
     suspend fun inbox(deviceId: String): List<JsonObject>
     suspend fun ack(deviceId: String, ids: List<String>)
     suspend fun putRecoveryBackup(backup: String, signature: String)
@@ -161,7 +166,7 @@ interface V3Api {
     suspend fun conversationDeviceLists(conversationId: String): List<Pair<String, ListView>>
 
     /** One body fanned out to many devices of the conversation's members; recipients are (userId, deviceId). */
-    suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>)
+    suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean = false)
 
     // --- rv-signal-v1 (E2E_SIGNAL_ENABLED). Defaults answer like a server with it off. ---
 
@@ -201,7 +206,26 @@ private fun JsonObject.str(name: String): String = this[name]?.jsonPrimitive?.co
 class RetrofitV3Api(private val service: V3Service) : V3Api {
     private val json = ApiClient.json
 
-    override suspend fun enabled(): Boolean = apiCall(json) { service.config() }["enabled"]?.jsonPrimitive?.contentOrNull == "true"
+    /** Whether the server takes `allDevices` (gap 1), from the last /e2e/v3/config this client read; null: not read yet. */
+    @Volatile private var allDevicesSupported: Boolean? = null
+
+    private suspend fun config(): JsonObject = apiCall(json) { service.config() }.also {
+        allDevicesSupported = it["allDevices"]?.jsonPrimitive?.contentOrNull == "true"
+    }
+
+    /** True when a marked send may carry `allDevices: true`. A config that can't be read counts as an older server. */
+    private suspend fun sendsAllDevices(marked: Boolean): Boolean {
+        if (!marked) return false
+        allDevicesSupported?.let { return it }
+        return try {
+            config()
+            allDevicesSupported == true
+        } catch (e: ApiException) {
+            false
+        }
+    }
+
+    override suspend fun enabled(): Boolean = config()["enabled"]?.jsonPrimitive?.contentOrNull == "true"
 
     override suspend fun registerDevice(upload: JsonObject) {
         val deviceId = upload["identity"]!!.jsonObject.str("deviceId")
@@ -251,7 +275,8 @@ class RetrofitV3Api(private val service: V3Service) : V3Api {
 
     override suspend fun deleteEnrollment(id: String) = apiCall(json) { service.deleteEnrollment(id) }
 
-    override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+    override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
+        val marked = sendsAllDevices(allDevices)
         val body = buildJsonObject {
             put("senderDeviceId", senderDeviceId)
             put("conversationId", conversationId?.let { JsonPrimitive(it) } ?: JsonNull)
@@ -261,6 +286,7 @@ class RetrofitV3Api(private val service: V3Service) : V3Api {
                     for ((userId, deviceId, text) in messages) add(buildJsonObject { put("userId", userId); put("deviceId", deviceId); put("body", text) })
                 }
             )
+            if (marked) put("allDevices", true)
         }
         apiCall(json) { service.sendMessages(body) }
     }
@@ -293,17 +319,19 @@ class RetrofitV3Api(private val service: V3Service) : V3Api {
             m.str("userId") to ListView(m["deviceList"] as? JsonObject, pending)
         }
 
-    override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
+    override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) {
+        val marked = sendsAllDevices(allDevices)
         val request = buildJsonObject {
             put("senderDeviceId", senderDeviceId)
             put("conversationId", conversationId)
             put("body", body)
             put("recipients", buildJsonArray { for ((u, d) in recipients) add(buildJsonObject { put("userId", u); put("deviceId", d) }) })
+            if (marked) put("allDevices", true)
         }
         apiCall(json) { service.sendGroupMessage(request) }
     }
 
-    override suspend fun signalEnabled(): Boolean = apiCall(json) { service.config() }["signal"]?.jsonPrimitive?.contentOrNull == "true"
+    override suspend fun signalEnabled(): Boolean = config()["signal"]?.jsonPrimitive?.contentOrNull == "true"
 
     override suspend fun signalUpload(deviceId: String, upload: JsonObject): JsonObject = apiCall(json) { service.signalUpload(deviceId, upload) }
 

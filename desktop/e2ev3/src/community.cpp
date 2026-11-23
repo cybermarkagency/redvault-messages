@@ -188,8 +188,11 @@ int shareAndSend(V3Device& device, const CommunityInfo& community, const std::ve
         for (const Json& d : others) {
             if (!gone.count(text(d, "userId"))) fanout.push_back({{"userId", d.at("userId")}, {"deviceId", d.at("deviceId")}});
         }
+        // Every listed device of each account still addressed (an account the server refused is dropped whole):
+        // marked allDevices (docs/signal-integration/13-every-device-and-session-reset.md), split by account.
         delivered = detail::sendInBatches(
-            fanout, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, body, b); }, gone.empty(), &gone);
+            fanout, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, body, b, true); }, gone.empty(),
+            &gone, true);
     }
     if (dropped) dropped->insert(gone.begin(), gone.end());
     return delivered;
@@ -459,7 +462,9 @@ int sendToCommunity(V3Device& device, const CommunityInfo& community, const std:
             const SendScope* outer = SendScope::current();
             std::optional<SendScope> scope;
             if (outer && !outer->recordId.empty()) scope.emplace(outer->recordId, "messages");  // this request carries the op
-            return sendToDevices(device, conversationId, recipients, plaintext);
+            FanOut options;
+            options.allDevices = true;  // the staff's and this account's listed devices: marked when none is unreachable
+            return sendToDevices(device, conversationId, recipients, plaintext, nullptr, options);
         }
         if (community.channel()) throw EngineError("cannot_post", "Only the owner and staff post in this channel.");
         throw EngineError("not_in_roster", "You can post once the owner's or a staff member's app has added you. Try again in a minute.");

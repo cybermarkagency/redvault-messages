@@ -1140,7 +1140,10 @@ int sendToSignalGroup(V3Device& device, const std::string& conversationId, const
     Json fanout = Json::array();
     for (const Json& d : others) fanout.push_back({{"userId", d.at("userId")}, {"deviceId", d.at("deviceId")}});
     const std::string body = sealed.at("message").dump();
-    detail::sendInBatches(fanout, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, body, b); });
+    // Every member device but this one, from lists just verified: marked allDevices (gap 1), split by account.
+    detail::sendInBatches(
+        fanout, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, body, b, true); }, false, nullptr,
+        true);
     return static_cast<int>(fanout.size());
 }
 
@@ -1176,7 +1179,10 @@ int sendToGroup(V3Device& device, const std::string& conversationId, const std::
         recipients.push_back({{"userId", d.at("userId")}, {"deviceId", d.at("deviceId")}});
     }
     const std::string sealedBody = body.dump();
-    detail::sendInBatches(recipients, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, sealedBody, b); });
+    // Every member device but this one (room keys above went only to those without it): marked, split by account.
+    detail::sendInBatches(
+        recipients, [&](const Json& b) { device.server().sendGroupMessage(device.deviceId(), conversationId, sealedBody, b, true); }, false,
+        nullptr, true);
     return static_cast<int>(recipients.size());
 }
 
@@ -1513,6 +1519,36 @@ QueueDrain sendQueuedChat(V3Device& device, ChatHistory& history, QueueingV3Serv
 
 // --- Receiving ---
 
+namespace {
+
+/// A Signal error from a pairwise message that a new session may cure (gap 2): the session fell out of step.
+bool brokenSession(const std::string& code) {
+    return code == "decrypt_failed" || code == "no_signal_session" || code == "unknown_prekey";
+}
+
+/**
+ * Gap 2 (docs/signal-integration/13-every-device-and-session-reset.md): sets this device's session with `peer` aside
+ * and sends that one device a refresh, which starts a new session it switches to. At most once per peer device every
+ * ten minutes (the engine answers reset: false otherwise). Unmarked and never queued. Throws on any failure.
+ */
+void healSession(V3Device& device, const Json& peer, const std::string& conversationId) {
+    const Json reset = device.must("signalResetSession", Json{{"peer", peer}});
+    if (!reset.value("reset", false)) return;
+    const Json address = {{"userId", peer.at("userId")}, {"deviceId", peer.at("deviceId")}};
+    const Json claimed = device.server().signalClaim(conversationId, Json::array({address}));
+    if (!claimed.is_array() || claimed.empty()) return;
+    const Json& c = claimed.at(0);
+    const Json refreshed = device.must(
+        "signalRefresh",
+        Json{{"peer", peer}, {"claimed", Json{{"certificate", c.value("certificate", Json(nullptr))}, {"bundle", c.value("bundle", Json(nullptr))}}}});
+    NoQueueScope unqueued;
+    Json message = address;
+    message["body"] = refreshed.at("message").dump();
+    device.server().sendMessages(device.deviceId(), conversationId, Json::array({message}));
+}
+
+}  // namespace
+
 std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std::int64_t nowMs, ReceiveStats* stats,
                                     std::vector<CallMessage>* calls, StoryStore* stories) {
     // Errors about the sender's list, not the message: the item waits until the person accepts the change.
@@ -1553,6 +1589,13 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
     auto joinGroup = [&](const std::string& conversationId) {
         device.must("groupSetMembers", Json{{"groupId", conversationId}, {"members", verifiedMemberDevices(device, conversationId)}});
     };
+    // Gap 2: sender devices whose Signal session with this one fell out of step, once each per pass.
+    struct Broken {
+        Json peer;
+        std::string conversationId;
+    };
+    std::vector<Broken> broken;
+    std::set<std::string> brokenSeen;
 
     for (const Json& item : items) {
         const std::string id = item.at("id").get<std::string>();
@@ -1645,6 +1688,10 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
         }
         if (!response.value("ok", false)) {
             const std::string code = stringOr(response, "error", "decrypt_failed");
+            if (!isGroupBody && !hold.count(code) && brokenSession(code) && stringOr(parsed, "protocol") == "rv-signal-v1" &&
+                brokenSeen.insert(senderUserId + "/" + senderDeviceId).second) {
+                broken.push_back(Broken{*sender, conversationId});  // acknowledged below as before; a new session after the pass
+            }
             if (!hold.count(code)) {
                 handled.push_back(id);  // duplicate, not for this device, malformed: never going to open
             } else if (stats) {
@@ -1653,9 +1700,13 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
             }
             continue;
         }
-        if (!isGroupBody && (stringOr(response, "kind", "message") == "roomKey" || stringOr(response, "kind", "message") == "senderKey")) {
-            handled.push_back(id);
-            continue;
+        if (!isGroupBody) {
+            // Key shares; a session refresh (gap 2) or a payload type this version doesn't know: nothing to show.
+            const std::string kind = stringOr(response, "kind", "message");
+            if (kind == "roomKey" || kind == "senderKey" || kind == "refresh" || kind == "ignored") {
+                handled.push_back(id);
+                continue;
+            }
         }
         DecodedEnvelope envelope = decodeEnvelope(stringOr(response, "plaintext"), conversationId, now);
         if (envelope.kind == DecodedEnvelope::Kind::Newer) continue;  // "update the app": kept
@@ -1739,6 +1790,13 @@ std::vector<ChatRecord> receiveChat(V3Device& device, ChatHistory& history, std:
         handled.push_back(id);
     }
     if (!handled.empty()) device.server().ack(device.deviceId(), handled);
+    for (const Broken& b : broken) {
+        try {
+            healSession(device, b.peer, b.conversationId);
+        } catch (...) {
+            // Best effort: tried again the next time a message from that device fails (nothing logged, no ids).
+        }
+    }
     if (stories) stories->dropStaleDeliveries();
     std::stable_sort(fresh.begin(), fresh.end(), [](const ChatRecord& a, const ChatRecord& b) { return a.ts < b.ts; });
     return fresh;
@@ -1775,7 +1833,10 @@ int sendCallSignal(V3Device& device, const std::string& conversationId, const st
             throw EngineError(signal.to == "*" ? "contact_has_no_device_keys" : "unknown_device",
                               signal.to == "*" ? "They haven't set up device keys yet." : "The device that called isn't in their list any more.");
         }
-        const int delivered = sendToDevices(device, conversationId, recipients, plaintext);
+        // The offer goes to every device of theirs (marked allDevices when all can be reached); an answer to one, never marked.
+        FanOut options;
+        options.allDevices = signal.to == "*";
+        const int delivered = sendToDevices(device, conversationId, recipients, plaintext, nullptr, options);
         if (delivered == 0) throw EngineError("unreachable", "None of their devices could be reached.");
         return delivered;
     });
@@ -1791,7 +1852,9 @@ int sendCallKey(V3Device& device, const std::string& conversationId, const CallK
             if (user.empty() || user == device.userId() || !seen.insert(user).second) continue;
             for (const Json& d : verifiedDevices(device, user, conversationId).devices) recipients.push_back(d);
         }
-        return sendToDevices(device, conversationId, recipients, plaintext);
+        FanOut options;
+        options.allDevices = true;  // every device of each account: marked when none is unreachable
+        return sendToDevices(device, conversationId, recipients, plaintext, nullptr, options);
     });
 }
 

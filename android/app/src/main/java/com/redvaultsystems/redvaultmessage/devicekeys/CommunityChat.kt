@@ -109,8 +109,11 @@ private fun notInRoster() =
 internal suspend fun rosterMembers(device: V3Device, conversationId: String): List<String>? =
     verifyRosters(device, conversationId)?.array("members")?.map { it.jsonPrimitive.content }
 
-/** Every listed device of [users] in [conversationId], each list verified by the engine (which remembers it). */
-internal suspend fun communityDevices(device: V3Device, conversationId: String, users: Collection<String>): List<JsonObject> {
+/**
+ * Every listed device of [users] in [conversationId], each list verified by the engine (which remembers it).
+ * [onSkipped] is called for each account left out because its list couldn't be read or didn't verify.
+ */
+internal suspend fun communityDevices(device: V3Device, conversationId: String, users: Collection<String>, onSkipped: () -> Unit = {}): List<JsonObject> {
     val wanted = users.mapTo(LinkedHashSet()) { it.lowercase() }
     val out = ArrayList<JsonObject>()
     val seen = HashSet<String>()
@@ -121,7 +124,10 @@ internal suspend fun communityDevices(device: V3Device, conversationId: String, 
         if (user !in wanted || !seen.add(user)) continue
         val list = view.deviceList ?: continue
         val verified = device.op("verifyDeviceList", "deviceList" to list)
-        if (!verified.ok) continue // That account's list doesn't check out: it isn't reached, nobody else is held up.
+        if (!verified.ok) {
+            onSkipped() // That account's list doesn't check out: it isn't reached, nobody else is held up.
+            continue
+        }
         out += verified.array("devices").map { it.jsonObject }
     }
     // Anyone the conversation list didn't include: their own list (GET users/:id/device-list with the conversation).
@@ -133,8 +139,10 @@ internal suspend fun communityDevices(device: V3Device, conversationId: String, 
         } catch (e: CancellationException) {
             throw e
         } catch (_: EngineException) {
+            onSkipped()
         } catch (e: ApiException) {
             if (e.status == 401 || e.status == 403) throw e
+            onSkipped()
         }
     }
     return out
@@ -152,11 +160,18 @@ private fun transient(e: ApiException) = e.status == 0 || e.status == 429 || e.s
 /**
  * Posts [items] (each addressed to [userOf]) in requests of at most [size], in order. A request that fails for a
  * network reason is tried again (up to 3 times); one refused with 409 `recipient_not_entitled` loses the accounts it
- * names and is tried once more. Returns the accounts dropped that way.
+ * names and is tried once more. Returns the accounts dropped that way. [byAccount] (a send marked `allDevices`, gap 1)
+ * never cuts one account's devices across two requests.
  */
-internal suspend fun <T> postInBatches(items: List<T>, userOf: (T) -> String, size: Int = ChatLimits.MAX_RECIPIENTS, post: suspend (List<T>) -> Unit): Set<String> {
+internal suspend fun <T> postInBatches(
+    items: List<T>,
+    userOf: (T) -> String,
+    size: Int = ChatLimits.MAX_RECIPIENTS,
+    byAccount: Boolean = false,
+    post: suspend (List<T>) -> Unit,
+): Set<String> {
     val dropped = HashSet<String>()
-    for (chunk in items.chunked(size)) {
+    for (chunk in sendChunks(items, byAccount, userOf, size)) {
         var batch = chunk.filter { userOf(it).lowercase() !in dropped }
         var tries = 0
         var refusedOnce = false
@@ -277,6 +292,7 @@ private suspend fun shareSenderKey(device: V3Device, conversation: String, devic
         reached += devices[i]
         r["message"]?.let { keyMessages += Triple(devices[i].s("userId")!!, devices[i].s("deviceId")!!, it.toString()) }
     }
+    // Never marked: the key goes only to the devices that lack it.
     val dropped = postInBatches(keyMessages, { it.first }) { device.api.sendMessages(device.deviceId, conversation, it) }
     if (dropped.isNotEmpty()) droppedRecipients.getOrPut(conversation) { java.util.concurrent.ConcurrentHashMap.newKeySet() } += dropped
     return reached.filter { (it.s("userId") ?: "").lowercase() !in dropped }
@@ -297,9 +313,12 @@ internal suspend fun deliverCommunity(device: V3Device, history: ChatHistory, en
             if (!opOnly) throw EngineException("cannot_post", "Only the owner and staff post in this channel.")
             // To the owner and staff (the roster) and this account's other devices, pairwise. Never to other members.
             val staff = rosterMembers(device, conversation) ?: throw notReady()
-            val targets = communityDevices(device, conversation, (staff + device.userId).distinct()).filter { it.s("deviceId") != device.deviceId }
+            var skipped = false
+            val targets = communityDevices(device, conversation, (staff + device.userId).distinct()) { skipped = true }.filter { it.s("deviceId") != device.deviceId }
             val messages = encryptToDevices(device, conversation, envelope, targets)
-            postInBatches(messages, { it.first }) { device.api.sendMessages(device.deviceId, conversation, it) }
+            // Gap 1: marked only when every account's list was read, so no device of an addressed account is left out.
+            val marked = !skipped
+            postInBatches(messages, { it.first }, byAccount = marked) { device.api.sendMessages(device.deviceId, conversation, it, marked) }
         } else {
             val roster = ensureCommunityRoster(device, route)
             val readers = if (ctx.isChannel) {
@@ -309,8 +328,10 @@ internal suspend fun deliverCommunity(device: V3Device, history: ChatHistory, en
             val devices = communityDevices(device, conversation, readers).filter { it.s("deviceId") != device.deviceId }
             val reached = shareSenderKey(device, conversation, devices, if (ctx.isChannel) "recipients" else null)
             val sealed = device.must("groupSignalEncrypt", "groupId" to conversation, "plaintext" to envelope).obj("message").toString()
-            val dropped = postInBatches(reached.map { it.s("userId")!! to it.s("deviceId")!! }, { it.first }) {
-                device.api.sendGroupMessage(device.deviceId, conversation, sealed, it)
+            // Gap 1: marked only when the key reached every device, so the fan-out leaves none out.
+            val marked = reached.size == devices.size
+            val dropped = postInBatches(reached.map { it.s("userId")!! to it.s("deviceId")!! }, { it.first }, byAccount = marked) {
+                device.api.sendGroupMessage(device.deviceId, conversation, sealed, it, marked)
             }
             if (dropped.isNotEmpty()) droppedRecipients.getOrPut(conversation) { java.util.concurrent.ConcurrentHashMap.newKeySet() } += dropped
         }

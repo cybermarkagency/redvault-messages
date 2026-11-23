@@ -6,6 +6,7 @@
 #include <sodium.h>
 
 #include <algorithm>
+#include <map>
 
 #include "batches.hpp"
 #include "fs_util.hpp"
@@ -33,7 +34,8 @@ Json itemJson(const QueuedSend& q) {
                 {"body", q.body},
                 {"recipients", q.recipients},
                 {"recordId", q.recordId},
-                {"carriesRecord", q.carriesRecord}};
+                {"carriesRecord", q.carriesRecord},
+                {"allDevices", q.allDevices}};
 }
 
 QueuedSend itemFrom(const Json& j) {
@@ -47,6 +49,8 @@ QueuedSend itemFrom(const Json& j) {
     q.recipients = j.value("recipients", Json::array());
     q.recordId = stringAt(j, "recordId");
     q.carriesRecord = j.value("carriesRecord", false);
+    const auto all = j.find("allDevices");
+    q.allDevices = all != j.end() && all->is_boolean() && all->get<bool>();
     return q;
 }
 
@@ -156,11 +160,11 @@ std::shared_ptr<SendQueue> QueueingV3Server::queue() const {
     return queue_;
 }
 
-void QueueingV3Server::sendNow(const QueuedSend& item) {
+void QueueingV3Server::sendNow(const QueuedSend& item, bool allDevices) {
     if (item.kind == "group") {
-        inner_->sendGroupMessage(item.senderDeviceId, item.conversationId, item.body, item.recipients);
+        inner_->sendGroupMessage(item.senderDeviceId, item.conversationId, item.body, item.recipients, allDevices);
     } else {
-        inner_->sendMessages(item.senderDeviceId, item.conversationId, item.messages);
+        inner_->sendMessages(item.senderDeviceId, item.conversationId, item.messages, allDevices);
     }
 }
 
@@ -168,7 +172,7 @@ void QueueingV3Server::sendOrQueue(QueuedSend item) {
     const SendScope* scope = SendScope::current();
     const auto queue = this->queue();
     // No scope (or a NoQueueScope, which has no record): never queued.
-    if (scope == nullptr || scope->recordId.empty() || !queue) return sendNow(item);
+    if (scope == nullptr || scope->recordId.empty() || !queue) return sendNow(item, item.allDevices);
     item.recordId = scope->recordId;
     item.carriesRecord = item.kind == scope->carrierKind;
     // Earlier requests still wait: this one goes behind them, so nothing overtakes.
@@ -177,7 +181,7 @@ void QueueingV3Server::sendOrQueue(QueuedSend item) {
         throw SendQueued();
     }
     try {
-        sendNow(item);
+        sendNow(item, item.allDevices);
     } catch (const api::ApiError& error) {
         // Only "tor_unavailable" is certain to have sent nothing (the gate opened no socket): the same ciphertext
         // can then go later without the server ever seeing it twice. Anything else is the caller's failure, as before.
@@ -187,9 +191,11 @@ void QueueingV3Server::sendOrQueue(QueuedSend item) {
     }
 }
 
-void QueueingV3Server::sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages) {
+void QueueingV3Server::sendMessages(const std::string& senderDeviceId, const std::string& conversationId, const Json& messages,
+                                    bool allDevices) {
     QueuedSend item;
     item.kind = "messages";
+    item.allDevices = allDevices;
     item.senderDeviceId = senderDeviceId;
     item.conversationId = conversationId;
     item.messages = messages;
@@ -197,9 +203,10 @@ void QueueingV3Server::sendMessages(const std::string& senderDeviceId, const std
 }
 
 void QueueingV3Server::sendGroupMessage(const std::string& senderDeviceId, const std::string& conversationId, const std::string& body,
-                                        const Json& recipients) {
+                                        const Json& recipients, bool allDevices) {
     QueuedSend item;
     item.kind = "group";
+    item.allDevices = allDevices;
     item.senderDeviceId = senderDeviceId;
     item.conversationId = conversationId;
     item.body = body;
@@ -213,7 +220,14 @@ QueueingV3Server::Flushed QueueingV3Server::flush() {
     if (!queue) return out;
     for (const QueuedSend& item : queue->items()) {
         try {
-            sendNow(item);
+            try {
+                sendNow(item, item.allDevices);
+            } catch (const api::ApiError& error) {
+                // A device was linked after this was encrypted: the bodies can't reach it, but they still go to the
+                // devices they were made for, as before the mark (docs/signal-integration/13-every-device-and-session-reset.md, gap 1).
+                if (!item.allDevices || error.code() != "device_list_stale") throw;
+                sendNow(item, false);
+            }
         } catch (const api::ApiError& error) {
             if (waitsForConnection(error)) {
                 out.waiting = true;
@@ -258,8 +272,37 @@ bool briefly(const api::ApiError& error) {
 
 }  // namespace
 
-int sendInBatches(const Json& items, const std::function<void(const Json& batch)>& send, bool dropOnce, std::set<std::string>* dropped) {
+int sendInBatches(const Json& items, const std::function<void(const Json& batch)>& send, bool dropOnce, std::set<std::string>* dropped,
+                  bool byAccount) {
     std::vector<Json> rest(items.begin(), items.end());
+    const auto account = [](const Json& item) { return item.value("userId", std::string()); };
+    if (byAccount) {
+        // One account's devices next to each other, accounts in the order they first appear.
+        std::vector<std::string> order;
+        std::map<std::string, std::vector<Json>> byUser;
+        for (Json& item : rest) {
+            const std::string user = account(item);
+            if (!byUser.count(user)) order.push_back(user);
+            byUser[user].push_back(std::move(item));
+        }
+        rest.clear();
+        for (const std::string& user : order) {
+            for (Json& item : byUser[user]) rest.push_back(std::move(item));
+        }
+    }
+    // Where the batch starting at `at` ends.
+    const auto batchEnd = [&](std::size_t at) {
+        if (!byAccount) return std::min(rest.size(), at + kMaxDevicesPerRequest);
+        std::size_t end = at;
+        while (end < rest.size()) {
+            std::size_t next = end;
+            const std::string user = account(rest[end]);
+            while (next < rest.size() && account(rest[next]) == user) ++next;
+            if (end > at && next - at > kMaxDevicesPerRequest) break;  // this account goes whole into the next batch
+            end = next;
+        }
+        return std::min(end, at + kMaxDevicesPerRequest);  // only an account over 100 devices (never) is cut
+    };
     std::set<std::string> gone;
     bool dropUsed = !dropOnce;
     bool queued = false;
@@ -267,7 +310,7 @@ int sendInBatches(const Json& items, const std::function<void(const Json& batch)
     std::size_t at = 0;
     while (at < rest.size()) {
         Json batch = Json::array();
-        const std::size_t end = std::min(rest.size(), at + kMaxDevicesPerRequest);
+        const std::size_t end = batchEnd(at);
         for (std::size_t i = at; i < end; ++i) batch.push_back(rest[i]);
         try {
             for (int attempt = 1;; ++attempt) {
@@ -293,7 +336,7 @@ int sendInBatches(const Json& items, const std::function<void(const Json& batch)
             // Drop the named accounts from this batch and every later one, then try this batch again.
             std::vector<Json> kept(rest.begin(), rest.begin() + static_cast<std::ptrdiff_t>(at));
             for (std::size_t i = at; i < rest.size(); ++i) {
-                if (!gone.count(rest[i].value("userId", std::string()))) kept.push_back(rest[i]);
+                if (!gone.count(account(rest[i]))) kept.push_back(rest[i]);
             }
             rest = std::move(kept);
         }

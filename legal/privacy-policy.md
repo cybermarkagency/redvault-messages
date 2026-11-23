@@ -1,8 +1,8 @@
 # RedVault Messages – Privacy Policy
 
-Effective Date: 6 October 2026
+Effective Date: 19 November 2026
 
-Last Updated: 14 November 2026
+Last Updated: 19 November 2026
 
 This Privacy Policy applies specifically to the RedVault Messages encrypted messaging service (“RedVault Messages”, the “Service”).
 
@@ -158,8 +158,8 @@ You can turn the backup route off in Settings › Privacy & Security › Network
 
 Bridges are off unless you turn them on in Settings › Privacy & Security › Network routing. They are for networks that block Tor. With a bridge, the apps still connect only through Tor; only the first step into the Tor network changes, and what our servers can see stays the same.
 
-- **Snowflake:** the app first contacts the Tor Project's Snowflake broker through a content delivery network, then connects to a volunteer-run Snowflake proxy over WebRTC, using public STUN servers to set that up. The volunteer proxy, the STUN servers and the content delivery network can see your IP address and that you are using Snowflake, but not what you send.
-- **obfs4 and WebTunnel:** the app connects to a bridge relay run by a volunteer (the built-in ones come from the Tor Project, or you can enter your own). The bridge can see your IP address, as the first Tor relay always can, but not what you send.
+- Snowflake: the app first contacts the Tor Project's Snowflake broker through a content delivery network, then connects to a volunteer-run Snowflake proxy over WebRTC, using public STUN servers to set that up. The volunteer proxy, the STUN servers and the content delivery network can see your IP address and that you are using Snowflake, but not what you send.
+- obfs4 and WebTunnel: the app connects to a bridge relay run by a volunteer (the built-in ones come from the Tor Project, or you can enter your own). The bridge can see your IP address, as the first Tor relay always can, but not what you send.
 
 The bridge lines and your choice are kept only on your device. They are never sent to us.
 

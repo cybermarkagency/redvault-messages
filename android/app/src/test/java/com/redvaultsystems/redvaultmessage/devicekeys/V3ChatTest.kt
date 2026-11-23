@@ -279,13 +279,13 @@ class V3ChatTest {
     /** The fake server's API with Tor "down" for the posts only: the device lists and keys were fetched, then Tor dropped. */
     private class TorDropsPosts(private val inner: V3Api) : V3Api by inner {
         var down = true
-        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>) {
+        override suspend fun sendMessages(senderDeviceId: String, conversationId: String?, messages: List<Triple<String, String, String>>, allDevices: Boolean) {
             if (down) throw com.redvaultsystems.redvaultmessage.data.api.ApiException(0, "tor_unavailable", "Tor connection unavailable")
-            inner.sendMessages(senderDeviceId, conversationId, messages)
+            inner.sendMessages(senderDeviceId, conversationId, messages, allDevices)
         }
-        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>) {
+        override suspend fun sendGroupMessage(senderDeviceId: String, conversationId: String, body: String, recipients: List<Pair<String, String>>, allDevices: Boolean) {
             if (down) throw com.redvaultsystems.redvaultmessage.data.api.ApiException(0, "tor_unavailable", "Tor connection unavailable")
-            inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients)
+            inner.sendGroupMessage(senderDeviceId, conversationId, body, recipients, allDevices)
         }
     }
 
